@@ -132,16 +132,14 @@ internal fun GithubUpdateCard(appVersion: String) {
                                     error("Die APK gehört zu einer anderen App: " + archive.packageName)
                                 }
                                 val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
-                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    setDataAndType(uri, "application/vnd.android.package-archive")
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                if (intent.resolveActivity(context.packageManager) == null) {
-                                    error("Android hat keinen Paket-Installer für APK-Dateien gefunden.")
+                                val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                                    data = uri
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    putExtra(Intent.EXTRA_RETURN_RESULT, true)
                                 }
                                 status = "APK geprüft. Android-Installationsdialog wird geöffnet …"
                                 context.startActivity(intent)
-                                status = "Installationsdialog geöffnet. Bitte dort auf Installieren tippen."
+                                status = "Android wurde zum Installieren der APK aufgefordert. Falls kein Dialog erscheint, erlaube KlimaPilot unter Android > Spezieller App-Zugriff > Unbekannte Apps installieren die Installation."
                             } catch (error: Exception) {
                                 status = "Update fehlgeschlagen: " + (error.message ?: error.javaClass.simpleName)
                             } finally {
