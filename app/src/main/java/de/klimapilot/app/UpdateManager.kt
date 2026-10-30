@@ -25,7 +25,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-private const val LATEST_RELEASE_API = "https://api.github.com/repos/Apropo1710/KlimaPilot/releases/latest"
+private const val LATEST_RELEASE_API = "https://api.github.com/repos/Apropo1710/KlimaPilot/releases/tags/latest"
 private data class KlimaUpdate(val version: String, val downloadUrl: String)
 
 @Composable
