@@ -1,0 +1,74 @@
+name: KlimaPilot Android APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quellcode auschecken
+        uses: actions/checkout@v4
+
+      - name: Java 17 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK einrichten
+        uses: android-actions/setup-android@v4
+
+      - name: Android SDK Pakete installieren
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle 8.9 einrichten
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Release-Keystore bereitstellen
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KLIMAPILOT_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "Keystore-Secret fehlt"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/klimapilot-release.jks"
+          chmod 600 "$RUNNER_TEMP/klimapilot-release.jks"
+
+      - name: Release-APK bauen
+        env:
+          KLIMAPILOT_KEYSTORE_PATH: ${{ runner.temp }}/klimapilot-release.jks
+          KLIMAPILOT_STORE_PASSWORD: ${{ secrets.KLIMAPILOT_STORE_PASSWORD }}
+          KLIMAPILOT_KEY_ALIAS: ${{ secrets.KLIMAPILOT_KEY_ALIAS }}
+          KLIMAPILOT_KEY_PASSWORD: ${{ secrets.KLIMAPILOT_KEY_PASSWORD }}
+        run: gradle --no-daemon assembleRelease
+
+      - name: APK und Signatur prüfen
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+
+      - name: APK als Build-Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: KlimaPilot-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: APK als neueste Release-Version veröffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: KlimaPilot – neueste APK
+          body: Automatisch gebaute und signierte KlimaPilot-Version.
+          files: app/build/outputs/apk/release/app-release.apk
+          overwrite_files: true
+          make_latest: true
