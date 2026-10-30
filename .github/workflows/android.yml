@@ -76,12 +76,13 @@ jobs:
       - name: Release-Version ermitteln
         run: echo "APP_VERSION=$(sed -n 's/.*versionName = \"\(.*\)\".*/\1/p' app/build.gradle.kts)" >> "$GITHUB_ENV"
 
-      - name: APK als neueste Release-Version veröffentlichen
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: KlimaPilot – neueste APK
-          body: "KlimaPilot-Version: ${{ env.APP_VERSION }}\nAutomatisch gebaute und signierte KlimaPilot-Version."
-          files: app/build/outputs/apk/release/KlimaPilot.apk
-          overwrite_files: true
-          make_latest: true
+      - name: Neueste APK im privaten Release veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag -f latest "$GITHUB_SHA"
+          git push origin refs/tags/latest --force
+          gh release view latest >/dev/null
+          gh release edit latest --title "KlimaPilot – neueste APK" --notes "KlimaPilot-Version: $APP_VERSION
+          Automatisch gebaute und signierte KlimaPilot-Version."
+          gh release upload latest app/build/outputs/apk/release/KlimaPilot.apk --clobber
