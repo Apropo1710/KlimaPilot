@@ -35,6 +35,7 @@ internal fun RoomDeviceManagerScreen(
     onRemoveRoom: (String) -> Unit,
     back: () -> Unit
 ) {
+    var showAddOptions by remember { mutableStateOf(false) }
     var addRoom by remember { mutableStateOf(false) }
     var addDevice by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<UserDevice?>(null) }
@@ -138,34 +139,48 @@ internal fun RoomDeviceManagerScreen(
                             }
                         }
                     }
-                    OutlinedButton(
-                        onClick = {
-                            editing = null
-                            addDevice = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ManagerBlue),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, ManagerBlue)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("Gerät diesem Raum hinzufügen")
-                    }
                 }
             }
         }
 
         OutlinedButton(
-            onClick = { addRoom = true },
+            onClick = { showAddOptions = true },
             modifier = Modifier.fillMaxWidth().height(50.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = ManagerBlue),
-            border = androidx.compose.foundation.BorderStroke(1.dp, ManagerBlue)
+            colors = ButtonDefaults.buttonColors(containerColor = ManagerBlue, contentColor = Color.White)
         ) {
             Icon(Icons.Default.Add, contentDescription = null)
             Spacer(Modifier.width(6.dp))
-            Text("Raum hinzufügen")
+            Text("Hinzufügen")
         }
         Text("Die Einträge werden lokal gespeichert. Die echte ioBroker-Anbindung folgt später.", fontSize = 12.sp, color = ManagerMuted)
+    }
+
+    if (showAddOptions) {
+        AlertDialog(
+            onDismissRequest = { showAddOptions = false },
+            containerColor = Color.White,
+            title = { Text("Was möchtest du hinzufügen?", color = ManagerText) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { showAddOptions = false; addRoom = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = ManagerBlue, contentColor = Color.White)
+                    ) { Text("Raum hinzufügen") }
+                    OutlinedButton(
+                        onClick = { showAddOptions = false; editing = null; addDevice = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ManagerBlue),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ManagerBlue)
+                    ) { Text("Gerät hinzufügen") }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAddOptions = false }, colors = ButtonDefaults.textButtonColors(contentColor = ManagerMuted)) {
+                    Text("Schließen")
+                }
+            }
+        )
     }
 
     if (addRoom) {
