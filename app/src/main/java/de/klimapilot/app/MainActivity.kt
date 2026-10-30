@@ -130,8 +130,8 @@ private fun KlimaPilotApp(appVersion: String) {
     BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
     val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—",false,21f,"Aus","Auto") }
     var vpnDemoConnected by remember { mutableStateOf(false) }
-    var host by remember { mutableStateOf("192.168.178.xxx") }
-    var port by remember { mutableStateOf("8087") }
+    var host by remember { mutableStateOf(prefs.getString("iobroker_host", "192.168.178.xxx") ?: "192.168.178.xxx") }
+    var port by remember { mutableStateOf(prefs.getString("iobroker_port", "8087") ?: "8087") }
 
     if (showManager) {
         RoomDeviceManagerScreen(rooms,devices,::saveData,{old,new -> if(selectedRoom==old)selectedRoom=new;roomStates.remove(old)?.let{roomStates[new]=it}},{ removed -> if(selectedRoom==removed)selectedRoom=rooms.first(); roomStates.remove(removed) }){showManager=false}
@@ -139,8 +139,10 @@ private fun KlimaPilotApp(appVersion: String) {
         SettingsScreen(
             host = host,
             onHostChange = { host = it },
+            onHostConfirm = { prefs.edit().putString("iobroker_host", host.trim()).apply() },
             port = port,
             onPortChange = { port = it },
+            onPortConfirm = { prefs.edit().putString("iobroker_port", port.trim()).apply() },
             appVersion = appVersion,
             onManageRoomsDevices = { showManager = true; showSettings = false },
             onBack = { showSettings = false }
@@ -438,7 +440,7 @@ private fun VpnDemoCard(connected: Boolean, onToggle: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: String, onPortChange: (String) -> Unit, appVersion: String, onManageRoomsDevices: () -> Unit, onBack: () -> Unit) {
+private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostConfirm: () -> Unit, port: String, onPortChange: (String) -> Unit, onPortConfirm: () -> Unit, appVersion: String, onManageRoomsDevices: () -> Unit, onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = TextMain) }
@@ -471,8 +473,24 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: S
             }
         }
         Text("ioBroker-Adresse", color = TextMain, fontWeight = FontWeight.SemiBold)
-        OutlinedTextField(value = host, onValueChange = onHostChange, modifier = Modifier.fillMaxWidth(), label = { Text("IP-Adresse oder Hostname") }, singleLine = true)
-        OutlinedTextField(value = port, onValueChange = onPortChange, modifier = Modifier.fillMaxWidth(), label = { Text("Port (später festlegen)") }, singleLine = true)
+        var hostConfirmed by remember(host) { mutableStateOf(false) }
+        var portConfirmed by remember(port) { mutableStateOf(false) }
+        OutlinedTextField(value = host, onValueChange = { onHostChange(it); hostConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("IP-Adresse oder Hostname") }, singleLine = true)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            OutlinedButton(onClick = { onHostConfirm(); hostConfirmed = true }, enabled = host.isNotBlank()) {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(if (hostConfirmed) "Gespeichert" else "Adresse übernehmen")
+            }
+        }
+        OutlinedTextField(value = port, onValueChange = { onPortChange(it); portConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("Port (später festlegen)") }, singleLine = true)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            OutlinedButton(onClick = { onPortConfirm(); portConfirmed = true }, enabled = (port.toIntOrNull() ?: 0) in 1..65535) {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(if (portConfirmed) "Gespeichert" else "Port übernehmen")
+            }
+        }
         Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.Tune, contentDescription = null, tint = Blue)
