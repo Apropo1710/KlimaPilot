@@ -109,7 +109,7 @@ private fun KlimaPilotApp(appVersion: String) {
     var port by remember { mutableStateOf("8087") }
 
     if (showManager) {
-        RoomDeviceManagerScreen(rooms,devices,::saveData,{old,new -> if(selectedRoom==old)selectedRoom=new;roomStates.remove(old)?.let{roomStates[new]=it}}){showManager=false}
+        RoomDeviceManagerScreen(rooms,devices,::saveData,{old,new -> if(selectedRoom==old)selectedRoom=new;roomStates.remove(old)?.let{roomStates[new]=it}},{ removed -> if(selectedRoom==removed)selectedRoom=rooms.first(); roomStates.remove(removed) }){showManager=false}
     } else if (showSettings) {
         SettingsScreen(
             host = host,
