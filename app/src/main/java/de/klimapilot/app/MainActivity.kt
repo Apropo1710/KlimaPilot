@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DeviceThermostat
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -132,19 +133,52 @@ private fun KlimaPilotApp(appVersion: String) {
     BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
     val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—",false,21f,"Aus","Auto") }
     var vpnDemoConnected by remember { mutableStateOf(false) }
-    var host by remember { mutableStateOf(prefs.getString("iobroker_host", "192.168.178.xxx") ?: "192.168.178.xxx") }
-    var port by remember { mutableStateOf(prefs.getString("iobroker_port", "8087") ?: "8087") }
+    val initialServerUrl = remember {
+        prefs.getString("iobroker_server", null) ?: run {
+            val savedHost = prefs.getString("iobroker_host", "192.168.178.xxx") ?: "192.168.178.xxx"
+            val savedPort = prefs.getString("iobroker_port", "8087") ?: "8087"
+            if (savedHost.startsWith("http://") || savedHost.startsWith("https://")) savedHost.trimEnd('/')
+            else "http://${savedHost.trim()}:${savedPort.trim()}"
+        }
+    }
+    var serverUrl by remember { mutableStateOf(initialServerUrl) }
+    var ioBrokerConnected by remember { mutableStateOf(false) }
+    var ioBrokerChecking by remember { mutableStateOf(false) }
+    var ioBrokerStatus by remember { mutableStateOf("Noch nicht verbunden") }
+
+    fun connectToIoBroker() {
+        val target = serverUrl.trim().trimEnd('/')
+        if (!(target.startsWith("http://") || target.startsWith("https://")) || target.contains("xxx")) {
+            ioBrokerConnected = false
+            ioBrokerStatus = "Bitte eine gültige Serveradresse eingeben."
+            return
+        }
+        ioBrokerChecking = true
+        ioBrokerConnected = false
+        ioBrokerStatus = "Verbindung wird aufgebaut …"
+        prefs.edit().putString("iobroker_server", target).apply()
+        IoBrokerClient.testConnection(target) { ok, message ->
+            ioBrokerConnected = ok
+            ioBrokerChecking = false
+            ioBrokerStatus = message
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (serverUrl.isNotBlank() && !serverUrl.contains("xxx")) connectToIoBroker()
+    }
 
     if (showManager) {
         RoomDeviceManagerScreen(rooms,devices,::saveData,{old,new -> if(selectedRoom==old)selectedRoom=new;roomStates.remove(old)?.let{roomStates[new]=it}},{ removed -> if(selectedRoom==removed)selectedRoom=rooms.first(); roomStates.remove(removed) }){showManager=false}
     } else if (showSettings) {
         SettingsScreen(
-            host = host,
-            onHostChange = { host = it },
-            onHostConfirm = { prefs.edit().putString("iobroker_host", host.trim()).apply() },
-            port = port,
-            onPortChange = { port = it },
-            onPortConfirm = { prefs.edit().putString("iobroker_port", port.trim()).apply() },
+            serverUrl = serverUrl,
+            onServerUrlChange = { serverUrl = it },
+            onServerUrlConfirm = { prefs.edit().putString("iobroker_server", serverUrl.trim().trimEnd('/')).apply() },
+            connected = ioBrokerConnected,
+            checking = ioBrokerChecking,
+            status = ioBrokerStatus,
+            onConnect = { connectToIoBroker() },
             appVersion = appVersion,
             onManageRoomsDevices = { showManager = true; showSettings = false },
             onBack = { showSettings = false }
@@ -186,6 +220,7 @@ private fun KlimaPilotApp(appVersion: String) {
             onFan = { room.fan = it },
             vpnDemoConnected = vpnDemoConnected,
             onVpnDemo = { vpnDemoConnected = !vpnDemoConnected },
+            ioBrokerConnected = ioBrokerConnected,
             onSettings = { showSettings = true }
         )
     }
@@ -212,6 +247,7 @@ private fun MainScreen(
     onFan: (String) -> Unit,
     vpnDemoConnected: Boolean,
     onVpnDemo: () -> Unit,
+    ioBrokerConnected: Boolean,
     onSettings: () -> Unit
 ) {
     Column(
@@ -259,7 +295,7 @@ private fun MainScreen(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Box(Modifier.size(38.dp).clip(CircleShape).background(Panel), contentAlignment = Alignment.Center) {
                     // Neutral until a real ioBroker connection can confirm success.
-                    Icon(Icons.Default.CloudOff, contentDescription = "ioBroker nicht verbunden", tint = Muted, modifier = Modifier.size(19.dp))
+                    Icon(if (ioBrokerConnected) Icons.Default.Cloud else Icons.Default.CloudOff, contentDescription = if (ioBrokerConnected) "ioBroker verbunden" else "ioBroker nicht verbunden", tint = if (ioBrokerConnected) Green else Muted, modifier = Modifier.size(19.dp))
                 }
                 IconButton(onClick = onSettings, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Panel)) {
                     Icon(Icons.Default.Settings, contentDescription = "Einstellungen", tint = TextMain)
@@ -273,7 +309,7 @@ private fun MainScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF9A6700), modifier = Modifier.size(18.dp))
-            Text("DEMO-MODUS · Keine echte Verbindung", color = Color(0xFF7A4B00), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(if (ioBrokerConnected) "IOBROKER VERBUNDEN · KLIMASTEUERUNG NOCH DEMO" else "DEMO-MODUS · Keine echte Verbindung", color = Color(0xFF7A4B00), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
 
         SectionTitle("RAUM AUSWÄHLEN")
@@ -442,7 +478,7 @@ private fun VpnDemoCard(connected: Boolean, onToggle: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostConfirm: () -> Unit, port: String, onPortChange: (String) -> Unit, onPortConfirm: () -> Unit, appVersion: String, onManageRoomsDevices: () -> Unit, onBack: () -> Unit) {
+private fun SettingsScreen(serverUrl: String, onServerUrlChange: (String) -> Unit, onServerUrlConfirm: () -> Unit, connected: Boolean, checking: Boolean, status: String, onConnect: () -> Unit, appVersion: String, onManageRoomsDevices: () -> Unit, onBack: () -> Unit) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -450,7 +486,7 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostC
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = TextMain) }
             Column {
                 Text("Einstellungen", color = TextMain, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-                Text("Vorbereitung für die spätere Verbindung", color = Muted, fontSize = 12.sp)
+                Text("Verbindung und Geräte", color = Muted, fontSize = 12.sp)
             }
         }
         OutlinedButton(onClick = onManageRoomsDevices, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
@@ -458,50 +494,55 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostC
             Spacer(Modifier.width(8.dp))
             Text("Räume & Geräte verwalten")
         }
-        Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFF3D6)).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF9A6700))
-            Text("Noch ohne Netzwerkfunktion. Einstellungen werden nicht übertragen.", color = Color(0xFF7A4B00), fontSize = 12.sp)
-        }
-        var hostConfirmed by remember(host) { mutableStateOf(false) }
-        var portConfirmed by remember(port) { mutableStateOf(false) }
-        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFDCEAF2)),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(24.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
-                        Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.SemiBold)
-                        Text("Noch nicht verbunden · Demo", color = Color(0xFF9A6700), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF398FBA)), contentAlignment = Alignment.Center) {
+                        Icon(if (connected) Icons.Default.Cloud else Icons.Default.CloudOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(if (connected) "Verbunden" else if (checking) "Verbindung wird aufgebaut …" else "Nicht verbunden", color = if (connected) Green else Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                 }
-                Text("Die echte Verbindungsprüfung wird eingerichtet, sobald die Schnittstelle feststeht.", color = Muted, fontSize = 12.sp, lineHeight = 17.sp)
-                HorizontalDivider(color = Color(0xFFE6EBF2))
-                Text("Verbindungsdaten", color = TextMain, fontWeight = FontWeight.SemiBold)
-                OutlinedTextField(value = host, onValueChange = { onHostChange(it); hostConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("IP-Adresse oder Hostname") }, singleLine = true)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    OutlinedButton(onClick = { onHostConfirm(); hostConfirmed = true; focusManager.clearFocus(); keyboardController?.hide() }, enabled = host.isNotBlank()) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (hostConfirmed) "Gespeichert" else "Adresse übernehmen")
+                OutlinedTextField(
+                    value = serverUrl,
+                    onValueChange = onServerUrlChange,
+                    label = { Text("Serveradresse") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            onServerUrlConfirm()
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        }) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = "Eingabe bestätigen", tint = Green)
+                        }
                     }
-                }
-                OutlinedTextField(value = port, onValueChange = { onPortChange(it); portConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("Port") }, singleLine = true)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    OutlinedButton(onClick = { onPortConfirm(); portConfirmed = true; focusManager.clearFocus(); keyboardController?.hide() }, enabled = (port.toIntOrNull() ?: 0) in 1..65535) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (portConfirmed) "Gespeichert" else "Port übernehmen")
+                )
+                Text(status, color = if (connected) Green else Muted, fontSize = 12.sp, fontWeight = if (connected) FontWeight.Medium else FontWeight.Normal)
+                if (!connected) {
+                    Button(onClick = {
+                        onServerUrlConfirm()
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        onConnect()
+                    }, enabled = !checking, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (checking) "Verbindung wird aufgebaut …" else "Verbindung herstellen")
                     }
+                } else {
+                    Text("Verbindung über ioBroker Simple API. Der Zugriff erfolgt wie in HomePilot ohne zusätzliche Anmeldung.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
                 }
             }
         }
         GithubUpdateCard(appVersion)
-        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.Tune, contentDescription = null, tint = Blue)
-                Text("Später einzurichten", color = TextMain, fontWeight = FontWeight.SemiBold)
-                Text("• Sichere ioBroker-Schnittstelle\n• Zugriff über dein WireGuard-VPN\n• Freigegebene Datenpunkte der Klimaanlage\n• Verbindungsprüfung und Fehlermeldungen", color = Muted, lineHeight = 22.sp, fontSize = 13.sp)
-            }
-        }
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) { Text("Zurück zur Klimaübersicht") }
     }
 }

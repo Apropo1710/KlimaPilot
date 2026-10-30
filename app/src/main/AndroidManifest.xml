@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- Demo build intentionally has no network permissions and cannot contact ioBroker. -->
     <application
+        android:usesCleartextTraffic="true"
         android:allowBackup="false"
         android:label="KlimaPilot"
         android:icon="@mipmap/ic_launcher"
