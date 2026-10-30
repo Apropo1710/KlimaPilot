@@ -38,7 +38,8 @@ internal fun RoomDeviceManagerScreen(
     var showAddOptions by remember { mutableStateOf(false) }
     var addRoom by remember { mutableStateOf(false) }
     var addDevice by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<UserDevice?>(null) }\n    var configuring by remember { mutableStateOf<UserDevice?>(null) }
+    var editing by remember { mutableStateOf<UserDevice?>(null) }
+    var configuring by remember { mutableStateOf<UserDevice?>(null) }
 
     Column(
         Modifier.fillMaxSize().background(Color(0xFFE8EEF5)).statusBarsPadding().navigationBarsPadding().imePadding()
@@ -133,7 +134,10 @@ internal fun RoomDeviceManagerScreen(
                                 Icon(Icons.Default.AcUnit, contentDescription = null, tint = ManagerBlue)
                                 Spacer(Modifier.width(9.dp))
                                 Text(device.name, modifier = Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ManagerText)
-                                IconButton(onClick = { configuring = device }) {\n                                    Icon(Icons.Default.Tune, contentDescription = "Geräteeinstellungen", tint = ManagerBlue)\n                                }\n                                IconButton(onClick = { editing = device }) {
+                                IconButton(onClick = { configuring = device }) {
+                                    Icon(Icons.Default.Tune, contentDescription = "Geräteeinstellungen", tint = ManagerBlue)
+                                }
+                                IconButton(onClick = { editing = device }) {
                                     Icon(Icons.Default.Edit, contentDescription = "Gerät bearbeiten", tint = ManagerBlue)
                                 }
                                 IconButton(onClick = { devices.remove(device); save() }) {
