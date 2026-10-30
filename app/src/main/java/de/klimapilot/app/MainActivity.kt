@@ -33,7 +33,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.awaitEachGesture
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.ui.input.pointer.horizontalDrag
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -200,17 +203,23 @@ private fun MainScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .pointerInput(devicesInRoom, selectedDeviceId) {
-                var totalDrag = 0f
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { _, delta -> totalDrag += delta },
-                    onDragEnd = {
-                        if (devicesInRoom.size > 1 && totalDrag < -45f) onDeviceSwipe(1)
-                        else if (devicesInRoom.size > 1 && totalDrag > 45f) onDeviceSwipe(-1)
-                        totalDrag = 0f
-                    },
-                    onDragCancel = { totalDrag = 0f }
-                )
+            .pointerInput(devicesInRoom.map { it.id }, selectedDeviceId) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var totalDrag = 0f
+                    val horizontalStart = awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
+                        totalDrag += overSlop
+                        change.consume()
+                    }
+                    if (horizontalStart != null) {
+                        horizontalDrag(horizontalStart.id) { change ->
+                            totalDrag += change.positionChange().x
+                            change.consume()
+                        }
+                        if (devicesInRoom.size > 1 && totalDrag < -65f) onDeviceSwipe(1)
+                        else if (devicesInRoom.size > 1 && totalDrag > 65f) onDeviceSwipe(-1)
+                    }
+                }
             }
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
