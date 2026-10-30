@@ -53,7 +53,10 @@ jobs:
           KLIMAPILOT_KEY_PASSWORD: ${{ secrets.KLIMAPILOT_KEY_PASSWORD }}
         run: gradle --no-daemon assembleRelease
 
-      - name: APK für Nutzer benennen\n        run: cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/KlimaPilot.apk\n\n      - name: APK und Signatur prüfen
+      - name: APK für Nutzer benennen
+        run: cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/KlimaPilot.apk
+
+      - name: APK und Signatur prüfen
         run: |
           APK="app/build/outputs/apk/release/KlimaPilot.apk"
           test -f "$APK"
