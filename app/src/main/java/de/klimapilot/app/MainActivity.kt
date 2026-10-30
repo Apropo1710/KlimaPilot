@@ -121,9 +121,10 @@ private fun KlimaPilotApp(appVersion: String) {
     } }
     fun saveData() { prefs.edit().putStringSet("rooms",rooms.toSet()).putString("devices",org.json.JSONArray().apply { devices.forEach { put(org.json.JSONObject().put("id",it.id).put("name",it.name).put("room",it.room).put("adapterKey",it.adapterKey).put("adapterInstance",it.adapterInstance).put("rootObjectId",it.rootObjectId).put("mappings",org.json.JSONObject(it.mappings)).put("model",it.model)) } }.toString()).apply() }
     var selectedRoom by remember { mutableStateOf(rooms.firstOrNull() ?: "Wohnzimmer") }
-    var selectedDeviceId by remember(selectedRoom) { mutableStateOf(devices.firstOrNull { it.room == selectedRoom }?.id ?: "") }
-    val roomDevices = devices.filter { it.room == selectedRoom }
-    val selectedDevice = roomDevices.firstOrNull { it.id == selectedDeviceId } ?: roomDevices.firstOrNull()
+    var selectedDeviceId by remember { mutableStateOf(devices.firstOrNull { it.room == selectedRoom }?.id ?: devices.firstOrNull()?.id ?: "") }
+    val selectedDevice = devices.firstOrNull { it.id == selectedDeviceId }
+        ?: devices.firstOrNull { it.room == selectedRoom }
+    val allDevices = devices.toList()
     val roomStates = remember { mutableStateMapOf("Wohnzimmer" to DemoRoomState("25,4 °C",true,23f,"Kühlen","Auto"),"Schlafzimmer" to DemoRoomState("22,1 °C",false,21f,"Aus","Leise")) }
     var showManager by remember { mutableStateOf(false) }
     BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
@@ -148,14 +149,24 @@ private fun KlimaPilotApp(appVersion: String) {
         MainScreen(
             selectedRoom = selectedRoom,
             rooms = rooms,
-            onRoomSelect = { selectedRoom = it },
+            onRoomSelect = { roomName ->
+                selectedRoom = roomName
+                selectedDeviceId = devices.firstOrNull { it.room == roomName }?.id ?: ""
+            },
             roomTemperature = room.roomTemperature,
-            devicesInRoom = roomDevices,
+            devicesInRoom = allDevices,
             selectedDeviceId = selectedDevice?.id ?: "",
-            onDeviceSelect = { selectedDeviceId = it },
+            onDeviceSelect = { deviceId ->
+                selectedDeviceId = deviceId
+                devices.firstOrNull { it.id == deviceId }?.let { selectedRoom = it.room }
+            },
             onDeviceSwipe = { direction ->
-                val current = roomDevices.indexOfFirst { it.id == selectedDevice?.id }.coerceAtLeast(0)
-                if (roomDevices.isNotEmpty()) selectedDeviceId = roomDevices[(current + direction + roomDevices.size) % roomDevices.size].id
+                val current = allDevices.indexOfFirst { it.id == selectedDevice?.id }.coerceAtLeast(0)
+                if (allDevices.size > 1) {
+                    val nextDevice = allDevices[(current + direction + allDevices.size) % allDevices.size]
+                    selectedDeviceId = nextDevice.id
+                    selectedRoom = nextDevice.room
+                }
             },
             deviceManufacturer = selectedDevice?.let { device -> AdapterProfiles.all.firstOrNull { it.key == device.adapterKey }?.title?.takeUnless { it.startsWith("Universell") } ?: "Klimaanlage" } ?: "Kein Gerät zugeordnet",
             deviceModel = selectedDevice?.model?.takeIf { it.isNotBlank() } ?: "Modell nicht hinterlegt",

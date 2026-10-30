@@ -53,9 +53,9 @@ jobs:
           KLIMAPILOT_KEY_PASSWORD: ${{ secrets.KLIMAPILOT_KEY_PASSWORD }}
         run: gradle --no-daemon assembleRelease
 
-      - name: APK und Signatur prüfen
+      - name: APK für Nutzer benennen\n        run: cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/KlimaPilot.apk\n\n      - name: APK und Signatur prüfen
         run: |
-          APK="app/build/outputs/apk/release/app-release.apk"
+          APK="app/build/outputs/apk/release/KlimaPilot.apk"
           test -f "$APK"
           "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK"
           "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK"
@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: KlimaPilot-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/KlimaPilot.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -79,6 +79,6 @@ jobs:
           tag_name: latest
           name: KlimaPilot – neueste APK
           body: "KlimaPilot-Version: ${{ env.APP_VERSION }}\nAutomatisch gebaute und signierte KlimaPilot-Version."
-          files: app/build/outputs/apk/release/app-release.apk
+          files: app/build/outputs/apk/release/KlimaPilot.apk
           overwrite_files: true
           make_latest: true

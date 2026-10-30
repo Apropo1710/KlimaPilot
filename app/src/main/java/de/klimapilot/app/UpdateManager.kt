@@ -25,7 +25,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-private const val LATEST_RELEASE_API = "https://api.github.com/repos/Apropo1710/KlimaPilot/releases/tags/latest"
+private const val LATEST_RELEASE_API = "https://api.github.com/repos/Apropo1710/KlimaPilot/releases/latest"
 private data class KlimaUpdate(val version: String, val downloadUrl: String)
 
 @Composable
@@ -51,16 +51,24 @@ internal fun UpdateManagerCard(appVersion: String) {
                     connection.setRequestProperty("Accept", "application/vnd.github+json")
                     connection.setRequestProperty("User-Agent", "KlimaPilot-Android")
                     try {
-                        val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                        val version = Regex("KlimaPilot-Version:\\s*([0-9.]+)").find(json.optString("body"))?.groupValues?.get(1)
-                            ?: throw IllegalStateException("Versionsnummer im Release fehlt")
+                        val responseCode = connection.responseCode
+                        val responseText = (if (responseCode in 200..299) connection.inputStream else connection.errorStream)
+                            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                        if (responseCode !in 200..299) {
+                            throw IllegalStateException("GitHub antwortet mit HTTP $responseCode")
+                        }
+                        val json = JSONObject(responseText)
+                        val releaseBody = json.optString("body")
+                        val version = Regex("""KlimaPilot-Version:\s*([0-9.]+)""").find(releaseBody)?.groupValues?.get(1)
+                            ?: json.optString("name").let { Regex("""([0-9]+\.[0-9]+\.[0-9]+)""").find(it)?.groupValues?.get(1) }
+                            ?: throw IllegalStateException("Versionsnummer fehlt in der Release-Beschreibung")
                         val assets = json.getJSONArray("assets")
                         var apkUrl: String? = null
                         for (i in 0 until assets.length()) {
                             val asset = assets.getJSONObject(i)
-                            if (asset.optString("name") == "app-release.apk") apkUrl = asset.optString("browser_download_url")
+                            if (asset.optString("name") == "KlimaPilot.apk") apkUrl = asset.optString("browser_download_url")
                         }
-                        KlimaUpdate(version, apkUrl ?: throw IllegalStateException("APK im Release nicht gefunden"))
+                        KlimaUpdate(version, apkUrl ?: throw IllegalStateException("KlimaPilot.apk wurde im Release nicht gefunden"))
                     } finally {
                         connection.disconnect()
                     }
@@ -70,7 +78,7 @@ internal fun UpdateManagerCard(appVersion: String) {
                 else "Du verwendest bereits die aktuelle Version"
                 checked = true
             } catch (t: Throwable) {
-                error = t.message ?: "Update-Prüfung fehlgeschlagen"
+                error = when (t) {\n                    is java.net.UnknownHostException -> "Keine Verbindung zu GitHub. Prüfe Internet oder VPN."\n                    is java.net.SocketTimeoutException -> "GitHub antwortet gerade nicht. Bitte erneut versuchen."\n                    else -> t.message?.takeIf { it.isNotBlank() } ?: "Update-Prüfung fehlgeschlagen"\n                }
                 status = "Update-Prüfung nicht möglich"
                 checked = true
             } finally {
