@@ -480,6 +480,7 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: S
                 Text("• Sichere ioBroker-Schnittstelle\n• Zugriff über dein WireGuard-VPN\n• Freigegebene Datenpunkte der Klimaanlage\n• Verbindungsprüfung und Fehlermeldungen", color = Muted, lineHeight = 22.sp, fontSize = 13.sp)
             }
         }
+        GithubUpdateCard(appVersion)
         Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
