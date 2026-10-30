@@ -117,6 +117,7 @@ private fun KlimaPilotApp(appVersion: String) {
             port = port,
             onPortChange = { port = it },
             appVersion = appVersion,
+            onManageRoomsDevices = { showManager = true; showSettings = false },
             onBack = { showSettings = false }
         )
     } else {
@@ -344,6 +345,11 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: S
                 Text("Einstellungen", color = TextMain, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Text("Vorbereitung für die spätere Verbindung", color = Muted, fontSize = 12.sp)
             }
+        }
+        OutlinedButton(onClick = onManageRoomsDevices, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
+            Icon(Icons.Default.Tune, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Räume & Geräte verwalten")
         }
         Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFF3D6)).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF9A6700))
