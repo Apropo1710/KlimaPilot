@@ -335,7 +335,7 @@ private fun MainScreen(
         ) { deviceId ->
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 TemperatureCard(
-                    roomName = selectedRoom,
+                    deviceName = selectedDevice?.name ?: selectedRoom,
                     roomTemperature = roomTemperature,
                     isOn = isOn,
                     targetTemp = targetTemp,
@@ -357,7 +357,7 @@ private fun MainScreen(
 
 @Composable
 private fun TemperatureCard(
-    roomName: String,
+    deviceName: String,
     roomTemperature: String,
     isOn: Boolean,
     targetTemp: Float,
@@ -371,7 +371,7 @@ private fun TemperatureCard(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             Box(Modifier.size(8.dp).clip(CircleShape).background(Muted))
             Text(
-                "${roomName.uppercase()} · STATUS NICHT VERFÜGBAR",
+                "${deviceName.uppercase()} · STATUS NICHT VERFÜGBAR",
                 color = Muted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
