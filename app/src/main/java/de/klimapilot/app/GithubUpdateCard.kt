@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -37,9 +38,9 @@ internal fun GithubUpdateCard(appVersion: String) {
     var pending by remember { mutableStateOf(GithubPrivateUpdates.pendingDevice(context)) }
     var busy by remember { mutableStateOf(false) }
     var code by remember { mutableStateOf(pending?.userCode) }
-    var status by remember { mutableStateOf(if (connected) "GitHub-Verbindung gespeichert." else if (pending != null) "GitHub-Anmeldung wurde unterbrochen. Du kannst sie fortsetzen." else "Einmalig mit GitHub verbinden, um private Updates abzurufen.") }
-    var newerVersion by remember { mutableStateOf<String?>(null) }
-    var assetId by remember { mutableStateOf<Long?>(null) }
+    var status by rememberSaveable { mutableStateOf(if (connected) "GitHub-Verbindung gespeichert." else if (pending != null) "GitHub-Anmeldung wurde unterbrochen. Du kannst sie fortsetzen." else "Einmalig mit GitHub verbinden, um private Updates abzurufen.") }
+    var newerVersion by rememberSaveable { mutableStateOf<String?>(null) }
+    var assetId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -112,16 +113,26 @@ internal fun GithubUpdateCard(appVersion: String) {
                             busy = true
                             status = "APK wird sicher heruntergeladen …"
                             try {
+                                status = "Download abgeschlossen. APK wird geprüft …"
                                 val file = GithubPrivateUpdates.download(context, assetId!!)
+                                val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+                                    ?: error("Die heruntergeladene Datei ist keine gültige Android-APK.")
+                                if (archive.packageName != context.packageName) {
+                                    error("Die APK gehört zu einer anderen App: " + archive.packageName)
+                                }
                                 val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
                                 val intent = Intent(Intent.ACTION_VIEW).apply {
                                     setDataAndType(uri, "application/vnd.android.package-archive")
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
+                                if (intent.resolveActivity(context.packageManager) == null) {
+                                    error("Android hat keinen Paket-Installer für APK-Dateien gefunden.")
+                                }
+                                status = "APK geprüft. Android-Installationsdialog wird geöffnet …"
                                 context.startActivity(intent)
-                                status = "Download fertig. Bitte die Installation im Android-Dialog bestätigen."
+                                status = "Installationsdialog geöffnet. Bitte dort auf Installieren tippen."
                             } catch (error: Exception) {
-                                status = error.message ?: "APK-Download fehlgeschlagen."
+                                status = "Update fehlgeschlagen: " + (error.message ?: error.javaClass.simpleName)
                             } finally {
                                 busy = false
                             }
