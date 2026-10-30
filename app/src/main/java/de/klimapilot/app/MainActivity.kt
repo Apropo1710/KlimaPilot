@@ -447,7 +447,6 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: S
                 Text("Vorbereitung für die spätere Verbindung", color = Muted, fontSize = 12.sp)
             }
         }
-        UpdateManagerCard(appVersion = appVersion)
         OutlinedButton(onClick = onManageRoomsDevices, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
             Icon(Icons.Default.Tune, contentDescription = null)
             Spacer(Modifier.width(8.dp))
