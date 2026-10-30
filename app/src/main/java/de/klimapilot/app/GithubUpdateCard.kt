@@ -44,7 +44,13 @@ internal fun GithubUpdateCard(appVersion: String) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Private Updates", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-            Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            val isCurrentVersion = status == "Du verwendest bereits die aktuelle Version."
+            Text(
+                status,
+                color = if (isCurrentVersion) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = if (isCurrentVersion) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodySmall,
+                fontWeight = if (isCurrentVersion) FontWeight.Bold else FontWeight.Normal
+            )
             if (code != null) {
                 Text("GitHub-Code: $code", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Gib diesen Code auf der geöffneten GitHub-Seite ein und bestätige den Zugriff.", style = MaterialTheme.typography.bodySmall)
