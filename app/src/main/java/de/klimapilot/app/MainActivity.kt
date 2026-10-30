@@ -196,10 +196,12 @@ private fun KlimaPilotApp(appVersion: String) {
             devicesInRoom = allDevices,
             selectedDeviceId = selectedDevice?.id ?: "",
             onDeviceSelect = { deviceId -> selectedDeviceId = deviceId },
-            onDeviceSwipe = { direction ->
-                val current = allDevices.indexOfFirst { it.id == selectedDevice?.id }.coerceAtLeast(0)
-                if (allDevices.size > 1) {
-                    selectedDeviceId = allDevices[(current + direction + allDevices.size) % allDevices.size].id
+            onRoomSwipe = { direction ->
+                if (rooms.size > 1) {
+                    val current = rooms.indexOf(selectedRoom).coerceAtLeast(0)
+                    val nextRoom = rooms[(current + direction + rooms.size) % rooms.size]
+                    selectedRoom = nextRoom
+                    selectedDeviceId = devices.firstOrNull { it.room == nextRoom }?.id ?: ""
                 }
             },
             deviceManufacturer = selectedDevice?.let { device -> AdapterProfiles.all.firstOrNull { it.key == device.adapterKey }?.title?.takeUnless { it.startsWith("Universell") } ?: "Klimaanlage" } ?: "Kein Gerät zugeordnet",
@@ -229,7 +231,7 @@ private fun MainScreen(
     devicesInRoom: List<UserDevice>,
     selectedDeviceId: String,
     onDeviceSelect: (String) -> Unit,
-    onDeviceSwipe: (Int) -> Unit,
+    onRoomSwipe: (Int) -> Unit,
     deviceManufacturer: String,
     deviceModel: String,
     isOn: Boolean,
@@ -247,7 +249,7 @@ private fun MainScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .pointerInput(devicesInRoom.map { it.id }, selectedDeviceId) {
+            .pointerInput(rooms, selectedRoom) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     var totalDrag = 0f
@@ -260,8 +262,8 @@ private fun MainScreen(
                             totalDrag += change.positionChange().x
                             change.consume()
                         }
-                        if (devicesInRoom.size > 1 && totalDrag < -65f) onDeviceSwipe(1)
-                        else if (devicesInRoom.size > 1 && totalDrag > 65f) onDeviceSwipe(-1)
+                        if (rooms.size > 1 && totalDrag < -65f) onRoomSwipe(1)
+                        else if (rooms.size > 1 && totalDrag > 65f) onRoomSwipe(-1)
                     }
                 }
             }
