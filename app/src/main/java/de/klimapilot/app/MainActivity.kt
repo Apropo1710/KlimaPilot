@@ -337,7 +337,7 @@ private fun VpnDemoCard(connected: Boolean, onToggle: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: String, onPortChange: (String) -> Unit, appVersion: String, onBack: () -> Unit) {
+private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: String, onPortChange: (String) -> Unit, appVersion: String, onManageRoomsDevices: () -> Unit, onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = TextMain) }
