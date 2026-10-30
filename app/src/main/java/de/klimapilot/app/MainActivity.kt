@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,16 +90,27 @@ private class DemoRoomState(
 private fun KlimaPilotApp(appVersion: String) {
     var showSettings by remember { mutableStateOf(false) }
     BackHandler(enabled = showSettings) { showSettings = false }
-    var selectedRoom by remember { mutableStateOf("Wohnzimmer") }
-    val livingRoom = remember { DemoRoomState("25,4 °C", true, 23f, "Kühlen", "Auto") }
-    val bedroom = remember { DemoRoomState("22,1 °C", false, 21f, "Aus", "Leise") }
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
+    val rooms = remember { mutableStateListOf<String>().apply { addAll(prefs.getStringSet("rooms", null)?.toList() ?: listOf("Wohnzimmer", "Schlafzimmer")) } }
+    val devices = remember { mutableStateListOf<UserDevice>().apply {
+        val saved = prefs.getString("devices", null)
+        if (saved.isNullOrBlank()) { add(UserDevice("1","Klimaanlage","Wohnzimmer")); add(UserDevice("2","Klimaanlage","Schlafzimmer")) }
+        else runCatching { val a=org.json.JSONArray(saved); for(i in 0 until a.length()){ val o=a.getJSONObject(i); add(UserDevice(o.getString("id"),o.getString("name"),o.getString("room"))) } }
+    } }
+    fun saveData() { prefs.edit().putStringSet("rooms",rooms.toSet()).putString("devices",org.json.JSONArray().apply { devices.forEach { put(org.json.JSONObject().put("id",it.id).put("name",it.name).put("room",it.room)) } }.toString()).apply() }
+    var selectedRoom by remember { mutableStateOf(rooms.firstOrNull() ?: "Wohnzimmer") }
+    val roomStates = remember { mutableStateMapOf("Wohnzimmer" to DemoRoomState("25,4 °C",true,23f,"Kühlen","Auto"),"Schlafzimmer" to DemoRoomState("22,1 °C",false,21f,"Aus","Leise")) }
+    var showManager by remember { mutableStateOf(false) }
+    BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
+    val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—",false,21f,"Aus","Auto") }
     var vpnDemoConnected by remember { mutableStateOf(false) }
     var host by remember { mutableStateOf("192.168.178.xxx") }
     var port by remember { mutableStateOf("8087") }
 
-    val room = if (selectedRoom == "Wohnzimmer") livingRoom else bedroom
-
-    if (showSettings) {
+    if (showManager) {
+        RoomDeviceManagerScreen(rooms,devices,::saveData,{old,new -> if(selectedRoom==old)selectedRoom=new;roomStates.remove(old)?.let{roomStates[new]=it}}){showManager=false}
+    } else if (showSettings) {
         SettingsScreen(
             host = host,
             onHostChange = { host = it },
@@ -110,7 +122,9 @@ private fun KlimaPilotApp(appVersion: String) {
     } else {
         MainScreen(
             selectedRoom = selectedRoom,
+            rooms = rooms,
             onRoomSelect = { selectedRoom = it },
+            onManageRoomsDevices = { showManager = true },
             roomTemperature = room.roomTemperature,
             isOn = room.isOn,
             targetTemp = room.targetTemp,
@@ -132,7 +146,9 @@ private fun KlimaPilotApp(appVersion: String) {
 @Composable
 private fun MainScreen(
     selectedRoom: String,
+    rooms: List<String>,
     onRoomSelect: (String) -> Unit,
+    onManageRoomsDevices: () -> Unit,
     roomTemperature: String,
     isOn: Boolean,
     targetTemp: Float,
@@ -171,7 +187,8 @@ private fun MainScreen(
         }
 
         SectionTitle("RAUM AUSWÄHLEN")
-        FlowModeSelector(selected = selectedRoom, options = listOf("Wohnzimmer", "Schlafzimmer"), onSelect = onRoomSelect)
+        FlowModeSelector(selected = selectedRoom, options = rooms, onSelect = onRoomSelect)
+        OutlinedButton(onClick=onManageRoomsDevices,modifier=Modifier.fillMaxWidth()){Icon(Icons.Default.Tune,contentDescription=null);Spacer(Modifier.width(6.dp));Text("Räume & Geräte verwalten")}
 
         TemperatureCard(
             roomName = selectedRoom,
