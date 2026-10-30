@@ -125,7 +125,6 @@ private fun KlimaPilotApp(appVersion: String) {
             selectedRoom = selectedRoom,
             rooms = rooms,
             onRoomSelect = { selectedRoom = it },
-            onManageRoomsDevices = { showManager = true },
             roomTemperature = room.roomTemperature,
             isOn = room.isOn,
             targetTemp = room.targetTemp,
@@ -149,7 +148,6 @@ private fun MainScreen(
     selectedRoom: String,
     rooms: List<String>,
     onRoomSelect: (String) -> Unit,
-    onManageRoomsDevices: () -> Unit,
     roomTemperature: String,
     isOn: Boolean,
     targetTemp: Float,
@@ -189,7 +187,6 @@ private fun MainScreen(
 
         SectionTitle("RAUM AUSWÄHLEN")
         FlowModeSelector(selected = selectedRoom, options = rooms, onSelect = onRoomSelect)
-        OutlinedButton(onClick=onManageRoomsDevices,modifier=Modifier.fillMaxWidth()){Icon(Icons.Default.Tune,contentDescription=null);Spacer(Modifier.width(6.dp));Text("Räume & Geräte verwalten")}
 
         TemperatureCard(
             roomName = selectedRoom,
