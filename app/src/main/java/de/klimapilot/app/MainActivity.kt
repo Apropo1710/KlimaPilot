@@ -103,7 +103,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 val mappingJson=o.optJSONObject("mappings") ?: org.json.JSONObject()
                 val mappings=mutableMapOf<String,String>()
                 mappingJson.keys().forEach { key -> mappings[key]=mappingJson.optString(key) }
-                add(UserDevice(o.getString("id"),o.getString("name"),o.getString("room"),o.optString("adapterKey","generic"),o.optString("adapterInstance",""),o.optString("rootObjectId",""),mappings,o.optString("model",""))
+                add(UserDevice(o.getString("id"),o.getString("name"),o.getString("room"),o.optString("adapterKey","generic"),o.optString("adapterInstance",""),o.optString("rootObjectId",""),mappings,o.optString("model","")))
             }
         }
     } }
