@@ -196,7 +196,24 @@ private fun MainScreen(
     onSettings: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+        modifier = Modifier.fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .pointerInput(devicesInRoom, selectedDeviceId) {
+                var totalDrag = 0f
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, delta -> totalDrag += delta },
+                    onDragEnd = {
+                        if (devicesInRoom.size > 1 && totalDrag < -45f) onDeviceSwipe(1)
+                        else if (devicesInRoom.size > 1 && totalDrag > 45f) onDeviceSwipe(-1)
+                        totalDrag = 0f
+                    },
+                    onDragCancel = { totalDrag = 0f }
+                )
+            }
+            .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Spacer(Modifier.height(24.dp))
@@ -248,18 +265,7 @@ private fun MainScreen(
                 if (forward) (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it / 3 } + fadeOut())
                 else (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it / 3 } + fadeOut())
             },
-            modifier = Modifier.fillMaxWidth().pointerInput(devicesInRoom, selectedDeviceId) {
-                var drag = 0f
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { _, amount -> drag += amount },
-                    onDragEnd = {
-                        if (drag < -55f && devicesInRoom.size > 1) onDeviceSwipe(1)
-                        else if (drag > 55f && devicesInRoom.size > 1) onDeviceSwipe(-1)
-                        drag = 0f
-                    },
-                    onDragCancel = { drag = 0f }
-                )
-            },
+            modifier = Modifier.fillMaxWidth(),
             label = "devicePage"
         ) { deviceId ->
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
