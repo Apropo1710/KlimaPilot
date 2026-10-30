@@ -103,12 +103,15 @@ private fun KlimaPilotApp(appVersion: String) {
                 val mappingJson=o.optJSONObject("mappings") ?: org.json.JSONObject()
                 val mappings=mutableMapOf<String,String>()
                 mappingJson.keys().forEach { key -> mappings[key]=mappingJson.optString(key) }
-                add(UserDevice(o.getString("id"),o.getString("name"),o.getString("room"),o.optString("adapterKey","generic"),o.optString("adapterInstance",""),o.optString("rootObjectId",""),mappings))
+                add(UserDevice(o.getString("id"),o.getString("name"),o.getString("room"),o.optString("adapterKey","generic"),o.optString("adapterInstance",""),o.optString("rootObjectId",""),mappings,o.optString("model",""))
             }
         }
     } }
-    fun saveData() { prefs.edit().putStringSet("rooms",rooms.toSet()).putString("devices",org.json.JSONArray().apply { devices.forEach { put(org.json.JSONObject().put("id",it.id).put("name",it.name).put("room",it.room).put("adapterKey",it.adapterKey).put("adapterInstance",it.adapterInstance).put("rootObjectId",it.rootObjectId).put("mappings",org.json.JSONObject(it.mappings))) } }.toString()).apply() }
+    fun saveData() { prefs.edit().putStringSet("rooms",rooms.toSet()).putString("devices",org.json.JSONArray().apply { devices.forEach { put(org.json.JSONObject().put("id",it.id).put("name",it.name).put("room",it.room).put("adapterKey",it.adapterKey).put("adapterInstance",it.adapterInstance).put("rootObjectId",it.rootObjectId).put("mappings",org.json.JSONObject(it.mappings)).put("model",it.model)) } }.toString()).apply() }
     var selectedRoom by remember { mutableStateOf(rooms.firstOrNull() ?: "Wohnzimmer") }
+    var selectedDeviceId by remember(selectedRoom) { mutableStateOf(devices.firstOrNull { it.room == selectedRoom }?.id ?: "") }
+    val roomDevices = devices.filter { it.room == selectedRoom }
+    val selectedDevice = roomDevices.firstOrNull { it.id == selectedDeviceId } ?: roomDevices.firstOrNull()
     val roomStates = remember { mutableStateMapOf("Wohnzimmer" to DemoRoomState("25,4 °C",true,23f,"Kühlen","Auto"),"Schlafzimmer" to DemoRoomState("22,1 °C",false,21f,"Aus","Leise")) }
     var showManager by remember { mutableStateOf(false) }
     BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
@@ -135,6 +138,11 @@ private fun KlimaPilotApp(appVersion: String) {
             rooms = rooms,
             onRoomSelect = { selectedRoom = it },
             roomTemperature = room.roomTemperature,
+            devicesInRoom = roomDevices,
+            selectedDeviceId = selectedDevice?.id ?: "",
+            onDeviceSelect = { selectedDeviceId = it },
+            deviceManufacturer = selectedDevice?.let { device -> AdapterProfiles.all.firstOrNull { it.key == device.adapterKey }?.title?.takeUnless { it.startsWith("Universell") } ?: "Klimaanlage" } ?: "Kein Gerät zugeordnet",
+            deviceModel = selectedDevice?.model?.takeIf { it.isNotBlank() } ?: "Modell nicht hinterlegt",
             isOn = room.isOn,
             targetTemp = room.targetTemp,
             onTargetTemp = { room.targetTemp = it },
@@ -158,6 +166,11 @@ private fun MainScreen(
     rooms: List<String>,
     onRoomSelect: (String) -> Unit,
     roomTemperature: String,
+    devicesInRoom: List<UserDevice>,
+    selectedDeviceId: String,
+    onDeviceSelect: (String) -> Unit,
+    deviceManufacturer: String,
+    deviceModel: String,
     isOn: Boolean,
     targetTemp: Float,
     onTargetTemp: (Float) -> Unit,
@@ -177,11 +190,17 @@ private fun MainScreen(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text("KLIMAPILOT", color = Blue, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                Text("Mitsubishi Heavy", color = TextMain, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("SRK15ZS-WF · App-Prototyp", color = Muted, fontSize = 13.sp)
+                Text(deviceManufacturer, color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(deviceModel, color = Muted, fontSize = 13.sp)
             }
-            IconButton(onClick = onSettings, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Panel)) {
-                Icon(Icons.Default.Settings, contentDescription = "Einstellungen", tint = TextMain)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Box(Modifier.size(38.dp).clip(CircleShape).background(Panel), contentAlignment = Alignment.Center) {
+                    // Neutral until a real ioBroker connection can confirm success.
+                    Icon(Icons.Default.CloudOff, contentDescription = "ioBroker nicht verbunden", tint = Muted, modifier = Modifier.size(19.dp))
+                }
+                IconButton(onClick = onSettings, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Panel)) {
+                    Icon(Icons.Default.Settings, contentDescription = "Einstellungen", tint = TextMain)
+                }
             }
         }
 
@@ -196,6 +215,10 @@ private fun MainScreen(
 
         SectionTitle("RAUM AUSWÄHLEN")
         FlowModeSelector(selected = selectedRoom, options = rooms, onSelect = onRoomSelect)
+        if (devicesInRoom.size > 1) {
+            SectionTitle("GERÄT AUSWÄHLEN")
+            FlowModeSelector(selected = selectedDeviceId, options = devicesInRoom.map { it.id }, onSelect = onDeviceSelect)
+        }
 
         TemperatureCard(
             roomName = selectedRoom,

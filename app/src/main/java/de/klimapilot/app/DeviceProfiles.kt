@@ -63,6 +63,7 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
     var adapterKey by remember(device.id) { mutableStateOf(device.adapterKey) }
     var adapterInstance by remember(device.id) { mutableStateOf(device.adapterInstance) }
     var rootObjectId by remember(device.id) { mutableStateOf(device.rootObjectId) }
+    var model by remember(device.id) { mutableStateOf(device.model) }
     val mappings = remember(device.id) { mutableStateMapOf<String, String>().apply { putAll(device.mappings) } }
     var expanded by remember { mutableStateOf(false) }
     var scanInfo by remember { mutableStateOf(false) }
@@ -88,6 +89,7 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
                     }
                 }
                 Text(selected.description, color = Color(0xFF63748A), fontSize = 11.sp)
+                OutlinedTextField(value = model, onValueChange = { model = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Modellbezeichnung (optional)") }, placeholder = { Text("z. B. SRK15ZS-WF") }, singleLine = true)
                 OutlinedTextField(value = adapterInstance, onValueChange = { adapterInstance = it }, modifier = Modifier.fillMaxWidth(), label = { Text("ioBroker-Adapter-Instanz") }, placeholder = { Text(if (selected.adapterId.isNotBlank()) "${selected.adapterId}.0" else "z. B. hersteller.0") }, singleLine = true)
                 OutlinedTextField(value = rootObjectId, onValueChange = { rootObjectId = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Oberstes Geräteobjekt (optional)") }, placeholder = { Text("Wird später beim Scan erkannt") }, singleLine = true)
                 HorizontalDivider()
@@ -113,7 +115,7 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
         },
         confirmButton = {
             TextButton(onClick = {
-                onSave(device.copy(adapterKey = adapterKey, adapterInstance = adapterInstance.trim(), rootObjectId = rootObjectId.trim(), mappings = mappings.filterValues { it.isNotBlank() }.toMap()))
+                onSave(device.copy(adapterKey = adapterKey, adapterInstance = adapterInstance.trim(), rootObjectId = rootObjectId.trim(), mappings = mappings.filterValues { it.isNotBlank() }.toMap(), model = model.trim()))
             }) { Text("Speichern", color = Color(0xFF1769AA)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } }
