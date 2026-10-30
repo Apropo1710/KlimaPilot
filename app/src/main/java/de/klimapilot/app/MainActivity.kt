@@ -200,7 +200,6 @@ private fun MainScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .verticalScroll(rememberScrollState())
             .pointerInput(devicesInRoom, selectedDeviceId) {
                 var totalDrag = 0f
                 detectHorizontalDragGestures(
@@ -213,6 +212,7 @@ private fun MainScreen(
                     onDragCancel = { totalDrag = 0f }
                 )
             }
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -426,6 +426,7 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: S
                 Text("Vorbereitung für die spätere Verbindung", color = Muted, fontSize = 12.sp)
             }
         }
+        UpdateManagerCard(appVersion = appVersion)
         OutlinedButton(onClick = onManageRoomsDevices, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
             Icon(Icons.Default.Tune, contentDescription = null)
             Spacer(Modifier.width(8.dp))
