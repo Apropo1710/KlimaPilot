@@ -2,6 +2,7 @@ package de.klimapilot.app
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -131,15 +132,24 @@ internal fun GithubUpdateCard(appVersion: String) {
                                 if (archive.packageName != context.packageName) {
                                     error("Die APK gehört zu einer anderen App: " + archive.packageName)
                                 }
+                                if (!context.packageManager.canRequestPackageInstalls()) {
+                                    status = "Bitte erlaube KlimaPilot jetzt die Installation unbekannter Apps."
+                                    val settingsIntent = Intent(
+                                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                        Uri.parse("package:" + context.packageName)
+                                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    context.startActivity(settingsIntent)
+                                    return@launch
+                                }
                                 val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
                                 val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
                                     data = uri
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     putExtra(Intent.EXTRA_RETURN_RESULT, true)
                                 }
                                 status = "APK geprüft. Android-Installationsdialog wird geöffnet …"
                                 context.startActivity(intent)
-                                status = "Android wurde zum Installieren der APK aufgefordert. Falls kein Dialog erscheint, erlaube KlimaPilot unter Android > Spezieller App-Zugriff > Unbekannte Apps installieren die Installation."
+                                status = "Installationsdialog angefordert. Falls er nicht erscheint, prüfe die Installationsfreigabe für KlimaPilot in den Android-Einstellungen."
                             } catch (error: Exception) {
                                 status = "Update fehlgeschlagen: " + (error.message ?: error.javaClass.simpleName)
                             } finally {
