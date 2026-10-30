@@ -76,11 +76,12 @@ internal fun GithubUpdateCard(appVersion: String) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("App-Version", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
             val isCurrentVersion = status == "Du verwendest bereits die aktuelle Version."
+            val isUpdateAvailable = newerVersion != null
             Text(
                 status,
-                color = if (isCurrentVersion) androidx.compose.ui.graphics.Color(0xFF218838) else MaterialTheme.colorScheme.onSurfaceVariant,
-                style = if (isCurrentVersion) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodySmall,
-                fontWeight = if (isCurrentVersion) FontWeight.Bold else FontWeight.Normal
+                color = if (isCurrentVersion || isUpdateAvailable) androidx.compose.ui.graphics.Color(0xFF218838) else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = if (isCurrentVersion || isUpdateAvailable) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodySmall,
+                fontWeight = if (isCurrentVersion || isUpdateAvailable) FontWeight.Bold else FontWeight.Normal
             )
             Text("Installierte Version: $appVersion", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
             if (latestVersion != null) {
