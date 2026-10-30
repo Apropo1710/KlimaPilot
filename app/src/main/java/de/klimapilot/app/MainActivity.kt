@@ -462,37 +462,36 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostC
             Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF9A6700))
             Text("Noch ohne Netzwerkfunktion. Einstellungen werden nicht übertragen.", color = Color(0xFF7A4B00), fontSize = 12.sp)
         }
-        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
-            Row(
-                Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(26.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
-                    Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.SemiBold)
-                    Text("Noch nicht verbunden · Demo", color = Color(0xFF9A6700), fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text("Die echte Verbindungsprüfung wird eingerichtet, sobald die Schnittstelle feststeht.", color = Muted, fontSize = 12.sp, lineHeight = 17.sp)
-                }
-            }
-        }
-        Text("ioBroker-Adresse", color = TextMain, fontWeight = FontWeight.SemiBold)
         var hostConfirmed by remember(host) { mutableStateOf(false) }
         var portConfirmed by remember(port) { mutableStateOf(false) }
-        OutlinedTextField(value = host, onValueChange = { onHostChange(it); hostConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("IP-Adresse oder Hostname") }, singleLine = true)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            OutlinedButton(onClick = { onHostConfirm(); hostConfirmed = true; focusManager.clearFocus(); keyboardController?.hide() }, enabled = host.isNotBlank()) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(if (hostConfirmed) "Gespeichert" else "Adresse übernehmen")
-            }
-        }
-        OutlinedTextField(value = port, onValueChange = { onPortChange(it); portConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("Port (später festlegen)") }, singleLine = true)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            OutlinedButton(onClick = { onPortConfirm(); portConfirmed = true; focusManager.clearFocus(); keyboardController?.hide() }, enabled = (port.toIntOrNull() ?: 0) in 1..65535) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(if (portConfirmed) "Gespeichert" else "Port übernehmen")
+        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(24.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
+                        Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.SemiBold)
+                        Text("Noch nicht verbunden · Demo", color = Color(0xFF9A6700), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+                Text("Die echte Verbindungsprüfung wird eingerichtet, sobald die Schnittstelle feststeht.", color = Muted, fontSize = 12.sp, lineHeight = 17.sp)
+                HorizontalDivider(color = Color(0xFFE6EBF2))
+                Text("Verbindungsdaten", color = TextMain, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(value = host, onValueChange = { onHostChange(it); hostConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("IP-Adresse oder Hostname") }, singleLine = true)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    OutlinedButton(onClick = { onHostConfirm(); hostConfirmed = true; focusManager.clearFocus(); keyboardController?.hide() }, enabled = host.isNotBlank()) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (hostConfirmed) "Gespeichert" else "Adresse übernehmen")
+                    }
+                }
+                OutlinedTextField(value = port, onValueChange = { onPortChange(it); portConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("Port") }, singleLine = true)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    OutlinedButton(onClick = { onPortConfirm(); portConfirmed = true; focusManager.clearFocus(); keyboardController?.hide() }, enabled = (port.toIntOrNull() ?: 0) in 1..65535) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (portConfirmed) "Gespeichert" else "Port übernehmen")
+                    }
+                }
             }
         }
         GithubUpdateCard(appVersion)
