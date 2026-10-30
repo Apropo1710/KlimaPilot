@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -26,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -121,7 +123,11 @@ internal fun GithubUpdateCard(appVersion: String) {
                     OutlinedButton(enabled = !busy, onClick = { scope.launch { checkForUpdates() } }) { Text("Nach Updates suchen") }
                 }
                 if (newerVersion != null && assetId != null) {
-                    Button(enabled = !busy, onClick = {
+                    Button(
+                        enabled = !busy,
+                        modifier = Modifier.widthIn(min = 116.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                        onClick = {
                         scope.launch {
                             busy = true
                             status = "APK wird sicher heruntergeladen …"
@@ -157,7 +163,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                                 busy = false
                             }
                         }
-                    }) { Text("Update herunterladen") }
+                    }) { Text("Update laden", maxLines = 1, softWrap = false, overflow = TextOverflow.Clip) }
                 }
             }
             if (busy) {
