@@ -3,6 +3,12 @@ package de.klimapilot.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -26,6 +32,8 @@ import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -141,6 +149,10 @@ private fun KlimaPilotApp(appVersion: String) {
             devicesInRoom = roomDevices,
             selectedDeviceId = selectedDevice?.id ?: "",
             onDeviceSelect = { selectedDeviceId = it },
+            onDeviceSwipe = { direction ->
+                val current = roomDevices.indexOfFirst { it.id == selectedDevice?.id }.coerceAtLeast(0)
+                if (roomDevices.isNotEmpty()) selectedDeviceId = roomDevices[(current + direction + roomDevices.size) % roomDevices.size].id
+            },
             deviceManufacturer = selectedDevice?.let { device -> AdapterProfiles.all.firstOrNull { it.key == device.adapterKey }?.title?.takeUnless { it.startsWith("Universell") } ?: "Klimaanlage" } ?: "Kein Gerät zugeordnet",
             deviceModel = selectedDevice?.model?.takeIf { it.isNotBlank() } ?: "Modell nicht hinterlegt",
             isOn = room.isOn,
@@ -169,6 +181,7 @@ private fun MainScreen(
     devicesInRoom: List<UserDevice>,
     selectedDeviceId: String,
     onDeviceSelect: (String) -> Unit,
+    onDeviceSwipe: (Int) -> Unit,
     deviceManufacturer: String,
     deviceModel: String,
     isOn: Boolean,
@@ -190,8 +203,16 @@ private fun MainScreen(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text("KLIMAPILOT", color = Blue, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                Text(deviceManufacturer, color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(deviceModel, color = Muted, fontSize = 13.sp)
+                AnimatedContent(targetState = selectedDeviceId, transitionSpec = {
+                    val forward = devicesInRoom.indexOfFirst { it.id == targetState } >= devicesInRoom.indexOfFirst { it.id == initialState }
+                    if (forward) (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it / 3 } + fadeOut())
+                    else (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it / 3 } + fadeOut())
+                }, label = "deviceHeader") { key ->
+                    Column {
+                        Text(deviceManufacturer, color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text(deviceModel, color = Muted, fontSize = 13.sp)
+                    }
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Box(Modifier.size(38.dp).clip(CircleShape).background(Panel), contentAlignment = Alignment.Center) {
@@ -217,25 +238,49 @@ private fun MainScreen(
         FlowModeSelector(selected = selectedRoom, options = rooms, onSelect = onRoomSelect)
         if (devicesInRoom.size > 1) {
             SectionTitle("GERÄT AUSWÄHLEN")
-            FlowModeSelector(selected = selectedDeviceId, options = devicesInRoom.map { it.id }, onSelect = onDeviceSelect)
+            FlowModeSelector(selected = selectedDeviceId, options = devicesInRoom.map { it.id }, onSelect = onDeviceSelect, optionLabels = devicesInRoom.associate { it.id to it.name })
         }
 
-        TemperatureCard(
-            roomName = selectedRoom,
-            roomTemperature = roomTemperature,
-            isOn = isOn,
-            targetTemp = targetTemp,
-            onTargetTemp = onTargetTemp
-        )
+        AnimatedContent(
+            targetState = selectedDeviceId,
+            transitionSpec = {
+                val forward = devicesInRoom.indexOfFirst { it.id == targetState } >= devicesInRoom.indexOfFirst { it.id == initialState }
+                if (forward) (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it / 3 } + fadeOut())
+                else (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it / 3 } + fadeOut())
+            },
+            modifier = Modifier.fillMaxWidth().pointerInput(devicesInRoom, selectedDeviceId) {
+                var drag = 0f
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, amount -> drag += amount },
+                    onDragEnd = {
+                        if (drag < -55f && devicesInRoom.size > 1) onDeviceSwipe(1)
+                        else if (drag > 55f && devicesInRoom.size > 1) onDeviceSwipe(-1)
+                        drag = 0f
+                    },
+                    onDragCancel = { drag = 0f }
+                )
+            },
+            label = "devicePage"
+        ) { deviceId ->
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                TemperatureCard(
+                    roomName = selectedRoom,
+                    roomTemperature = roomTemperature,
+                    isOn = isOn,
+                    targetTemp = targetTemp,
+                    onTargetTemp = onTargetTemp
+                )
 
-        SectionTitle("BETRIEBSMODUS")
-        FlowModeSelector(selected = mode, options = listOf("Aus", "Auto", "Kühlen", "Heizen", "Entfeuchten", "Lüfter"), onSelect = onMode)
+                SectionTitle("BETRIEBSMODUS")
+                FlowModeSelector(selected = mode, options = listOf("Aus", "Auto", "Kühlen", "Heizen", "Entfeuchten", "Lüfter"), onSelect = onMode)
 
-        SectionTitle("LÜFTERSTUFE")
-        FlowModeSelector(selected = fan, options = listOf("Auto", "Leise", "1", "2", "3", "4"), onSelect = onFan)
+                SectionTitle("LÜFTERSTUFE")
+                FlowModeSelector(selected = fan, options = listOf("Auto", "Leise", "1", "2", "3", "4"), onSelect = onFan)
 
-        SectionTitle("FERNZUGRIFF")
-        VpnDemoCard(connected = vpnDemoConnected, onToggle = onVpnDemo)
+                SectionTitle("FERNZUGRIFF")
+                VpnDemoCard(connected = vpnDemoConnected, onToggle = onVpnDemo)
+            }
+        }
 
         Text(
             "Alle Werte und Schalter sind lokal simuliert. Die App sendet keine Befehle an Geräte und steuert WireGuard noch nicht.",
@@ -322,13 +367,13 @@ private fun SectionTitle(text: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FlowModeSelector(selected: String, options: List<String>, onSelect: (String) -> Unit) {
+private fun FlowModeSelector(selected: String, options: List<String>, onSelect: (String) -> Unit, optionLabels: Map<String, String> = emptyMap()) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         options.forEach { option ->
             FilterChip(
                 selected = selected == option,
                 onClick = { onSelect(option) },
-                label = { Text(option) },
+                label = { Text(optionLabels[option] ?: option) },
                 leadingIcon = if (selected == option) ({ Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }) else null,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = if (option == "Aus") Color(0xFFFFE1E1) else Color(0xFFDCEBFA),
