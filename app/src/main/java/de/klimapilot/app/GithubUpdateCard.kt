@@ -34,9 +34,10 @@ internal fun GithubUpdateCard(appVersion: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var connected by remember { mutableStateOf(GithubPrivateUpdates.isConnected(context)) }
+    var pending by remember { mutableStateOf(GithubPrivateUpdates.pendingDevice(context)) }
     var busy by remember { mutableStateOf(false) }
-    var code by remember { mutableStateOf<String?>(null) }
-    var status by remember { mutableStateOf(if (connected) "GitHub-Verbindung gespeichert." else "Einmalig mit GitHub verbinden, um private Updates abzurufen.") }
+    var code by remember { mutableStateOf(pending?.userCode) }
+    var status by remember { mutableStateOf(if (connected) "GitHub-Verbindung gespeichert." else if (pending != null) "GitHub-Anmeldung wurde unterbrochen. Du kannst sie fortsetzen." else "Einmalig mit GitHub verbinden, um private Updates abzurufen.") }
     var newerVersion by remember { mutableStateOf<String?>(null) }
     var assetId by remember { mutableStateOf<Long?>(null) }
 
@@ -54,22 +55,26 @@ internal fun GithubUpdateCard(appVersion: String) {
                         scope.launch {
                             busy = true
                             try {
-                                val device = GithubPrivateUpdates.begin()
+                                val device = pending ?: GithubPrivateUpdates.begin().also {
+                                    GithubPrivateUpdates.savePending(context, it)
+                                    pending = it
+                                }
                                 code = device.userCode
                                 status = "GitHub im Browser öffnen und den Code bestätigen …"
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(device.verificationUri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                                 GithubPrivateUpdates.authorize(context, device)
                                 connected = true
+                                pending = null
                                 code = null
                                 status = "GitHub erfolgreich verbunden."
                             } catch (error: Exception) {
-                                code = null
+                                code = pending?.userCode
                                 status = error.message ?: "GitHub-Verbindung fehlgeschlagen."
                             } finally {
                                 busy = false
                             }
                         }
-                    }) { Text("Mit GitHub verbinden") }
+                    }) { Text(if (pending != null) "Anmeldung fortsetzen" else "Mit GitHub verbinden") }
                 } else {
                     OutlinedButton(enabled = !busy, onClick = {
                         scope.launch {

@@ -30,6 +30,20 @@ internal object GithubPrivateUpdates {
 
     fun isConnected(context: Context) = load(context) != null
 
+    fun pendingDevice(context: Context): Device? = runCatching {
+        val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("pending", null) ?: return null
+        val json = JSONObject(decrypt(stored))
+        Device(json.getString("device"), json.getString("user"), json.getString("uri"), json.getInt("expires"), json.getInt("interval"))
+    }.getOrNull()
+
+    fun savePending(context: Context, device: Device) {
+        val json = JSONObject().put("device", device.deviceCode).put("user", device.userCode)
+            .put("uri", device.verificationUri).put("expires", device.expiresIn).put("interval", device.interval)
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("pending", encrypt(json.toString())).commit()) {
+            "Anmeldestatus konnte nicht gespeichert werden."
+        }
+    }
+
     private fun post(url: String, values: Map<String, String>): JSONObject {
         val body = values.entries.joinToString("&") { URLEncoder.encode(it.key, "UTF-8") + "=" + URLEncoder.encode(it.value, "UTF-8") }
         val c = URL(url).openConnection() as HttpURLConnection
@@ -50,7 +64,7 @@ internal object GithubPrivateUpdates {
     }
 
     suspend fun begin(): Device = withContext(Dispatchers.IO) {
-        val j = post("https://github.com/login/device/code", mapOf("client_id" to CLIENT_ID))
+        val j = post("https://github.com/login/device/code", mapOf("client_id" to CLIENT_ID, "scope" to "offline_access"))
         Device(j.getString("device_code"), j.getString("user_code"), j.getString("verification_uri"), j.optInt("expires_in", 900), j.optInt("interval", 5))
     }
 
@@ -74,6 +88,7 @@ internal object GithubPrivateUpdates {
                     val refresh = j.optString("refresh_token")
                     if (access.isBlank()) error("GitHub hat kein Zugriffstoken geliefert.")
                     save(context, Tokens(access, refresh, System.currentTimeMillis() + j.optLong("expires_in", 28800L) * 1000L))
+                    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("pending").commit()
                     return@withContext
                 }
                 else -> error(j.optString("error_description", j.optString("error")))
@@ -173,7 +188,9 @@ internal object GithubPrivateUpdates {
 
     private fun save(context: Context, tokens: Tokens) {
         val json = JSONObject().put("access", tokens.access).put("refresh", tokens.refresh).put("expires", tokens.expiresAt)
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("tokens", encrypt(json.toString())).apply()
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("tokens", encrypt(json.toString())).commit()) {
+            "GitHub-Zugang konnte nicht dauerhaft gespeichert werden."
+        }
     }
 
     private fun load(context: Context): Tokens? = runCatching {
