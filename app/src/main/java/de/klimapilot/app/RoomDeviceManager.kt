@@ -23,7 +23,7 @@ private val ManagerText = Color(0xFF172334)
 private val ManagerMuted = Color(0xFF63748A)
 private val ManagerBorder = Color(0xFFCBD5E1)
 
-internal data class UserDevice(val id: String, val name: String, val room: String)
+internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap())
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -38,10 +38,10 @@ internal fun RoomDeviceManagerScreen(
     var showAddOptions by remember { mutableStateOf(false) }
     var addRoom by remember { mutableStateOf(false) }
     var addDevice by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<UserDevice?>(null) }
+    var editing by remember { mutableStateOf<UserDevice?>(null) }\n    var configuring by remember { mutableStateOf<UserDevice?>(null) }
 
     Column(
-        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
+        Modifier.fillMaxSize().background(Color(0xFFE8EEF5)).statusBarsPadding().navigationBarsPadding().imePadding()
             .verticalScroll(rememberScrollState()).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -133,7 +133,7 @@ internal fun RoomDeviceManagerScreen(
                                 Icon(Icons.Default.AcUnit, contentDescription = null, tint = ManagerBlue)
                                 Spacer(Modifier.width(9.dp))
                                 Text(device.name, modifier = Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ManagerText)
-                                IconButton(onClick = { editing = device }) {
+                                IconButton(onClick = { configuring = device }) {\n                                    Icon(Icons.Default.Tune, contentDescription = "Geräteeinstellungen", tint = ManagerBlue)\n                                }\n                                IconButton(onClick = { editing = device }) {
                                     Icon(Icons.Default.Edit, contentDescription = "Gerät bearbeiten", tint = ManagerBlue)
                                 }
                                 IconButton(onClick = { devices.remove(device); save() }) {
@@ -214,6 +214,15 @@ internal fun RoomDeviceManagerScreen(
             },
             dismissButton = { TextButton(onClick = { addRoom = false }, colors = ButtonDefaults.textButtonColors(contentColor = ManagerMuted)) { Text("Abbrechen") } }
         )
+    }
+
+    if (configuring != null) {
+        DeviceSettingsDialog(device = configuring!!, onDismiss = { configuring = null }, onSave = { updated ->
+            val index = devices.indexOfFirst { it.id == updated.id }
+            if (index >= 0) devices[index] = updated
+            save()
+            configuring = null
+        })
     }
 
     if (addDevice || editing != null) {

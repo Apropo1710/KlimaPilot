@@ -96,9 +96,18 @@ private fun KlimaPilotApp(appVersion: String) {
     val devices = remember { mutableStateListOf<UserDevice>().apply {
         val saved = prefs.getString("devices", null)
         if (saved.isNullOrBlank()) { add(UserDevice("1","Klimaanlage","Wohnzimmer")); add(UserDevice("2","Klimaanlage","Schlafzimmer")) }
-        else runCatching { val a=org.json.JSONArray(saved); for(i in 0 until a.length()){ val o=a.getJSONObject(i); add(UserDevice(o.getString("id"),o.getString("name"),o.getString("room"))) } }
+        else runCatching {
+            val a=org.json.JSONArray(saved)
+            for(i in 0 until a.length()) {
+                val o=a.getJSONObject(i)
+                val mappingJson=o.optJSONObject("mappings") ?: org.json.JSONObject()
+                val mappings=mutableMapOf<String,String>()
+                mappingJson.keys().forEach { key -> mappings[key]=mappingJson.optString(key) }
+                add(UserDevice(o.getString("id"),o.getString("name"),o.getString("room"),o.optString("adapterKey","generic"),o.optString("adapterInstance",""),o.optString("rootObjectId",""),mappings))
+            }
+        }
     } }
-    fun saveData() { prefs.edit().putStringSet("rooms",rooms.toSet()).putString("devices",org.json.JSONArray().apply { devices.forEach { put(org.json.JSONObject().put("id",it.id).put("name",it.name).put("room",it.room)) } }.toString()).apply() }
+    fun saveData() { prefs.edit().putStringSet("rooms",rooms.toSet()).putString("devices",org.json.JSONArray().apply { devices.forEach { put(org.json.JSONObject().put("id",it.id).put("name",it.name).put("room",it.room).put("adapterKey",it.adapterKey).put("adapterInstance",it.adapterInstance).put("rootObjectId",it.rootObjectId).put("mappings",org.json.JSONObject(it.mappings))) } }.toString()).apply() }
     var selectedRoom by remember { mutableStateOf(rooms.firstOrNull() ?: "Wohnzimmer") }
     val roomStates = remember { mutableStateMapOf("Wohnzimmer" to DemoRoomState("25,4 °C",true,23f,"Kühlen","Auto"),"Schlafzimmer" to DemoRoomState("22,1 °C",false,21f,"Aus","Leise")) }
     var showManager by remember { mutableStateOf(false) }
