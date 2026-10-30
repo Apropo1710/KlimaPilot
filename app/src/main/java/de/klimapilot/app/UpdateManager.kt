@@ -78,7 +78,11 @@ internal fun UpdateManagerCard(appVersion: String) {
                 else "Du verwendest bereits die aktuelle Version"
                 checked = true
             } catch (t: Throwable) {
-                error = when (t) {\n                    is java.net.UnknownHostException -> "Keine Verbindung zu GitHub. Prüfe Internet oder VPN."\n                    is java.net.SocketTimeoutException -> "GitHub antwortet gerade nicht. Bitte erneut versuchen."\n                    else -> t.message?.takeIf { it.isNotBlank() } ?: "Update-Prüfung fehlgeschlagen"\n                }
+                error = when (t) {
+                    is java.net.UnknownHostException -> "Keine Verbindung zu GitHub. Prüfe Internet oder VPN."
+                    is java.net.SocketTimeoutException -> "GitHub antwortet gerade nicht. Bitte erneut versuchen."
+                    else -> t.message?.takeIf { it.isNotBlank() } ?: "Update-Prüfung fehlgeschlagen"
+                }
                 status = "Update-Prüfung nicht möglich"
                 checked = true
             } finally {
