@@ -18,8 +18,10 @@ internal object IoBrokerClient {
                 require(base.startsWith("http://") || base.startsWith("https://")) {
                     "Serveradresse muss mit http:// oder https:// beginnen."
                 }
-                val pattern = Uri.encode("system.config.*")
-                connection = (URL("$base/objects?pattern=$pattern").openConnection() as HttpURLConnection).apply {
+                // Match HomePilot: Simple API's /get endpoint returns the state wrapper
+                // for ioBroker's own admin adapter, independent of any climate device.
+                val stateId = Uri.encode("system.adapter.admin.0.alive")
+                connection = (URL("$base/get/$stateId").openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 7000
                     readTimeout = 7000
@@ -31,18 +33,19 @@ internal object IoBrokerClient {
                 if (code !in 200..299) {
                     throw IllegalStateException("HTTP $code${if (body.isNotBlank()) ": $body" else ""}")
                 }
-                val objects = JSONObject(body)
-                val keys = objects.keys()
-                var foundSystemConfig = false
-                while (keys.hasNext()) {
-                    if (keys.next().startsWith("system.config.")) {
-                        foundSystemConfig = true
-                        break
-                    }
+                val json = JSONObject(body)
+                val state = json.optJSONObject("state")
+                val value = when {
+                    json.has("val") -> json.opt("val")
+                    state?.has("val") == true -> state.opt("val")
+                    else -> null
                 }
-                if (!foundSystemConfig) {
-                    throw IllegalStateException("Simple API antwortet, aber ioBroker-Systemobjekte wurden nicht gefunden.")
+                val alive = when (value) {
+                    is Boolean -> value
+                    is String -> value.equals("true", ignoreCase = true)
+                    else -> false
                 }
+                if (!alive) throw IllegalStateException("ioBroker antwortet, aber der Admin-Adapter meldet sich nicht als aktiv.")
                 mainHandler.post { callback(true, "Verbindung erfolgreich hergestellt") }
             } catch (error: Exception) {
                 val message = error.message ?: error.javaClass.simpleName

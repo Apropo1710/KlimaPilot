@@ -132,7 +132,6 @@ private fun KlimaPilotApp(appVersion: String) {
     var showManager by remember { mutableStateOf(false) }
     BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
     val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—",false,21f,"Aus","Auto") }
-    var vpnDemoConnected by remember { mutableStateOf(false) }
     val initialServerUrl = remember {
         prefs.getString("iobroker_server", null) ?: run {
             val savedHost = prefs.getString("iobroker_host", "192.168.178.xxx") ?: "192.168.178.xxx"
@@ -218,8 +217,6 @@ private fun KlimaPilotApp(appVersion: String) {
             },
             fan = room.fan,
             onFan = { room.fan = it },
-            vpnDemoConnected = vpnDemoConnected,
-            onVpnDemo = { vpnDemoConnected = !vpnDemoConnected },
             ioBrokerConnected = ioBrokerConnected,
             onSettings = { showSettings = true }
         )
@@ -245,8 +242,6 @@ private fun MainScreen(
     onMode: (String) -> Unit,
     fan: String,
     onFan: (String) -> Unit,
-    vpnDemoConnected: Boolean,
-    onVpnDemo: () -> Unit,
     ioBrokerConnected: Boolean,
     onSettings: () -> Unit
 ) {
@@ -303,15 +298,6 @@ private fun MainScreen(
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFF3D6)).padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF9A6700), modifier = Modifier.size(18.dp))
-            Text(if (ioBrokerConnected) "IOBROKER VERBUNDEN · KLIMASTEUERUNG NOCH DEMO" else "DEMO-MODUS · Keine echte Verbindung", color = Color(0xFF7A4B00), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        }
-
         SectionTitle("RAUM AUSWÄHLEN")
         FlowModeSelector(selected = selectedRoom, options = rooms, onSelect = onRoomSelect)
         if (devicesInRoom.size > 1) {
@@ -339,21 +325,14 @@ private fun MainScreen(
                 )
 
                 SectionTitle("BETRIEBSMODUS")
-                FlowModeSelector(selected = mode, options = listOf("Aus", "Auto", "Kühlen", "Heizen", "Entfeuchten", "Lüfter"), onSelect = onMode)
+                FlowModeSelector(selected = mode, options = listOf("Aus", "Auto", "Kühlen", "Heizen", "Entfeuchten", "Lüfter"), onSelect = onMode, enabled = false)
 
                 SectionTitle("LÜFTERSTUFE")
-                FlowModeSelector(selected = fan, options = listOf("Auto", "Leise", "1", "2", "3", "4"), onSelect = onFan)
-
-                SectionTitle("FERNZUGRIFF")
-                VpnDemoCard(connected = vpnDemoConnected, onToggle = onVpnDemo)
+                FlowModeSelector(selected = fan, options = listOf("Auto", "Leise", "1", "2", "3", "4"), onSelect = onFan, enabled = false)
+                Text("Bedienung und Messwerte werden nach Zuordnung der ioBroker-Datenpunkte aktiviert.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
             }
         }
 
-        Text(
-            "Alle Werte und Schalter sind lokal simuliert. Die App sendet keine Befehle an Geräte und steuert WireGuard noch nicht.",
-            color = Muted, fontSize = 11.sp, lineHeight = 16.sp, textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
-        )
         Spacer(Modifier.height(20.dp))
     }
 }
@@ -372,10 +351,10 @@ private fun TemperatureCard(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(if (isOn) Green else Color(0xFFD93025)))
+            Box(Modifier.size(8.dp).clip(CircleShape).background(Muted))
             Text(
-                if (isOn) "${roomName.uppercase()} · KLIMA LÄUFT (DEMO)" else "${roomName.uppercase()} · KLIMA AUS (DEMO)",
-                color = if (isOn) Green else Color(0xFFD93025),
+                "${roomName.uppercase()} · STATUS NICHT VERFÜGBAR",
+                color = Muted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.8.sp,
@@ -395,7 +374,7 @@ private fun TemperatureCard(
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("SOLL", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("${String.format(Locale.GERMANY, "%.1f", targetTemp)}°", color = TextMain, fontSize = 42.sp, fontWeight = FontWeight.Light)
+                    Text("—", color = TextMain, fontSize = 42.sp, fontWeight = FontWeight.Light)
                 }
             }
         }
@@ -405,13 +384,13 @@ private fun TemperatureCard(
             onValueChange = onTargetTemp,
             valueRange = 16f..30f,
             steps = 139,
-            enabled = isOn,
+            enabled = false,
             colors = SliderDefaults.colors(thumbColor = Blue, activeTrackColor = Blue, inactiveTrackColor = PanelRaised),
             modifier = Modifier.fillMaxWidth()
         )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("16 °C", color = Muted, fontSize = 12.sp)
-            Text("Tippen oder schieben zum Testen", color = Muted, fontSize = 11.sp)
+            Text("Nach Datenpunkt-Zuordnung verfügbar", color = Muted, fontSize = 11.sp)
             Text("30 °C", color = Muted, fontSize = 12.sp)
         }
     }
@@ -434,12 +413,13 @@ private fun SectionTitle(text: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FlowModeSelector(selected: String, options: List<String>, onSelect: (String) -> Unit, optionLabels: Map<String, String> = emptyMap()) {
+private fun FlowModeSelector(selected: String, options: List<String>, onSelect: (String) -> Unit, optionLabels: Map<String, String> = emptyMap(), enabled: Boolean = true) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         options.forEach { option ->
             FilterChip(
                 selected = selected == option,
                 onClick = { onSelect(option) },
+                enabled = enabled,
                 label = { Text(optionLabels[option] ?: option) },
                 leadingIcon = if (selected == option) ({ Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }) else null,
                 colors = FilterChipDefaults.filterChipColors(
@@ -453,27 +433,6 @@ private fun FlowModeSelector(selected: String, options: List<String>, onSelect: 
             )
         }
     }
-}
-
-@Composable
-private fun VpnDemoCard(connected: Boolean, onToggle: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Panel).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(PanelRaised), contentAlignment = Alignment.Center) {
-            Icon(if (connected) Icons.Default.Shield else Icons.Default.CloudOff, contentDescription = null, tint = if (connected) Green else Muted, modifier = Modifier.size(24.dp))
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("WireGuard", color = TextMain, fontWeight = FontWeight.SemiBold)
-            Text(if (connected) "Demo: als verbunden markiert" else "Demo: nicht verbunden", color = if (connected) Green else Muted, fontSize = 12.sp)
-        }
-        OutlinedButton(onClick = onToggle, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(if (connected) "Trennen" else "Verbinden", fontSize = 12.sp)
-        }
-    }
-    Text("Der Button simuliert nur den Status. Er schaltet den echten VPN-Tunnel nicht.", color = Muted, fontSize = 11.sp, lineHeight = 15.sp)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
