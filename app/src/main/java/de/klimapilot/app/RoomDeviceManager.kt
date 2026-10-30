@@ -24,6 +24,7 @@ internal fun RoomDeviceManagerScreen(
     devices: SnapshotStateList<UserDevice>,
     save: () -> Unit,
     rename: (String, String) -> Unit,
+    onRemoveRoom: (String) -> Unit,
     back: () -> Unit
 ) {
     var addRoom by remember { mutableStateOf(false) }
@@ -59,6 +60,7 @@ internal fun RoomDeviceManagerScreen(
                             enabled = rooms.size > 1,
                             onClick = {
                                 rooms.remove(room)
+                                onRemoveRoom(room)
                                 devices.indices.filter { devices[it].room == room }.forEach { i -> devices[i] = devices[i].copy(room = rooms.first()) }
                                 save()
                             }
