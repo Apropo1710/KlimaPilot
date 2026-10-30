@@ -125,9 +125,10 @@ private fun KlimaPilotApp(appVersion: String) {
     fun saveData() { prefs.edit().putStringSet("rooms",rooms.toSet()).putString("devices",org.json.JSONArray().apply { devices.forEach { put(org.json.JSONObject().put("id",it.id).put("name",it.name).put("room",it.room).put("adapterKey",it.adapterKey).put("adapterInstance",it.adapterInstance).put("rootObjectId",it.rootObjectId).put("mappings",org.json.JSONObject(it.mappings)).put("model",it.model)) } }.toString()).apply() }
     var selectedRoom by remember { mutableStateOf(rooms.firstOrNull() ?: "Wohnzimmer") }
     var selectedDeviceId by remember { mutableStateOf(devices.firstOrNull { it.room == selectedRoom }?.id ?: devices.firstOrNull()?.id ?: "") }
-    val selectedDevice = devices.firstOrNull { it.id == selectedDeviceId }
-        ?: devices.firstOrNull { it.room == selectedRoom }
-    val allDevices = devices.toList()
+    val devicesInSelectedRoom = devices.filter { it.room == selectedRoom }
+    val selectedDevice = devicesInSelectedRoom.firstOrNull { it.id == selectedDeviceId }
+        ?: devicesInSelectedRoom.firstOrNull()
+    val allDevices = devicesInSelectedRoom
     val roomStates = remember { mutableStateMapOf("Wohnzimmer" to DemoRoomState("25,4 °C",true,23f,"Kühlen","Auto"),"Schlafzimmer" to DemoRoomState("22,1 °C",false,21f,"Aus","Leise")) }
     var showManager by remember { mutableStateOf(false) }
     BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
@@ -193,16 +194,11 @@ private fun KlimaPilotApp(appVersion: String) {
             roomTemperature = room.roomTemperature,
             devicesInRoom = allDevices,
             selectedDeviceId = selectedDevice?.id ?: "",
-            onDeviceSelect = { deviceId ->
-                selectedDeviceId = deviceId
-                devices.firstOrNull { it.id == deviceId }?.let { selectedRoom = it.room }
-            },
+            onDeviceSelect = { deviceId -> selectedDeviceId = deviceId },
             onDeviceSwipe = { direction ->
                 val current = allDevices.indexOfFirst { it.id == selectedDevice?.id }.coerceAtLeast(0)
                 if (allDevices.size > 1) {
-                    val nextDevice = allDevices[(current + direction + allDevices.size) % allDevices.size]
-                    selectedDeviceId = nextDevice.id
-                    selectedRoom = nextDevice.room
+                    selectedDeviceId = allDevices[(current + direction + allDevices.size) % allDevices.size].id
                 }
             },
             deviceManufacturer = selectedDevice?.let { device -> AdapterProfiles.all.firstOrNull { it.key == device.adapterKey }?.title?.takeUnless { it.startsWith("Universell") } ?: "Klimaanlage" } ?: "Kein Gerät zugeordnet",
@@ -302,7 +298,28 @@ private fun MainScreen(
         FlowModeSelector(selected = selectedRoom, options = rooms, onSelect = onRoomSelect)
         if (devicesInRoom.size > 1) {
             SectionTitle("GERÄT AUSWÄHLEN")
-            FlowModeSelector(selected = selectedDeviceId, options = devicesInRoom.map { it.id }, onSelect = onDeviceSelect, optionLabels = devicesInRoom.associate { it.id to it.name })
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                devicesInRoom.forEach { device ->
+                    FilterChip(
+                        selected = selectedDeviceId == device.id,
+                        onClick = { onDeviceSelect(device.id) },
+                        label = { Text(device.name, maxLines = 1, softWrap = false) },
+                        leadingIcon = if (selectedDeviceId == device.id) ({ Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }) else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFDCEBFA),
+                            selectedLabelColor = Color(0xFF123B60),
+                            selectedLeadingIconColor = Blue,
+                            containerColor = Color(0xFFF8FAFC),
+                            labelColor = TextMain
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selectedDeviceId == device.id, borderColor = Color(0xFFCBD5E1), selectedBorderColor = Blue)
+                    )
+                }
+            }
         }
 
         AnimatedContent(
