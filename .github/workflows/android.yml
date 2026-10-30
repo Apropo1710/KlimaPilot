@@ -40,6 +40,11 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/klimapilot-release.jks"
           chmod 600 "$RUNNER_TEMP/klimapilot-release.jks"
 
+      - name: Keystore-Format prüfen
+        env:
+          STORE_PASSWORD: ${{ secrets.KLIMAPILOT_STORE_PASSWORD }}
+        run: keytool -list -keystore "$RUNNER_TEMP/klimapilot-release.jks" -storepass "$STORE_PASSWORD"
+
       - name: Release-APK bauen
         env:
           KLIMAPILOT_KEYSTORE_PATH: ${{ runner.temp }}/klimapilot-release.jks
