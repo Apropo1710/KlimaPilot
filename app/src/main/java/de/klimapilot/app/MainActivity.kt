@@ -335,7 +335,7 @@ private fun MainScreen(
         ) { deviceId ->
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 TemperatureCard(
-                    deviceName = selectedDevice?.name ?: selectedRoom,
+                    deviceName = devicesInRoom.firstOrNull { it.id == deviceId }?.name ?: devicesInRoom.firstOrNull()?.name ?: selectedRoom,
                     roomTemperature = roomTemperature,
                     isOn = isOn,
                     targetTemp = targetTemp,
