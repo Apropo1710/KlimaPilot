@@ -481,15 +481,6 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, port: S
             }
         }
         GithubUpdateCard(appVersion)
-        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("App-Version", color = TextMain, fontWeight = FontWeight.SemiBold)
-                    Text("Installierte Version", color = Muted, fontSize = 12.sp)
-                }
-                Text(appVersion, color = Blue, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            }
-        }
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) { Text("Zurück zur Klimaübersicht") }
     }
 }

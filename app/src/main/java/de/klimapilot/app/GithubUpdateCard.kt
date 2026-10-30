@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,7 +41,35 @@ internal fun GithubUpdateCard(appVersion: String) {
     var code by remember { mutableStateOf(pending?.userCode) }
     var status by rememberSaveable { mutableStateOf(if (connected) "GitHub-Verbindung gespeichert." else if (pending != null) "GitHub-Anmeldung wurde unterbrochen. Du kannst sie fortsetzen." else "Einmalig mit GitHub verbinden, um private Updates abzurufen.") }
     var newerVersion by rememberSaveable { mutableStateOf<String?>(null) }
+    var latestVersion by rememberSaveable { mutableStateOf<String?>(null) }
     var assetId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    suspend fun checkForUpdates() {
+        busy = true
+        status = "Suche nach Updates …"
+        try {
+            val release = GithubPrivateUpdates.latestRelease(context)
+            latestVersion = release.version
+            assetId = release.assetId
+            val current = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
+            val latest = release.version.split(".").map { it.toIntOrNull() ?: 0 }
+            var comparison = 0
+            for (i in 0 until maxOf(current.size, latest.size)) {
+                val delta = latest.getOrElse(i) { 0 }.compareTo(current.getOrElse(i) { 0 })
+                if (delta != 0) { comparison = delta; break }
+            }
+            newerVersion = if (comparison > 0) release.version else null
+            status = if (comparison > 0) "Neue Version ${release.version} verfügbar." else "Du verwendest bereits die aktuelle Version."
+        } catch (error: Exception) {
+            status = "Update-Prüfung fehlgeschlagen: " + (error.message ?: error.javaClass.simpleName)
+        } finally {
+            busy = false
+        }
+    }
+
+    LaunchedEffect(connected) {
+        if (connected) checkForUpdates()
+    }
 
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -48,10 +77,14 @@ internal fun GithubUpdateCard(appVersion: String) {
             val isCurrentVersion = status == "Du verwendest bereits die aktuelle Version."
             Text(
                 status,
-                color = if (isCurrentVersion) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isCurrentVersion) androidx.compose.ui.graphics.Color(0xFF218838) else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = if (isCurrentVersion) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodySmall,
                 fontWeight = if (isCurrentVersion) FontWeight.Bold else FontWeight.Normal
             )
+            Text("Installierte Version: $appVersion", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+            if (latestVersion != null) {
+                Text("Verfügbare Version: $latestVersion", color = if (newerVersion != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, fontWeight = if (newerVersion != null) FontWeight.SemiBold else FontWeight.Normal)
+            }
             if (code != null) {
                 Text("GitHub-Code: $code", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Gib diesen Code auf der geöffneten GitHub-Seite ein und bestätige den Zugriff.", style = MaterialTheme.typography.bodySmall)
@@ -83,29 +116,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                         }
                     }) { Text(if (pending != null) "Anmeldung fortsetzen" else "Mit GitHub verbinden") }
                 } else {
-                    OutlinedButton(enabled = !busy, onClick = {
-                        scope.launch {
-                            busy = true
-                            status = "Suche nach Updates …"
-                            try {
-                                val release = GithubPrivateUpdates.latestRelease(context)
-                                assetId = release.assetId
-                                val current = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
-                                val latest = release.version.split(".").map { it.toIntOrNull() ?: 0 }
-                                var comparison = 0
-                                for (i in 0 until maxOf(current.size, latest.size)) {
-                                    val delta = latest.getOrElse(i) { 0 }.compareTo(current.getOrElse(i) { 0 })
-                                    if (delta != 0) { comparison = delta; break }
-                                }
-                                newerVersion = if (comparison > 0) release.version else null
-                                status = if (newerVersion != null) "Neue Version ${release.version} verfügbar." else "Du verwendest bereits die aktuelle Version."
-                            } catch (error: Exception) {
-                                status = error.message ?: "Update-Prüfung fehlgeschlagen."
-                            } finally {
-                                busy = false
-                            }
-                        }
-                    }) { Text("Nach Updates suchen") }
+                    OutlinedButton(enabled = !busy, onClick = { scope.launch { checkForUpdates() } }) { Text("Nach Updates suchen") }
                 }
                 if (newerVersion != null && assetId != null) {
                     Button(enabled = !busy, onClick = {
