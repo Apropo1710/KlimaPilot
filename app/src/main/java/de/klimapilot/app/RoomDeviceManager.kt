@@ -42,8 +42,8 @@ internal fun RoomDeviceManagerScreen(
 
     Column(
         Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
-            .verticalScroll(rememberScrollState()).padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .verticalScroll(rememberScrollState()).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = ManagerText) }
@@ -60,7 +60,7 @@ internal fun RoomDeviceManagerScreen(
                 shape = RoundedCornerShape(18.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, ManagerBorder)
             ) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.MeetingRoom, contentDescription = null, tint = ManagerBlue)
                         Spacer(Modifier.width(8.dp))
@@ -69,8 +69,9 @@ internal fun RoomDeviceManagerScreen(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Raumname") },
+                        modifier = Modifier.fillMaxWidth().height(58.dp),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 15.sp),
+                        label = { Text("Raumname", fontSize = 12.sp) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = ManagerBlue,
@@ -78,8 +79,9 @@ internal fun RoomDeviceManagerScreen(
                             cursorColor = ManagerBlue
                         )
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Button(
+                            modifier = Modifier.weight(1f).height(40.dp),
                             enabled = name.trim().isNotEmpty() && name.trim() != room && name.trim() !in rooms,
                             onClick = {
                                 val newName = name.trim()
@@ -94,9 +96,10 @@ internal fun RoomDeviceManagerScreen(
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = null)
                             Spacer(Modifier.width(5.dp))
-                            Text("Umbenennen")
+                            Text("Umbenennen", fontSize = 13.sp)
                         }
                         OutlinedButton(
+                            modifier = Modifier.weight(1f).height(40.dp),
                             enabled = rooms.size > 1,
                             onClick = {
                                 rooms.remove(room)
@@ -111,7 +114,7 @@ internal fun RoomDeviceManagerScreen(
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = null)
                             Spacer(Modifier.width(5.dp))
-                            Text("Löschen")
+                            Text("Löschen", fontSize = 13.sp)
                         }
                     }
 
@@ -124,12 +127,12 @@ internal fun RoomDeviceManagerScreen(
                     } else {
                         roomDevices.forEach { device ->
                             Row(
-                                Modifier.fillMaxWidth().background(ManagerBlueLight, RoundedCornerShape(12.dp)).padding(start = 12.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+                                Modifier.fillMaxWidth().background(ManagerBlueLight, RoundedCornerShape(12.dp)).padding(start = 9.dp, end = 2.dp, top = 2.dp, bottom = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(Icons.Default.AcUnit, contentDescription = null, tint = ManagerBlue)
                                 Spacer(Modifier.width(9.dp))
-                                Text(device.name, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold, color = ManagerText)
+                                Text(device.name, modifier = Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ManagerText)
                                 IconButton(onClick = { editing = device }) {
                                     Icon(Icons.Default.Edit, contentDescription = "Gerät bearbeiten", tint = ManagerBlue)
                                 }
@@ -145,7 +148,7 @@ internal fun RoomDeviceManagerScreen(
 
         OutlinedButton(
             onClick = { showAddOptions = true },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            modifier = Modifier.fillMaxWidth().height(44.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ManagerBlue, contentColor = Color.White)
         ) {
             Icon(Icons.Default.Add, contentDescription = null)
