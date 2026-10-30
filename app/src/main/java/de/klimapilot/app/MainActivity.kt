@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -441,6 +443,8 @@ private fun VpnDemoCard(connected: Boolean, onToggle: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostConfirm: () -> Unit, port: String, onPortChange: (String) -> Unit, onPortConfirm: () -> Unit, appVersion: String, onManageRoomsDevices: () -> Unit, onBack: () -> Unit) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = TextMain) }
@@ -477,7 +481,7 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostC
         var portConfirmed by remember(port) { mutableStateOf(false) }
         OutlinedTextField(value = host, onValueChange = { onHostChange(it); hostConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("IP-Adresse oder Hostname") }, singleLine = true)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            OutlinedButton(onClick = { onHostConfirm(); hostConfirmed = true }, enabled = host.isNotBlank()) {
+            OutlinedButton(onClick = { onHostConfirm(); hostConfirmed = true; focusManager.clearFocus(); keyboardController?.hide() }, enabled = host.isNotBlank()) {
                 Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(if (hostConfirmed) "Gespeichert" else "Adresse übernehmen")
@@ -485,12 +489,13 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostC
         }
         OutlinedTextField(value = port, onValueChange = { onPortChange(it); portConfirmed = false }, modifier = Modifier.fillMaxWidth(), label = { Text("Port (später festlegen)") }, singleLine = true)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            OutlinedButton(onClick = { onPortConfirm(); portConfirmed = true }, enabled = (port.toIntOrNull() ?: 0) in 1..65535) {
+            OutlinedButton(onClick = { onPortConfirm(); portConfirmed = true; focusManager.clearFocus(); keyboardController?.hide() }, enabled = (port.toIntOrNull() ?: 0) in 1..65535) {
                 Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(if (portConfirmed) "Gespeichert" else "Port übernehmen")
             }
         }
+        GithubUpdateCard(appVersion)
         Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.Tune, contentDescription = null, tint = Blue)
@@ -498,7 +503,6 @@ private fun SettingsScreen(host: String, onHostChange: (String) -> Unit, onHostC
                 Text("• Sichere ioBroker-Schnittstelle\n• Zugriff über dein WireGuard-VPN\n• Freigegebene Datenpunkte der Klimaanlage\n• Verbindungsprüfung und Fehlermeldungen", color = Muted, lineHeight = 22.sp, fontSize = 13.sp)
             }
         }
-        GithubUpdateCard(appVersion)
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) { Text("Zurück zur Klimaübersicht") }
     }
 }
