@@ -1,5 +1,6 @@
 package de.klimapilot.app
 
+import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -127,35 +128,36 @@ internal fun GithubUpdateCard(appVersion: String) {
                         modifier = Modifier.widthIn(min = 116.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                         onClick = {
-                        scope.launch {
-                            busy = true
-                            status = "APK wird sicher heruntergeladen …"
-                            try {
-                                status = "Download abgeschlossen. APK wird geprüft …"
-                                val file = GithubPrivateUpdates.download(context, assetId!!)
-                                val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
-                                    ?: error("Die heruntergeladene Datei ist keine gültige Android-APK.")
-                                if (archive.packageName != context.packageName) {
-                                    error("Die APK gehört zu einer anderen App: " + archive.packageName)
+                            scope.launch {
+                                busy = true
+                                status = "APK wird sicher heruntergeladen …"
+                                try {
+                                    val file = GithubPrivateUpdates.download(context, assetId!!)
+                                    status = "Download abgeschlossen. APK wird geprüft …"
+                                    val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+                                        ?: error("Die heruntergeladene Datei ist keine gültige Android-APK.")
+                                    if (archive.packageName != context.packageName) {
+                                        error("Die APK gehört zu einer anderen App: " + archive.packageName)
+                                    }
+                                    val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(uri, "application/vnd.android.package-archive")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        clipData = ClipData.newUri(context.contentResolver, "KlimaPilot APK", uri)
+                                    }
+                                    status = "APK geprüft. Android-Installationsdialog wird geöffnet …"
+                                    // Do not gate this on resolveActivity(): Android 11+ package
+                                    // visibility can hide the system installer from that query.
+                                    context.startActivity(intent)
+                                    status = "Android-Installationsdialog wurde angefordert. Bitte die Installation dort bestätigen."
+                                } catch (error: Exception) {
+                                    status = "Update fehlgeschlagen: " + (error.message ?: error.javaClass.simpleName)
+                                } finally {
+                                    busy = false
                                 }
-                                val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
-                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    setDataAndType(uri, "application/vnd.android.package-archive")
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                if (intent.resolveActivity(context.packageManager) == null) {
-                                    error("Android hat keinen Paket-Installer für APK-Dateien gefunden.")
-                                }
-                                status = "APK geprüft. Android-Installationsdialog wird geöffnet …"
-                                context.startActivity(intent)
-                                status = "Android-Installationsdialog wurde angefordert. Bitte die Installation dort bestätigen."
-                            } catch (error: Exception) {
-                                status = "Update fehlgeschlagen: " + (error.message ?: error.javaClass.simpleName)
-                            } finally {
-                                busy = false
                             }
                         }
-                    }) { Text("Update laden", maxLines = 1, softWrap = false, overflow = TextOverflow.Clip) }
+                    ) { Text("Update laden", maxLines = 1, softWrap = false, overflow = TextOverflow.Clip) }
                 }
             }
             if (busy) {
