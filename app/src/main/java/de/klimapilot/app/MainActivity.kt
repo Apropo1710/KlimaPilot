@@ -527,7 +527,7 @@ private fun SettingsScreen(serverUrl: String, onServerUrlChange: (String) -> Uni
                         Text(if (checking) "Verbindung wird aufgebaut …" else "Verbindung herstellen")
                     }
                 } else {
-                    Text("Dauerhafte WebSocket-Verbindung über ioBroker ws.0 (Port 8084). Live-Daten und Steuerung laufen über diese Verbindung.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+                    Text("Live-Daten und Steuerung laufen über diese Verbindung.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
                 }
             }
         }
