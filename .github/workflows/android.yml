@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# Verhindert, dass parallele Builds den latest-Release gegenseitig überschreiben.
+concurrency:
+  group: klimapilot-release-main
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
