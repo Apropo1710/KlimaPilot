@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DeviceThermostat
 import androidx.compose.material.icons.filled.Info
@@ -506,17 +507,21 @@ private fun SettingsScreen(serverUrl: String, onServerUrlChange: (String) -> Uni
                             focusManager.clearFocus()
                             keyboardController?.hide()
                         }) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "Eingabe bestätigen", tint = Green)
+                            Icon(Icons.Default.Edit, contentDescription = "Adresse übernehmen", tint = Blue)
                         }
                     }
                 )
-                val statusHasError = listOf("fehlgeschlagen", "timeout", "nicht geantwortet", "send failed", "Fehler", "disconnected", "konnte nicht gelesen werden").any { status.contains(it, ignoreCase = true) }
-                val statusColor = when {
-                    statusHasError -> Color(0xFFD32F2F)
-                    connected && !status.contains("prüfe", ignoreCase = true) -> Green
-                    else -> Muted
+                val statusText = when {
+                    connected -> "Verbindung hergestellt."
+                    checking -> "Verbindung wird aufgebaut …"
+                    else -> "Keine Verbindung – bitte WLAN/VPN und ioBroker prüfen."
                 }
-                Text(status, color = statusColor, fontSize = 12.sp, fontWeight = if (connected && !statusHasError) FontWeight.Medium else FontWeight.Normal)
+                val statusColor = when {
+                    connected -> Green
+                    checking -> Muted
+                    else -> Color(0xFFD32F2F)
+                }
+                Text(statusText, color = statusColor, fontSize = 12.sp, fontWeight = if (!connected && !checking) FontWeight.Medium else FontWeight.Normal)
                 if (!connected) {
                     Button(onClick = {
                         onServerUrlConfirm()
