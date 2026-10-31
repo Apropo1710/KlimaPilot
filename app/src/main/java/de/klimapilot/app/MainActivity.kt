@@ -510,7 +510,13 @@ private fun SettingsScreen(serverUrl: String, onServerUrlChange: (String) -> Uni
                         }
                     }
                 )
-                Text(status, color = if (connected) Green else Muted, fontSize = 12.sp, fontWeight = if (connected) FontWeight.Medium else FontWeight.Normal)
+                val statusHasError = listOf("fehlgeschlagen", "timeout", "nicht geantwortet", "send failed", "Fehler", "disconnected", "konnte nicht gelesen werden").any { status.contains(it, ignoreCase = true) }
+                val statusColor = when {
+                    statusHasError -> Color(0xFFD32F2F)
+                    connected && !status.contains("prüfe", ignoreCase = true) -> Green
+                    else -> Muted
+                }
+                Text(status, color = statusColor, fontSize = 12.sp, fontWeight = if (connected && !statusHasError) FontWeight.Medium else FontWeight.Normal)
                 if (!connected) {
                     Button(onClick = {
                         onServerUrlConfirm()
@@ -521,7 +527,7 @@ private fun SettingsScreen(serverUrl: String, onServerUrlChange: (String) -> Uni
                         Text(if (checking) "Verbindung wird aufgebaut …" else "Verbindung herstellen")
                     }
                 } else {
-                    Text("Verbindung über den ioBroker-WebSocket-Adapter ws.0. Live-Daten und Steuerung werden über diese Verbindung übertragen.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+                    Text("Dauerhafte WebSocket-Verbindung über ioBroker ws.0 (Port 8084). Live-Daten und Steuerung laufen über diese Verbindung.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
                 }
             }
         }
