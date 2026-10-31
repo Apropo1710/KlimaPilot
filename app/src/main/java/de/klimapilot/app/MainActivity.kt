@@ -135,11 +135,15 @@ private fun KlimaPilotApp(appVersion: String) {
     BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
     val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—",false,21f,"Aus","Auto") }
     val initialServerUrl = remember {
-        prefs.getString("iobroker_server", null) ?: run {
-            val savedHost = prefs.getString("iobroker_host", "192.168.178.xxx") ?: "192.168.178.xxx"
-            val savedPort = prefs.getString("iobroker_port", "8087") ?: "8087"
-            if (savedHost.startsWith("http://") || savedHost.startsWith("https://")) savedHost.trimEnd('/')
-            else "http://${savedHost.trim()}:${savedPort.trim()}"
+        val saved = prefs.getString("iobroker_server", null)?.trim()?.trimEnd('/')
+        when {
+            saved.isNullOrBlank() -> "ws://192.168.178.54:8084"
+            saved.startsWith("ws://") || saved.startsWith("wss://") -> saved
+            saved.startsWith("http://") || saved.startsWith("https://") -> {
+                val host = saved.substringAfter("://").substringBeforeLast(":")
+                "ws://$host:8084"
+            }
+            else -> "ws://192.168.178.54:8084"
         }
     }
     var serverUrl by remember { mutableStateOf(initialServerUrl) }
@@ -149,7 +153,7 @@ private fun KlimaPilotApp(appVersion: String) {
 
     fun connectToIoBroker() {
         val target = serverUrl.trim().trimEnd('/')
-        if (!(target.startsWith("http://") || target.startsWith("https://")) || target.contains("xxx")) {
+        if (!(target.startsWith("ws://") || target.startsWith("wss://")) || target.contains("xxx")) {
             ioBrokerConnected = false
             ioBrokerStatus = "Bitte eine gültige Serveradresse eingeben."
             return
@@ -158,7 +162,7 @@ private fun KlimaPilotApp(appVersion: String) {
         ioBrokerConnected = false
         ioBrokerStatus = "Verbindung wird aufgebaut …"
         prefs.edit().putString("iobroker_server", target).apply()
-        IoBrokerClient.testConnection(target) { ok, message ->
+        IoBrokerClient.connect(target) { ok, message ->
             ioBrokerConnected = ok
             ioBrokerChecking = false
             ioBrokerStatus = message
@@ -493,7 +497,7 @@ private fun SettingsScreen(serverUrl: String, onServerUrlChange: (String) -> Uni
                 OutlinedTextField(
                     value = serverUrl,
                     onValueChange = onServerUrlChange,
-                    label = { Text("Serveradresse") },
+                    label = { Text("WebSocket-Adresse") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     trailingIcon = {
@@ -517,7 +521,7 @@ private fun SettingsScreen(serverUrl: String, onServerUrlChange: (String) -> Uni
                         Text(if (checking) "Verbindung wird aufgebaut …" else "Verbindung herstellen")
                     }
                 } else {
-                    Text("Verbindung über ioBroker Simple API. Der Zugriff erfolgt wie in HomePilot ohne zusätzliche Anmeldung.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+                    Text("Verbindung über den ioBroker-WebSocket-Adapter ws.0. Live-Daten und Steuerung werden über diese Verbindung übertragen.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
                 }
             }
         }

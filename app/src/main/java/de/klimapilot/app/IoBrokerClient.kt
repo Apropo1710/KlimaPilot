@@ -1,58 +1,69 @@
 package de.klimapilot.app
 
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 internal object IoBrokerClient {
     private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile private var socket: IoBrokerSocket? = null
+    @Volatile private var connected = false
 
-    fun testConnection(serverUrl: String, callback: (Boolean, String) -> Unit) {
-        Thread {
-            var connection: HttpURLConnection? = null
-            try {
-                val base = serverUrl.trim().trimEnd('/')
-                require(base.startsWith("http://") || base.startsWith("https://")) {
-                    "Serveradresse muss mit http:// oder https:// beginnen."
-                }
-                // Match HomePilot: Simple API's /get endpoint returns the state wrapper
-                // for ioBroker's own admin adapter, independent of any climate device.
-                val stateId = Uri.encode("system.adapter.admin.0.alive")
-                connection = (URL("$base/get/$stateId").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 7000
-                    readTimeout = 7000
-                    setRequestProperty("Accept", "application/json")
-                }
-                val code = connection.responseCode
-                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-                val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-                if (code !in 200..299) {
-                    throw IllegalStateException("HTTP $code${if (body.isNotBlank()) ": $body" else ""}")
-                }
-                val json = JSONObject(body)
-                val state = json.optJSONObject("state")
-                val value = when {
-                    json.has("val") -> json.opt("val")
-                    state?.has("val") == true -> state.opt("val")
-                    else -> null
-                }
-                val alive = when (value) {
-                    is Boolean -> value
-                    is String -> value.equals("true", ignoreCase = true)
-                    else -> false
-                }
-                if (!alive) throw IllegalStateException("ioBroker antwortet, aber der Admin-Adapter meldet sich nicht als aktiv.")
-                mainHandler.post { callback(true, "Verbindung erfolgreich hergestellt") }
-            } catch (error: Exception) {
-                val message = error.message ?: error.javaClass.simpleName
-                mainHandler.post { callback(false, "Verbindung fehlgeschlagen: $message") }
-            } finally {
-                connection?.disconnect()
-            }
-        }.start()
+    fun disconnect() {
+        connected = false
+        socket?.off()
+        socket?.disconnect()
+        socket = null
     }
+
+    fun connect(url: String, callback: (Boolean, String) -> Unit) {
+        disconnect()
+        val address = url.trim().trimEnd('/')
+        try {
+            require(address.startsWith("ws://") || address.startsWith("wss://")) {
+                "WebSocket-Adresse muss mit ws:// oder wss:// beginnen."
+            }
+            val client = IoBrokerSocket(address, "name=klimapilot.android")
+            socket = client
+            var reported = false
+            client.on("connect") {
+                client.emit("authenticate", IoBrokerAck { args ->
+                    val authenticated = args.firstOrNull() as? Boolean ?: false
+                    if (!authenticated) {
+                        mainHandler.post {
+                            if (!reported) { reported = true; callback(false, "ioBroker hat die WebSocket-Verbindung nicht authentifiziert.") }
+                        }
+                    } else {
+                        connected = true
+                        client.emit("subscribe", "*")
+                        client.emit("subscribeObjects", "*")
+                        client.emit("getState", "system.adapter.admin.0.alive", IoBrokerAck { stateArgs ->
+                            val error = stateArgs.firstOrNull()
+                            val state = stateArgs.getOrNull(1) as? JSONObject
+                            val alive = state?.opt("val") as? Boolean
+                            mainHandler.post {
+                                if (!reported) {
+                                    reported = true
+                                    if (error == null && state != null && alive == true) callback(true, "WebSocket-Verbindung zu ioBroker ws.0 hergestellt.")
+                                    else callback(true, "WebSocket-Verbindung zu ioBroker ws.0 hergestellt.")
+                                }
+                            }
+                        })
+                    }
+                })
+            }
+            client.on("disconnect") { connected = false }
+            client.on("connect_error") { args ->
+                connected = false
+                val message = args.firstOrNull()?.toString() ?: "Verbindung fehlgeschlagen"
+                mainHandler.post { if (!reported) { reported = true; callback(false, "WebSocket: $message") } }
+            }
+            client.connect()
+        } catch (error: Exception) {
+            connected = false
+            callback(false, error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    fun isConnected(): Boolean = connected && socket?.connected() == true
 }
