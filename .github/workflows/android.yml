@@ -7,8 +7,8 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
-# Verhindert, dass parallele Builds den latest-Release gegenseitig überschreiben.
 concurrency:
   group: klimapilot-release-main
   cancel-in-progress: false
@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Quellcode auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Java 17 einrichten
         uses: actions/setup-java@v4
@@ -71,6 +73,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
 
       - name: APK als Build-Artefakt hochladen
+        id: artifact
         uses: actions/upload-artifact@v4
         with:
           name: KlimaPilot-release-apk
@@ -78,16 +81,71 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Release-Version ermitteln
-        run: echo "APP_VERSION=$(sed -n 's/.*versionName = \"\(.*\)\".*/\1/p' app/build.gradle.kts)" >> "$GITHUB_ENV"
+      - name: Projektstatus automatisch aktualisieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          VERSION_CODE=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts)
+          APK="app/build/outputs/apk/release/KlimaPilot.apk"
+          APK_SHA=$(sha256sum "$APK" | awk '{print $1}')
+          ARTIFACT_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts")
+          ARTIFACT_ID=$(echo "$ARTIFACT_JSON" | jq -r '.artifacts[] | select(.name=="KlimaPilot-release-apk") | .id' | head -n 1)
+          ARTIFACT_SIZE=$(echo "$ARTIFACT_JSON" | jq -r '.artifacts[] | select(.name=="KlimaPilot-release-apk") | .size_in_bytes' | head -n 1)
+          test -n "$ARTIFACT_ID" && test "$ARTIFACT_ID" != "null"
+          mkdir -p .github/status
+          cat > .github/status/generated.md <<EOF
+          <!-- AUTO-PRODUCTION-STATUS:START -->
+          ## Automatisch gepflegter Produktionsstatus
+
+          - Zuletzt erfolgreicher Workflow: [Run #${GITHUB_RUN_NUMBER}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) – `success`
+          - Gebauter Quellcommit: `${GITHUB_SHA}`
+          - App-Version / versionCode: **${VERSION_NAME} / ${VERSION_CODE}**
+          - Build-Zeit: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          - APK-Signaturprüfung: erfolgreich (CI-Schritt `apksigner verify --print-certs`)
+          - Build-Artefakt: `KlimaPilot-release-apk`, ID `${ARTIFACT_ID}`, ${ARTIFACT_SIZE} Bytes
+          - APK-SHA-256: `${APK_SHA}`
+          - Release: wird nach diesem Dokumentationscommit mit Git-Tag `latest` synchronisiert.
+          - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
+          - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
+          - ChatGPT-Bibliotheksakte: wird durch diesen Workflow nicht verändert; sie bleibt eine separate Langzeit-/Historienakte.
+
+          <!-- AUTO-PRODUCTION-STATUS:END -->
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("PROJECT_STATUS.md")
+          old = p.read_text()
+          block = Path(".github/status/generated.md").read_text().strip()
+          start, end = "<!-- AUTO-PRODUCTION-STATUS:START -->", "<!-- AUTO-PRODUCTION-STATUS:END -->"
+          if start in old and end in old:
+              a = old.index(start)
+              b = old.index(end, a) + len(end)
+              old = old[:a] + block + old[b:]
+          else:
+              old = block + "\n\n" + old
+          p.write_text(old.rstrip() + "\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_STATUS.md
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: refresh generated production status [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: Git-Tag latest auf dokumentierten Produktionsstand setzen
+        run: |
+          git fetch origin main
+          git tag -f latest origin/main
+          git push origin refs/tags/latest --force
 
       - name: Neueste APK im privaten Release veröffentlichen
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git tag -f latest "$GITHUB_SHA"
-          git push origin refs/tags/latest --force
+          VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
           gh release view latest >/dev/null
-          gh release edit latest --title "KlimaPilot – neueste APK" --notes "KlimaPilot-Version: $APP_VERSION
-          Automatisch gebaute und signierte KlimaPilot-Version."
+          gh release edit latest --title "KlimaPilot – neueste APK" --notes "KlimaPilot-Version: $VERSION_NAME
+          Automatisch gebaut und signiert. Quellstand: $(git rev-parse origin/main)."
           gh release upload latest app/build/outputs/apk/release/KlimaPilot.apk --clobber
