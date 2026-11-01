@@ -127,12 +127,12 @@ jobs:
               old = block + "\n\n" + old
           import re
           for heading in ("Aktueller Produktionsstand", "Build und Veröffentlichung"):
-              pattern = rf"(?ms)^## {re.escape(heading)}\\n.*?(?=^## |\\Z)"
+              pattern = rf"(?ms)^## {re.escape(heading)}\n.*?(?=^## |\\Z)"
               note = (
-                  f"## {heading}\\n\\n"
+                  f"## {heading}\n\n"
                   "Die verbindlichen aktuellen Build-, Signatur-, Artefakt- und Release-Daten "
                   "stehen im automatisch gepflegten Produktionsstatus am Dokumentanfang. "
-                  "Ältere Einzelstände werden nicht als aktueller Produktionsstand fortgeführt.\\n\\n"
+                  "Ältere Einzelstände werden nicht als aktueller Produktionsstand fortgeführt.\n\n"
               )
               old, _ = re.subn(pattern, note, old, count=1)
           p.write_text(old.rstrip() + "\\n")
