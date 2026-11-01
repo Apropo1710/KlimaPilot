@@ -1,3 +1,20 @@
+<!-- AUTO-PRODUCTION-STATUS:START -->
+## Automatisch gepflegter Produktionsstatus
+
+- Zuletzt erfolgreicher Workflow: [Run #79](https://github.com/Apropo1710/KlimaPilot/actions/runs/41278511686) – success
+- Gebauter Quellcommit: 
+- App-Version / versionCode: **0.4.21 / 51**
+- Build-Zeit: 2026-11-01 05:55:37 UTC
+- APK-Signaturprüfung: erfolgreich (CI-Schritt apksigner verify --print-certs)
+- Build-Artefakt: , ID 13071699494, 10694858 Bytes
+- APK-SHA-256: cc1868fcdc6e8230ead3ee16e730a0ac4f8b014efa968d4327725c01178ea07a
+- Release: wird nach diesem Dokumentationscommit mit Git-Tag latest synchronisiert.
+- Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
+- Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
+- ChatGPT-Bibliotheksakte: wird durch diesen Workflow nicht verändert; sie bleibt eine separate Langzeit-/Historienakte.
+
+<!-- AUTO-PRODUCTION-STATUS:END -->
+
 # KlimaPilot – Projektstatus
 
 Stand: 31.10.2026, 22:26 Uhr (MEZ)  
