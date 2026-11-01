@@ -1,17 +1,17 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Zuletzt erfolgreicher Workflow: [Run #79](https://github.com/Apropo1710/KlimaPilot/actions/runs/41278511686) – success
-- Gebauter Quellcommit: 
+- Quellcommit des APK-Builds: 54dd8a5c47e4aef51288953980300a6bc455f198
 - App-Version / versionCode: **0.4.21 / 51**
-- Build-Zeit: 2026-11-01 05:55:37 UTC
-- APK-Signaturprüfung: erfolgreich (CI-Schritt apksigner verify --print-certs)
-- Build-Artefakt: , ID 13071699494, 10694858 Bytes
-- APK-SHA-256: cc1868fcdc6e8230ead3ee16e730a0ac4f8b014efa968d4327725c01178ea07a
-- Release: wird nach diesem Dokumentationscommit mit Git-Tag latest synchronisiert.
+- Build-Zeit: 2026-11-01 06:11:40 UTC
+- APK-Dateiname: **KlimaPilot.apk**
+- APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
+- Build-Artefakt: **KlimaPilot-release-apk**, ID 13072444128, 10694862 Bytes
+- APK-SHA-256: 3dedb157a0191448e418ec433faaf172fc78cd231de2ac5967f52ab0ec4d531e
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
-- ChatGPT-Bibliotheksakte: wird durch diesen Workflow nicht verändert; sie bleibt eine separate Langzeit-/Historienakte.
+          - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
@@ -39,29 +39,11 @@ Der jeweils aktuelle Code auf GitHub ist maßgeblich. Vor jeder Änderung muss d
 
 ## Aktueller Produktionsstand
 
-- Branch: `main`
-- HEAD: `364e0b3a8c0bc28714b0bed4c7d83d219d09c20b`
-- Commit-Nachricht: `Remove Play Protect triggering install permission`
-- Commit-Zeit: 31.10.2026, 14:29:08 Uhr (MEZ)
-- App-Version: `0.4.21`
-- versionCode: `51`
-- Application-ID: `de.klimapilot.app`
-- Android: minSdk 26, compileSdk 35, targetSdk 35
-- Java/Kotlin-Ziel: Java 17
+Die verbindlichen aktuellen Build-, Signatur-, Artefakt- und Release-Daten stehen im automatisch gepflegten Produktionsstatus am Dokumentanfang. Ältere Einzelstände werden nicht als aktueller Produktionsstand fortgeführt.
 
 ## Build und Veröffentlichung
 
-- Workflow: `.github/workflows/android.yml`
-- GitHub Actions letzter erfolgreicher Build: [#76](https://github.com/Apropo1710/KlimaPilot/actions/runs/41205763589), Run-ID `41205763589`
-- Status: `completed / success`
-- Abschluss: 31.10.2026, 14:32:21 Uhr (MEZ)
-- Der Build prüft Paket-ID, Versionsname/-code und APK-Signatur, lädt das Artefakt hoch und aktualisiert den Release `latest`.
-- Release `latest` wurde am 31.10.2026 um 14:32:01 Uhr (MEZ) aktualisiert; Release-Notiz nennt Version 0.4.21.
-- Aktuelles Release-Asset: `KlimaPilot.apk`.
-- APK-Download: https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
-- Actions: https://github.com/Apropo1710/KlimaPilot/actions
-
-Zeitpunkte für Commit, Build-Abschluss und Release-Aktualisierung sind getrennt zu führen. Ein erfolgreicher Build allein beweist keinen Smartphone-Test.
+Die verbindlichen aktuellen Build-, Signatur-, Artefakt- und Release-Daten stehen im automatisch gepflegten Produktionsstatus am Dokumentanfang. Ältere Einzelstände werden nicht als aktueller Produktionsstand fortgeführt.
 
 ## Umgesetzter und bestätigter Stand
 
@@ -111,4 +93,4 @@ Es gibt aktuell keine offene Updater-Aufgabe. Hardwareabhängige Klimaanlagenfun
 
 ## Änderungsverlauf
 
-- 31.10.2026, 22:26 Uhr (MEZ): Zentrale Projektstatusdatei angelegt. Produktionsstand 0.4.21 / Code 51, Commit `364e0b3`, Actions #76 und Release `latest` live geprüft. Updater-Status korrigiert: erfolgreich getestet, abgeschlossen, keine offene Aufgabe.
+- 31.10.2026, 22:26 Uhr (MEZ): Zentrale Projektstatusdatei angelegt. Produktionsstand 0.4.21 / Code 51, Commit `364e0b3`, Actions #76 und Release `latest` live geprüft. Updater-Status korrigiert: erfolgreich getestet, abgeschlossen, keine offene Aufgabe.\n
