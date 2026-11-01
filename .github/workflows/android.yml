@@ -125,7 +125,17 @@ jobs:
               old = old[:a] + block + old[b:]
           else:
               old = block + "\n\n" + old
-          p.write_text(old.rstrip() + "\n")
+          import re
+          for heading in ("Aktueller Produktionsstand", "Build und Veröffentlichung"):
+              pattern = rf"(?ms)^## {re.escape(heading)}\\n.*?(?=^## |\\Z)"
+              note = (
+                  f"## {heading}\\n\\n"
+                  "Die verbindlichen aktuellen Build-, Signatur-, Artefakt- und Release-Daten "
+                  "stehen im automatisch gepflegten Produktionsstatus am Dokumentanfang. "
+                  "Ältere Einzelstände werden nicht als aktueller Produktionsstand fortgeführt.\\n\\n"
+              )
+              old, _ = re.subn(pattern, note, old, count=1)
+          p.write_text(old.rstrip() + "\\n")
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
