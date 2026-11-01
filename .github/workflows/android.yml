@@ -98,14 +98,14 @@ jobs:
           <!-- AUTO-PRODUCTION-STATUS:START -->
           ## Automatisch gepflegter Produktionsstatus
 
-          - Zuletzt erfolgreicher Workflow: [Run #${GITHUB_RUN_NUMBER}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) – `success`
+          - Zuletzt erfolgreicher Workflow: [Run #${GITHUB_RUN_NUMBER}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) – success
           - Gebauter Quellcommit: `${GITHUB_SHA}`
           - App-Version / versionCode: **${VERSION_NAME} / ${VERSION_CODE}**
           - Build-Zeit: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-          - APK-Signaturprüfung: erfolgreich (CI-Schritt `apksigner verify --print-certs`)
-          - Build-Artefakt: `KlimaPilot-release-apk`, ID `${ARTIFACT_ID}`, ${ARTIFACT_SIZE} Bytes
-          - APK-SHA-256: `${APK_SHA}`
-          - Release: wird nach diesem Dokumentationscommit mit Git-Tag `latest` synchronisiert.
+          - APK-Signaturprüfung: erfolgreich (CI-Schritt apksigner verify --print-certs)
+          - Build-Artefakt: `KlimaPilot-release-apk`, ID ${ARTIFACT_ID}, ${ARTIFACT_SIZE} Bytes
+          - APK-SHA-256: ${APK_SHA}
+          - Release: wird nach diesem Dokumentationscommit mit Git-Tag latest synchronisiert.
           - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
           - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: wird durch diesen Workflow nicht verändert; sie bleibt eine separate Langzeit-/Historienakte.
