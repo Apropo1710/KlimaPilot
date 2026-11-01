@@ -95,6 +95,8 @@ jobs:
           ARTIFACT_SIZE=$(echo "$ARTIFACT_JSON" | jq -r '.artifacts[] | select(.name=="KlimaPilot-release-apk") | .size_in_bytes' | head -n 1)
           test -n "$ARTIFACT_ID" && test "$ARTIFACT_ID" != "null"
           export VERSION_NAME VERSION_CODE APK_SHA ARTIFACT_ID ARTIFACT_SIZE
+          git fetch origin main
+          git rebase origin/main
           python3 - <<'PY'
           import os
           from pathlib import Path
@@ -125,8 +127,6 @@ jobs:
               old = block + "\n\n" + old
           p.write_text(old.rstrip() + "\n")
           PY
-          git fetch origin main
-          git rebase origin/main
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add PROJECT_STATUS.md
@@ -155,6 +155,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          git fetch origin main
+          git rebase origin/main
           python3 - <<'PY'
           from pathlib import Path
           p = Path("PROJECT_STATUS.md")
@@ -165,8 +167,6 @@ jobs:
           )
           p.write_text(text)
           PY
-          git fetch origin main
-          git rebase origin/main
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add PROJECT_STATUS.md
