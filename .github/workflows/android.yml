@@ -96,7 +96,7 @@ jobs:
           test -n "$ARTIFACT_ID" && test "$ARTIFACT_ID" != "null"
           export VERSION_NAME VERSION_CODE APK_SHA ARTIFACT_ID ARTIFACT_SIZE
           git fetch origin main
-          git rebase origin/main
+          git reset --soft origin/main
           python3 - <<'PY'
           import os
           from pathlib import Path
@@ -166,7 +166,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git fetch origin main
-          git rebase origin/main
+          git reset --soft origin/main
           python3 - <<'PY'
           from pathlib import Path
           p = Path("PROJECT_STATUS.md")
