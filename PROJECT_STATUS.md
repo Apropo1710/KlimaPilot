@@ -111,3 +111,9 @@ Der Nutzer hat die aktuellen In-App-Updates von HomePilot und KlimaPilot erfolgr
 10. Nach erfolgreichem Test Version/versionCode, Commit, Actions-Run und Nutzerbestätigung dokumentieren. Updater-Code bei anderen Arbeiten unangetastet lassen.
 
 **Ergebnis 05.11.2026:** Nutzer bestätigt, dass KlimaPilot-Update erfolgreich installiert wurde. Bestätigt ist dieser konkrete Test; keine Garantie für jedes Android-Gerät.\n
+
+## Bewährte Updater-Lösung – Gerätetest 05.11.2026
+
+**Erfolgreich auf dem Nutzergerät bestätigt:** KlimaPilot **0.4.23 / versionCode 53**. Der erfolgreiche KlimaPilot-Pfad basiert auf `ACTION_VIEW` mit MIME-Typ `application/vnd.android.package-archive`, `FileProvider`-URI, URI-Leseberechtigung, `ClipData` und `FLAG_ACTIVITY_NEW_TASK`. `REQUEST_INSTALL_PACKAGES` wird nicht verwendet. Der Nutzer bestätigte, dass das Update erfolgreich installiert wurde.
+
+Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot übertragen werden: Package-ID, FileProvider, Signierung und Berechtigungen unterscheiden sich. Die Bestätigung gilt für den getesteten Stand und das Nutzergerät.
