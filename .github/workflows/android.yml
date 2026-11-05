@@ -80,7 +80,7 @@ jobs:
           name: KlimaPilot-release-apk
           path: app/build/outputs/apk/release/KlimaPilot.apk
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
 
       - name: Projektstatus mit verifizierten Build-Daten aktualisieren
         env:
