@@ -94,3 +94,20 @@ Es gibt aktuell keine offene Updater-Aufgabe. Hardwareabhängige Klimaanlagenfun
 ## Änderungsverlauf
 
 - 31.10.2026, 22:26 Uhr (MEZ): Zentrale Projektstatusdatei angelegt. Produktionsstand 0.4.21 / Code 51, Commit `364e0b3`, Actions #76 und Release `latest` live geprüft. Updater-Status korrigiert: erfolgreich getestet, abgeschlossen, keine offene Aufgabe.\n\n\n\n\n\n
+
+## Verbindliche Updater-Arbeitsweise (05.11.2026)
+
+Der Nutzer hat die aktuellen In-App-Updates von HomePilot und KlimaPilot erfolgreich installiert. Diese Regeln ergänzen die bestehende Entscheidung, den funktionierenden KlimaPilot-Updater nicht unnötig zu verändern:
+
+1. Vor Änderungen immer aktuellen `main`-Stand lesen und Update-UI, Download-/Installer-Code, Manifest, FileProvider, Gradle-Signierung und Workflow prüfen.
+2. Zuerst Git-Historie und den bekannten funktionierenden Stand recherchieren. Nicht blind Installer-Implementierungen von HomePilot übernehmen oder umgekehrt: Package-ID, FileProvider, Signierung und app-spezifische Konfiguration unterscheiden sich.
+3. Keine unnötigen Experimente mit `ACTION_VIEW` / `ACTION_INSTALL_PACKAGE`, MIME-Typ, URI-Quelle oder Berechtigungen. Nur gezielte Änderungen mit nachvollziehbarem Diff; bei funktionierendem Updater keine Änderung ohne konkreten Fehler.
+4. **Signierung erhalten:** Updates müssen mit demselben Zertifikat signiert sein wie die installierte App. Release-Keystore, Alias, GitHub Secrets und SigningConfig nicht beiläufig ändern. Bei Installations-/Signaturfehlern Zertifikats-Fingerprints der APKs vergleichen.
+5. Für installierbare Test-APK immer `versionName` und `versionCode` erhöhen; `versionCode` muss über dem installierten Stand liegen.
+6. Die in der Updateprüfung angezeigte Version/Release-Notes muss dynamisch der Gradle-Version entsprechen; keine veraltete fest codierte Versionsangabe. Das bereits korrigierte Workflow-Verhalten beibehalten.
+7. GitHub Actions, APK, Application-ID, Version, Signatur und Release-Asset prüfen. Erst nach erfolgreichem Build und verifiziertem Asset Download-Link nennen.
+8. Nutzergerätetest: Download starten, Android-System-Installationsdialog tatsächlich öffnen, Update über die bestehende Installation durchführen und danach installierte Version kontrollieren. Ein Download oder eine Statusmeldung ist kein Installationsnachweis.
+9. `REQUEST_INSTALL_PACKAGES`, Android-Einstellungen für unbekannte Apps und Play-Protect-relevante Änderungen nicht ohne Historienprüfung und ausdrückliche Absprache verändern.
+10. Nach erfolgreichem Test Version/versionCode, Commit, Actions-Run und Nutzerbestätigung dokumentieren. Updater-Code bei anderen Arbeiten unangetastet lassen.
+
+**Ergebnis 05.11.2026:** Nutzer bestätigt, dass KlimaPilot-Update erfolgreich installiert wurde. Bestätigt ist dieser konkrete Test; keine Garantie für jedes Android-Gerät.
