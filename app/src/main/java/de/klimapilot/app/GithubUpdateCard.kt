@@ -140,17 +140,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                                         error("Die APK gehört zu einer anderen App: " + archive.packageName)
                                     }
                                     val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
-                                    if (!context.packageManager.canRequestPackageInstalls()) {
-                                        status = "Android erlaubt KlimaPilot derzeit keine APK-Installation. Bitte die Freigabe in den Android-Einstellungen aktivieren."
-                                        context.startActivity(
-                                            Intent(
-                                                Intent.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                                Uri.parse("package:" + context.packageName)
-                                            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        )
-                                        return@launch
-                                    }
-                                    val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
                                         setDataAndType(uri, "application/vnd.android.package-archive")
                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                                         clipData = ClipData.newUri(context.contentResolver, "KlimaPilot APK", uri)

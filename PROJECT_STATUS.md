@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: cf7cc3d4ccabc3a80b926aaa7e720c369a157e35
+- Quellcommit des APK-Builds: 65c12508579cb08593b7c06a384c4d7923207a3f
 - App-Version / versionCode: **0.4.22 / 52**
-- Build-Zeit: 2026-11-05 21:53:44 UTC
+- Build-Zeit: 2026-11-05 21:59:21 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
-- Build-Artefakt: **KlimaPilot-release-apk**, ID 13455813937, 10694855 Bytes
-- APK-SHA-256: 474245c8e4fdfd4b0c8f19fe6dd7b7cecaf0ce83e74d4c8768f8b0e685c940ca
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- Build-Artefakt: **KlimaPilot-release-apk**, ID 13455732990, 10694891 Bytes
+- APK-SHA-256: 345cab3816d0008bfb7c978c34fabb369bb3889b2db87a59ff13c46dee7b2d76
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -93,4 +93,4 @@ Es gibt aktuell keine offene Updater-Aufgabe. Hardwareabhängige Klimaanlagenfun
 
 ## Änderungsverlauf
 
-- 31.10.2026, 22:26 Uhr (MEZ): Zentrale Projektstatusdatei angelegt. Produktionsstand 0.4.21 / Code 51, Commit `364e0b3`, Actions #76 und Release `latest` live geprüft. Updater-Status korrigiert: erfolgreich getestet, abgeschlossen, keine offene Aufgabe.\n\n\n\n
+- 31.10.2026, 22:26 Uhr (MEZ): Zentrale Projektstatusdatei angelegt. Produktionsstand 0.4.21 / Code 51, Commit `364e0b3`, Actions #76 und Release `latest` live geprüft. Updater-Status korrigiert: erfolgreich getestet, abgeschlossen, keine offene Aufgabe.\n\n\n\n\n
