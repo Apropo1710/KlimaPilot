@@ -187,5 +187,6 @@ jobs:
           git fetch origin main
           git tag -f latest origin/main
           git push origin refs/tags/latest --force
-          gh release edit latest --notes "KlimaPilot-Version: 0.4.21
+          VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          gh release edit latest --notes "KlimaPilot-Version: $VERSION_NAME
           Automatisch gebaut, signiert und veröffentlicht. Produktionsstatus und Quellstand siehe PROJECT_STATUS.md."
