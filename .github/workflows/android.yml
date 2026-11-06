@@ -74,6 +74,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
 
       - name: APK als Build-Artefakt hochladen
+        if: github.event_name == 'workflow_dispatch'
         id: artifact
         uses: actions/upload-artifact@v4
         with:
@@ -90,11 +91,16 @@ jobs:
           VERSION_CODE=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | head -n 1 | grep -oE '[0-9]+')
           APK="app/build/outputs/apk/release/KlimaPilot.apk"
           APK_SHA=$(sha256sum "$APK" | awk '{print $1}')
-          ARTIFACT_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts")
-          ARTIFACT_ID=$(echo "$ARTIFACT_JSON" | jq -r '.artifacts[] | select(.name=="KlimaPilot-release-apk") | .id' | head -n 1)
-          ARTIFACT_SIZE=$(echo "$ARTIFACT_JSON" | jq -r '.artifacts[] | select(.name=="KlimaPilot-release-apk") | .size_in_bytes' | head -n 1)
-          test -n "$ARTIFACT_ID" && test "$ARTIFACT_ID" != "null"
-          export VERSION_NAME VERSION_CODE APK_SHA ARTIFACT_ID ARTIFACT_SIZE
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            ARTIFACT_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts")
+            ARTIFACT_ID=$(echo "$ARTIFACT_JSON" | jq -r '.artifacts[] | select(.name=="KlimaPilot-release-apk") | .id' | head -n 1)
+            ARTIFACT_SIZE=$(echo "$ARTIFACT_JSON" | jq -r '.artifacts[] | select(.name=="KlimaPilot-release-apk") | .size_in_bytes' | head -n 1)
+            test -n "$ARTIFACT_ID" && test "$ARTIFACT_ID" != "null"
+            ARTIFACT_STATUS="KlimaPilot-release-apk, ID $ARTIFACT_ID, $ARTIFACT_SIZE Bytes (manueller Build)"
+          else
+            ARTIFACT_STATUS="kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht"
+          fi
+          export VERSION_NAME VERSION_CODE APK_SHA ARTIFACT_STATUS
           git fetch origin main
           git reset --soft origin/main
           python3 - <<'PY'
@@ -112,7 +118,7 @@ jobs:
           - Build-Zeit: {os.popen("date -u +'%Y-%m-%d %H:%M:%S UTC'").read().strip()}
           - APK-Dateiname: **KlimaPilot.apk**
           - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
-          - Build-Artefakt: **KlimaPilot-release-apk**, ID {os.environ['ARTIFACT_ID']}, {os.environ['ARTIFACT_SIZE']} Bytes
+          - Build-Artefakt: {os.environ['ARTIFACT_STATUS']}
           - APK-SHA-256: {os.environ['APK_SHA']}
           - GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
           - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
