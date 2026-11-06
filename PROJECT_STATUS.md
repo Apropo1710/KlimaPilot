@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: a8bc02dc430fa115e28c08babd966737953cf591
+- Quellcommit des APK-Builds: 8caf9879d1252e02e6bdadc710367ab85bc9317f
 - App-Version / versionCode: **0.4.23 / 53**
-- Build-Zeit: 2026-11-05 22:25:59 UTC
+- Build-Zeit: 2026-11-06 13:48:15 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
-- Build-Artefakt: **KlimaPilot-release-apk**, ID 13458981269, 10694898 Bytes
-- APK-SHA-256: d232567289dbb4fc87acca157c4b619f50f97579373a999ca0b31ebf1e5b7308
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
+- APK-SHA-256: 4b83e390f9ec8ae832874c4bdaa7850cae358beca089e4f82c888154d875fd4d
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -116,4 +116,4 @@ Der Nutzer hat die aktuellen In-App-Updates von HomePilot und KlimaPilot erfolgr
 
 **Erfolgreich auf dem Nutzergerät bestätigt:** KlimaPilot **0.4.23 / versionCode 53**. Der erfolgreiche KlimaPilot-Pfad basiert auf `ACTION_VIEW` mit MIME-Typ `application/vnd.android.package-archive`, `FileProvider`-URI, URI-Leseberechtigung, `ClipData` und `FLAG_ACTIVITY_NEW_TASK`. `REQUEST_INSTALL_PACKAGES` wird nicht verwendet. Der Nutzer bestätigte, dass das Update erfolgreich installiert wurde.
 
-Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot übertragen werden: Package-ID, FileProvider, Signierung und Berechtigungen unterscheiden sich. Die Bestätigung gilt für den getesteten Stand und das Nutzergerät.\n
+Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot übertragen werden: Package-ID, FileProvider, Signierung und Berechtigungen unterscheiden sich. Die Bestätigung gilt für den getesteten Stand und das Nutzergerät.\n\n
