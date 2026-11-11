@@ -23,15 +23,6 @@ Eigenständige Android-App zur Steuerung von Klimaanlagen über ioBroker.
 4. Bedienkonzept und Automatik erst auf Basis der tatsächlichen Datenpunkte implementieren.
 5. Tests mit realer Klimaanlage durchführen und bestätigte Funktionen hier dokumentieren.
 
-## Branch-Wechsel und Übernahme der Statusdatei
-
-- Die `STATUS.md` gehört zum jeweiligen Projektstand und wird auf jedem aktiv bearbeiteten Branch mitgeführt.
-- Vor einem Branch-Wechsel zuerst den aktuellen Stand dieser Datei sichern und im Zielbranch übernehmen bzw. mit dessen Stand zusammenführen.
-- Wird ein Feature-/Fix-Branch in `main` gemergt, muss die aktuelle `STATUS.md` Bestandteil desselben Merge-Ergebnisses sein. Danach wird sie auf `main` weitergeführt.
-- Wird ein neuer Branch von einem älteren Stand erstellt, die aktuelle Statusdatei aus dem zuletzt maßgeblichen Branch nachziehen, bevor dort weitergearbeitet wird.
-- Nach dem Merge ist `main` die maßgebliche Statusquelle für den übernommenen Projektstand; bei neuer Arbeit auf einem Feature-Branch wird sie dort fortgeschrieben und beim nächsten Merge wieder nach `main` übertragen.
-- Keine Statusdatei durch eine ältere Kopie überschreiben: Änderungen aus beiden Branches anhand der Commit-Historie zusammenführen.
-
 ## Arbeitsregeln
 - Vor Änderungen STATUS.md und relevante Quelldateien lesen.
 - Nach jeder zusammenhängenden Änderung STATUS.md im selben Commit aktualisieren.
