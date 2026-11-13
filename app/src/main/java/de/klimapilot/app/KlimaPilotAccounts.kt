@@ -381,7 +381,7 @@ internal fun KlimaPilotAccountSettingsScreen(
         onDismissRequest = { showAdd = false },
         title = { Text("KlimaPilot-Benutzer anlegen") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.heightIn(max = 280.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(newUsername, { newUsername = it }, label = { Text("Benutzername") }, singleLine = true)
                 OutlinedTextField(newDisplayName, { newDisplayName = it }, label = { Text("Anzeigename") }, singleLine = true)
                 OutlinedTextField(newPassword, { newPassword = it }, label = { Text("Passwort (mind. 8 Zeichen)") },
@@ -412,7 +412,7 @@ internal fun KlimaPilotAccountSettingsScreen(
             onDismissRequest = { resetTarget = null },
             title = { Text("Passwort zurücksetzen") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Neues Passwort für ${target.username}")
                     OutlinedTextField(resetPassword, { resetPassword = it }, label = { Text("Neues Passwort") },
                         visualTransformation = PasswordVisualTransformation(), singleLine = true)

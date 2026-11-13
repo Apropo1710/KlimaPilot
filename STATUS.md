@@ -63,3 +63,11 @@ Eigenständige Android-App zur Steuerung von Klimaanlagen über ioBroker.
 - Raum-/Geräteverwaltung und ioBroker-Verbindungseinstellungen sind auf Administratoren beschränkt; normale Benutzer können die Klimaübersicht bedienen und ihr Konto verwalten.
 - Die bestehende ioBroker-Verbindung, der Updatehinweis und der APK-Installer bleiben erhalten.
 - Vorgesehene Version: **0.4.26 / versionCode 56**. Build, APK-Signatur, Release und Smartphone-Test werden separat geprüft.
+
+
+## Änderung 13.11.2026 – Dialoge der Benutzerverwaltung scrollbar
+
+- Das Dialogfenster „KlimaPilot-Benutzer anlegen“ begrenzt den Eingabebereich auf 280 dp und macht ihn separat scrollbar. Dadurch bleiben Titel und Aktionen erreichbar, auch wenn die Bildschirmtastatur geöffnet ist.
+- Auch der Dialog zum Zurücksetzen eines Passworts erhält einen begrenzten, scrollbareren Eingabebereich.
+- Keine Änderung an Kontenmodell, Passwortspeicherung, Rollen oder ioBroker-Synchronisation.
+- Vorgesehene Version: **0.4.27 / versionCode 57**. Build und Release separat prüfen.
