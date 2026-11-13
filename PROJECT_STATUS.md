@@ -15,6 +15,13 @@
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
+## Verbindliche Aktualisierung – 13.11.2026
+- Der automatische Produktionsblock oben ist der maßgebliche Build-/Release-Nachweis: Version 0.4.27 / 57, Quellcommit `56b49749a77f07b50f6c2bac2085edd250e56116`, Actions #101 erfolgreich, APK signiert und `latest` aktualisiert.
+- Der Nutzer hat die scrollbaren Dialoge der Kontenverwaltung auf dem Android-Gerät erfolgreich geprüft.
+- Alle später im Änderungsverlauf enthaltenen Formulierungen wie „Build noch zu prüfen“, „vorgesehene Version“ oder „Release separat prüfen“ beschreiben ausschließlich den damaligen historischen Zeitpunkt und sind **keine offenen Aufgaben mehr**, soweit sie denselben Stand 0.4.27 / 57 betreffen.
+- Offen bleiben ausschließlich die hardwareabhängigen Arbeiten nach Installation der Mitsubishi-Klimaanlage; siehe Abschnitt „Offene Punkte / nächste Schritte“.
+
+
 # KlimaPilot – Projektstatus
 
 Stand: 31.10.2026, 22:26 Uhr (MEZ)  
