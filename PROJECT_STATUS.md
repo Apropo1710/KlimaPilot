@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 6fae5c41e97101e7d12f39b8c36ed1dd75fcac47
-- App-Version / versionCode: **0.4.24 / 54**
-- Build-Zeit: 2026-11-13 09:13:58 UTC
+- Quellcommit des APK-Builds: 43afffa5f7f11014b6c00b6b0d2f9f5ced85df32
+- App-Version / versionCode: **0.4.25 / 55**
+- Build-Zeit: 2026-11-13 09:24:44 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 1cd2917b5c2ed8c533ffb9eb47e1b0a868a85746e9c0a41db9883e2f48102000
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 2417532235efe37f3260fc3e5d5676bb8df97abd9cbd8a9d44b91010d39d0b70
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -136,4 +136,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Benutzerwechsel löscht nur die lokale KlimaPilot-Kontositzung; die ioBroker-WebSocket-Verbindung bleibt bestehen.
 - Schutzregeln: kein Löschen des eigenen angemeldeten Kontos oder des letzten Administrators; Kontenänderungen prüfen die Registry-Revision vor dem Schreiben.
 - Die bestehende GitHub-Updateprüfung und der funktionierende APK-Installationsablauf wurden nicht verändert.
-- App-Version vorgesehen: **0.4.26 / versionCode 56**. CI-Build, APK-Signatur und Release sind noch separat zu verifizieren; ein Smartphone-Test ist nicht durch CI abgedeckt.
+- App-Version vorgesehen: **0.4.25 / versionCode 55**. CI-Build, APK-Signatur und Release sind noch separat zu verifizieren; ein Smartphone-Test ist nicht durch CI abgedeckt.\n
