@@ -50,3 +50,16 @@ Eigenständige Android-App zur Steuerung von Klimaanlagen über ioBroker.
 - Die Prüfung läuft einmal pro App-Start. Der Dialog kann bis zum nächsten App-Start geschlossen werden.
 - App-Version: 0.4.24 / versionCode 54.
 - Build und Smartphone-Test stehen nach dem Commit noch aus.
+
+
+## Änderung 13.11.2026 – Benutzerkonten und Rollen
+
+- Eigenständige KlimaPilot-Konten nach dem bereits in HomePilot erprobten Konzept ergänzt.
+- Kein Gastmodus: Die App bleibt bis zur erfolgreichen Kontoanmeldung gesperrt. Beim ersten Start wird nach erfolgreicher ioBroker-Verbindung das erste Administratorkonto eingerichtet (inklusive Passwortbestätigung).
+- Konten liegen getrennt von HomePilot im ioBroker-Datenpunkt `0_userdata.0.KlimaPilot.accounts`; Konten und Anzeigenamen sind dadurch geräteübergreifend verfügbar.
+- Passwörter werden mit PBKDF2-HMAC-SHA256, individuellen Zufallssalzen und 120.000 Iterationen gespeichert, nicht im Klartext.
+- Administratoren können Benutzer und weitere Administratoren anlegen, Passwörter zurücksetzen und andere Konten löschen. Das letzte Administratorkonto und das aktuell angemeldete Konto können nicht gelöscht werden.
+- Jeder Benutzer kann sein eigenes Passwort ändern und den Benutzer wechseln. Der Wechsel beendet nicht die ioBroker-WebSocket-Verbindung.
+- Raum-/Geräteverwaltung und ioBroker-Verbindungseinstellungen sind auf Administratoren beschränkt; normale Benutzer können die Klimaübersicht bedienen und ihr Konto verwalten.
+- Die bestehende ioBroker-Verbindung, der Updatehinweis und der APK-Installer bleiben erhalten.
+- Vorgesehene Version: **0.4.25 / versionCode 55**. Build, APK-Signatur, Release und Smartphone-Test werden separat geprüft.

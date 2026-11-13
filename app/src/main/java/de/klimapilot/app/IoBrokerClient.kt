@@ -70,5 +70,117 @@ internal object IoBrokerClient {
         }
     }
 
+
+    private fun requireSocket(): IoBrokerSocket =
+        socket?.takeIf { connected && it.connected() }
+            ?: throw IllegalStateException("Keine WebSocket-Verbindung zu ioBroker")
+
+    fun getObject(id: String, callback: (JSONObject?, String?) -> Unit) {
+        val client = try { requireSocket() } catch (e: Exception) {
+            mainHandler.post { callback(null, e.message ?: "Nicht verbunden") }
+            return
+        }
+        client.emit("getObject", id, IoBrokerAck { args ->
+            val error = args.firstOrNull()?.takeUnless { it == JSONObject.NULL }
+            val raw = args.getOrNull(1)
+            val obj = when (raw) {
+                is JSONObject -> raw
+                is String -> try { JSONObject(raw) } catch (_: Exception) { null }
+                is Map<*, *> -> JSONObject().apply {
+                    raw.forEach { (key, value) -> if (key is String) put(key, value) }
+                }
+                else -> null
+            }
+            mainHandler.post { callback(obj, error?.toString()) }
+        })
+    }
+
+    fun setObject(id: String, definition: JSONObject, callback: (Boolean, String?) -> Unit) {
+        val client = try { requireSocket() } catch (e: Exception) {
+            mainHandler.post { callback(false, e.message ?: "Nicht verbunden") }
+            return
+        }
+        client.emit("setObject", id, definition, IoBrokerAck { args ->
+            val error = args.firstOrNull()?.takeUnless { it == JSONObject.NULL }
+            mainHandler.post { callback(error == null, error?.toString()) }
+        })
+    }
+
+    fun getJsonState(id: String, callback: (JSONObject?, String?) -> Unit) {
+        val client = try { requireSocket() } catch (e: Exception) {
+            mainHandler.post { callback(null, e.message ?: "Nicht verbunden") }
+            return
+        }
+        client.emit("getState", id, IoBrokerAck { args ->
+            val error = args.firstOrNull()?.takeUnless { it == JSONObject.NULL }
+            val state = args.getOrNull(1) as? JSONObject
+            val raw = state?.opt("val")
+            val json = when (raw) {
+                is JSONObject -> raw
+                is String -> try { JSONObject(raw) } catch (_: Exception) { null }
+                else -> null
+            }
+            val resultError = when {
+                error != null -> error.toString()
+                state == null -> "Datenpunkt $id existiert noch nicht oder liefert keinen Zustand"
+                json == null -> "Datenpunkt $id enthält kein gültiges JSON-Objekt"
+                else -> null
+            }
+            mainHandler.post { callback(json, resultError) }
+        })
+    }
+
+    fun setJsonState(id: String, value: JSONObject, callback: (Boolean, String?) -> Unit) {
+        val client = try { requireSocket() } catch (e: Exception) {
+            mainHandler.post { callback(false, e.message ?: "Nicht verbunden") }
+            return
+        }
+        client.emit("setState", id, JSONObject().put("val", value.toString()).put("ack", false), IoBrokerAck { args ->
+            val error = args.firstOrNull()?.takeUnless { it == JSONObject.NULL }
+            mainHandler.post { callback(error == null, error?.toString()) }
+        })
+    }
+
+    fun ensureJsonState(
+        id: String,
+        displayName: String,
+        initialValue: JSONObject,
+        callback: (JSONObject?, Boolean, String?) -> Unit
+    ) {
+        getObject(id) { existingObject, objectError ->
+            if (objectError != null) {
+                callback(null, false, "Objekt $id konnte nicht gelesen werden: $objectError")
+                return@getObject
+            }
+            if (existingObject != null) {
+                getJsonState(id) { json, stateError ->
+                    if (stateError != null || json == null) {
+                        callback(null, false, "Vorhandenes Objekt $id hat keinen lesbaren JSON-Zustand. Keine automatische Initialisierung. $stateError")
+                    } else callback(json, false, null)
+                }
+                return@getObject
+            }
+            val definition = JSONObject()
+                .put("type", "state")
+                .put("common", JSONObject()
+                    .put("name", displayName)
+                    .put("type", "string")
+                    .put("role", "json")
+                    .put("read", true)
+                    .put("write", true))
+                .put("native", JSONObject())
+            setObject(id, definition) { created, createError ->
+                if (!created) {
+                    callback(null, false, "Objekt $id konnte nicht angelegt werden: $createError")
+                    return@setObject
+                }
+                setJsonState(id, initialValue) { written, writeError ->
+                    if (!written) callback(null, false, "Erstzustand für $id konnte nicht geschrieben werden: $writeError")
+                    else callback(initialValue, true, null)
+                }
+            }
+        }
+    }
+
     fun isConnected(): Boolean = connected && socket?.connected() == true
 }

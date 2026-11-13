@@ -126,3 +126,14 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Bei nicht verbundener GitHub-Anmeldung oder Fehlern bleibt der Start ohne Popup.
 - Die vorhandene manuelle Updatekarte sowie der bewährte APK-Download-/Installationsablauf werden nicht verändert.
 - Vorgesehene App-Version: **0.4.24 / versionCode 54**. Build, Release und Gerätetest sind nach dem Commit separat zu prüfen.\n
+
+## Änderung 13.11.2026 – KlimaPilot-Benutzerkonten
+
+- Umsetzung nach dem bewährten HomePilot-Kontomodell, jedoch mit eigenem Namensraum: `0_userdata.0.KlimaPilot.accounts`.
+- Anmeldung ist verpflichtend; kein Gastmodus. Beim ersten erfolgreichen ioBroker-Verbindungsaufbau wird das erste Administratorkonto eingerichtet. Die bestehende automatische ioBroker-Verbindung bleibt erhalten.
+- Konten und Anzeigenamen werden über den gemeinsamen ioBroker-Datenpunkt synchronisiert. Passwörter werden ausschließlich als PBKDF2-HMAC-SHA256-Hashes mit individuellen 16-Byte-Zufallssalzen (120.000 Iterationen) gespeichert.
+- Rollen: `admin` und `user`. Administratoren verwalten Konten, Räume, Geräte und ioBroker-Verbindungseinstellungen. Benutzer dürfen die Klimaübersicht bedienen, das eigene Passwort ändern und den Benutzer wechseln.
+- Benutzerwechsel löscht nur die lokale KlimaPilot-Kontositzung; die ioBroker-WebSocket-Verbindung bleibt bestehen.
+- Schutzregeln: kein Löschen des eigenen angemeldeten Kontos oder des letzten Administrators; Kontenänderungen prüfen die Registry-Revision vor dem Schreiben.
+- Die bestehende GitHub-Updateprüfung und der funktionierende APK-Installationsablauf wurden nicht verändert.
+- App-Version vorgesehen: **0.4.25 / versionCode 55**. CI-Build, APK-Signatur und Release sind noch separat zu verifizieren; ein Smartphone-Test ist nicht durch CI abgedeckt.
