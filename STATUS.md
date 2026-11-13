@@ -1,7 +1,7 @@
 # Projektstatus – KlimaPilot
 
 
-## Geprüfter Gesamtstand – 13.11.2026, 10:xx MEZ
+## Geprüfter Gesamtstand – 13.11.2026 (vormittags, MEZ)
 - Maßgeblicher Branch: `main`; aktueller Code-Commit für die App: `56b49749a77f07b50f6c2bac2085edd250e56116`.
 - Produktionsversion: **0.4.27 / versionCode 57**.
 - GitHub Actions #101 (Run `43403206733`) für genau diesen Code-Commit: **completed / success**.
