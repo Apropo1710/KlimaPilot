@@ -117,3 +117,12 @@ Der Nutzer hat die aktuellen In-App-Updates von HomePilot und KlimaPilot erfolgr
 **Erfolgreich auf dem Nutzergerät bestätigt:** KlimaPilot **0.4.23 / versionCode 53**. Der erfolgreiche KlimaPilot-Pfad basiert auf `ACTION_VIEW` mit MIME-Typ `application/vnd.android.package-archive`, `FileProvider`-URI, URI-Leseberechtigung, `ClipData` und `FLAG_ACTIVITY_NEW_TASK`. `REQUEST_INSTALL_PACKAGES` wird nicht verwendet. Der Nutzer bestätigte, dass das Update erfolgreich installiert wurde.
 
 Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot übertragen werden: Package-ID, FileProvider, Signierung und Berechtigungen unterscheiden sich. Die Bestätigung gilt für den getesteten Stand und das Nutzergerät.\n\n\n
+
+## Änderung 13.11.2026 – Start-Updatehinweis
+
+- Der Start-Updatehinweis wird analog zum bereits in HomePilot eingesetzten `StartupUpdateCheck` ergänzt.
+- Die Prüfung nutzt ausschließlich die bereits gespeicherte GitHub-Geräteanmeldung und den bestehenden privaten Release-Endpunkt.
+- Bei verfügbarer neuerer Version wird ein Compose-Dialog angezeigt: „Zu Einstellungen“ öffnet die bestehende Updatekarte, „Später“ schließt den Hinweis.
+- Bei nicht verbundener GitHub-Anmeldung oder Fehlern bleibt der Start ohne Popup.
+- Die vorhandene manuelle Updatekarte sowie der bewährte APK-Download-/Installationsablauf werden nicht verändert.
+- Vorgesehene App-Version: **0.4.24 / versionCode 54**. Build, Release und Gerätetest sind nach dem Commit separat zu prüfen.

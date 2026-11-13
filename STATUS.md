@@ -1,6 +1,6 @@
 # Projektstatus – KlimaPilot
 
-Zuletzt aktualisiert: 11.11.2026  
+Zuletzt aktualisiert: 13.11.2026  
 Repository: https://github.com/Apropo1710/KlimaPilot  
 Produktions-/Hauptbranch: `main`
 
@@ -38,3 +38,15 @@ Eigenständige Android-App zur Steuerung von Klimaanlagen über ioBroker.
 - Builds/Tests für den exakten Commit prüfen und dokumentieren.
 - Keine Funktionen oder Datenpunkte als verfügbar behaupten, bevor sie am installierten Adapter/Gerät verifiziert wurden.
 - Bei Chatwechsel hier beginnen; keine bereits geklärten Projektentscheidungen erneut abfragen.
+
+
+## Änderung 13.11.2026 – Update-Hinweis beim App-Start
+
+- Die Startprüfung entspricht dem bereits in HomePilot eingesetzten Ablauf.
+- Nur mit bereits gespeicherter GitHub-Anmeldung wird beim App-Start das private Release `latest` geprüft.
+- Bei fehlender Anmeldung, Netzwerkfehlern oder nicht erreichbarem GitHub erscheint kein Popup.
+- Bei einer neueren Release-Version erscheint ein Dialog mit **„Zu Einstellungen“** und **„Später“**.
+- „Zu Einstellungen“ öffnet die vorhandene App-Einstellungsseite mit der manuellen Updatekarte; Download und APK-Installation bleiben unverändert.
+- Die Prüfung läuft einmal pro App-Start. Der Dialog kann bis zum nächsten App-Start geschlossen werden.
+- App-Version: 0.4.24 / versionCode 54.
+- Build und Smartphone-Test stehen nach dem Commit noch aus.

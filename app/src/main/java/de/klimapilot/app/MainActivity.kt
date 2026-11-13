@@ -225,6 +225,55 @@ private fun KlimaPilotApp(appVersion: String) {
             onSettings = { showSettings = true }
         )
     }
+    StartupUpdateCheck(
+        appVersion = appVersion,
+        onOpenSettings = {
+            showManager = false
+            showSettings = true
+        }
+    )
+}
+
+@Composable
+private fun StartupUpdateCheck(appVersion: String, onOpenSettings: () -> Unit) {
+    val context = LocalContext.current
+    var availableVersion by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        if (!GithubPrivateUpdates.isConnected(context)) return@LaunchedEffect
+        try {
+            val release = GithubPrivateUpdates.latestRelease(context)
+            val installed = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
+            val latest = release.version.split(".").map { it.toIntOrNull() ?: 0 }
+            var comparison = 0
+            for (i in 0 until maxOf(installed.size, latest.size)) {
+                val delta = latest.getOrElse(i) { 0 }.compareTo(installed.getOrElse(i) { 0 })
+                if (delta != 0) { comparison = delta; break }
+            }
+            if (comparison > 0) availableVersion = release.version
+        } catch (_: Exception) {
+            // Bei fehlender Verbindung oder nicht erreichbarem GitHub kein Popup anzeigen.
+        }
+    }
+
+    availableVersion?.let { version ->
+        AlertDialog(
+            onDismissRequest = { availableVersion = null },
+            title = { Text("KlimaPilot-Update verfügbar") },
+            text = {
+                Text("Version $version ist verfügbar. Du kannst das Update in den Einstellungen herunterladen.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    availableVersion = null
+                    onOpenSettings()
+                }) { Text("Zu Einstellungen") }
+            },
+            dismissButton = {
+                TextButton(onClick = { availableVersion = null }) { Text("Später") }
+            }
+        )
+    }
 }
 
 @Composable
