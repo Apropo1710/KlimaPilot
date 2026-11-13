@@ -62,4 +62,4 @@ Eigenständige Android-App zur Steuerung von Klimaanlagen über ioBroker.
 - Jeder Benutzer kann sein eigenes Passwort ändern und den Benutzer wechseln. Der Wechsel beendet nicht die ioBroker-WebSocket-Verbindung.
 - Raum-/Geräteverwaltung und ioBroker-Verbindungseinstellungen sind auf Administratoren beschränkt; normale Benutzer können die Klimaübersicht bedienen und ihr Konto verwalten.
 - Die bestehende ioBroker-Verbindung, der Updatehinweis und der APK-Installer bleiben erhalten.
-- Vorgesehene Version: **0.4.25 / versionCode 55**. Build, APK-Signatur, Release und Smartphone-Test werden separat geprüft.
+- Vorgesehene Version: **0.4.26 / versionCode 56**. Build, APK-Signatur, Release und Smartphone-Test werden separat geprüft.

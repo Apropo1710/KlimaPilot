@@ -106,36 +106,80 @@ private class DemoRoomState(
 
 @Composable
 private fun KlimaPilotApp(appVersion: String) {
-    var showSettings by remember { mutableStateOf(false) }
-    BackHandler(enabled = showSettings) { showSettings = false }
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
-    val rooms = remember { mutableStateListOf<String>().apply { addAll(prefs.getStringSet("rooms", null)?.toList() ?: listOf("Wohnzimmer", "Schlafzimmer")) } }
-    val devices = remember { mutableStateListOf<UserDevice>().apply {
-        val saved = prefs.getString("devices", null)
-        if (saved.isNullOrBlank()) { add(UserDevice("1","Klimaanlage","Wohnzimmer")); add(UserDevice("2","Klimaanlage","Schlafzimmer")) }
-        else runCatching {
-            val a=org.json.JSONArray(saved)
-            for(i in 0 until a.length()) {
-                val o=a.getJSONObject(i)
-                val mappingJson=o.optJSONObject("mappings") ?: org.json.JSONObject()
-                val mappings=mutableMapOf<String,String>()
-                mappingJson.keys().forEach { key -> mappings[key]=mappingJson.optString(key) }
-                add(UserDevice(o.getString("id"),o.getString("name"),o.getString("room"),o.optString("adapterKey","generic"),o.optString("adapterInstance",""),o.optString("rootObjectId",""),mappings,o.optString("model","")))
+    var showSettings by remember { mutableStateOf(false) }
+    var showManager by remember { mutableStateOf(false) }
+    var showAccountSettings by remember { mutableStateOf(false) }
+    var currentAccount by remember { mutableStateOf<KlimaPilotAccount?>(null) }
+    var accountAuthenticated by remember { mutableStateOf(false) }
+    var accountRegistry by remember { mutableStateOf<KlimaPilotAccountRegistry?>(null) }
+    var accountLoading by remember { mutableStateOf(false) }
+    var accountStatus by remember { mutableStateOf("") }
+    var accountUsername by remember { mutableStateOf("") }
+    var accountPassword by remember { mutableStateOf("") }
+    var accountPasswordConfirmation by remember { mutableStateOf("") }
+    var accountDisplayName by remember { mutableStateOf("") }
+    val accountRepository = remember { KlimaPilotAccountRepository(IoBrokerClient) }
+
+    val rooms = remember {
+        mutableStateListOf<String>().apply {
+            addAll(prefs.getStringSet("rooms", null)?.toList() ?: listOf("Wohnzimmer", "Schlafzimmer"))
+            if (isEmpty()) addAll(listOf("Wohnzimmer", "Schlafzimmer"))
+        }
+    }
+    val devices = remember {
+        mutableStateListOf<UserDevice>().apply {
+            val saved = prefs.getString("devices", null)
+            if (saved.isNullOrBlank()) {
+                add(UserDevice("1", "Klimaanlage", "Wohnzimmer"))
+                add(UserDevice("2", "Klimaanlage", "Schlafzimmer"))
+            } else runCatching {
+                val array = org.json.JSONArray(saved)
+                for (i in 0 until array.length()) {
+                    val item = array.getJSONObject(i)
+                    val mappingJson = item.optJSONObject("mappings") ?: org.json.JSONObject()
+                    val mappings = mutableMapOf<String, String>()
+                    mappingJson.keys().forEach { key -> mappings[key] = mappingJson.optString(key) }
+                    add(UserDevice(
+                        item.getString("id"), item.getString("name"), item.getString("room"),
+                        item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
+                        item.optString("rootObjectId", ""), mappings, item.optString("model", "")
+                    ))
+                }
             }
         }
-    } }
-    fun saveData() { prefs.edit().putStringSet("rooms",rooms.toSet()).putString("devices",org.json.JSONArray().apply { devices.forEach { put(org.json.JSONObject().put("id",it.id).put("name",it.name).put("room",it.room).put("adapterKey",it.adapterKey).put("adapterInstance",it.adapterInstance).put("rootObjectId",it.rootObjectId).put("mappings",org.json.JSONObject(it.mappings)).put("model",it.model)) } }.toString()).apply() }
+    }
+    fun saveData() {
+        prefs.edit()
+            .putStringSet("rooms", rooms.toSet())
+            .putString("devices", org.json.JSONArray().apply {
+                devices.forEach { device ->
+                    put(org.json.JSONObject()
+                        .put("id", device.id).put("name", device.name).put("room", device.room)
+                        .put("adapterKey", device.adapterKey).put("adapterInstance", device.adapterInstance)
+                        .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
+                        .put("model", device.model))
+                }
+            }.toString())
+            .apply()
+    }
+
     var selectedRoom by remember { mutableStateOf(rooms.firstOrNull() ?: "Wohnzimmer") }
-    var selectedDeviceId by remember { mutableStateOf(devices.firstOrNull { it.room == selectedRoom }?.id ?: devices.firstOrNull()?.id ?: "") }
+    var selectedDeviceId by remember {
+        mutableStateOf(devices.firstOrNull { it.room == selectedRoom }?.id ?: devices.firstOrNull()?.id ?: "")
+    }
     val devicesInSelectedRoom = devices.filter { it.room == selectedRoom }
     val selectedDevice = devicesInSelectedRoom.firstOrNull { it.id == selectedDeviceId }
         ?: devicesInSelectedRoom.firstOrNull()
-    val allDevices = devicesInSelectedRoom
-    val roomStates = remember { mutableStateMapOf("Wohnzimmer" to DemoRoomState("25,4 °C",true,23f,"Kühlen","Auto"),"Schlafzimmer" to DemoRoomState("22,1 °C",false,21f,"Aus","Leise")) }
-    var showManager by remember { mutableStateOf(false) }
-    BackHandler(enabled = showSettings || showManager) { if(showManager) showManager=false else showSettings=false }
-    val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—",false,21f,"Aus","Auto") }
+    val roomStates = remember {
+        mutableStateMapOf(
+            "Wohnzimmer" to DemoRoomState("25,4 °C", true, 23f, "Kühlen", "Auto"),
+            "Schlafzimmer" to DemoRoomState("22,1 °C", false, 21f, "Aus", "Leise")
+        )
+    }
+    val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—", false, 21f, "Aus", "Auto") }
+
     val initialServerUrl = remember {
         val saved = prefs.getString("iobroker_server", null)?.trim()?.trimEnd('/')
         when {
@@ -153,11 +197,52 @@ private fun KlimaPilotApp(appVersion: String) {
     var ioBrokerChecking by remember { mutableStateOf(false) }
     var ioBrokerStatus by remember { mutableStateOf("Noch nicht verbunden") }
 
+    fun loadAccounts() {
+        if (!IoBrokerClient.isConnected()) {
+            accountRegistry = null
+            accountLoading = false
+            accountStatus = "ioBroker ist noch nicht vollständig verbunden. Die Anmeldung bleibt gesperrt."
+            return
+        }
+        accountLoading = true
+        accountStatus = ""
+        accountRepository.load { registry, error ->
+            accountLoading = false
+            accountRegistry = registry
+            if (error != null || registry == null) {
+                accountStatus = "KlimaPilot-Konten konnten nicht geladen werden: ${error ?: "Unbekannter Fehler"}"
+                return@load
+            }
+            val rememberedUsername = prefs.getString("klimapilotRememberedUsername", null)
+            val activeUsername = currentAccount?.username ?: rememberedUsername
+            val rememberedAccount = activeUsername?.let { registry.find(it) }
+            if (rememberedAccount != null) {
+                currentAccount = rememberedAccount
+                accountAuthenticated = true
+                accountUsername = rememberedAccount.username
+            } else {
+                if (!rememberedUsername.isNullOrBlank()) {
+                    prefs.edit().remove("klimapilotRememberedUsername").apply()
+                }
+                currentAccount = null
+                accountAuthenticated = false
+            }
+        }
+    }
+
+    fun saveRegistry(expectedRevision: Long, next: KlimaPilotAccountRegistry, onSaved: (Boolean, String?) -> Unit) {
+        accountRepository.save(expectedRevision, next) { saved, error ->
+            if (saved) accountRegistry = next
+            onSaved(saved, error)
+        }
+    }
+
     fun connectToIoBroker() {
         val target = serverUrl.trim().trimEnd('/')
         if (!(target.startsWith("ws://") || target.startsWith("wss://")) || target.contains("xxx")) {
             ioBrokerConnected = false
             ioBrokerStatus = "Bitte eine gültige Serveradresse eingeben."
+            accountStatus = ioBrokerStatus
             return
         }
         ioBrokerChecking = true
@@ -168,6 +253,107 @@ private fun KlimaPilotApp(appVersion: String) {
             ioBrokerConnected = ok
             ioBrokerChecking = false
             ioBrokerStatus = message
+            if (ok) loadAccounts()
+            else {
+                accountRegistry = null
+                accountStatus = "ioBroker-Verbindung fehlgeschlagen: $message"
+            }
+        }
+    }
+
+    fun submitAccountLogin() {
+        val registry = accountRegistry
+        if (registry == null) {
+            accountStatus = "Die Kontenliste ist noch nicht verfügbar. Bitte erneut laden."
+            return
+        }
+        val password = accountPassword.toCharArray()
+        try {
+            if (registry.accounts.isEmpty()) {
+                val next = registry.createInitialAdmin(accountUsername, accountDisplayName, password)
+                accountLoading = true
+                saveRegistry(registry.revision, next) { saved, error ->
+                    accountLoading = false
+                    if (saved) {
+                        val admin = next.accounts.first()
+                        currentAccount = admin
+                        accountAuthenticated = true
+                        prefs.edit().putString("klimapilotRememberedUsername", admin.username).apply()
+                        accountPassword = ""
+                        accountPasswordConfirmation = ""
+                        accountStatus = ""
+                    } else accountStatus = "Administrator konnte nicht angelegt werden: ${error ?: "Speichern fehlgeschlagen"}"
+                }
+            } else {
+                val account = registry.authenticate(accountUsername, password)
+                if (account == null) accountStatus = "Benutzername oder Passwort ist falsch."
+                else {
+                    currentAccount = account
+                    accountAuthenticated = true
+                    prefs.edit().putString("klimapilotRememberedUsername", account.username).apply()
+                    accountPassword = ""
+                    accountPasswordConfirmation = ""
+                    accountStatus = ""
+                }
+            }
+        } catch (error: Exception) {
+            accountStatus = error.message ?: "Anmeldung fehlgeschlagen."
+        } finally {
+            password.fill('\u0000')
+        }
+    }
+
+    fun addAccount(username: String, displayName: String, passwordText: String, role: String) {
+        val registry = accountRegistry ?: return
+        val actor = currentAccount ?: return
+        val password = passwordText.toCharArray()
+        try {
+            val next = registry.addAccount(actor, username, displayName, password, role)
+            accountLoading = true
+            saveRegistry(registry.revision, next) { saved, error ->
+                accountLoading = false
+                accountStatus = if (saved) "" else "Benutzer konnte nicht angelegt werden: ${error ?: "Speichern fehlgeschlagen"}"
+            }
+        } catch (error: Exception) {
+            accountStatus = error.message ?: "Benutzer konnte nicht angelegt werden."
+        } finally {
+            password.fill('\u0000')
+        }
+    }
+
+    fun resetAccountPassword(username: String, passwordText: String) {
+        val registry = accountRegistry ?: return
+        val actor = currentAccount ?: return
+        val password = passwordText.toCharArray()
+        try {
+            val next = registry.resetPassword(actor, username, password)
+            accountLoading = true
+            saveRegistry(registry.revision, next) { saved, error ->
+                accountLoading = false
+                if (saved) {
+                    currentAccount = next.find(actor.username)
+                    accountStatus = ""
+                } else accountStatus = "Passwort konnte nicht gespeichert werden: ${error ?: "Speichern fehlgeschlagen"}"
+            }
+        } catch (error: Exception) {
+            accountStatus = error.message ?: "Passwort konnte nicht geändert werden."
+        } finally {
+            password.fill('\u0000')
+        }
+    }
+
+    fun deleteAccount(username: String) {
+        val registry = accountRegistry ?: return
+        val actor = currentAccount ?: return
+        try {
+            val next = registry.deleteAccount(actor, username)
+            accountLoading = true
+            saveRegistry(registry.revision, next) { saved, error ->
+                accountLoading = false
+                accountStatus = if (saved) "" else "Benutzer konnte nicht gelöscht werden: ${error ?: "Speichern fehlgeschlagen"}"
+            }
+        } catch (error: Exception) {
+            accountStatus = error.message ?: "Benutzer konnte nicht gelöscht werden."
         }
     }
 
@@ -175,8 +361,61 @@ private fun KlimaPilotApp(appVersion: String) {
         if (serverUrl.isNotBlank() && !serverUrl.contains("xxx")) connectToIoBroker()
     }
 
-    if (showManager) {
-        RoomDeviceManagerScreen(rooms,devices,::saveData,{old,new -> if(selectedRoom==old)selectedRoom=new;roomStates.remove(old)?.let{roomStates[new]=it}},{ removed -> if(selectedRoom==removed)selectedRoom=rooms.first(); roomStates.remove(removed) }){showManager=false}
+    BackHandler(enabled = !accountAuthenticated) { }
+    BackHandler(enabled = accountAuthenticated && (showSettings || showManager || showAccountSettings)) {
+        when {
+            showManager -> showManager = false
+            showAccountSettings -> showAccountSettings = false
+            else -> showSettings = false
+        }
+    }
+
+    if (!accountAuthenticated || currentAccount == null) {
+        KlimaPilotAccountLoginScreen(
+            registry = accountRegistry,
+            username = accountUsername, onUsername = { accountUsername = it },
+            password = accountPassword, onPassword = { accountPassword = it },
+            passwordConfirmation = accountPasswordConfirmation, onPasswordConfirmation = { accountPasswordConfirmation = it },
+            displayName = accountDisplayName, onDisplayName = { accountDisplayName = it },
+            loading = accountLoading || ioBrokerChecking,
+            connected = ioBrokerConnected,
+            status = accountStatus,
+            onRetryConnection = { connectToIoBroker() },
+            onReload = { loadAccounts() },
+            onSubmit = { submitAccountLogin() }
+        )
+    } else if (showManager && currentAccount?.role == KlimaPilotAccount.ADMIN) {
+        RoomDeviceManagerScreen(
+            rooms, devices, ::saveData,
+            { old, new ->
+                if (selectedRoom == old) selectedRoom = new
+                roomStates.remove(old)?.let { roomStates[new] = it }
+            },
+            { removed ->
+                if (selectedRoom == removed) selectedRoom = rooms.firstOrNull() ?: "Wohnzimmer"
+                roomStates.remove(removed)
+            }
+        ) { showManager = false }
+    } else if (showAccountSettings) {
+        KlimaPilotAccountSettingsScreen(
+            account = currentAccount!!,
+            accounts = accountRegistry?.accounts.orEmpty(),
+            status = accountStatus,
+            onBack = { showAccountSettings = false },
+            onSwitchAccount = {
+                prefs.edit().remove("klimapilotRememberedUsername").apply()
+                currentAccount = null
+                accountAuthenticated = false
+                accountPassword = ""
+                accountPasswordConfirmation = ""
+                accountStatus = ""
+                showAccountSettings = false
+                showSettings = false
+            },
+            onAddAccount = { username, displayName, password, role -> addAccount(username, displayName, password, role) },
+            onResetPassword = { username, password -> resetAccountPassword(username, password) },
+            onDeleteAccount = { username -> deleteAccount(username) }
+        )
     } else if (showSettings) {
         SettingsScreen(
             serverUrl = serverUrl,
@@ -187,6 +426,9 @@ private fun KlimaPilotApp(appVersion: String) {
             status = ioBrokerStatus,
             onConnect = { connectToIoBroker() },
             appVersion = appVersion,
+            isAdmin = currentAccount!!.role == KlimaPilotAccount.ADMIN,
+            account = currentAccount!!,
+            onAccountSettings = { showAccountSettings = true; showSettings = false },
             onManageRoomsDevices = { showManager = true; showSettings = false },
             onBack = { showSettings = false }
         )
@@ -199,7 +441,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 selectedDeviceId = devices.firstOrNull { it.room == roomName }?.id ?: ""
             },
             roomTemperature = room.roomTemperature,
-            devicesInRoom = allDevices,
+            devicesInRoom = devicesInSelectedRoom,
             selectedDeviceId = selectedDevice?.id ?: "",
             onDeviceSelect = { deviceId -> selectedDeviceId = deviceId },
             onRoomSwipe = { direction ->
@@ -210,29 +452,33 @@ private fun KlimaPilotApp(appVersion: String) {
                     selectedDeviceId = devices.firstOrNull { it.room == nextRoom }?.id ?: ""
                 }
             },
-            deviceManufacturer = selectedDevice?.let { device -> AdapterProfiles.all.firstOrNull { it.key == device.adapterKey }?.title?.takeUnless { it.startsWith("Universell") } ?: "Klimaanlage" } ?: "Kein Gerät zugeordnet",
+            deviceManufacturer = selectedDevice?.let { device ->
+                AdapterProfiles.all.firstOrNull { it.key == device.adapterKey }?.title?.takeUnless { it.startsWith("Universell") }
+                    ?: "Klimaanlage"
+            } ?: "Kein Gerät zugeordnet",
             deviceModel = selectedDevice?.model?.takeIf { it.isNotBlank() } ?: "Modell nicht hinterlegt",
             isOn = room.isOn,
             targetTemp = room.targetTemp,
             onTargetTemp = { room.targetTemp = it },
             mode = room.mode,
-            onMode = {
-                room.mode = it
-                room.isOn = it != "Aus"
-            },
+            onMode = { room.mode = it; room.isOn = it != "Aus" },
             fan = room.fan,
             onFan = { room.fan = it },
             ioBrokerConnected = ioBrokerConnected,
             onSettings = { showSettings = true }
         )
     }
-    StartupUpdateCheck(
-        appVersion = appVersion,
-        onOpenSettings = {
-            showManager = false
-            showSettings = true
-        }
-    )
+
+    if (accountAuthenticated) {
+        StartupUpdateCheck(
+            appVersion = appVersion,
+            onOpenSettings = {
+                showManager = false
+                showAccountSettings = false
+                showSettings = true
+            }
+        )
+    }
 }
 
 @Composable
@@ -512,81 +758,117 @@ private fun FlowModeSelector(selected: String, options: List<String>, onSelect: 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(serverUrl: String, onServerUrlChange: (String) -> Unit, onServerUrlConfirm: () -> Unit, connected: Boolean, checking: Boolean, status: String, onConnect: () -> Unit, appVersion: String, onManageRoomsDevices: () -> Unit, onBack: () -> Unit) {
+private fun SettingsScreen(
+    serverUrl: String,
+    onServerUrlChange: (String) -> Unit,
+    onServerUrlConfirm: () -> Unit,
+    connected: Boolean,
+    checking: Boolean,
+    status: String,
+    onConnect: () -> Unit,
+    appVersion: String,
+    isAdmin: Boolean,
+    account: KlimaPilotAccount,
+    onAccountSettings: () -> Unit,
+    onManageRoomsDevices: () -> Unit,
+    onBack: () -> Unit
+) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(
+        modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
+            .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = TextMain) }
             Column {
                 Text("Einstellungen", color = TextMain, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-                Text("Verbindung und Geräte", color = Muted, fontSize = 12.sp)
+                Text("Konto und App", color = Muted, fontSize = 12.sp)
             }
         }
-        OutlinedButton(onClick = onManageRoomsDevices, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
-            Icon(Icons.Default.Tune, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Räume & Geräte verwalten")
-        }
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFDCEAF2)),
-            shape = RoundedCornerShape(18.dp)
-        ) {
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF398FBA)), contentAlignment = Alignment.Center) {
-                        Icon(if (connected) Icons.Default.Cloud else Icons.Default.CloudOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Text(if (connected) "Verbunden" else if (checking) "Verbindung wird aufgebaut …" else "Nicht verbunden", color = if (connected) Green else Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
+        Card(shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("Angemeldet als", color = Muted, fontSize = 12.sp)
+                Text(account.displayName, color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("${account.username} · ${if (isAdmin) "Administrator" else "Benutzer"}", color = Muted, fontSize = 12.sp)
+                OutlinedButton(onClick = onAccountSettings, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.AccountCircle, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Benutzerkonto und Benutzerwechsel")
                 }
-                OutlinedTextField(
-                    value = serverUrl,
-                    onValueChange = onServerUrlChange,
-                    label = { Text("WebSocket-Adresse") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = {
-                        IconButton(onClick = {
+            }
+        }
+        if (isAdmin) {
+            OutlinedButton(
+                onClick = onManageRoomsDevices,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Tune, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Räume & Geräte verwalten")
+            }
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFDCEAF2)), shape = RoundedCornerShape(18.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF398FBA)), contentAlignment = Alignment.Center) {
+                            Icon(if (connected) Icons.Default.Cloud else Icons.Default.CloudOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(if (connected) "Verbunden" else if (checking) "Verbindung wird aufgebaut …" else "Nicht verbunden",
+                                color = if (connected) Green else Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                    OutlinedTextField(
+                        value = serverUrl,
+                        onValueChange = onServerUrlChange,
+                        label = { Text("WebSocket-Adresse") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                onServerUrlConfirm()
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }) { Icon(Icons.Default.Edit, contentDescription = "Adresse übernehmen", tint = Blue) }
+                        }
+                    )
+                    Text(
+                        if (connected) "Verbindung hergestellt." else if (checking) "Verbindung wird aufgebaut …"
+                        else "Keine Verbindung – bitte WLAN/VPN und ioBroker prüfen.",
+                        color = if (connected) Green else if (checking) Muted else Color(0xFFD32F2F),
+                        fontSize = 12.sp
+                    )
+                    if (!connected) {
+                        Button(onClick = {
                             onServerUrlConfirm()
                             focusManager.clearFocus()
                             keyboardController?.hide()
-                        }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Adresse übernehmen", tint = Blue)
+                            onConnect()
+                        }, enabled = !checking, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (checking) "Verbindung wird aufgebaut …" else "Verbindung herstellen")
                         }
+                    } else {
+                        Text("Live-Daten und Steuerung laufen über diese Verbindung.", color = Muted, fontSize = 11.sp)
                     }
+                }
+            }
+        } else {
+            Card(shape = RoundedCornerShape(16.dp)) {
+                Text(
+                    "Verbindungs-, Raum- und Gerätekonfiguration kann nur ein Administrator ändern.",
+                    modifier = Modifier.padding(14.dp), color = Muted, fontSize = 12.sp
                 )
-                val statusText = when {
-                    connected -> "Verbindung hergestellt."
-                    checking -> "Verbindung wird aufgebaut …"
-                    else -> "Keine Verbindung – bitte WLAN/VPN und ioBroker prüfen."
-                }
-                val statusColor = when {
-                    connected -> Green
-                    checking -> Muted
-                    else -> Color(0xFFD32F2F)
-                }
-                Text(statusText, color = statusColor, fontSize = 12.sp, fontWeight = if (!connected && !checking) FontWeight.Medium else FontWeight.Normal)
-                if (!connected) {
-                    Button(onClick = {
-                        onServerUrlConfirm()
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        onConnect()
-                    }, enabled = !checking, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (checking) "Verbindung wird aufgebaut …" else "Verbindung herstellen")
-                    }
-                } else {
-                    Text("Live-Daten und Steuerung laufen über diese Verbindung.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
-                }
             }
         }
         GithubUpdateCard(appVersion)
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) { Text("Zurück zur Klimaübersicht") }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
+            Text("Zurück zur Klimaübersicht")
+        }
     }
 }
