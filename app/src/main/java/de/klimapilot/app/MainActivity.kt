@@ -401,7 +401,7 @@ private fun KlimaPilotApp(appVersion: String) {
             account = currentAccount!!,
             accounts = accountRegistry?.accounts.orEmpty(),
             status = accountStatus,
-            onBack = { showAccountSettings = false },
+            onBack = { showAccountSettings = false; showSettings = true },
             onSwitchAccount = {
                 prefs.edit().remove("klimapilotRememberedUsername").apply()
                 currentAccount = null

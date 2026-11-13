@@ -27,6 +27,7 @@ internal object IoBrokerClient {
             socket = client
             var reported = false
             client.on("connect") {
+                reported = false
                 client.emit("authenticate", IoBrokerAck { args ->
                     val authenticated = args.firstOrNull() as? Boolean ?: false
                     if (!authenticated) {
