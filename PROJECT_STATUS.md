@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: c0ffaec4bdf36a4f32b2d630f8eff0b63b14c237
-- App-Version / versionCode: **0.4.23 / 53**
-- Build-Zeit: 2026-11-11 10:00:29 UTC
+- Quellcommit des APK-Builds: 6fae5c41e97101e7d12f39b8c36ed1dd75fcac47
+- App-Version / versionCode: **0.4.24 / 54**
+- Build-Zeit: 2026-11-13 09:13:58 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 6e44201ee58b459e51e896ffefd177cc061caecaa9917ebfbe5a24e8f96a35a1
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 1cd2917b5c2ed8c533ffb9eb47e1b0a868a85746e9c0a41db9883e2f48102000
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -125,4 +125,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Bei verfügbarer neuerer Version wird ein Compose-Dialog angezeigt: „Zu Einstellungen“ öffnet die bestehende Updatekarte, „Später“ schließt den Hinweis.
 - Bei nicht verbundener GitHub-Anmeldung oder Fehlern bleibt der Start ohne Popup.
 - Die vorhandene manuelle Updatekarte sowie der bewährte APK-Download-/Installationsablauf werden nicht verändert.
-- Vorgesehene App-Version: **0.4.24 / versionCode 54**. Build, Release und Gerätetest sind nach dem Commit separat zu prüfen.
+- Vorgesehene App-Version: **0.4.24 / versionCode 54**. Build, Release und Gerätetest sind nach dem Commit separat zu prüfen.\n
