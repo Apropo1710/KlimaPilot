@@ -1,6 +1,16 @@
 # Projektstatus – KlimaPilot
 
-Zuletzt aktualisiert: 13.11.2026  
+
+## Geprüfter Gesamtstand – 13.11.2026, 10:xx MEZ
+- Maßgeblicher Branch: `main`; aktueller Code-Commit für die App: `56b49749a77f07b50f6c2bac2085edd250e56116`.
+- Produktionsversion: **0.4.27 / versionCode 57**.
+- GitHub Actions #101 (Run `43403206733`) für genau diesen Code-Commit: **completed / success**.
+- Release `latest`: erfolgreich aktualisiert; Asset `KlimaPilot.apk` vorhanden. APK-SHA-256: `de247cf703cd436c22abc6d7006500a00e0b477165207d934f744d35aae1cbcf`.
+- Der Nutzer hat die scrollbaren Dialoge der Benutzerverwaltung auf dem Gerät bestätigt: **Gerätetest erfolgreich**.
+- Ältere Einträge weiter unten mit „Build steht aus“ oder „vorgesehene Version“ sind historische Zwischenstände und durch diesen geprüften Stand ersetzt.
+- Letzte reine Dokumentations-Commits: `8fc8c650`, `8c06ac3c`; sie ändern den App-Code nicht.
+
+Zuletzt aktualisiert: 13.11.2026, 10:xx MEZ  
 Repository: https://github.com/Apropo1710/KlimaPilot  
 Produktions-/Hauptbranch: `main`
 
