@@ -34,7 +34,8 @@ internal data class KlimaPilotAccount(
     val salt: String,
     val passwordHash: String,
     val iterations: Int = PASSWORD_ITERATIONS,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val fontScale: Float = 1.0f
 ) {
     fun toJson() = JSONObject().apply {
         put("username", username)
@@ -44,6 +45,7 @@ internal data class KlimaPilotAccount(
         put("passwordHash", passwordHash)
         put("iterations", iterations)
         put("createdAt", createdAt)
+        put("fontScale", fontScale.coerceIn(0.85f, 1.5f))
     }
 
     companion object {
@@ -76,7 +78,8 @@ internal data class KlimaPilotAccount(
             if (Base64.decode(salt, Base64.NO_WRAP).size != 16 ||
                 Base64.decode(hash, Base64.NO_WRAP).size != 32) return null
             KlimaPilotAccount(username, json.optString("displayName", username), role, salt, hash,
-                iterations, json.optLong("createdAt", 0L))
+                iterations, json.optLong("createdAt", 0L),
+                json.optDouble("fontScale", 1.0).toFloat().coerceIn(0.85f, 1.5f))
         } catch (_: Exception) { null }
         }
 
@@ -135,7 +138,15 @@ internal data class KlimaPilotAccountRegistry(
         val target = find(username) ?: throw IllegalArgumentException("Benutzer nicht gefunden.")
         val replacement = KlimaPilotAccount.create(target.username, target.displayName, password, target.role)
         return copy(revision = revision + 1, accounts = accounts.map {
-            if (it.username.equals(target.username, ignoreCase = true)) replacement else it
+            if (it.username.equals(target.username, ignoreCase = true)) replacement.copy(fontScale = target.fontScale) else it
+        })
+    }
+
+    fun updateFontScale(actor: KlimaPilotAccount, scale: Float): KlimaPilotAccountRegistry {
+        require(scale in 0.85f..1.5f) { "Ungültige Schriftgröße." }
+        val target = find(actor.username) ?: throw IllegalArgumentException("Benutzer nicht gefunden.")
+        return copy(revision = revision + 1, accounts = accounts.map {
+            if (it.username.equals(target.username, ignoreCase = true)) it.copy(fontScale = scale) else it
         })
     }
 
