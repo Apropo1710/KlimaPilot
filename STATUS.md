@@ -1,17 +1,15 @@
-# Projektstatus – KlimaPilot
-
-
-## Geprüfter Gesamtstand – 13.11.2026, 10:xx MEZ
-- Maßgeblicher Branch: `main`; aktueller Code-Commit für die App: `56b49749a77f07b50f6c2bac2085edd250e56116`.
-- Produktionsversion: **0.4.27 / versionCode 57**.
-- GitHub Actions #101 (Run `43403206733`) für genau diesen Code-Commit: **completed / success**.
-- Release `latest`: erfolgreich aktualisiert; Asset `KlimaPilot.apk` vorhanden. APK-SHA-256: `de247cf703cd436c22abc6d7006500a00e0b477165207d934f744d35aae1cbcf`.
+## Geprüfter Gesamtstand – 14.11.2026, 02:57 MEZ
+- Maßgeblicher Branch: `main`; aktueller Branch-Head: `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` (reiner Dokumentationscommit).
+- App-Code-Commit: `56b49749a77f07b50f6c2bac2085edd250e56116`; Produktionsversion **0.4.27 / versionCode 57**.
+- APK-Build-Quellcommit: `7984def11f7da78407f24697ab4d6128ab700706` (Dokumentationscommit auf demselben App-Code-Stand); GitHub Actions Run `43405429051` / #103: **completed / success**.
+- Release `latest`: erfolgreich aktualisiert; Asset `KlimaPilot.apk` vorhanden. APK-SHA-256: `537ea7f086b88a1fecc7106dc8733d20c860c2deabfca666b39fdc11fdbe705d`; Signaturprüfung laut Produktionsnachweis erfolgreich.
 - Der Nutzer hat die scrollbaren Dialoge der Benutzerverwaltung auf dem Gerät bestätigt: **Gerätetest erfolgreich**.
-- Ältere Einträge weiter unten mit „Build steht aus“ oder „vorgesehene Version“ sind historische Zwischenstände und durch diesen geprüften Stand ersetzt.
-- Letzte reine Dokumentations-Commits: `8fc8c650`, `8c06ac3c`; sie ändern den App-Code nicht.
+- Der Updater bleibt abgeschlossen und vom Nutzer bestätigt; keine Änderung daran.
+- Ältere „Build ausstehend“- und „vorgesehene Version“-Einträge weiter unten sind historische Zwischenstände.
+- Offen bleiben ausschließlich hardwareabhängige Arbeiten nach Installation der Mitsubishi-Klimaanlage.
 
-Zuletzt aktualisiert: 13.11.2026, 10:xx MEZ  
-Repository: https://github.com/Apropo1710/KlimaPilot  
+Zuletzt aktualisiert: 14.11.2026, 02:57 MEZ
+Repository: https://github.com/Apropo1710/KlimaPilot
 Produktions-/Hauptbranch: `main`
 
 > Diese Datei ist die zentrale Übergabe für neue Chats. Vor jeder Arbeit zuerst lesen und nach jeder zusammenhängenden Änderung aktualisieren.
