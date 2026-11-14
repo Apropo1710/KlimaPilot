@@ -15,12 +15,15 @@
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
-## Verbindliche Aktualisierung – 13.11.2026
-- Der automatische Produktionsblock oben ist der maßgebliche Build-/Release-Nachweis: Version 0.4.27 / 57, Quellcommit `56b49749a77f07b50f6c2bac2085edd250e56116`, Actions #101 erfolgreich, APK signiert und `latest` aktualisiert.
+## Verbindliche Aktualisierung – 14.11.2026
+- App-Code-Commit: `56b49749a77f07b50f6c2bac2085edd250e56116`; Version **0.4.27 / versionCode 57**.
+- Der aktuelle APK-Build wurde aus Dokumentationscommit `7984def11f7da78407f24697ab4d6128ab700706` erstellt; der App-Code entspricht weiterhin `56b49749a77f07b50f6c2bac2085edd250e56116`.
+- GitHub Actions Run `43405429051` (#103) für den APK-Build-Quellcommit: **completed / success**. Der vorherige Code-Build Run `43403206733` (#101) für den App-Code-Commit war ebenfalls erfolgreich.
+- Release `latest` enthält `KlimaPilot.apk`, SHA-256 `537ea7f086b88a1fecc7106dc8733d20c860c2deabfca666b39fdc11fdbe705d`; APK-Signaturprüfung erfolgreich.
 - Der Nutzer hat die scrollbaren Dialoge der Kontenverwaltung auf dem Android-Gerät erfolgreich geprüft.
-- Alle später im Änderungsverlauf enthaltenen Formulierungen wie „Build noch zu prüfen“, „vorgesehene Version“ oder „Release separat prüfen“ beschreiben ausschließlich den damaligen historischen Zeitpunkt und sind **keine offenen Aufgaben mehr**, soweit sie denselben Stand 0.4.27 / 57 betreffen.
+- Aktueller `main`-Head `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` ist ein Dokumentationscommit und ändert den App-Code nicht.
+- Alle älteren Build-Pending- und Versionsvorschau-Angaben im Änderungsverlauf sind historische Zwischenstände, soweit sie denselben Produktionsstand betreffen.
 - Offen bleiben ausschließlich die hardwareabhängigen Arbeiten nach Installation der Mitsubishi-Klimaanlage; siehe Abschnitt „Offene Punkte / nächste Schritte“.
-
 
 # KlimaPilot – Projektstatus
 
