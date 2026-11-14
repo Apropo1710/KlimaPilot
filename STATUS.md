@@ -1,5 +1,5 @@
 ## Geprüfter Gesamtstand – 14.11.2026, 02:57 MEZ
-- Maßgeblicher Branch: `main`; aktueller Branch-Head: `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` (reiner Dokumentationscommit).
+- Maßgeblicher Branch: `main`; Zuletzt vor dieser Statuspflege geprüfter Branch-Head: `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` (reiner Dokumentationscommit); der Laufzeitcode blieb unverändert.
 - App-Code-Commit: `56b49749a77f07b50f6c2bac2085edd250e56116`; Produktionsversion **0.4.27 / versionCode 57**.
 - APK-Build-Quellcommit: `7984def11f7da78407f24697ab4d6128ab700706` (Dokumentationscommit auf demselben App-Code-Stand); GitHub Actions Run `43405429051` / #103: **completed / success**.
 - Release `latest`: erfolgreich aktualisiert; Asset `KlimaPilot.apk` vorhanden. APK-SHA-256: `537ea7f086b88a1fecc7106dc8733d20c860c2deabfca666b39fdc11fdbe705d`; Signaturprüfung laut Produktionsnachweis erfolgreich.
