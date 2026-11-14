@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.input.pointer.pointerInput
@@ -357,6 +359,27 @@ private fun KlimaPilotApp(appVersion: String) {
         }
     }
 
+    fun updateAccountFontScale(scale: Float) {
+        val registry = accountRegistry ?: return
+        val actor = currentAccount ?: return
+        if (kotlin.math.abs(actor.fontScale - scale) < 0.001f) return
+        try {
+            val next = registry.updateFontScale(actor, scale)
+            accountLoading = true
+            saveRegistry(registry.revision, next) { saved, error ->
+                accountLoading = false
+                if (saved) {
+                    currentAccount = next.find(actor.username)
+                    accountStatus = ""
+                } else {
+                    accountStatus = "Schriftgröße konnte nicht gespeichert werden: ${error ?: "Speichern fehlgeschlagen"}"
+                }
+            }
+        } catch (error: Exception) {
+            accountStatus = error.message ?: "Schriftgröße konnte nicht gespeichert werden."
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (serverUrl.isNotBlank() && !serverUrl.contains("xxx")) connectToIoBroker()
     }
@@ -370,6 +393,12 @@ private fun KlimaPilotApp(appVersion: String) {
         }
     }
 
+    CompositionLocalProvider(
+        LocalDensity provides Density(
+            LocalDensity.current.density,
+            LocalDensity.current.fontScale * (currentAccount?.fontScale ?: 1.0f)
+        )
+    ) {
     if (!accountAuthenticated || currentAccount == null) {
         KlimaPilotAccountLoginScreen(
             registry = accountRegistry,
@@ -430,6 +459,8 @@ private fun KlimaPilotApp(appVersion: String) {
             account = currentAccount!!,
             onAccountSettings = { showAccountSettings = true; showSettings = false },
             onManageRoomsDevices = { showManager = true; showSettings = false },
+            fontScale = currentAccount!!.fontScale,
+            onFontScale = { updateAccountFontScale(it) },
             onBack = { showSettings = false }
         )
     } else {
@@ -478,6 +509,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 showSettings = true
             }
         )
+    }
     }
 }
 
@@ -771,6 +803,8 @@ private fun SettingsScreen(
     account: KlimaPilotAccount,
     onAccountSettings: () -> Unit,
     onManageRoomsDevices: () -> Unit,
+    fontScale: Float,
+    onFontScale: (Float) -> Unit,
     onBack: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
@@ -796,6 +830,30 @@ private fun SettingsScreen(
                     Icon(Icons.Default.AccountCircle, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Benutzerkonto und Benutzerwechsel")
+                }
+            }
+        }
+        Card(shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Schriftgröße", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Wird in deinem Benutzerkonto gespeichert und auf anderen Geräten übernommen.", color = Muted, fontSize = 12.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    listOf(0.85f to "Klein", 1.0f to "Normal", 1.15f to "Groß", 1.30f to "Sehr groß", 1.50f to "Max.").forEach { (scale, label) ->
+                        val selected = kotlin.math.abs(fontScale - scale) < 0.01f
+                        Column(
+                            Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { onFontScale(scale) }
+                                .padding(vertical = 8.dp, horizontal = 2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else TextMain, textAlign = TextAlign.Center)
+                            Text("${(scale * 100).toInt()}%", fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else TextMain)
+                        }
+                    }
                 }
             }
         }
