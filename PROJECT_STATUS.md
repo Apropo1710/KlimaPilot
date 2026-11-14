@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 7984def11f7da78407f24697ab4d6128ab700706
+- Quellcommit des APK-Builds: 485d274fbb5e10d321f76a72033d6e108ce1a2c5
 - App-Version / versionCode: **0.4.27 / 57**
-- Build-Zeit: 2026-11-13 10:02:26 UTC
+- Build-Zeit: 2026-11-14 22:09:10 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 537ea7f086b88a1fecc7106dc8733d20c860c2deabfca666b39fdc11fdbe705d
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 91dd046f66ccab96f80238cdcd13113840e370e8806f6f001197f80efe3d0851
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -152,4 +152,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 
 - Die Eingabebereiche der Dialoge „KlimaPilot-Benutzer anlegen“ (max. 280 dp) und „Passwort zurücksetzen“ (max. 240 dp) sind begrenzt und vertikal scrollbar. Damit bleiben die Dialogaktionen auch auf kleinen Displays mit geöffneter Tastatur erreichbar.
 - Kontenmodell, Rollen, Passwort-Hashing, Datenpunkt und ioBroker-Verbindung unverändert.
-- Vorgesehene App-Version: **0.4.27 / versionCode 57**; CI-Build und Release noch zu prüfen.\n\n
+- Vorgesehene App-Version: **0.4.27 / versionCode 57**; CI-Build und Release noch zu prüfen.\n\n\n
