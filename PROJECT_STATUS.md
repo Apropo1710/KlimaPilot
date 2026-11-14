@@ -21,7 +21,7 @@
 - GitHub Actions Run `43405429051` (#103) für den APK-Build-Quellcommit: **completed / success**. Der vorherige Code-Build Run `43403206733` (#101) für den App-Code-Commit war ebenfalls erfolgreich.
 - Release `latest` enthält `KlimaPilot.apk`, SHA-256 `537ea7f086b88a1fecc7106dc8733d20c860c2deabfca666b39fdc11fdbe705d`; APK-Signaturprüfung erfolgreich.
 - Der Nutzer hat die scrollbaren Dialoge der Kontenverwaltung auf dem Android-Gerät erfolgreich geprüft.
-- Aktueller `main`-Head `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` ist ein Dokumentationscommit und ändert den App-Code nicht.
+- Der vor dieser Statuspflege geprüfte `main`-Head `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` war ein Dokumentationscommit; auch diese Aktualisierung ändert den App-Code nicht.
 - Alle älteren Build-Pending- und Versionsvorschau-Angaben im Änderungsverlauf sind historische Zwischenstände, soweit sie denselben Produktionsstand betreffen.
 - Offen bleiben ausschließlich die hardwareabhängigen Arbeiten nach Installation der Mitsubishi-Klimaanlage; siehe Abschnitt „Offene Punkte / nächste Schritte“.
 
