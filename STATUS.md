@@ -1,4 +1,14 @@
-## Geprüfter Gesamtstand – 14.11.2026, 02:57 MEZ
+## Entwicklungsstand – 14.11.2026, 23:07 MEZ
+- Maßgeblicher Branch: `main`; aktueller Head nach Umsetzung der Schriftgrößenfunktion: `3c55b7c28cdc5455fafc8b386b5494b55567e20a`.
+- Produktionsversion im Quellcode: **0.4.28 / versionCode 58**.
+- Neue Funktion: Schriftgröße in fünf Stufen (85 %, 100 %, 115 %, 130 %, 150 %) einstellbar; wird als `fontScale` im jeweiligen KlimaPilot-Benutzerkonto im ioBroker-Kontenregister gespeichert.
+- Die Schriftgröße wird beim Anmelden aus dem Konto geladen und über Compose-`LocalDensity` auf die gesamte App angewendet. Neue Konten starten mit 100 %.
+- Bestehende Konten bleiben kompatibel: fehlendes `fontScale` wird als 100 % interpretiert. Passwortzurücksetzungen erhalten die gespeicherte Schriftgröße.
+- Die Auswahl wird über die vorhandene revisionsgesicherte Konten-Repository-Funktion gespeichert; kein lokaler Gerätewert.
+- Klimaprofile sind als nächster Teil des vereinbarten Pakets vorgemerkt. Die eigentliche Profilbelegung und Anwendung erfolgt erst anhand der nach Installation eingerichteten und geprüften Mitsubishi-/ioBroker-Datenpunkte; aktuell sind die Klima-Steuerfelder noch nicht freigegeben.
+- GitHub-Actions-Build für Version 0.4.28: **noch nicht geprüft**. APK, Signatur und Release `latest` sind daher noch nicht bestätigt.
+- Keine Änderung an Benutzerrollen, ioBroker-Verbindung oder Updater.
+
 - Maßgeblicher Branch: `main`; Zuletzt vor dieser Statuspflege geprüfter Branch-Head: `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` (reiner Dokumentationscommit); der Laufzeitcode blieb unverändert.
 - App-Code-Commit: `56b49749a77f07b50f6c2bac2085edd250e56116`; Produktionsversion **0.4.27 / versionCode 57**.
 - APK-Build-Quellcommit: `7984def11f7da78407f24697ab4d6128ab700706` (Dokumentationscommit auf demselben App-Code-Stand); GitHub Actions Run `43405429051` / #103: **completed / success**.
