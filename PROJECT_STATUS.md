@@ -17,7 +17,7 @@
 
 # KlimaPilot – Projektstatus und technische Dokumentation
 
-**Dokumentationsstand:** 15.11.2026, 17:00 Uhr MEZ  
+**Dokumentationsstand:** 15.11.2026, 17:02 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`
 
@@ -79,7 +79,7 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - Der Abgleich wird beim Öffnen der Profilansicht und danach alle 60 Sekunden angestoßen, solange die Ansicht aktiv ist.
 - **Nicht als produktiv bestätigt:** erfolgreicher Live-Abgleich mit realen ioBroker-Rechten und zwei Smartphones. Insbesondere das tatsächliche Verhalten von `getStates` für den verwendeten Namespace sowie Upload, Empfang, Konfliktfälle und Löschungen müssen praktisch geprüft werden. Bis dahin ist die Synchronisierung als implementiert, aber ungetestet zu kennzeichnen.
 
-## 4. Updater – abgeschlossen, nicht verändern
+## 5. Updater – abgeschlossen, nicht verändern
 
 Der Nutzer hat den KlimaPilot-Updater erfolgreich auf dem Gerät getestet. Der bewährte Installationsablauf bleibt erhalten:
 
@@ -92,7 +92,7 @@ Der Nutzer hat den KlimaPilot-Updater erfolgreich auf dem Gerät getestet. Der b
 
 Nicht wieder einführen: `REQUEST_INSTALL_PACKAGES`; nicht auf `ACTION_INSTALL_PACKAGE` umstellen. Keine automatische Updateprüfung neu einbauen. Die manuelle Updatefunktion bleibt bestehen. Der Updater-Code darf bei anderen Arbeiten nicht beiläufig verändert werden.
 
-## 5. Build und Veröffentlichung
+## 6. Build und Veröffentlichung
 
 - Workflow: `.github/workflows/android.yml`.
 - Pushes auf `main` starten den Produktionsbuild automatisch.
@@ -102,14 +102,14 @@ Nicht wieder einführen: `REQUEST_INSTALL_PACKAGES`; nicht auf `ACTION_INSTALL_P
 - Direkter Download (nur nach erneuter Release-Prüfung als aktuell bezeichnen): https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
 - GitHub Actions: https://github.com/Apropo1710/KlimaPilot/actions
 
-## 6. Offene Prüfungen
+## 7. Offene Prüfungen
 
 1. Profil-Synchronisierung mit zwei realen Installationen und ioBroker testen: erstmaliger Profilbestand, neue/geänderte Profile, Löschungen, Wiederholungen nach Verbindungsabbruch und Konflikte.
 2. Prüfen, ob ioBroker die benötigten Objekte/States im vorgesehenen Namespace mit den tatsächlichen Rechten korrekt anlegt, schreibt und über `getStates` zurückliefert.
 3. Nach Installation der Klimaanlage `mhi-wfrac` einrichten und alle realen Datenpunkte, Statuswerte und Steuerbefehle verifizieren.
 4. Erst nach erfolgreicher Hardwareprüfung entscheiden, welche Profilwerte sicher angewendet werden können.
 
-## 7. Verbindliche Arbeitsweise
+## 8. Verbindliche Arbeitsweise
 
 - Ausschließlich die produktive Hauptversion auf `main` weiterentwickeln.
 - Vor Änderungen `main` und die vollständigen betroffenen Dateien prüfen.
