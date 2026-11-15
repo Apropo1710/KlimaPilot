@@ -35,15 +35,15 @@ internal class ClimateProfileSyncClient {
             main.post { callback(message) }
         }
         socket.on("connect") {
-            socket.emit("authenticate", IoBrokerAck { authArgs ->
+            socket.emit("authenticate", IoBrokerAck authCallback@{ authArgs ->
                 val authenticated = authArgs.firstOrNull() as? Boolean ?: false
-                if (!authenticated) { finish("ioBroker hat die Synchronisierungsverbindung nicht authentifiziert."); return@IoBrokerAck }
-                socket.emit("getState", "system.adapter.admin.0.alive", IoBrokerAck { aliveArgs ->
+                if (!authenticated) { finish("ioBroker hat die Synchronisierungsverbindung nicht authentifiziert."); return@authCallback }
+                socket.emit("getState", "system.adapter.admin.0.alive", IoBrokerAck aliveCallback@{ aliveArgs ->
                     val error = aliveArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL }
                     val state = aliveArgs.getOrNull(1) as? JSONObject
                     if (error != null || state?.optBoolean("val", false) != true) {
                         finish("ioBroker ist nicht als aktiv bestätigt; Synchronisierung wurde abgebrochen.")
-                        return@IoBrokerAck
+                        return@aliveCallback
                     }
                     uploadPending(socket, store) { uploaded, uploadError ->
                         if (uploadError != null) { finish(uploadError); return@uploadPending }
@@ -101,12 +101,12 @@ internal class ClimateProfileSyncClient {
             val definition = JSONObject().put("type", "state")
                 .put("common", JSONObject().put("name", "KlimaPilot profile sync event").put("type", "string").put("role", "json").put("read", true).put("write", true))
                 .put("native", JSONObject())
-            socket.emit("setObject", id, definition, IoBrokerAck { objectArgs ->
+            socket.emit("setObject", id, definition, IoBrokerAck objectCallback@{ objectArgs ->
                 val objectError = objectArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL }
-                if (objectError != null) { done(uploaded, "Synchronisierungsereignis konnte in ioBroker nicht angelegt werden: $objectError"); return@IoBrokerAck }
-                socket.emit("setState", id, JSONObject().put("val", event.toString()).put("ack", false), IoBrokerAck { stateArgs ->
+                if (objectError != null) { done(uploaded, "Synchronisierungsereignis konnte in ioBroker nicht angelegt werden: $objectError"); return@objectCallback }
+                socket.emit("setState", id, JSONObject().put("val", event.toString()).put("ack", false), IoBrokerAck stateCallback@{ stateArgs ->
                     val stateError = stateArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL }
-                    if (stateError != null) { done(uploaded, "Synchronisierungsereignis konnte nicht übertragen werden: $stateError"); return@IoBrokerAck }
+                    if (stateError != null) { done(uploaded, "Synchronisierungsereignis konnte nicht übertragen werden: $stateError"); return@stateCallback }
                     acknowledged.add(event.optString("eventId"))
                     uploaded++
                     next()
@@ -117,16 +117,16 @@ internal class ClimateProfileSyncClient {
     }
 
     private fun readRemoteEvents(socket: IoBrokerSocket, done: (List<JSONObject>, String?) -> Unit) {
-        socket.emit("getStates", "$ROOT_ID.devices.*", IoBrokerAck { args ->
+        socket.emit("getStates", "$ROOT_ID.devices.*", IoBrokerAck statesCallback@{ args ->
             val error = args.firstOrNull()?.takeUnless { it == JSONObject.NULL }
-            if (error != null) { done(emptyList(), "Synchronisierungsdaten konnten aus ioBroker nicht gelesen werden: $error"); return@IoBrokerAck }
+            if (error != null) { done(emptyList(), "Synchronisierungsdaten konnten aus ioBroker nicht gelesen werden: $error"); return@statesCallback }
             val raw = args.getOrNull(1)
             val states = when (raw) {
                 is JSONObject -> raw
                 is Map<*, *> -> JSONObject().apply { raw.forEach { (key, value) -> if (key is String) put(key, value) } }
                 else -> null
             }
-            if (states == null) { done(emptyList(), "ioBroker lieferte keine lesbare Synchronisierungsübersicht."); return@IoBrokerAck }
+            if (states == null) { done(emptyList(), "ioBroker lieferte keine lesbare Synchronisierungsübersicht."); return@statesCallback }
             val events = mutableListOf<JSONObject>()
             val iterator = states.keys()
             while (iterator.hasNext()) {
