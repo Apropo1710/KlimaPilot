@@ -198,3 +198,18 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Solltemperatur bleibt bewusst bei 0,5 °C, da der WF-RAC-Protokollwert als halbe Gradstufen codiert ist; 0,1 °C würde vom Modul abgeschnitten.
 - Noch keine Profil-Anwendung und keine Smartphone-Synchronisierung freigegeben. Schreibzugriff, Account-Registrierung, Write-Lock und reales Geräteverhalten müssen nach Installation getestet werden.
 - App-Version **0.4.36 / versionCode 66**. Build und Release sind nach dem Commit separat zu verifizieren.\n\n\n\n\n\n\n\n\n
+
+## Klimaprofil-Synchronisierung – Implementierungsstand 15.11.2026
+
+- Gemeinsame Gerätekennung `syncDeviceKey` ist Bestandteil von `UserDevice`, wird lokal gespeichert und im Geräteeinstellungsdialog bearbeitet. Alte Geräteeinträge ohne Feld werden rückwärtskompatibel mit leerer Kennung geladen.
+- `ClimateProfileSyncStore` führt eine lokale, dauerhaft gespeicherte Outbox in `klimapilot_profile_sync`. Ereignisse besitzen Installations-ID, Sequenznummer, logischen Zähler, Ereignis-ID, Gerätekennung und Profil-Snapshot beziehungsweise Lösch-Tombstone.
+- Bestehende Profile werden beim erstmaligen Hinterlegen einer gemeinsamen Gerätekennung einmalig als Initialbestand vorgemerkt. Die Initialisierung wird erst nach erfolgreichem lokalem Speichern markiert.
+- Profiländerungen und Löschungen werden lokal vorgemerkt. Outbox-Einträge werden erst nach ioBroker-Schreibbestätigung entfernt; fehlgeschlagene Übertragungen bleiben zur Wiederholung erhalten.
+- `ClimateProfileSyncClient` nutzt eine eigene native OkHttp-WebSocket-Verbindung, authentifiziert separat und prüft `system.adapter.admin.0.alive`. Die Hauptverbindung der App wird nicht getrennt oder umkonfiguriert.
+- Vorgesehener ioBroker-Namespace: `0_userdata.0.KlimaPilot.profileSync.devices.<installationId>.<sequence>`. Ereignisse werden als JSON-String-States abgelegt und über `getStates` gelesen.
+- Remote-Profile werden anhand der gemeinsamen Gerätekennung auf die jeweilige lokale Geräte-ID abgebildet. Eindeutigkeitsprüfung verhindert die Übernahme bei mehrfach verwendeter Kennung auf demselben Smartphone.
+- Konfliktordnung: logischer Zähler, danach Installations-ID und Sequenznummer als deterministischer Tie-Breaker. Remote-Löschungen bleiben als Tombstones im ioBroker-Ereignislog erhalten.
+- Automatischer Abgleich ist beim Laden der Profilansicht und anschließend im 60-Sekunden-Abstand vorgesehen, solange die Profilansicht aktiv ist.
+- **Noch nicht als produktiv bestätigt:** APK-Build für den aktuellen vollständigen Quellstand 0.4.42 / versionCode 72, ioBroker-Rechte und tatsächliches Verhalten von `getStates` für den Namespace, sowie Praxistest mit zwei Smartphones. Vor erfolgreicher Prüfung keine Aussage, dass die Synchronisierung vollständig funktioniert.
+- Kein externer Cloudserver; Benutzerkonten, Passwörter, Updater und Klimaanlagen-Steuerbefehle werden von diesem Synchronisierungsweg nicht verändert.
+
