@@ -981,16 +981,26 @@ private fun SettingsScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
-            .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .background(AppBg)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().background(AppBg)
+                .padding(horizontal = 20.dp).padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = TextMain) }
             Column {
                 Text("Einstellungen", color = TextMain, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Text("Konto und App", color = Muted, fontSize = 12.sp)
             }
         }
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
         Card(shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Angemeldet als", color = Muted, fontSize = 12.sp)
@@ -1049,6 +1059,7 @@ private fun SettingsScreen(
         GithubUpdateCard(appVersion)
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
             Text("Zurück zur Klimaübersicht")
+        }
         }
     }
 }
