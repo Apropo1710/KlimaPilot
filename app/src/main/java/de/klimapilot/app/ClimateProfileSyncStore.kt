@@ -52,8 +52,16 @@ internal class ClimateProfileSyncStore(context: Context) {
         }
         val initialized = root.optJSONArray(KEY_INITIALIZED) ?: JSONArray()
         initialized.put(deviceKey)
+        val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
+        for (index in 0 until outbox.length()) {
+            val event = outbox.optJSONObject(index) ?: continue
+            if (event.optString("deviceKey") == deviceKey && event.optString("installationId") == installation) {
+                versions.put(versionKey(deviceKey, event.optString("profileId")), versionOf(event))
+            }
+        }
         root.put(KEY_INSTALLATION_ID, installation).put(KEY_SEQUENCE, sequence)
-            .put(KEY_LOGICAL_CLOCK, logicalClock).put(KEY_OUTBOX, outbox).put(KEY_INITIALIZED, initialized)
+            .put(KEY_LOGICAL_CLOCK, logicalClock).put(KEY_OUTBOX, outbox)
+            .put(KEY_INITIALIZED, initialized).put(KEY_PROFILE_VERSIONS, versions)
         check(prefs.edit().putString(KEY_STATE, root.toString()).commit()) { "Initialprofile konnten nicht zur Synchronisierung vorgemerkt werden." }
         return true
     }
@@ -79,6 +87,43 @@ internal class ClimateProfileSyncStore(context: Context) {
     }
 
     @Synchronized
+    fun isRemoteEventNewer(event: JSONObject): Boolean {
+        val key = versionKey(event.optString("deviceKey"), event.optString("profileId"))
+        val current = readRoot().optJSONObject(KEY_PROFILE_VERSIONS)?.optJSONObject(key) ?: return true
+        return compareVersion(event, current) > 0
+    }
+
+    @Synchronized
+    fun recordRemoteEvent(event: JSONObject): Boolean {
+        val key = versionKey(event.optString("deviceKey"), event.optString("profileId"))
+        val root = readRoot()
+        val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
+        val current = versions.optJSONObject(key)
+        if (current != null && compareVersion(event, current) <= 0) return true
+        versions.put(key, versionOf(event))
+        root.put(KEY_PROFILE_VERSIONS, versions)
+        val clock = event.optLong("logicalClock", 0L)
+        if (clock > root.optLong(KEY_LOGICAL_CLOCK, 0L)) root.put(KEY_LOGICAL_CLOCK, clock)
+        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+    }
+
+    private fun compareVersion(left: JSONObject, right: JSONObject): Int {
+        val clock = left.optLong("logicalClock", 0L).compareTo(right.optLong("logicalClock", 0L))
+        if (clock != 0) return clock
+        val installation = left.optString("installationId").compareTo(right.optString("installationId"))
+        if (installation != 0) return installation
+        return left.optLong("sequence", 0L).compareTo(right.optLong("sequence", 0L))
+    }
+
+    private fun versionOf(event: JSONObject): JSONObject = JSONObject()
+        .put("logicalClock", event.optLong("logicalClock", 0L))
+        .put("installationId", event.optString("installationId"))
+        .put("sequence", event.optLong("sequence", 0L))
+
+    private fun versionKey(deviceKey: String, profileId: String): String =
+        deviceKey + "|" + profileId
+
+    @Synchronized
     fun observeRemoteClock(remoteClock: Long) {
         if (remoteClock <= 0L) return
         val root = readRoot()
@@ -102,6 +147,9 @@ internal class ClimateProfileSyncStore(context: Context) {
         outbox.put(event)
         root.put(KEY_INSTALLATION_ID, installation).put(KEY_SEQUENCE, sequence)
             .put(KEY_LOGICAL_CLOCK, logicalClock).put(KEY_OUTBOX, outbox)
+        val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
+        versions.put(versionKey(deviceKey, profileId), versionOf(event))
+        root.put(KEY_PROFILE_VERSIONS, versions)
         return prefs.edit().putString(KEY_STATE, root.toString()).commit()
     }
 
@@ -127,5 +175,6 @@ internal class ClimateProfileSyncStore(context: Context) {
         private const val KEY_LOGICAL_CLOCK = "logicalClock"
         private const val KEY_OUTBOX = "outbox"
         private const val KEY_INITIALIZED = "initializedDeviceKeys"
+        private const val KEY_PROFILE_VERSIONS = "profileVersions"
     }
 }
