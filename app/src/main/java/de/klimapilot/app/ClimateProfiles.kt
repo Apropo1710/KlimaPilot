@@ -469,7 +469,7 @@ internal fun ClimateProfileManagerScreen(devices: List<UserDevice>, onBack: () -
             devices.forEach { device ->
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(device.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    ClimateProfilesSection(deviceId = device.id, syncDeviceKey = device.syncDeviceKey, devices = devices, managerMode = true, onApply = {})
+                    ClimateProfilesSection(deviceId = device.id, syncDeviceKey = device.syncDeviceKey, devices = devices, managerMode = true, onApply = { _, _ -> })
                 }
             }
         }
