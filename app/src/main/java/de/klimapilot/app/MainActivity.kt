@@ -61,6 +61,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import de.klimapilot.app.wfrac.AirconState
 import de.klimapilot.app.wfrac.Mode
+import de.klimapilot.app.wfrac.Codec
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
@@ -191,11 +192,23 @@ private fun KlimaPilotApp(appVersion: String) {
         }
     }
 
-    fun applyDeviceChange(change: (AirconState) -> AirconState) {
-        val device = selectedDevice ?: return
-        if (controlBusy) return
+    fun applyDeviceChange(
+        change: (AirconState) -> AirconState,
+        onComplete: ((Boolean, String?) -> Unit)? = null
+    ) {
+        val device = selectedDevice
+        if (device == null) {
+            onComplete?.invoke(false, "Kein Gerät ausgewählt.")
+            return
+        }
+        if (controlBusy) {
+            onComplete?.invoke(false, "Es läuft bereits ein Steuerbefehl.")
+            return
+        }
         if (!device.demoMode && device.wfRacAirconId.isBlank()) {
-            controlStatus = "Bitte zuerst in den Geräteeinstellungen das WLAN-Modul koppeln."
+            val message = "Bitte zuerst in den Geräteeinstellungen das WLAN-Modul koppeln."
+            controlStatus = message
+            onComplete?.invoke(false, message)
             return
         }
         controlScope.launch {
@@ -206,8 +219,11 @@ private fun KlimaPilotApp(appVersion: String) {
                 currentAirconState = updated
                 airconConnected = true
                 controlStatus = "Einstellung übernommen."
+                onComplete?.invoke(true, controlStatus)
             } catch (error: Exception) {
-                controlStatus = error.message ?: "Steuerbefehl fehlgeschlagen."
+                val message = error.message ?: "Steuerbefehl fehlgeschlagen."
+                controlStatus = message
+                onComplete?.invoke(false, message)
             } finally {
                 controlBusy = false
             }
@@ -568,18 +584,22 @@ private fun KlimaPilotApp(appVersion: String) {
             onVerticalSwing = { value -> applyDeviceChange { it.copy(windUD = value) } },
             onHorizontalSwing = { value -> applyDeviceChange { it.copy(windLR = value) } },
             onThreeDAuto = { enabled -> applyDeviceChange { it.copy(entrust = enabled) } },
-            onApplyProfile = { profile ->
-                applyDeviceChange { current ->
-                    current.copy(
-                        power = profile.power ?: current.power,
-                        mode = profile.mode?.let { Mode.valueOf(it) } ?: current.mode,
-                        presetTemp = profile.targetTemp ?: current.presetTemp,
-                        airFlow = profile.fanSpeed ?: current.airFlow,
-                        windUD = profile.verticalSwing ?: current.windUD,
-                        windLR = profile.horizontalSwing ?: current.windLR,
-                        entrust = profile.threeDAuto ?: current.entrust
-                    )
-                }
+            onApplyProfile = { profile, onComplete ->
+                applyDeviceChange(
+                    change = { current ->
+                        val supportsVaneLR = Codec.modelHasVaneLR(current.modelNrRaw) == true
+                        current.copy(
+                            power = profile.power ?: current.power,
+                            mode = profile.mode?.let { Mode.valueOf(it) } ?: current.mode,
+                            presetTemp = profile.targetTemp ?: current.presetTemp,
+                            airFlow = profile.fanSpeed ?: current.airFlow,
+                            windUD = profile.verticalSwing ?: current.windUD,
+                            windLR = if (supportsVaneLR) profile.horizontalSwing ?: current.windLR else current.windLR,
+                            entrust = if (supportsVaneLR) profile.threeDAuto ?: current.entrust else current.entrust
+                        )
+                    },
+                    onComplete = onComplete
+                )
             },
             airconConnected = airconConnected,
             onSettings = { showSettings = true }
@@ -665,7 +685,7 @@ private fun MainScreen(
     onVerticalSwing: (Int) -> Unit,
     onHorizontalSwing: (Int) -> Unit,
     onThreeDAuto: (Boolean) -> Unit,
-    onApplyProfile: (ClimateProfile) -> Unit,
+    onApplyProfile: (ClimateProfile, (Boolean, String?) -> Unit) -> Unit,
     airconConnected: Boolean,
     onSettings: () -> Unit
 ) {
@@ -805,7 +825,7 @@ private fun MainScreen(
                     enabled = ready
                 )
 
-                if (state != null && de.klimapilot.app.wfrac.Codec.modelHasVaneLR(state.modelNrRaw)) {
+                if (state != null && Codec.modelHasVaneLR(state.modelNrRaw) == true) {
                     SectionTitle("HORIZONTALE LUFTFÜHRUNG")
                     val horizontal = listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen")
                     FlowModeSelector(

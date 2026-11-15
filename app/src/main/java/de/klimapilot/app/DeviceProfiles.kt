@@ -23,6 +23,7 @@ internal fun DeviceSettingsDialog(
     device: UserDevice,
     onDismiss: () -> Unit,
     onResetPairing: (String) -> String?,
+    canMigrateSyncKey: Boolean,
     onSave: (UserDevice) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -35,7 +36,9 @@ internal fun DeviceSettingsDialog(
     var pairingStatus by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val repository = remember(context) { WfRacControlRepository(context) }
+    val syncStore = remember(context) { ClimateProfileSyncStore(context) }
     val discovery = remember(context) { WfRacDiscovery(context) }
+    var syncKeyError by remember(device.id) { mutableStateOf("") }
     var scanning by remember { mutableStateOf(false) }
     var scanMessage by remember { mutableStateOf("") }
     var confirmResetPairing by remember { mutableStateOf(false) }
@@ -162,21 +165,41 @@ internal fun DeviceSettingsDialog(
                     },
                     color = Color(0xFF63748A), fontSize = 11.sp
                 )
+                if (syncKeyError.isNotBlank()) {
+                    Text(syncKeyError, color = Color(0xFFB42318), fontSize = 11.sp)
+                }
             }
         },
         confirmButton = {
             TextButton(
                 enabled = !pairing,
                 onClick = {
+                    val oldKey = syncDeviceKey.trim()
+                    val newAirconId = wfRacAirconId.trim()
+                    val newKey = when {
+                        oldKey.startsWith("wfrac:") && newAirconId.isNotBlank() -> "wfrac:$newAirconId"
+                        oldKey.isNotBlank() -> oldKey
+                        newAirconId.isNotBlank() -> "wfrac:$newAirconId"
+                        else -> ""
+                    }
+                    if (oldKey.startsWith("wfrac:") && newKey != oldKey) {
+                        if (!canMigrateSyncKey) {
+                            syncKeyError = "Die bisherige Gerätekennung ist mehreren Geräten zugeordnet. Bitte erst die doppelte Zuordnung beheben; die Synchronisierung wird nicht umgestellt."
+                            return@TextButton
+                        }
+                        val migrated = runCatching { syncStore.rekeyPendingEvents(oldKey, newKey) }
+                        if (migrated.isFailure || migrated.getOrDefault(false).not()) {
+                            syncKeyError = migrated.exceptionOrNull()?.message
+                                ?: "Noch ausstehende Profiländerungen konnten nicht sicher auf die neue Gerätekennung umgestellt werden."
+                            return@TextButton
+                        }
+                    }
+                    syncKeyError = ""
                     onSave(device.copy(
                         model = model.trim(),
-                        // Keep an existing legacy sync key; otherwise derive a stable key from
-                        // the physical module identity shared by all installations of this unit.
-                        syncDeviceKey = syncDeviceKey.trim().ifBlank {
-                            wfRacAirconId.trim().takeIf { it.isNotBlank() }?.let { "wfrac:$it" }.orEmpty()
-                        },
+                        syncDeviceKey = newKey,
                         wfRacHost = wfRacHost.trim(),
-                        wfRacAirconId = wfRacAirconId.trim(),
+                        wfRacAirconId = newAirconId,
                         demoMode = demoMode
                     ))
                 }

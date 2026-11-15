@@ -65,6 +65,36 @@ internal class ClimateProfileSyncStore(context: Context) {
         return true
     }
 
+    /**
+     * Reassigns still-pending local events when an automatically generated WF-RAC key changes.
+     * Already acknowledged events stay associated with their original physical module.
+     */
+    @Synchronized
+    fun rekeyPendingEvents(oldDeviceKey: String, newDeviceKey: String): Boolean {
+        require(oldDeviceKey.isNotBlank() && newDeviceKey.isNotBlank() && oldDeviceKey != newDeviceKey)
+        val root = readRoot()
+        val current = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
+        val updated = JSONArray()
+        val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
+        for (index in 0 until current.length()) {
+            val event = current.optJSONObject(index) ?: continue
+            if (event.optString("deviceKey") == oldDeviceKey) {
+                event.put("deviceKey", newDeviceKey)
+                val profileId = event.optString("profileId")
+                if (profileId.isNotBlank()) {
+                    val key = versionKey(newDeviceKey, profileId)
+                    val previous = versions.optJSONObject(key)
+                    if (previous == null || compareVersion(event, previous) > 0) {
+                        versions.put(key, versionOf(event))
+                    }
+                }
+            }
+            updated.put(event)
+        }
+        root.put(KEY_OUTBOX, updated).put(KEY_PROFILE_VERSIONS, versions)
+        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+    }
+
     @Synchronized
     fun pendingEvents(): List<JSONObject> {
         val outbox = readRoot().optJSONArray(KEY_OUTBOX) ?: return emptyList()

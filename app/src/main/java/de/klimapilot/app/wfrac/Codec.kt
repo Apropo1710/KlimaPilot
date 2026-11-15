@@ -42,10 +42,14 @@ data class AirconState(
 
 object Codec {
     /**
-     * Whether a unit's model line has a left/right vane and 3D auto, per the official app's
-     * capability table: every model group except the ceiling cassettes (64).
+     * Capability is known for the model groups decoded by this protocol implementation.
+     * Unknown raw IDs must not be treated as feature-capable.
      */
-    fun modelHasVaneLR(modelNrRaw: Int) = modelNrRaw != 64
+    fun modelHasVaneLR(modelNrRaw: Int): Boolean? = when (modelNrRaw) {
+        0, 1, 2, 3 -> true
+        64 -> false
+        else -> null
+    }
 
     private val CMD_AIRFLOW = intArrayOf(0x0f, 0x08, 0x09, 0x0a, 0x0e)
     private val RCV_AIRFLOW = intArrayOf(0x07, 0x00, 0x01, 0x02, 0x06)

@@ -263,6 +263,7 @@ internal fun RoomDeviceManagerScreen(
             device = configuring!!,
             onDismiss = { configuring = null },
             onResetPairing = onResetPairing,
+            canMigrateSyncKey = devices.count { it.syncDeviceKey == configuring!!.syncDeviceKey } == 1,
             onSave = { updated ->
                 val index = devices.indexOfFirst { it.id == updated.id }
                 if (index >= 0) devices[index] = updated

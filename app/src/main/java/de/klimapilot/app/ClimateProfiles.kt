@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import de.klimapilot.app.wfrac.AirconState
+import de.klimapilot.app.wfrac.Codec
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -185,7 +186,7 @@ internal class ClimateProfileRepository(context: Context) {
 }
 
 @Composable
-internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, devices: List<UserDevice>, currentState: AirconState? = null, managerMode: Boolean = false, onApply: (ClimateProfile) -> Unit) {
+internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, devices: List<UserDevice>, currentState: AirconState? = null, managerMode: Boolean = false, onApply: (ClimateProfile, (Boolean, String?) -> Unit) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(context) { ClimateProfileRepository(context) }
     val syncStore = remember(context) { ClimateProfileSyncStore(context) }
@@ -203,7 +204,6 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var newProfileName by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
     var selectedProfileId by remember(deviceId) { mutableStateOf<String?>(null) }
-    var selectedProfileConfirmed by remember(deviceId) { mutableStateOf(false) }
     var profileMenuExpanded by remember { mutableStateOf(false) }
     LaunchedEffect(repository) {
         runCatching { repository.load() }
@@ -213,14 +213,15 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
     val selectedProfile = deviceProfiles.firstOrNull { it.id == selectedProfileId }
+    val modelSupportsVaneLR = currentState?.let { Codec.modelHasVaneLR(it.modelNrRaw) }
     val selectedProfileDirty = selectedProfile != null && currentState != null && (
         (selectedProfile.power != null && selectedProfile.power != currentState.power) ||
         (selectedProfile.mode != null && selectedProfile.mode != currentState.mode?.name) ||
         (selectedProfile.targetTemp != null && abs(selectedProfile.targetTemp - currentState.presetTemp) >= 0.01) ||
         (selectedProfile.fanSpeed != null && selectedProfile.fanSpeed != currentState.airFlow) ||
         (selectedProfile.verticalSwing != null && selectedProfile.verticalSwing != currentState.windUD) ||
-        (selectedProfile.horizontalSwing != null && selectedProfile.horizontalSwing != currentState.windLR) ||
-        (selectedProfile.threeDAuto != null && selectedProfile.threeDAuto != currentState.entrust)
+        (modelSupportsVaneLR == true && selectedProfile.horizontalSwing != null && selectedProfile.horizontalSwing != currentState.windLR) ||
+        (modelSupportsVaneLR == true && selectedProfile.threeDAuto != null && selectedProfile.threeDAuto != currentState.entrust)
     )
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
@@ -270,7 +271,13 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                     onClick = { selectedProfileId = null; profileMenuExpanded = false })
                                 deviceProfiles.forEach { profile ->
                                     DropdownMenuItem(text = { Text(profileSymbol(profile) + "  " + profile.name) },
-                                        onClick = { selectedProfileId = profile.id; profileMenuExpanded = false; onApply(profile) })
+                                        onClick = {
+                                            profileMenuExpanded = false
+                                            onApply(profile) { success, message ->
+                                                if (success) selectedProfileId = profile.id
+                                                status = message ?: if (success) "Profil erfolgreich angewendet." else "Profil konnte nicht angewendet werden."
+                                            }
+                                        })
                                 }
                             }
                         }
@@ -315,6 +322,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     if (profileToEdit != null) {
         ClimateProfileEditorDialog(
             deviceId = deviceId, profile = profileToEdit,
+            initialState = currentState,
+            modelSupportsVaneLR = modelSupportsVaneLR,
             onDismiss = { editing = null },
             onSave = { profile ->
                 runCatching { repository.save(profile) }
@@ -346,8 +355,10 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                     val updated = selectedProfile.copy(
                         power = currentState.power, mode = currentState.mode?.name,
                         targetTemp = currentState.presetTemp, fanSpeed = currentState.airFlow,
-                        verticalSwing = currentState.windUD, horizontalSwing = currentState.windLR,
-                        threeDAuto = currentState.entrust, updatedAt = System.currentTimeMillis()
+                        verticalSwing = currentState.windUD,
+                        horizontalSwing = currentState.windLR.takeIf { modelSupportsVaneLR == true },
+                        threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
+                        updatedAt = System.currentTimeMillis()
                     )
                     runCatching { repository.save(updated) }.onSuccess {
                         val index = profiles.indexOfFirst { it.id == updated.id }
@@ -385,8 +396,10 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         id = UUID.randomUUID().toString(), deviceId = deviceId, name = newProfileName.trim(),
                         power = currentState.power, mode = currentState.mode?.name,
                         targetTemp = currentState.presetTemp, fanSpeed = currentState.airFlow,
-                        verticalSwing = currentState.windUD, horizontalSwing = currentState.windLR,
-                        threeDAuto = currentState.entrust, updatedAt = System.currentTimeMillis()
+                        verticalSwing = currentState.windUD,
+                        horizontalSwing = currentState.windLR.takeIf { modelSupportsVaneLR == true },
+                        threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
+                        updatedAt = System.currentTimeMillis()
                     )
                     runCatching { repository.save(created) }.onSuccess {
                         profiles.add(created)
@@ -467,6 +480,7 @@ private fun ClimateProfileEditorDialog(
     deviceId: String,
     profile: ClimateProfile?,
     initialState: AirconState? = null,
+    modelSupportsVaneLR: Boolean?,
     onDismiss: () -> Unit,
     onSave: (ClimateProfile) -> Unit
 ) {
@@ -481,16 +495,18 @@ private fun ClimateProfileEditorDialog(
     var fanSpeed by remember(profile?.id) { mutableIntStateOf(profile?.fanSpeed ?: initialState?.airFlow ?: 0) }
     var includeVertical by remember(profile?.id) { mutableStateOf(profile?.verticalSwing != null || initialState != null) }
     var verticalSwing by remember(profile?.id) { mutableIntStateOf(profile?.verticalSwing ?: initialState?.windUD ?: 0) }
-    var includeHorizontal by remember(profile?.id) { mutableStateOf(profile?.horizontalSwing != null || initialState != null) }
+    var includeHorizontal by remember(profile?.id) { mutableStateOf(modelSupportsVaneLR == true && (profile?.horizontalSwing != null || initialState != null)) }
     var horizontalSwing by remember(profile?.id) { mutableIntStateOf(profile?.horizontalSwing ?: initialState?.windLR ?: 0) }
-    var include3d by remember(profile?.id) { mutableStateOf(profile?.threeDAuto != null || initialState != null) }
+    var include3d by remember(profile?.id) { mutableStateOf(modelSupportsVaneLR == true && (profile?.threeDAuto != null || initialState != null)) }
     var threeDAuto by remember(profile?.id) { mutableStateOf(profile?.threeDAuto ?: initialState?.entrust ?: false) }
 
     val temp = tempText.trim().replace(',', '.').toDoubleOrNull()
     val tempValid = !includeTemp || (temp != null && temp.isFinite() && temp in 16.0..30.0 &&
         abs(temp * 2.0 - (temp * 2.0).roundToInt()) < 0.001)
+    val preserveUnknownAdvanced = modelSupportsVaneLR == null &&
+        (profile?.horizontalSwing != null || profile?.threeDAuto != null)
     val anySetting = includePower || includeMode || includeTemp || includeFan || includeVertical ||
-        includeHorizontal || include3d
+        includeHorizontal || include3d || preserveUnknownAdvanced
     val modes = listOf("AUTO" to "Automatik", "COOL" to "Kühlen", "HEAT" to "Heizen", "DRY" to "Entfeuchten", "FAN" to "Lüfter")
     val fanOptions = listOf("Automatik", "Leise", "Stufe 1", "Stufe 2", "Stufe 3")
     val verticalOptions = listOf("Automatik", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten")
@@ -545,25 +561,31 @@ private fun ClimateProfileEditorDialog(
                         RadioButton(selected = verticalSwing == index, onClick = { verticalSwing = index }); Text(label)
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(includeHorizontal, { includeHorizontal = it }); Text("Horizontale Luftführung")
-                }
-                if (includeHorizontal) horizontalOptions.forEachIndexed { index, label ->
+                if (modelSupportsVaneLR == true) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = horizontalSwing == index, onClick = { horizontalSwing = index }); Text(label)
+                        Checkbox(includeHorizontal, { includeHorizontal = it }); Text("Horizontale Luftführung")
                     }
+                    if (includeHorizontal) horizontalOptions.forEachIndexed { index, label ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = horizontalSwing == index, onClick = { horizontalSwing = index }); Text(label)
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(include3d, { include3d = it }); Text("3D-Automatik")
+                    }
+                    if (include3d) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = threeDAuto, onClick = { threeDAuto = true }, label = { Text("Ein") })
+                        FilterChip(selected = !threeDAuto, onClick = { threeDAuto = false }, label = { Text("Aus") })
+                    }
+                } else {
+                    Text(
+                        if (modelSupportsVaneLR == false)
+                            "Dieses Modell unterstützt horizontale Luftführung und 3D-Automatik nicht."
+                        else
+                            "Das Modell wurde noch nicht ausgelesen. Gespeicherte Werte für horizontale Luftführung und 3D-Automatik bleiben unverändert.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
+                    )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(include3d, { include3d = it }); Text("3D-Automatik")
-                }
-                if (include3d) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = threeDAuto, onClick = { threeDAuto = true }, label = { Text("Ein") })
-                    FilterChip(selected = !threeDAuto, onClick = { threeDAuto = false }, label = { Text("Aus") })
-                }
-                Text(
-                    "Horizontale Luftführung und 3D-Automatik sind modell- bzw. firmwareabhängig. Vor dem Anwenden werden die Fähigkeiten des Geräts geprüft.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
-                )
             }
         },
         confirmButton = {
@@ -576,8 +598,16 @@ private fun ClimateProfileEditorDialog(
                     targetTemp = if (includeTemp) temp else null,
                     fanSpeed = if (includeFan) fanSpeed else null,
                     verticalSwing = if (includeVertical) verticalSwing else null,
-                    horizontalSwing = if (includeHorizontal) horizontalSwing else null,
-                    threeDAuto = if (include3d) threeDAuto else null,
+                    horizontalSwing = when (modelSupportsVaneLR) {
+                        true -> if (includeHorizontal) horizontalSwing else null
+                        false -> null
+                        null -> profile?.horizontalSwing
+                    },
+                    threeDAuto = when (modelSupportsVaneLR) {
+                        true -> if (include3d) threeDAuto else null
+                        false -> null
+                        null -> profile?.threeDAuto
+                    },
                     updatedAt = System.currentTimeMillis()
                 ))
             }) { Text("Speichern") }
