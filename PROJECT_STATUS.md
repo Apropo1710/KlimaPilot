@@ -153,3 +153,11 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Die Eingabebereiche der Dialoge „KlimaPilot-Benutzer anlegen“ (max. 280 dp) und „Passwort zurücksetzen“ (max. 240 dp) sind begrenzt und vertikal scrollbar. Damit bleiben die Dialogaktionen auch auf kleinen Displays mit geöffneter Tastatur erreichbar.
 - Kontenmodell, Rollen, Passwort-Hashing, Datenpunkt und ioBroker-Verbindung unverändert.
 - Vorgesehene App-Version: **0.4.27 / versionCode 57**; CI-Build und Release noch zu prüfen.\n\n\n\n\n\n\n\n\n
+
+## Änderung 15.11.2026 – Fixierte Einstellungs-Kopfzeile
+
+- In `SettingsScreen` bleiben Zurück-Pfeil und Titel „Einstellungen“ außerhalb des Scrollbereichs dauerhaft sichtbar.
+- Nur die darunterliegenden Einstellungs-Karten und Aktionen scrollen; Statusleisten-, Navigationsleisten- und Tastatur-Insets bleiben erhalten.
+- Bestehende Einstellungsfunktionen und deren Inhalte wurden nicht verändert.
+- App-Version: **0.4.34 / versionCode 64**. Produktionsbuild, APK-Signatur und Release `latest` sind nach dem Commit separat zu prüfen.
+- Klimaprofile sind davon getrennt und noch nicht implementiert. Ihre Synchronisierung muss angesichts der entfernten dauerhaften ioBroker-Verbindung vorab passend zur aktuellen Architektur geplant werden.
