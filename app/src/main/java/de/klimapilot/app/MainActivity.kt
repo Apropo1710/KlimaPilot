@@ -160,7 +160,7 @@ private fun KlimaPilotApp(appVersion: String) {
             accountLoading = false
             return
         }
-        IoBrokerClient.connect(legacyUrl) { connected, message ->
+        IoBrokerClient.connect(legacyUrl, subscribeAll = false) { connected, message ->
             if (!connected) {
                 IoBrokerClient.disconnect()
                 accountLoading = false
