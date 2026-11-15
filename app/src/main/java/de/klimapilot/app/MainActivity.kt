@@ -396,6 +396,13 @@ private fun KlimaPilotApp(appVersion: String) {
     LaunchedEffect(Unit) { loadAccounts() }
 
     LaunchedEffect("wf-rac-startup-reconnect") {
+        val trustedIdentities = runCatching { wfRacRepository.identities.all() }.getOrElse {
+            airconConnected = false
+            return@LaunchedEffect
+        }
+        // First-time TOFU requires an explicit user action; startup only reconnects trusted modules.
+        if (trustedIdentities.isEmpty()) return@LaunchedEffect
+
         val savedHost = prefs.getString("wf_rac_host", null)?.trim()?.takeIf { it.isNotBlank() }
         if (savedHost != null) {
             val previousConnection = runCatching {

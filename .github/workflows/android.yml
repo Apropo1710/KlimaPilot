@@ -102,7 +102,8 @@ jobs:
           fi
           export VERSION_NAME VERSION_CODE APK_SHA ARTIFACT_STATUS
           git fetch origin main
-          git reset --soft origin/main
+          git reset --mixed origin/main
+          git checkout origin/main -- PROJECT_STATUS.md
           python3 - <<'PY'
           import os
           from pathlib import Path
@@ -154,7 +155,7 @@ jobs:
       - name: Git-Tag latest auf dokumentierten Produktionsstand setzen
         run: |
           git fetch origin main
-          git tag -f latest origin/main
+          git tag -f latest "$GITHUB_SHA"
           git push origin refs/tags/latest --force
 
       - name: Neueste APK im privaten Release veröffentlichen
@@ -164,7 +165,7 @@ jobs:
           VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
           gh release view latest >/dev/null
           gh release edit latest --title "KlimaPilot – neueste APK" --notes "KlimaPilot-Version: $VERSION_NAME
-          Automatisch gebaut und signiert. Quellstand: $(git rev-parse origin/main)."
+          Automatisch gebaut und signiert. Quellstand: $GITHUB_SHA."
           gh release upload latest app/build/outputs/apk/release/KlimaPilot.apk --clobber
 
       - name: Veröffentlichung im Produktionsstatus bestätigen
@@ -172,7 +173,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git fetch origin main
-          git reset --soft origin/main
+          git reset --mixed origin/main
+          git checkout origin/main -- PROJECT_STATUS.md
           python3 - <<'PY'
           from pathlib import Path
           p = Path("PROJECT_STATUS.md")
@@ -190,9 +192,6 @@ jobs:
             git commit -m "docs: confirm production release status [skip ci]"
             git push origin HEAD:main
           fi
-          git fetch origin main
-          git tag -f latest origin/main
-          git push origin refs/tags/latest --force
           VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
           gh release edit latest --notes "KlimaPilot-Version: $VERSION_NAME
-          Automatisch gebaut, signiert und veröffentlicht. Produktionsstatus und Quellstand siehe PROJECT_STATUS.md."
+          Automatisch gebaut, signiert und veröffentlicht. Produktionsstatus und Quellstand siehe PROJECT_STATUS.md. Quellstand: $GITHUB_SHA."
