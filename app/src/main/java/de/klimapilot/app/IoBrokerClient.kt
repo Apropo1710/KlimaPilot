@@ -16,7 +16,7 @@ internal object IoBrokerClient {
         socket = null
     }
 
-    fun connect(url: String, callback: (Boolean, String) -> Unit) {
+    fun connect(url: String, subscribeAll: Boolean = true, callback: (Boolean, String) -> Unit) {
         disconnect()
         val address = url.trim().trimEnd('/')
         try {
@@ -35,8 +35,10 @@ internal object IoBrokerClient {
                             if (!reported) { reported = true; callback(false, "ioBroker hat die WebSocket-Verbindung nicht authentifiziert.") }
                         }
                     } else {
-                        client.emit("subscribe", "*")
-                        client.emit("subscribeObjects", "*")
+                        if (subscribeAll) {
+                            client.emit("subscribe", "*")
+                            client.emit("subscribeObjects", "*")
+                        }
                         client.emit("getState", "system.adapter.admin.0.alive", IoBrokerAck { stateArgs ->
                             val error = stateArgs.firstOrNull()
                             val state = stateArgs.getOrNull(1) as? JSONObject
