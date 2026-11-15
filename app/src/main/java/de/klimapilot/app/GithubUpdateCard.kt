@@ -122,8 +122,8 @@ internal fun GithubUpdateCard(appVersion: String) {
                 if (newerVersion != null && assetId != null) {
                     Button(
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         onClick = {
                             scope.launch {
                                 busy = true
@@ -152,7 +152,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                                 }
                             }
                         }
-                    ) { Text("Update laden", maxLines = 2, softWrap = true) }
+                    ) { Text("Update laden", maxLines = 1, softWrap = false) }
                 }
             }
             if (busy) {
