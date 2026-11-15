@@ -188,10 +188,6 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String) {
                 Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Neues Klimaprofil erstellen")
                 }
-                Text(
-                    "Die Profile werden lokal gespeichert und künftig automatisch mit ioBroker synchronisiert. Anwenden wird erst nach Prüfung und Freigabe der Schreibsteuerung aktiviert.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 15.sp
-                )
             }
             if (status.isNotBlank()) Text(status, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
         }
