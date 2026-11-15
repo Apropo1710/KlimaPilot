@@ -179,7 +179,7 @@ internal class ClimateProfileRepository(context: Context) {
 }
 
 @Composable
-internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDeviceKey: String, devices: List<UserDevice>) {
+internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, devices: List<UserDevice>) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(context) { ClimateProfileRepository(context) }
     val syncStore = remember(context) { ClimateProfileSyncStore(context) }
