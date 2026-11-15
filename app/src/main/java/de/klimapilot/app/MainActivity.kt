@@ -215,23 +215,38 @@ private fun KlimaPilotApp(appVersion: String) {
     }
 
     fun loadAccounts() {
-        val local = accountRepository.load()
-        if (local != null) {
-            accountRegistry = local
-            accountLoading = false
-            accountStatus = ""
-            val remembered = prefs.getString("klimapilotRememberedUsername", null)
-            val savedAccount = remembered?.let { local.find(it) }
-            if (savedAccount != null) {
-                currentAccount = savedAccount
-                accountAuthenticated = true
-                accountUsername = savedAccount.username
-            } else {
-                if (!remembered.isNullOrBlank()) prefs.edit().remove("klimapilotRememberedUsername").apply()
+        when (val local = accountRepository.load()) {
+            is KlimaPilotAccountLoadResult.Loaded -> {
+                val registry = local.registry
+                accountRegistry = registry
+                accountLoading = false
+                accountStatus = ""
+                val remembered = prefs.getString("klimapilotRememberedUsername", null)
+                val savedAccount = remembered?.let { registry.find(it) }
+                if (savedAccount != null) {
+                    currentAccount = savedAccount
+                    accountAuthenticated = true
+                    accountUsername = savedAccount.username
+                } else {
+                    if (!remembered.isNullOrBlank()) prefs.edit().remove("klimapilotRememberedUsername").apply()
+                    currentAccount = null
+                    accountAuthenticated = false
+                }
+                return
+            }
+            is KlimaPilotAccountLoadResult.Invalid -> {
+                accountRegistry = null
+                accountLoading = false
                 currentAccount = null
                 accountAuthenticated = false
+                accountStatus = if (local.backupSaved) {
+                    "Die lokal gespeicherten Kontendaten sind beschädigt oder nicht lesbar. Die unveränderten Rohdaten wurden intern gesichert. Es wurden keine Konten überschrieben. Bitte sichere das Gerät, bevor du weitere Schritte unternimmst."
+                } else {
+                    "Die lokal gespeicherten Kontendaten sind beschädigt oder nicht lesbar. Eine zusätzliche Sicherung war nicht möglich. Die vorhandenen Daten wurden nicht verändert."
+                }
+                return
             }
-            return
+            KlimaPilotAccountLoadResult.Missing -> Unit
         }
 
         accountLoading = true
