@@ -151,14 +151,18 @@ private fun KlimaPilotApp(appVersion: String) {
         val legacyUrl = prefs.getString("iobroker_server", null)?.trim()?.trimEnd('/')
         if (legacyUrl.isNullOrBlank()) {
             val empty = KlimaPilotAccountRegistry()
-            accountRepository.saveInitial(empty)
-            accountRegistry = empty
+            if (accountRepository.saveInitial(empty)) {
+                accountRegistry = empty
+                accountStatus = ""
+            } else {
+                accountStatus = "Lokale Konten konnten nicht initialisiert werden. Bitte erneut versuchen."
+            }
             accountLoading = false
-            accountStatus = ""
             return
         }
         IoBrokerClient.connect(legacyUrl) { connected, message ->
             if (!connected) {
+                IoBrokerClient.disconnect()
                 accountLoading = false
                 accountStatus = "Einmalige Kontoübernahme fehlgeschlagen: $message. Bitte ioBroker vorübergehend erreichbar machen und erneut versuchen. Es wurden keine Konten gelöscht."
                 return@connect
@@ -167,24 +171,30 @@ private fun KlimaPilotApp(appVersion: String) {
                 IoBrokerClient.disconnect()
                 val legacy = json?.let { KlimaPilotAccountRegistry.fromJson(it) }
                 if (legacy != null) {
-                    accountRepository.saveInitial(legacy)
-                    accountRegistry = legacy
-                    val remembered = prefs.getString("klimapilotRememberedUsername", null)
-                    val savedAccount = remembered?.let { legacy.find(it) }
-                    if (savedAccount != null) {
-                        currentAccount = savedAccount
-                        accountAuthenticated = true
-                        accountUsername = savedAccount.username
+                    if (accountRepository.saveInitial(legacy)) {
+                        accountRegistry = legacy
+                        val remembered = prefs.getString("klimapilotRememberedUsername", null)
+                        val savedAccount = remembered?.let { legacy.find(it) }
+                        if (savedAccount != null) {
+                            currentAccount = savedAccount
+                            accountAuthenticated = true
+                            accountUsername = savedAccount.username
+                        } else {
+                            currentAccount = null
+                            accountAuthenticated = false
+                        }
+                        accountStatus = ""
                     } else {
-                        currentAccount = null
-                        accountAuthenticated = false
+                        accountStatus = "Die bisherigen Konten wurden gelesen, konnten aber nicht lokal gespeichert werden. Die alten Daten bleiben erhalten."
                     }
-                    accountStatus = ""
                 } else if (error?.contains("existiert noch nicht", ignoreCase = true) == true) {
                     val empty = KlimaPilotAccountRegistry()
-                    accountRepository.saveInitial(empty)
-                    accountRegistry = empty
-                    accountStatus = ""
+                    if (accountRepository.saveInitial(empty)) {
+                        accountRegistry = empty
+                        accountStatus = ""
+                    } else {
+                        accountStatus = "Lokale Konten konnten nicht initialisiert werden. Bitte erneut versuchen."
+                    }
                 } else {
                     accountStatus = "Die bisherigen Konten konnten nicht sicher übernommen werden: ${error ?: "Ungültige Kontenliste"}. Die alten Daten bleiben unverändert erhalten."
                 }
