@@ -147,7 +147,7 @@ private fun KlimaPilotApp(appVersion: String) {
                     add(UserDevice(
                         item.getString("id"), item.getString("name"), item.getString("room"),
                         item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
-                        item.optString("rootObjectId", ""), mappings, item.optString("model", "")
+                        item.optString("rootObjectId", ""), mappings, item.optString("model", ""), item.optString("syncDeviceKey", "")
                     ))
                 }
             }
@@ -162,7 +162,7 @@ private fun KlimaPilotApp(appVersion: String) {
                         .put("id", device.id).put("name", device.name).put("room", device.room)
                         .put("adapterKey", device.adapterKey).put("adapterInstance", device.adapterInstance)
                         .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
-                        .put("model", device.model))
+                        .put("model", device.model).put("syncDeviceKey", device.syncDeviceKey))
                 }
             }.toString())
             .apply()
