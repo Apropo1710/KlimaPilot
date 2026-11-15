@@ -535,6 +535,7 @@ private fun KlimaPilotApp(appVersion: String) {
             },
             deviceManufacturer = if (selectedDevice != null) "Mitsubishi Heavy" else "Kein Gerät zugeordnet",
             deviceModel = selectedDevice?.model?.takeIf { it.isNotBlank() } ?: "Modell nicht hinterlegt",
+            selectedDeviceName = selectedDevice?.name.orEmpty(),
             isOn = room.isOn,
             targetTemp = room.targetTemp,
             onTargetTemp = { room.targetTemp = it },
@@ -614,6 +615,7 @@ private fun MainScreen(
     onRoomSwipe: (Int) -> Unit,
     deviceManufacturer: String,
     deviceModel: String,
+    selectedDeviceName: String,
     isOn: Boolean,
     targetTemp: Float,
     onTargetTemp: (Float) -> Unit,
@@ -731,6 +733,11 @@ private fun MainScreen(
                 Text("Bedienung und Messwerte werden nach der direkten Modul-Anbindung aktiviert.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
             }
         }
+
+        ClimateProfilesSection(
+            deviceId = selectedDeviceId,
+            deviceName = selectedDeviceName
+        )
 
         Spacer(Modifier.height(20.dp))
     }
