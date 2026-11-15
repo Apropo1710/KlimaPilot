@@ -8,6 +8,9 @@ import de.klimapilot.app.wfrac.AirconState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -276,8 +279,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                 if (selectedProfileDirty) saveChoiceDialog = true
                                 else { newProfileName = ""; saveNameDialog = true }
                             }
-                        }, enabled = currentState != null, modifier = Modifier.size(38.dp)) {
-                            Text("💾", fontSize = 20.sp)
+                        }, enabled = currentState != null, modifier = Modifier.size(34.dp)) {
+                            Icon(Icons.Default.Save, contentDescription = "Profil speichern", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 } else if (deviceProfiles.isEmpty()) {
@@ -444,12 +447,12 @@ private fun profileSymbol(profile: ClimateProfile): String = when (profile.mode)
 
 @Composable
 internal fun ClimateProfileManagerScreen(devices: List<UserDevice>, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("‹ Zurück") }
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = MaterialTheme.colorScheme.onBackground) }
             Text("Klimaprofile verwalten", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             devices.forEach { device ->
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(device.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)

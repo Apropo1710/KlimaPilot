@@ -56,6 +56,13 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - GitHub Actions: Run **#170** war der erfolgreiche Build dieser Zwischenversion; der aktuelle Produktionsbuild ist Run **#173** (siehe Produktionsstatus oben).
 - Kein Praxistest der Synchronisierung mit zwei Smartphones oder realem ioBroker durchgeführt. Dieser bleibt ausdrücklich offen.
 
+## Änderung 15.11.2026 – Einstellungsbereiche einklappbar und Profilverwaltung vereinheitlicht (0.4.49)
+
+- Profilverwaltung berücksichtigt Status- und Navigationsleisten; Titel und Zurück-Pfeil sind nicht mehr abgeschnitten. Der Zurück-Pfeil verwendet denselben Material-IconButton-Stil wie die übrigen Seiten.
+- „Klimaprofile verwalten“ verwendet denselben hervorgehobenen Button-Stil wie „Räume & Geräte verwalten“.
+- Diskettensymbol in der Profilkachel verkleinert.
+- Benutzerkonto, Schriftgröße und ioBroker-Verbindung lassen sich einzeln auf- und zuklappen; im geschlossenen Zustand bleiben kompakte Zusammenfassungen sichtbar.
+
 ## Änderung 15.11.2026 – Kompakter Profil-Speicherablauf (0.4.48)
 
 - Profil-Kachel zeigt nur noch das Symbol und den Namen des aktiven Profils bzw. „Individuell“; Profilanzahl und Wertzusammenfassung entfallen.

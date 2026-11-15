@@ -111,6 +111,9 @@ private fun KlimaPilotApp(appVersion: String) {
     var accountAuthenticated by remember { mutableStateOf(false) }
     var accountRegistry by remember { mutableStateOf<KlimaPilotAccountRegistry?>(null) }
     var accountLoading by remember { mutableStateOf(false) }
+    var accountExpanded by remember { mutableStateOf(false) }
+    var fontSizeExpanded by remember { mutableStateOf(false) }
+    var ioBrokerExpanded by remember { mutableStateOf(false) }
     var accountStatus by remember { mutableStateOf("") }
     var accountUsername by remember { mutableStateOf("") }
     var accountPassword by remember { mutableStateOf("") }
@@ -1050,7 +1053,7 @@ internal fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
-private fun IoBrokerConnectionSettingsCard() {
+private fun IoBrokerConnectionSettingsCard(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
     fun initialAddress(): String {
@@ -1085,8 +1088,14 @@ private fun IoBrokerConnectionSettingsCard() {
     val url = (if (secure) "wss://" else "ws://") + address.trim() + ":" + (port.toIntOrNull() ?: 8084)
     Card(shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Text("Für die Synchronisierung deiner Klimaprofile.", color = Muted, fontSize = 11.sp)
+            Row(Modifier.fillMaxWidth().clickable { onExpandedChange(!expanded) }, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Für die Synchronisierung deiner Klimaprofile.", color = Muted, fontSize = 11.sp)
+                }
+                Text(if (expanded) "⌃" else "⌄", color = Muted, fontSize = 20.sp)
+            }
+            if (expanded) {
             OutlinedTextField(value = address, onValueChange = { address = it.trim() }, label = { Text("IP-Adresse oder Hostname") }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp), modifier = Modifier.fillMaxWidth().height(56.dp))
             OutlinedTextField(value = port, onValueChange = { port = it.filter(Char::isDigit).take(5) }, label = { Text("Port") }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp), modifier = Modifier.fillMaxWidth().height(56.dp), isError = port.toIntOrNull()?.let { it !in 1..65535 } ?: true)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1117,6 +1126,7 @@ private fun IoBrokerConnectionSettingsCard() {
                 }, enabled = valid && !testing, modifier = Modifier.weight(1f).height(40.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) { Text(if (testing) "Prüfe …" else "Testen", fontSize = 13.sp) }
             }
             if (status.isNotBlank()) Text(status, color = if (status.contains("fehlgeschlagen") || status.contains("Bitte")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+            }
         }
     }
 }
@@ -1157,18 +1167,21 @@ private fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
         Card(shape = RoundedCornerShape(16.dp)) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Angemeldet als", color = Muted, fontSize = 11.sp)
-                Text(account.displayName, color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("${account.username} · ${if (isAdmin) "Administrator" else "Benutzer"}", color = Muted, fontSize = 11.sp)
-                OutlinedButton(
-                    onClick = onAccountSettings,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(7.dp))
-                    Text("Benutzerkonto und Benutzerwechsel", fontSize = 13.sp)
+            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.fillMaxWidth().clickable { accountExpanded = !accountExpanded }, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Benutzerkonto", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("${account.displayName} · ${if (isAdmin) "Administrator" else "Benutzer"}", color = Muted, fontSize = 11.sp)
+                    }
+                    Text(if (accountExpanded) "⌃" else "⌄", color = Muted, fontSize = 20.sp)
+                }
+                if (accountExpanded) {
+                    OutlinedButton(onClick = onAccountSettings, modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                        Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Benutzerkonto und Benutzerwechsel", fontSize = 13.sp)
+                    }
                 }
             }
         }
@@ -1185,38 +1198,48 @@ private fun SettingsScreen(
             }
         }
         if (isAdmin) {
-            OutlinedButton(onClick = onManageProfiles, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) {
+            Button(onClick = onManageProfiles, modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
                 Icon(Icons.Default.Tune, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Klimaprofile verwalten")
+                Spacer(Modifier.width(9.dp))
+                Text("Klimaprofile verwalten", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         Card(shape = RoundedCornerShape(18.dp)) {
-            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Schriftgröße", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("Wird lokal in deinem Benutzerkonto auf diesem Gerät gespeichert.", color = Muted, fontSize = 12.sp)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    listOf(0.85f to "Klein", 1.0f to "Normal", 1.15f to "Groß", 1.30f to "Sehr groß", 1.50f to "Max.").forEach { (scale, label) ->
-                        val selected = kotlin.math.abs(fontScale - scale) < 0.01f
-                        Column(
-                            Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
-                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { onFontScale(scale) }
-                                .padding(vertical = 8.dp, horizontal = 2.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else TextMain, textAlign = TextAlign.Center)
-                            Text("${(scale * 100).toInt()}%", fontSize = 11.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else TextMain)
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth().clickable { fontSizeExpanded = !fontSizeExpanded }, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Schriftgröße", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Aktuell: ${(fontScale * 100).toInt()}%", color = Muted, fontSize = 11.sp)
+                    }
+                    Text(if (fontSizeExpanded) "⌃" else "⌄", color = Muted, fontSize = 20.sp)
+                }
+                if (fontSizeExpanded) {
+                    Text("Wird lokal in deinem Benutzerkonto auf diesem Gerät gespeichert.", color = Muted, fontSize = 12.sp)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        listOf(0.85f to "Klein", 1.0f to "Normal", 1.15f to "Groß", 1.30f to "Sehr groß", 1.50f to "Max.").forEach { (scale, label) ->
+                            val selected = kotlin.math.abs(fontScale - scale) < 0.01f
+                            Column(
+                                Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                                    .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable { onFontScale(scale) }
+                                    .padding(vertical = 8.dp, horizontal = 2.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else TextMain, textAlign = TextAlign.Center)
+                                Text("${(scale * 100).toInt()}%", fontSize = 11.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else TextMain)
+                            }
                         }
                     }
                 }
             }
         }
         if (isAdmin) {
-            IoBrokerConnectionSettingsCard()
+            IoBrokerConnectionSettingsCard(expanded = ioBrokerExpanded, onExpandedChange = { ioBrokerExpanded = it })
         } else {
             Card(shape = RoundedCornerShape(16.dp)) {
                 Text(
