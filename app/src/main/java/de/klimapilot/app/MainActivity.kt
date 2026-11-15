@@ -1008,7 +1008,7 @@ private fun IoBrokerConnectionSettingsCard() {
     var testing by remember { mutableStateOf(false) }
     val valid = address.trim().isNotBlank() && !address.contains("://") && !address.contains("/") &&
         port.toIntOrNull()?.let { it in 1..65535 } == true
-    val url = (if (secure) "wss://" else "ws://") + address.trim() + ":" + port.toIntOrNull().coerceAtLeast(1)
+    val url = (if (secure) "wss://" else "ws://") + address.trim() + ":" + (port.toIntOrNull() ?: 8084)
     Card(shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
