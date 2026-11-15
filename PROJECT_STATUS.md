@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 56cfcfe89a5f7348adebc2d669a37a507a8c9ba0
+- Quellcommit des APK-Builds: 57cd0bbbc45fa9d330360f9d731e3001f9c91d7f
 - App-Version / versionCode: **0.4.33 / 63**
-- Build-Zeit: 2026-11-15 07:45:28 UTC
+- Build-Zeit: 2026-11-15 10:39:22 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 28faab220453e01da8ce0390833e73d68b5020f35425ca2a87bf8574765de22a
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: ee7ba678ac1f8ecc7fda38e1fa06aaff82085323fd88601f2539969091381e4a
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -160,4 +160,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Nur die darunterliegenden Einstellungs-Karten und Aktionen scrollen; Statusleisten-, Navigationsleisten- und Tastatur-Insets bleiben erhalten.
 - Bestehende Einstellungsfunktionen und deren Inhalte wurden nicht verändert.
 - App-Version: **0.4.34 / versionCode 64**. Produktionsbuild, APK-Signatur und Release `latest` sind nach dem Commit separat zu prüfen.
-- Klimaprofile sind davon getrennt und noch nicht implementiert. Ihre Synchronisierung muss angesichts der entfernten dauerhaften ioBroker-Verbindung vorab passend zur aktuellen Architektur geplant werden.
+- Klimaprofile sind davon getrennt und noch nicht implementiert. Ihre Synchronisierung muss angesichts der entfernten dauerhaften ioBroker-Verbindung vorab passend zur aktuellen Architektur geplant werden.\n
