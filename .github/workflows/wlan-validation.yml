@@ -8,7 +8,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: klimapilot-wlan-test-release
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -16,6 +20,8 @@ jobs:
     steps:
       - name: Quellcode auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Java 17 einrichten
         uses: actions/setup-java@v4
         with:
@@ -29,18 +35,64 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Debug-App und Unit-Tests bauen
+      - name: Unit-Tests und Debug-Kompilierung
         run: gradle --no-daemon testDebugUnitTest assembleDebug
-      - name: Debug-APK prüfen
+      - name: Test-Signaturschlüssel bereitstellen
+        if: github.event_name != 'pull_request'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KLIMAPILOT_KEYSTORE_BASE64 }}
         run: |
-          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -n "$KEYSTORE_BASE64" || { echo "Keystore-Secret fehlt"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/klimapilot-wlan-test.jks"
+          chmod 600 "$RUNNER_TEMP/klimapilot-wlan-test.jks"
+      - name: Signierten WLAN-Test-Build erstellen
+        if: github.event_name != 'pull_request'
+        env:
+          KLIMAPILOT_KEYSTORE_PATH: ${{ runner.temp }}/klimapilot-wlan-test.jks
+          KLIMAPILOT_STORE_PASSWORD: ${{ secrets.KLIMAPILOT_STORE_PASSWORD }}
+          KLIMAPILOT_KEY_ALIAS: ${{ secrets.KLIMAPILOT_KEY_ALIAS }}
+          KLIMAPILOT_KEY_PASSWORD: ${{ secrets.KLIMAPILOT_KEY_PASSWORD }}
+        run: gradle --no-daemon assembleWlanTest
+      - name: WLAN-Test-APK und Signatur prüfen
+        if: github.event_name != 'pull_request'
+        run: |
+          APK="app/build/outputs/apk/wlanTest/app-wlanTest.apk"
           test -f "$APK"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK"
+          APP_ID=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK")
+          VERSION_CODE=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK")
+          VERSION_NAME=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK")
+          test "$APP_ID" = "de.klimapilot.app.debug"
+          test "$VERSION_CODE" = "59"
+          test "$VERSION_NAME" = "0.4.29"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
-      - name: Debug-APK als Testartefakt hochladen
+          sha256sum "$APK"
+      - name: WLAN-Test-APK als Actions-Artefakt hochladen
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: KlimaPilot-WLAN-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/wlanTest/app-wlanTest.apk
+          if-no-files-found: error
           retention-days: 7
+      - name: Separates Test-Release aktualisieren
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="wlan-test-latest"
+          APK="app/build/outputs/apk/wlanTest/app-wlanTest.apk"
+          VERSION_NAME=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK")
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG" --force
+          NOTES="KlimaPilot-WLAN-Version: $VERSION_NAME
+
+          Separater WLAN-Testbuild. Paketkennung: de.klimapilot.app.debug.
+          Signiert mit dem stabilen KlimaPilot-Signaturschlüssel.
+          Quellcommit: $GITHUB_SHA.
+          Dieses Release aktualisiert ausschließlich die WLAN-Testversion."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "KlimaPilot WLAN-Test – neueste APK" --notes "$NOTES" --prerelease
+          else
+            gh release create "$TAG" --title "KlimaPilot WLAN-Test – neueste APK" --notes "$NOTES" --prerelease --verify-tag
+          fi
+          gh release upload "$TAG" "$APK#KlimaPilot-WLAN-debug.apk" --clobber
