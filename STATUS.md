@@ -1,14 +1,15 @@
-## Geprüfter Gesamtstand – 15.11.2026, 03:01 MEZ
-- Maßgeblicher Branch: `main`; aktueller Branch-Head: `cab7594dcd1f9e1894dff1db6f835673584ef682` (Dokumentationscommit).
+## Geprüfter Gesamtstand – 15.11.2026, 03:12 MEZ
+- Maßgeblicher Branch: `main`; vor dieser Statusaktualisierung geprüfter Head `d714516abe7cf5b1f27533cdd81c332e2dd9989d` (Dokumentationscommit nach erfolgreichem APK-Release-Workflow).
 - Letzter App-Code-Commit: `485d274fbb5e10d321f76a72033d6e108ce1a2c5` – Schriftgröße je Benutzerkonto gespeichert; Version **0.4.28 / versionCode 58**.
-- Version-/Build-Commit: `3c55b7c28cdc5455fafc8b386b5494b55567e20a`; GitHub Actions Run `43646394623`: **completed / success**. Der vorherige Code-Build Run `43646365945` für den Font-Scale-Codecommit war ebenfalls erfolgreich.
+- APK-Build-Quellcommit: `bd20181e86972f390901d65c442996bc3cf109d1`; GitHub Actions Run `43666033340`: **completed / success**. Der vorherige Dokumentationsbuild `43666030742` war ebenfalls erfolgreich.
 - Schriftgröße: fünf Stufen von 85 % bis 150 %, Standard 100 %. Speicherung als `fontScale` im jeweiligen ioBroker-Benutzerkonto; bestehende Konten ohne Feld bleiben kompatibel.
-- Release `latest`: Asset `KlimaPilot.apk` vorhanden und am 14.11.2026 aktualisiert. SHA-256: `5548607c1689202ba0f5cd4f18b67a56a9077bbb3052a9f6d92a6e53ad23eb08`. Signaturprüfung laut automatisch gepflegtem Produktionsnachweis erfolgreich.
+- Release `latest`: Asset `KlimaPilot.apk` vorhanden. Aktueller SHA-256: `0d3f44fda8d003a92268644048db1a851f7fbd7ab8c30468f4a7d6b6f55b31c2`. Signaturprüfung laut automatisch gepflegtem Produktionsnachweis erfolgreich.
+- Die durch Dokumentationscommits ausgelösten APK-Builds änderten keinen App-Laufzeitcode; die Produktionsversion blieb 0.4.28 / 58.
 - Ein separater Smartphone-Test der neuen Schriftgrößeneinstellung ist noch nicht bestätigt.
 - Klimaprofile sind weiterhin vorgemerkt, aber noch nicht implementiert. Die Profilbelegung muss nach Installation anhand der echten Mitsubishi-/ioBroker-Datenpunkte festgelegt werden.
 - Der Updater bleibt unverändert und vom Nutzer bestätigt. Hardwareabhängige Klimaanlagenarbeiten bleiben bis zur Installation offen.
 
-Zuletzt aktualisiert: 15.11.2026, 03:01 MEZ
+Zuletzt aktualisiert: 15.11.2026, 03:12 MEZ
 Repository: https://github.com/Apropo1710/KlimaPilot
 Produktions-/Hauptbranch: `main`
 
