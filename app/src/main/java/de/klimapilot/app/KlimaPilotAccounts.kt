@@ -1,5 +1,6 @@
 package de.klimapilot.app
 
+import android.content.Context
 import android.util.Base64
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -177,38 +178,35 @@ internal data class KlimaPilotAccountRegistry(
     }
 }
 
-/** Konten liegen getrennt von HomePilot im gemeinsamen ioBroker-Datenpunkt. */
-internal class KlimaPilotAccountRepository(private val client: IoBrokerClient) {
-    companion object { const val STATE_ID = "0_userdata.0.KlimaPilot.accounts" }
-
-    fun load(callback: (KlimaPilotAccountRegistry?, String?) -> Unit) {
-        client.ensureJsonState(STATE_ID, "KlimaPilot account registry", KlimaPilotAccountRegistry().toJson()) { json, _, error ->
-            if (error != null || json == null) {
-                callback(null, error ?: "Konten konnten nicht geladen werden.")
-                return@ensureJsonState
-            }
-            val registry = KlimaPilotAccountRegistry.fromJson(json)
-            if (registry == null) callback(null, "Die KlimaPilot-Kontenliste ist ungültig oder hat ein unbekanntes Format.")
-            else callback(registry, null)
-        }
+/** Lokaler Kontenspeicher. Die alte ioBroker-Ablage wird ausschließlich einmalig migriert. */
+internal class KlimaPilotAccountRepository(context: Context) {
+    companion object {
+        const val LEGACY_STATE_ID = "0_userdata.0.KlimaPilot.accounts"
+        private const val LOCAL_STATE_KEY = "klimapilot_account_registry_v1"
     }
 
+    private val prefs = context.applicationContext.getSharedPreferences("klimapilot_accounts", Context.MODE_PRIVATE)
+
+    fun load(): KlimaPilotAccountRegistry? {
+        val raw = prefs.getString(LOCAL_STATE_KEY, null) ?: return null
+        return runCatching { KlimaPilotAccountRegistry.fromJson(JSONObject(raw)) }.getOrNull()
+    }
+
+    fun saveInitial(registry: KlimaPilotAccountRegistry): Boolean =
+        prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
+
     fun save(expectedRevision: Long, registry: KlimaPilotAccountRegistry, callback: (Boolean, String?) -> Unit) {
-        load { current, error ->
-            if (error != null || current == null) {
-                callback(false, error ?: "Kontenliste konnte nicht geprüft werden.")
-                return@load
-            }
-            if (current.revision != expectedRevision) {
-                callback(false, "Die Kontenliste wurde zwischenzeitlich geändert. Bitte erneut laden.")
-                return@load
-            }
-            if (registry.revision != expectedRevision + 1) {
-                callback(false, "Ungültige Versionsnummer der Kontenliste.")
-                return@load
-            }
-            client.setJsonState(STATE_ID, registry.toJson(), callback)
+        val current = load() ?: KlimaPilotAccountRegistry()
+        if (current.revision != expectedRevision) {
+            callback(false, "Die lokale Kontenliste wurde zwischenzeitlich geändert. Bitte erneut laden.")
+            return
         }
+        if (registry.revision != expectedRevision + 1) {
+            callback(false, "Ungültige Versionsnummer der Kontenliste.")
+            return
+        }
+        val saved = saveInitial(registry)
+        callback(saved, if (saved) null else "Konten konnten nicht lokal gespeichert werden.")
     }
 }
 
@@ -245,10 +243,7 @@ internal fun KlimaPilotAccountLoginScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(20.dp))
-        if (!connected) {
-            if (loading) CircularProgressIndicator()
-            else Button(onClick = onRetryConnection, modifier = Modifier.fillMaxWidth()) { Text("Verbindung erneut herstellen") }
-        } else if (registry == null) {
+        if (registry == null) {
             if (loading) CircularProgressIndicator()
             else Button(onClick = onReload, modifier = Modifier.fillMaxWidth()) { Text("Konten erneut laden") }
         } else {
@@ -333,7 +328,7 @@ internal fun KlimaPilotAccountSettingsScreen(
                 Text(account.displayName, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text("${account.username} · ${if (account.role == KlimaPilotAccount.ADMIN) "Administrator" else "Benutzer"}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                Text("Das KlimaPilot-Konto ist unabhängig von der ioBroker-Anmeldung.",
+                Text("Dein KlimaPilot-Konto wird lokal auf diesem Gerät gespeichert.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 OutlinedButton(onClick = { ownPassword = ""; ownPasswordConfirmation = ""; showOwnPassword = true },
                     modifier = Modifier.fillMaxWidth()) { Text("Eigenes Passwort ändern") }
@@ -444,7 +439,7 @@ internal fun KlimaPilotAccountSettingsScreen(
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text("Benutzer wirklich löschen?") },
-            text = { Text("Das Konto „${target.username}“ wird dauerhaft aus KlimaPilot entfernt. Der ioBroker-Zugang bleibt unverändert.") },
+            text = { Text("Das Konto „${target.username}“ wird dauerhaft aus diesem Gerät entfernt.") },
             confirmButton = { TextButton(onClick = { onDeleteAccount(target.username); deleteTarget = null }) { Text("Löschen") } },
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Abbrechen") } }
         )
