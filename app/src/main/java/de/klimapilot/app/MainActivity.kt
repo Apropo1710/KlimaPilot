@@ -382,6 +382,7 @@ private fun KlimaPilotApp(appVersion: String) {
             appVersion = appVersion,
             isAdmin = currentAccount!!.role == KlimaPilotAccount.ADMIN,
             account = currentAccount!!,
+            onAirconConnectionChanged = { airconConnected = it },
             onAccountSettings = { showAccountSettings = true; showSettings = false },
             onManageRoomsDevices = { showManager = true; showSettings = false },
             fontScale = currentAccount!!.fontScale,
@@ -606,7 +607,7 @@ private fun MainScreen(
 
                 SectionTitle("LÜFTERSTUFE")
                 FlowModeSelector(selected = fan, options = listOf("Auto", "Leise", "1", "2", "3", "4"), onSelect = onFan, enabled = false)
-                Text("Bedienung und Messwerte werden nach Zuordnung der ioBroker-Datenpunkte aktiviert.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+                Text("Bedienung und Messwerte werden nach der direkten Modul-Anbindung aktiviert.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
             }
         }
 
@@ -847,6 +848,7 @@ private fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
 private fun SettingsScreen(
     appVersion: String,
     isAdmin: Boolean,
+    onAirconConnectionChanged: (Boolean) -> Unit,
     account: KlimaPilotAccount,
     onAccountSettings: () -> Unit,
     onManageRoomsDevices: () -> Unit,
@@ -903,7 +905,7 @@ private fun SettingsScreen(
             }
         }
         if (isAdmin) {
-            WfRacConnectionCard(onConnectionChanged = { airconConnected = it })
+            WfRacConnectionCard(onConnectionChanged = onAirconConnectionChanged)
             OutlinedButton(
                 onClick = onManageRoomsDevices,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
