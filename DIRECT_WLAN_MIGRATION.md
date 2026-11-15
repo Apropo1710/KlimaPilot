@@ -2,7 +2,7 @@
 
 Stand: 15.11.2026
 Produktionsbranch: `main`
-Aktueller Entwicklungsstand: 0.4.44 / versionCode 74 (Build und Veröffentlichung noch ausstehend)
+Aktueller Produktionsstand: 0.4.44 / versionCode 74; GitHub-Actions-Run #173 erfolgreich, APK signiert und Release latest aktualisiert.
 
 ## Ziel
 KlimaPilot kommuniziert direkt und lokal mit Mitsubishi-Heavy-WF-RAC-WLAN-Modulen. Eine dauerhafte ioBroker-Verbindung ist nicht mehr Teil des App-Betriebs. Eine einmalige ioBroker-Leseverbindung bleibt ausschließlich für die Übernahme älterer Benutzerkonten aus `0_userdata.0.KlimaPilot.accounts` erhalten.
@@ -12,7 +12,7 @@ KlimaPilot kommuniziert direkt und lokal mit Mitsubishi-Heavy-WF-RAC-WLAN-Module
 - **0.4.31 / 61:** Benutzerkonten, Passwort-Hashes und persönliche Schriftgrößen lokal gespeichert. Bei Upgrades erfolgt einmalig ein Import der bisherigen ioBroker-Konten, ohne Gesamtabonnierung. Nach erfolgreicher Übernahme ist ioBroker für Anmeldung und Benutzerverwaltung nicht mehr erforderlich. Das Wolkensymbol zeigt den direkten Klimaanlagen-Verbindungsstatus.
 - **0.4.32 / 62:** Geräteidentität und Transport-Sicherheitsbindung werden dauerhaft pro WF-RAC-Modul gespeichert. Die App verbindet sich nach Neustart automatisch mit der zuletzt bekannten Adresse. Falls diese nicht erreichbar ist, wird lokal per mDNS gesucht und ein gefundenes Modul nur dann übernommen, wenn Identität und gespeicherter Fingerprint übereinstimmen.
 - **0.4.33 / 63:** Die erstmalige Vertrauensstellung per TOFU wird nur noch durch einen bewusst gestarteten Verbindungstest ausgelöst. Beim App-Start werden ausschließlich bereits gespeicherte Identitäten wiederverbunden.
-- **0.4.44 / 74 (in Arbeit):** Pro Gerät kann ein WF-RAC-Modul explizit gekoppelt werden. Mehrere physische Klimaanlagen erhalten getrennte Geräte-IDs und Verbindungen. Die Kopplung prüft airconId, Transport und HTTPS-Fingerprint; weitere Geräte dürfen nur durch eine bewusste Kopplungsaktion hinzugefügt werden. Die Bedienoberfläche liest den echten Gerätestatus und steuert Ein/Aus, Betriebsmodus, Solltemperatur, Lüfterstufe, vertikale Luftführung sowie – soweit vom Modell gemeldet – horizontale Luftführung und 3D-Automatik. Gespeicherte Profile können jetzt angewendet werden. Ein isolierter Demo-Modus simuliert eine Anlage und verwendet denselben WF-RAC-Frame-Encoder/Decoder wie die echte Steuerung. Der Produktionsbuild steht noch aus; ein Hardwaretest ist mangels installierter Anlage nicht möglich.
+- **0.4.44 / 74 (veröffentlicht):** Pro Gerät kann ein WF-RAC-Modul explizit gekoppelt werden. Mehrere physische Klimaanlagen erhalten getrennte Geräte-IDs und Verbindungen. Die Kopplung prüft airconId, Transport und HTTPS-Fingerprint; weitere Geräte dürfen nur durch eine bewusste Kopplungsaktion hinzugefügt werden. Die Bedienoberfläche liest den echten Gerätestatus und steuert Ein/Aus, Betriebsmodus, Solltemperatur, Lüfterstufe, vertikale Luftführung sowie – soweit vom Modell gemeldet – horizontale Luftführung und 3D-Automatik. Gespeicherte Profile können jetzt angewendet werden. Ein isolierter Demo-Modus simuliert eine Anlage und verwendet denselben WF-RAC-Frame-Encoder/Decoder wie die echte Steuerung. Der Produktionsbuild ist erfolgreich. Ein Hardwaretest ist mangels installierter Anlage noch nicht möglich.
 
 ## Geräteidentität und TLS-Sicherheit
 - Gespeichert werden die vom Modul gelieferte `airconId`, Host/IP, HTTP- oder HTTPS-Verfahren, letzter erfolgreicher Prüfzeitpunkt und – bei HTTPS – der SHA-256-Fingerprint des Serverzertifikats.
