@@ -39,8 +39,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -185,52 +183,130 @@ private fun KlimaPilotApp(appVersion: String) {
     }
     val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—", false, 21f, "Aus", "Auto") }
 
-    val initialServerUrl = remember {
-        val saved = prefs.getString("iobroker_server", null)?.trim()?.trimEnd('/')
-        when {
-            saved.isNullOrBlank() -> "ws://192.168.178.54:8084"
-            saved.startsWith("ws://") || saved.startsWith("wss://") -> saved
-            saved.startsWith("http://") || saved.startsWith("https://") -> {
-                val host = saved.substringAfter("://").substringBeforeLast(":")
-                "ws://$host:8084"
-            }
-            else -> "ws://192.168.178.54:8084"
+    var airconConnected by remember { mutableStateOf(false) }
+    val accountRepository = remember(context) { KlimaPilotAccountRepository(context) }
+
+    val rooms = remember {
+        mutableStateListOf<String>().apply {
+            addAll(prefs.getStringSet("rooms", null)?.toList() ?: listOf("Wohnzimmer", "Schlafzimmer"))
+            if (isEmpty()) addAll(listOf("Wohnzimmer", "Schlafzimmer"))
         }
     }
-    var serverUrl by remember { mutableStateOf(initialServerUrl) }
-    var ioBrokerConnected by remember { mutableStateOf(false) }
-    var ioBrokerChecking by remember { mutableStateOf(false) }
-    var ioBrokerStatus by remember { mutableStateOf("Noch nicht verbunden") }
+    val devices = remember {
+        mutableStateListOf<UserDevice>().apply {
+            val saved = prefs.getString("devices", null)
+            if (saved.isNullOrBlank()) {
+                add(UserDevice("1", "Klimaanlage", "Wohnzimmer"))
+                add(UserDevice("2", "Klimaanlage", "Schlafzimmer"))
+            } else runCatching {
+                val array = org.json.JSONArray(saved)
+                for (i in 0 until array.length()) {
+                    val item = array.getJSONObject(i)
+                    val mappingJson = item.optJSONObject("mappings") ?: org.json.JSONObject()
+                    val mappings = mutableMapOf<String, String>()
+                    mappingJson.keys().forEach { key -> mappings[key] = mappingJson.optString(key) }
+                    add(UserDevice(
+                        item.getString("id"), item.getString("name"), item.getString("room"),
+                        item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
+                        item.optString("rootObjectId", ""), mappings, item.optString("model", "")
+                    ))
+                }
+            }
+        }
+    }
+    fun saveData() {
+        prefs.edit()
+            .putStringSet("rooms", rooms.toSet())
+            .putString("devices", org.json.JSONArray().apply {
+                devices.forEach { device ->
+                    put(org.json.JSONObject()
+                        .put("id", device.id).put("name", device.name).put("room", device.room)
+                        .put("adapterKey", device.adapterKey).put("adapterInstance", device.adapterInstance)
+                        .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
+                        .put("model", device.model))
+                }
+            }.toString())
+            .apply()
+    }
+
+    var selectedRoom by remember { mutableStateOf(rooms.firstOrNull() ?: "Wohnzimmer") }
+    var selectedDeviceId by remember {
+        mutableStateOf(devices.firstOrNull { it.room == selectedRoom }?.id ?: devices.firstOrNull()?.id ?: "")
+    }
+    val devicesInSelectedRoom = devices.filter { it.room == selectedRoom }
+    val selectedDevice = devicesInSelectedRoom.firstOrNull { it.id == selectedDeviceId }
+        ?: devicesInSelectedRoom.firstOrNull()
+    val roomStates = remember {
+        mutableStateMapOf(
+            "Wohnzimmer" to DemoRoomState("25,4 °C", true, 23f, "Kühlen", "Auto"),
+            "Schlafzimmer" to DemoRoomState("22,1 °C", false, 21f, "Aus", "Leise")
+        )
+    }
+    val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—", false, 21f, "Aus", "Auto") }
 
     fun loadAccounts() {
-        if (!IoBrokerClient.isConnected()) {
-            accountRegistry = null
+        val local = accountRepository.load()
+        if (local != null) {
+            accountRegistry = local
             accountLoading = false
-            accountStatus = "ioBroker ist noch nicht vollständig verbunden. Die Anmeldung bleibt gesperrt."
-            return
-        }
-        accountLoading = true
-        accountStatus = ""
-        accountRepository.load { registry, error ->
-            accountLoading = false
-            accountRegistry = registry
-            if (error != null || registry == null) {
-                accountStatus = "KlimaPilot-Konten konnten nicht geladen werden: ${error ?: "Unbekannter Fehler"}"
-                return@load
-            }
-            val rememberedUsername = prefs.getString("klimapilotRememberedUsername", null)
-            val activeUsername = currentAccount?.username ?: rememberedUsername
-            val rememberedAccount = activeUsername?.let { registry.find(it) }
-            if (rememberedAccount != null) {
-                currentAccount = rememberedAccount
+            accountStatus = ""
+            val remembered = prefs.getString("klimapilotRememberedUsername", null)
+            val savedAccount = remembered?.let { local.find(it) }
+            if (savedAccount != null) {
+                currentAccount = savedAccount
                 accountAuthenticated = true
-                accountUsername = rememberedAccount.username
+                accountUsername = savedAccount.username
             } else {
-                if (!rememberedUsername.isNullOrBlank()) {
-                    prefs.edit().remove("klimapilotRememberedUsername").apply()
-                }
+                if (!remembered.isNullOrBlank()) prefs.edit().remove("klimapilotRememberedUsername").apply()
                 currentAccount = null
                 accountAuthenticated = false
+            }
+            return
+        }
+
+        accountLoading = true
+        accountStatus = "Vorhandene Konten werden einmalig aus der bisherigen ioBroker-Sicherung übernommen …"
+        val legacyUrl = prefs.getString("iobroker_server", null)?.trim()?.trimEnd('/')
+        if (legacyUrl.isNullOrBlank()) {
+            val empty = KlimaPilotAccountRegistry()
+            accountRepository.saveInitial(empty)
+            accountRegistry = empty
+            accountLoading = false
+            accountStatus = ""
+            return
+        }
+        IoBrokerClient.connect(legacyUrl) { connected, message ->
+            if (!connected) {
+                accountLoading = false
+                accountStatus = "Einmalige Kontoübernahme fehlgeschlagen: $message. Bitte ioBroker vorübergehend erreichbar machen und erneut versuchen. Es wurden keine Konten gelöscht."
+                return@connect
+            }
+            IoBrokerClient.getJsonState(KlimaPilotAccountRepository.LEGACY_STATE_ID) { json, error ->
+                IoBrokerClient.disconnect()
+                val legacy = json?.let { KlimaPilotAccountRegistry.fromJson(it) }
+                if (legacy != null) {
+                    accountRepository.saveInitial(legacy)
+                    accountRegistry = legacy
+                    val remembered = prefs.getString("klimapilotRememberedUsername", null)
+                    val savedAccount = remembered?.let { legacy.find(it) }
+                    if (savedAccount != null) {
+                        currentAccount = savedAccount
+                        accountAuthenticated = true
+                        accountUsername = savedAccount.username
+                    } else {
+                        currentAccount = null
+                        accountAuthenticated = false
+                    }
+                    accountStatus = ""
+                } else if (error?.contains("existiert noch nicht", ignoreCase = true) == true) {
+                    val empty = KlimaPilotAccountRegistry()
+                    accountRepository.saveInitial(empty)
+                    accountRegistry = empty
+                    accountStatus = ""
+                } else {
+                    accountStatus = "Die bisherigen Konten konnten nicht sicher übernommen werden: ${error ?: "Ungültige Kontenliste"}. Die alten Daten bleiben unverändert erhalten."
+                }
+                accountLoading = false
             }
         }
     }
@@ -239,30 +315,6 @@ private fun KlimaPilotApp(appVersion: String) {
         accountRepository.save(expectedRevision, next) { saved, error ->
             if (saved) accountRegistry = next
             onSaved(saved, error)
-        }
-    }
-
-    fun connectToIoBroker() {
-        val target = serverUrl.trim().trimEnd('/')
-        if (!(target.startsWith("ws://") || target.startsWith("wss://")) || target.contains("xxx")) {
-            ioBrokerConnected = false
-            ioBrokerStatus = "Bitte eine gültige Serveradresse eingeben."
-            accountStatus = ioBrokerStatus
-            return
-        }
-        ioBrokerChecking = true
-        ioBrokerConnected = false
-        ioBrokerStatus = "Verbindung wird aufgebaut …"
-        prefs.edit().putString("iobroker_server", target).apply()
-        IoBrokerClient.connect(target) { ok, message ->
-            ioBrokerConnected = ok
-            ioBrokerChecking = false
-            ioBrokerStatus = message
-            if (ok) loadAccounts()
-            else {
-                accountRegistry = null
-                accountStatus = "ioBroker-Verbindung fehlgeschlagen: $message"
-            }
         }
     }
 
@@ -383,9 +435,7 @@ private fun KlimaPilotApp(appVersion: String) {
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (serverUrl.isNotBlank() && !serverUrl.contains("xxx")) connectToIoBroker()
-    }
+    LaunchedEffect(Unit) { loadAccounts() }
 
     BackHandler(enabled = !accountAuthenticated) { }
     BackHandler(enabled = accountAuthenticated && (showSettings || showManager || showAccountSettings)) {
@@ -409,10 +459,10 @@ private fun KlimaPilotApp(appVersion: String) {
             password = accountPassword, onPassword = { accountPassword = it },
             passwordConfirmation = accountPasswordConfirmation, onPasswordConfirmation = { accountPasswordConfirmation = it },
             displayName = accountDisplayName, onDisplayName = { accountDisplayName = it },
-            loading = accountLoading || ioBrokerChecking,
-            connected = ioBrokerConnected,
+            loading = accountLoading,
+            connected = true,
             status = accountStatus,
-            onRetryConnection = { connectToIoBroker() },
+            onRetryConnection = { loadAccounts() },
             onReload = { loadAccounts() },
             onSubmit = { submitAccountLogin() }
         )
@@ -450,13 +500,6 @@ private fun KlimaPilotApp(appVersion: String) {
         )
     } else if (showSettings) {
         SettingsScreen(
-            serverUrl = serverUrl,
-            onServerUrlChange = { serverUrl = it },
-            onServerUrlConfirm = { prefs.edit().putString("iobroker_server", serverUrl.trim().trimEnd('/')).apply() },
-            connected = ioBrokerConnected,
-            checking = ioBrokerChecking,
-            status = ioBrokerStatus,
-            onConnect = { connectToIoBroker() },
             appVersion = appVersion,
             isAdmin = currentAccount!!.role == KlimaPilotAccount.ADMIN,
             account = currentAccount!!,
@@ -498,7 +541,7 @@ private fun KlimaPilotApp(appVersion: String) {
             onMode = { room.mode = it; room.isOn = it != "Aus" },
             fan = room.fan,
             onFan = { room.fan = it },
-            ioBrokerConnected = ioBrokerConnected,
+            airconConnected = airconConnected,
             onSettings = { showSettings = true }
         )
     }
@@ -577,7 +620,7 @@ private fun MainScreen(
     onMode: (String) -> Unit,
     fan: String,
     onFan: (String) -> Unit,
-    ioBrokerConnected: Boolean,
+    airconConnected: Boolean,
     onSettings: () -> Unit
 ) {
     Column(
@@ -624,8 +667,7 @@ private fun MainScreen(
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Box(Modifier.size(38.dp).clip(CircleShape).background(Panel), contentAlignment = Alignment.Center) {
-                    // Neutral until a real ioBroker connection can confirm success.
-                    Icon(if (ioBrokerConnected) Icons.Default.Cloud else Icons.Default.CloudOff, contentDescription = if (ioBrokerConnected) "ioBroker verbunden" else "ioBroker nicht verbunden", tint = if (ioBrokerConnected) Green else Muted, modifier = Modifier.size(19.dp))
+                    Icon(if (airconConnected) Icons.Default.Cloud else Icons.Default.CloudOff, contentDescription = if (airconConnected) "Klimaanlage verbunden" else "Klimaanlage nicht verbunden", tint = if (airconConnected) Green else Muted, modifier = Modifier.size(19.dp))
                 }
                 IconButton(onClick = onSettings, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Panel)) {
                     Icon(Icons.Default.Settings, contentDescription = "Einstellungen", tint = TextMain)
@@ -793,7 +835,7 @@ private fun FlowModeSelector(selected: String, options: List<String>, onSelect: 
 
 
 @Composable
-private fun WfRacConnectionCard() {
+private fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
     val discovery = remember(context) { de.klimapilot.app.wfrac.WfRacDiscovery(context) }
@@ -878,6 +920,7 @@ private fun WfRacConnectionCard() {
                     prefs.edit().putString("wf_rac_host", address).apply()
                     busy = true
                     result = "Verbindung wird geprüft …"
+                    onConnectionChanged(false)
                     details = ""
                     scope.launch {
                         try {
@@ -890,6 +933,7 @@ private fun WfRacConnectionCard() {
                             val module = client.trace.module
                             val state = status.state
                             result = "Erfolgreich verbunden – nur gelesen"
+                            onConnectionChanged(true)
                             details = buildString {
                                 append("Aircon-ID: ").append(airconId)
                                 append("\nWLAN-Firmware: ").append(module?.wireless ?: "nicht gemeldet")
@@ -906,6 +950,7 @@ private fun WfRacConnectionCard() {
                                 if (status.lockedForS > 0) append("\nSchreibsperre eines anderen Clients: ").append(status.lockedForS).append(" s")
                             }
                         } catch (error: Exception) {
+                            onConnectionChanged(false)
                             result = "Verbindung fehlgeschlagen"
                             details = error.message ?: error.javaClass.simpleName
                         } finally {
@@ -921,13 +966,6 @@ private fun WfRacConnectionCard() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(
-    serverUrl: String,
-    onServerUrlChange: (String) -> Unit,
-    onServerUrlConfirm: () -> Unit,
-    connected: Boolean,
-    checking: Boolean,
-    status: String,
-    onConnect: () -> Unit,
     appVersion: String,
     isAdmin: Boolean,
     account: KlimaPilotAccount,
@@ -937,8 +975,6 @@ private fun SettingsScreen(
     onFontScale: (Float) -> Unit,
     onBack: () -> Unit
 ) {
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
             .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 20.dp),
@@ -988,7 +1024,7 @@ private fun SettingsScreen(
             }
         }
         if (isAdmin) {
-            WfRacConnectionCard()
+            WfRacConnectionCard(onConnectionChanged = { airconConnected = it })
             OutlinedButton(
                 onClick = onManageRoomsDevices,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -997,55 +1033,6 @@ private fun SettingsScreen(
                 Icon(Icons.Default.Tune, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Räume & Geräte verwalten")
-            }
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFDCEAF2)), shape = RoundedCornerShape(18.dp)) {
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF398FBA)), contentAlignment = Alignment.Center) {
-                            Icon(if (connected) Icons.Default.Cloud else Icons.Default.CloudOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            Text(if (connected) "Verbunden" else if (checking) "Verbindung wird aufgebaut …" else "Nicht verbunden",
-                                color = if (connected) Green else Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        }
-                    }
-                    OutlinedTextField(
-                        value = serverUrl,
-                        onValueChange = onServerUrlChange,
-                        label = { Text("WebSocket-Adresse") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                onServerUrlConfirm()
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                            }) { Icon(Icons.Default.Edit, contentDescription = "Adresse übernehmen", tint = Blue) }
-                        }
-                    )
-                    Text(
-                        if (connected) "Verbindung hergestellt." else if (checking) "Verbindung wird aufgebaut …"
-                        else "Keine Verbindung – bitte WLAN/VPN und ioBroker prüfen.",
-                        color = if (connected) Green else if (checking) Muted else Color(0xFFD32F2F),
-                        fontSize = 12.sp
-                    )
-                    if (!connected) {
-                        Button(onClick = {
-                            onServerUrlConfirm()
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            onConnect()
-                        }, enabled = !checking, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (checking) "Verbindung wird aufgebaut …" else "Verbindung herstellen")
-                        }
-                    } else {
-                        Text("Live-Daten und Steuerung laufen über diese Verbindung.", color = Muted, fontSize = 11.sp)
-                    }
-                }
             }
         } else {
             Card(shape = RoundedCornerShape(16.dp)) {
