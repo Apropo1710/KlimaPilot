@@ -1,18 +1,16 @@
-## Geprüfter Gesamtstand – 14.11.2026, 02:57 MEZ
-- Maßgeblicher Branch: `main`; Zuletzt vor dieser Statuspflege geprüfter Branch-Head: `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` (reiner Dokumentationscommit); der Laufzeitcode blieb unverändert.
-- App-Code-Commit: `56b49749a77f07b50f6c2bac2085edd250e56116`; Produktionsversion **0.4.27 / versionCode 57**.
-- APK-Build-Quellcommit: `7984def11f7da78407f24697ab4d6128ab700706` (Dokumentationscommit auf demselben App-Code-Stand); GitHub Actions Run `43405429051` / #103: **completed / success**.
-- Release `latest`: erfolgreich aktualisiert; Asset `KlimaPilot.apk` vorhanden. APK-SHA-256: `537ea7f086b88a1fecc7106dc8733d20c860c2deabfca666b39fdc11fdbe705d`; Signaturprüfung laut Produktionsnachweis erfolgreich.
-- Der Nutzer hat die scrollbaren Dialoge der Benutzerverwaltung auf dem Gerät bestätigt: **Gerätetest erfolgreich**.
-- Der Updater bleibt abgeschlossen und vom Nutzer bestätigt; keine Änderung daran.
-- Ältere „Build ausstehend“- und „vorgesehene Version“-Einträge weiter unten sind historische Zwischenstände.
-- Offen bleiben ausschließlich hardwareabhängige Arbeiten nach Installation der Mitsubishi-Klimaanlage.
+## Geprüfter Gesamtstand – 15.11.2026, 03:01 MEZ
+- Maßgeblicher Branch: `main`; aktueller Branch-Head: `cab7594dcd1f9e1894dff1db6f835673584ef682` (Dokumentationscommit).
+- Letzter App-Code-Commit: `485d274fbb5e10d321f76a72033d6e108ce1a2c5` – Schriftgröße je Benutzerkonto gespeichert; Version **0.4.28 / versionCode 58**.
+- Version-/Build-Commit: `3c55b7c28cdc5455fafc8b386b5494b55567e20a`; GitHub Actions Run `43646394623`: **completed / success**. Der vorherige Code-Build Run `43646365945` für den Font-Scale-Codecommit war ebenfalls erfolgreich.
+- Schriftgröße: fünf Stufen von 85 % bis 150 %, Standard 100 %. Speicherung als `fontScale` im jeweiligen ioBroker-Benutzerkonto; bestehende Konten ohne Feld bleiben kompatibel.
+- Release `latest`: Asset `KlimaPilot.apk` vorhanden und am 14.11.2026 aktualisiert. SHA-256: `5548607c1689202ba0f5cd4f18b67a56a9077bbb3052a9f6d92a6e53ad23eb08`. Signaturprüfung laut automatisch gepflegtem Produktionsnachweis erfolgreich.
+- Ein separater Smartphone-Test der neuen Schriftgrößeneinstellung ist noch nicht bestätigt.
+- Klimaprofile sind weiterhin vorgemerkt, aber noch nicht implementiert. Die Profilbelegung muss nach Installation anhand der echten Mitsubishi-/ioBroker-Datenpunkte festgelegt werden.
+- Der Updater bleibt unverändert und vom Nutzer bestätigt. Hardwareabhängige Klimaanlagenarbeiten bleiben bis zur Installation offen.
 
-Zuletzt aktualisiert: 14.11.2026, 02:57 MEZ
+Zuletzt aktualisiert: 15.11.2026, 03:01 MEZ
 Repository: https://github.com/Apropo1710/KlimaPilot
 Produktions-/Hauptbranch: `main`
-
-> Diese Datei ist die zentrale Übergabe für neue Chats. Vor jeder Arbeit zuerst lesen und nach jeder zusammenhängenden Änderung aktualisieren.
 
 ## Projektziel
 Eigenständige Android-App zur Steuerung von Klimaanlagen über ioBroker.
