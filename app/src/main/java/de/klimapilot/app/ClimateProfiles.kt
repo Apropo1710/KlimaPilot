@@ -195,6 +195,9 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var status by remember { mutableStateOf("") }
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ClimateProfile?>(null) }
+    var saveNameDialog by remember { mutableStateOf(false) }
+    var saveChoiceDialog by remember { mutableStateOf(false) }
+    var newProfileName by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
     var selectedProfileId by remember(deviceId) { mutableStateOf<String?>(null) }
     var selectedProfileConfirmed by remember(deviceId) { mutableStateOf(false) }
@@ -207,22 +210,15 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
     val selectedProfile = deviceProfiles.firstOrNull { it.id == selectedProfileId }
-    LaunchedEffect(selectedProfileId, currentState?.power, currentState?.mode, currentState?.presetTemp, currentState?.airFlow, currentState?.windUD, currentState?.windLR, currentState?.entrust) {
-        val selected = selectedProfile ?: return@LaunchedEffect
-        val state = currentState ?: return@LaunchedEffect
-        val matches = (selected.power == null || selected.power == state.power) &&
-            (selected.mode == null || selected.mode == state.mode?.name) &&
-            (selected.targetTemp == null || kotlin.math.abs(selected.targetTemp - state.presetTemp) < 0.01) &&
-            (selected.fanSpeed == null || selected.fanSpeed == state.airFlow) &&
-            (selected.verticalSwing == null || selected.verticalSwing == state.windUD) &&
-            (selected.horizontalSwing == null || selected.horizontalSwing == state.windLR) &&
-            (selected.threeDAuto == null || selected.threeDAuto == state.entrust)
-        if (matches) selectedProfileConfirmed = true
-        else if (selectedProfileConfirmed) {
-            selectedProfileId = null
-            selectedProfileConfirmed = false
-        }
-    }
+    val selectedProfileDirty = selectedProfile != null && currentState != null && (
+        (selectedProfile.power != null && selectedProfile.power != currentState.power) ||
+        (selectedProfile.mode != null && selectedProfile.mode != currentState.mode?.name) ||
+        (selectedProfile.targetTemp != null && abs(selectedProfile.targetTemp - currentState.presetTemp) >= 0.01) ||
+        (selectedProfile.fanSpeed != null && selectedProfile.fanSpeed != currentState.airFlow) ||
+        (selectedProfile.verticalSwing != null && selectedProfile.verticalSwing != currentState.windUD) ||
+        (selectedProfile.horizontalSwing != null && selectedProfile.horizontalSwing != currentState.windLR) ||
+        (selectedProfile.threeDAuto != null && selectedProfile.threeDAuto != currentState.entrust)
+    )
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
         if (!loaded || !loadSucceeded) return@LaunchedEffect
@@ -248,42 +244,40 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             }
         }
     }
-    Card(shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Klimaprofile", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("${deviceProfiles.size}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-            }
+    Card(shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth())
             else if (deviceId.isBlank()) Text("Wähle zuerst eine Klimaanlage aus.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             else {
                 if (!managerMode) {
-                    Box {
-                        Surface(onClick = { profileMenuExpanded = true }, shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
-                            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(selectedProfile?.let { profileSymbol(it) } ?: "⚙️", fontSize = 19.sp)
-                                Spacer(Modifier.width(10.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(selectedProfile?.name ?: "Individuell", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                    Text(if (selectedProfile == null) "Eigene Einstellungen" else selectedProfile.summary(),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Box(Modifier.weight(1f)) {
+                            Surface(onClick = { profileMenuExpanded = true }, shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(selectedProfile?.let { profileSymbol(it) } ?: "⚙️", fontSize = 17.sp)
+                                    Spacer(Modifier.width(7.dp))
+                                    Text(selectedProfile?.name ?: "Individuell", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1)
+                                    Spacer(Modifier.weight(1f))
+                                    Text("⌄", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                Text("⌄", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            DropdownMenu(expanded = profileMenuExpanded, onDismissRequest = { profileMenuExpanded = false }) {
+                                DropdownMenuItem(text = { Text("⚙️  Individuell") },
+                                    onClick = { selectedProfileId = null; profileMenuExpanded = false })
+                                deviceProfiles.forEach { profile ->
+                                    DropdownMenuItem(text = { Text(profileSymbol(profile) + "  " + profile.name) },
+                                        onClick = { selectedProfileId = profile.id; profileMenuExpanded = false; onApply(profile) })
+                                }
                             }
                         }
-                        DropdownMenu(expanded = profileMenuExpanded, onDismissRequest = { profileMenuExpanded = false }) {
-                            DropdownMenuItem(text = { Text("⚙️  Individuell") },
-                                onClick = { selectedProfileId = null; selectedProfileConfirmed = false; profileMenuExpanded = false })
-                            deviceProfiles.forEach { profile ->
-                                DropdownMenuItem(text = { Text(profileSymbol(profile) + "  " + profile.name) },
-                                    onClick = { selectedProfileId = profile.id; selectedProfileConfirmed = false; profileMenuExpanded = false; onApply(profile) })
+                        IconButton(onClick = {
+                            if (currentState != null) {
+                                if (selectedProfileDirty) saveChoiceDialog = true
+                                else { newProfileName = ""; saveNameDialog = true }
                             }
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { creating = true }, enabled = currentState != null) {
-                            Text("＋ Aktuelle Einstellungen speichern", fontSize = 11.sp)
+                        }, enabled = currentState != null, modifier = Modifier.size(38.dp)) {
+                            Text("💾", fontSize = 20.sp)
                         }
                     }
                 } else if (deviceProfiles.isEmpty()) {
@@ -315,10 +309,10 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     }
 
     val profileToEdit = editing
-    if (creating || profileToEdit != null) {
+    if (profileToEdit != null) {
         ClimateProfileEditorDialog(
-            deviceId = deviceId, profile = profileToEdit, initialState = if (creating) currentState else null,
-            onDismiss = { creating = false; editing = null },
+            deviceId = deviceId, profile = profileToEdit,
+            onDismiss = { editing = null },
             onSave = { profile ->
                 runCatching { repository.save(profile) }
                     .onSuccess {
@@ -331,10 +325,77 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                 .fold({ "" }, { it.message ?: "Profil lokal gespeichert; Synchronisierung konnte nicht vorgemerkt werden." })
                         }
                         syncRevision++
-                        creating = false; editing = null
+                        editing = null
                     }
                     .onFailure { status = it.message ?: "Profil konnte nicht gespeichert werden." }
             }
+        )
+    }
+
+
+    if (saveChoiceDialog && selectedProfile != null && currentState != null) {
+        AlertDialog(
+            onDismissRequest = { saveChoiceDialog = false },
+            title = { Text("Profil speichern") },
+            text = { Text("Möchtest du die geänderten Einstellungen im Profil „${selectedProfile.name}“ aktualisieren oder ein neues Profil anlegen?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val updated = selectedProfile.copy(
+                        power = currentState.power, mode = currentState.mode?.name,
+                        targetTemp = currentState.presetTemp, fanSpeed = currentState.airFlow,
+                        verticalSwing = currentState.windUD, horizontalSwing = currentState.windLR,
+                        threeDAuto = currentState.entrust, updatedAt = System.currentTimeMillis()
+                    )
+                    runCatching { repository.save(updated) }.onSuccess {
+                        val index = profiles.indexOfFirst { it.id == updated.id }
+                        if (index >= 0) profiles[index] = updated
+                        status = if (syncDeviceKey.isBlank()) "Profil aktualisiert." else
+                            runCatching { syncStore.enqueueUpsert(updated, syncDeviceKey) }.fold({ "" }, { it.message ?: "Lokal aktualisiert; Synchronisierung fehlgeschlagen." })
+                        syncRevision++
+                    }.onFailure { status = it.message ?: "Profil konnte nicht aktualisiert werden." }
+                    saveChoiceDialog = false
+                }) { Text("Aktuelles Profil aktualisieren") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { saveChoiceDialog = false; newProfileName = ""; saveNameDialog = true }) { Text("Neues Profil") }
+                    TextButton(onClick = { saveChoiceDialog = false }) { Text("Abbrechen") }
+                }
+            }
+        )
+    }
+
+    if (saveNameDialog && currentState != null) {
+        AlertDialog(
+            onDismissRequest = { saveNameDialog = false },
+            title = { Text("Neues Klimaprofil") },
+            text = {
+                OutlinedTextField(
+                    value = newProfileName, onValueChange = { newProfileName = it },
+                    label = { Text("Profilname") }, placeholder = { Text("z. B. Nachtmodus") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(enabled = newProfileName.isNotBlank(), onClick = {
+                    val created = ClimateProfile(
+                        id = UUID.randomUUID().toString(), deviceId = deviceId, name = newProfileName.trim(),
+                        power = currentState.power, mode = currentState.mode?.name,
+                        targetTemp = currentState.presetTemp, fanSpeed = currentState.airFlow,
+                        verticalSwing = currentState.windUD, horizontalSwing = currentState.windLR,
+                        threeDAuto = currentState.entrust, updatedAt = System.currentTimeMillis()
+                    )
+                    runCatching { repository.save(created) }.onSuccess {
+                        profiles.add(created)
+                        selectedProfileId = created.id
+                        status = if (syncDeviceKey.isBlank()) "Profil lokal gespeichert." else
+                            runCatching { syncStore.enqueueUpsert(created, syncDeviceKey) }.fold({ "" }, { it.message ?: "Lokal gespeichert; Synchronisierung fehlgeschlagen." })
+                        syncRevision++
+                        saveNameDialog = false
+                    }.onFailure { status = it.message ?: "Profil konnte nicht gespeichert werden." }
+                }) { Text("Speichern") }
+            },
+            dismissButton = { TextButton(onClick = { saveNameDialog = false }) { Text("Abbrechen") } }
         )
     }
 

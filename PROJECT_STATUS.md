@@ -56,6 +56,13 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - GitHub Actions: Run **#170** war der erfolgreiche Build dieser Zwischenversion; der aktuelle Produktionsbuild ist Run **#173** (siehe Produktionsstatus oben).
 - Kein Praxistest der Synchronisierung mit zwei Smartphones oder realem ioBroker durchgeführt. Dieser bleibt ausdrücklich offen.
 
+## Änderung 15.11.2026 – Kompakter Profil-Speicherablauf (0.4.48)
+
+- Profil-Kachel zeigt nur noch das Symbol und den Namen des aktiven Profils bzw. „Individuell“; Profilanzahl und Wertzusammenfassung entfallen.
+- Speichern erfolgt über ein Diskettensymbol neben der Profilauswahl. Der Dialog fragt nur nach dem Profilnamen; alle aktuellen Geräteeinstellungen werden automatisch übernommen.
+- Bei geändertem aktivem Profil fragt das Diskettensymbol, ob das bestehende Profil aktualisiert oder ein neues angelegt werden soll.
+- Eine manuelle Änderung wechselt nicht mehr automatisch auf „Individuell“; das aktive Profil bleibt markiert, damit es aktualisiert werden kann.
+
 ## Änderung 15.11.2026 – Profile als kompakte Auswahl und direkte Zustandsübernahme (0.4.47)
 
 - Auf der Startseite wird nur das aktuell gewählte Profil angezeigt. Antippen öffnet eine Dropdown-Auswahl mit allen Profilen und „Individuell“.
