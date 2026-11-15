@@ -1,7 +1,10 @@
 package de.klimapilot.app
 
 import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import de.klimapilot.app.wfrac.AirconState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -208,7 +211,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         val selected = selectedProfile ?: return@LaunchedEffect
         val state = currentState ?: return@LaunchedEffect
         val matches = (selected.power == null || selected.power == state.power) &&
-            (selected.mode == null || selected.mode == state.mode.name) &&
+            (selected.mode == null || selected.mode == state.mode?.name) &&
             (selected.targetTemp == null || kotlin.math.abs(selected.targetTemp - state.presetTemp) < 0.01) &&
             (selected.fanSpeed == null || selected.fanSpeed == state.airFlow) &&
             (selected.verticalSwing == null || selected.verticalSwing == state.windUD) &&

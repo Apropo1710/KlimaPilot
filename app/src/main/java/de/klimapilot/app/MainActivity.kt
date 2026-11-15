@@ -828,6 +828,7 @@ private fun TemperatureCard(
                     Mode.DRY -> Color(0xFF008B8B)
                     Mode.FAN -> Color(0xFF388E7D)
                     Mode.AUTO -> Color(0xFFB7791F)
+                    null -> Muted
                 },
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
