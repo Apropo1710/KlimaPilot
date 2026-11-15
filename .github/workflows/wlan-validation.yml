@@ -1,0 +1,46 @@
+name: KlimaPilot WLAN Branch Validation
+
+on:
+  push:
+    branches: [ feature/direct-wf-rac-wlan ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quellcode auschecken
+        uses: actions/checkout@v4
+      - name: Java 17 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK einrichten
+        uses: android-actions/setup-android@v4
+      - name: Android SDK Pakete installieren
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Gradle 8.9 einrichten
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Debug-App und Unit-Tests bauen
+        run: gradle --no-daemon testDebugUnitTest assembleDebug
+      - name: Debug-APK prüfen
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+      - name: Debug-APK als Testartefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: KlimaPilot-WLAN-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
