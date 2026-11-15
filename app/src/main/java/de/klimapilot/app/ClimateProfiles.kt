@@ -188,20 +188,21 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
     var syncRevision by remember { mutableIntStateOf(0) }
     val profiles = remember { mutableStateListOf<ClimateProfile>() }
     var loaded by remember { mutableStateOf(false) }
+    var loadSucceeded by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ClimateProfile?>(null) }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
     LaunchedEffect(repository) {
         runCatching { repository.load() }
-            .onSuccess { profiles.clear(); profiles.addAll(it); loaded = true }
-            .onFailure { status = it.message ?: "Klimaprofile konnten nicht geladen werden."; loaded = true }
+            .onSuccess { profiles.clear(); profiles.addAll(it); loadSucceeded = true; loaded = true }
+            .onFailure { loadSucceeded = false; status = it.message ?: "Klimaprofile konnten nicht geladen werden."; loaded = true }
     }
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
-    LaunchedEffect(loaded, deviceSyncSignature, profiles.size, syncRevision) {
-        if (!loaded) return@LaunchedEffect
+    LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, profiles.size, syncRevision) {
+        if (!loaded || !loadSucceeded) return@LaunchedEffect
         devices.filter { it.syncDeviceKey.isNotBlank() }.forEach { device ->
             runCatching { syncStore.enqueueInitialProfiles(profiles.filter { it.deviceId == device.id }, device.syncDeviceKey) }
                 .onFailure { status = it.message ?: "Vorhandene Profile konnten nicht zur Synchronisierung vorgemerkt werden." }
@@ -213,8 +214,8 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
             runCatching { repository.load() }.onSuccess { latest -> profiles.clear(); profiles.addAll(latest) }
         }
     }
-    LaunchedEffect(loaded, deviceSyncSignature) {
-        if (!loaded || devices.none { it.syncDeviceKey.isNotBlank() }) return@LaunchedEffect
+    LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature) {
+        if (!loaded || !loadSucceeded || devices.none { it.syncDeviceKey.isNotBlank() }) return@LaunchedEffect
         while (true) {
             kotlinx.coroutines.delay(60_000L)
             val address = settingsPrefs.getString("iobroker_server", null).orEmpty()
