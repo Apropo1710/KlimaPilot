@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 1e6b6fefe977760e2cf2e8804043a60e89f600d2
-- App-Version / versionCode: **0.4.41 / 71**
-- Build-Zeit: 2026-11-15 14:44:38 UTC
+- Quellcommit des APK-Builds: 516b73a18946e2939b327174d30f28cbd318b271
+- App-Version / versionCode: **0.4.42 / 72**
+- Build-Zeit: 2026-11-15 14:49:24 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 64a1b1f03f102ae2425f29f26fa256bbf9d9a32543d25c7fcdb806b0fda3edb0
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 17483ab1b1bac69e2270ac7df0d2cc8e2ccf770d48e49c4f3877b7ee52f3ec54
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -211,5 +211,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Konfliktordnung: logischer Zähler, danach Installations-ID und Sequenznummer als deterministischer Tie-Breaker. Remote-Löschungen bleiben als Tombstones im ioBroker-Ereignislog erhalten.
 - Automatischer Abgleich ist beim Laden der Profilansicht und anschließend im 60-Sekunden-Abstand vorgesehen, solange die Profilansicht aktiv ist.
 - **Noch nicht als produktiv bestätigt:** APK-Build für den aktuellen vollständigen Quellstand 0.4.42 / versionCode 72, ioBroker-Rechte und tatsächliches Verhalten von `getStates` für den Namespace, sowie Praxistest mit zwei Smartphones. Vor erfolgreicher Prüfung keine Aussage, dass die Synchronisierung vollständig funktioniert.
-- Kein externer Cloudserver; Benutzerkonten, Passwörter, Updater und Klimaanlagen-Steuerbefehle werden von diesem Synchronisierungsweg nicht verändert.
-
+- Kein externer Cloudserver; Benutzerkonten, Passwörter, Updater und Klimaanlagen-Steuerbefehle werden von diesem Synchronisierungsweg nicht verändert.\n
