@@ -12,8 +12,8 @@ android {
         applicationId = "de.klimapilot.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 81
-        versionName = "0.4.51"
+        versionCode = 82
+        versionName = "0.4.52"
     }
 
     signingConfigs {
