@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 061180793b5620360a46e3378fa40c8ab2eb2378
+- Quellcommit des APK-Builds: 03bf802652c732b3ca20d6fa79c37327a3a204b2
 - App-Version / versionCode: **0.4.39 / 69**
-- Build-Zeit: 2026-11-15 13:39:04 UTC
+- Build-Zeit: 2026-11-15 13:47:23 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: cee91e900ed3534bb7a1fd7a6fbc8b205f302b04dfe03de3ef788b13e85e9502
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: f9db9a0f51b02c2b33634c9527acb745299b3af6c1e8664be542de9cbfb6b2da
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -197,4 +197,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Nicht ausgewählte Felder bleiben null. Modell-/Firmwareabhängigkeit wird vor einer späteren Schreibfreigabe geprüft.
 - Solltemperatur bleibt bewusst bei 0,5 °C, da der WF-RAC-Protokollwert als halbe Gradstufen codiert ist; 0,1 °C würde vom Modul abgeschnitten.
 - Noch keine Profil-Anwendung und keine Smartphone-Synchronisierung freigegeben. Schreibzugriff, Account-Registrierung, Write-Lock und reales Geräteverhalten müssen nach Installation getestet werden.
-- App-Version **0.4.36 / versionCode 66**. Build und Release sind nach dem Commit separat zu verifizieren.\n\n\n\n\n
+- App-Version **0.4.36 / versionCode 66**. Build und Release sind nach dem Commit separat zu verifizieren.\n\n\n\n\n\n
