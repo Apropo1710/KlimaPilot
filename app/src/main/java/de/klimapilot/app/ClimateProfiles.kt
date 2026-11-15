@@ -179,7 +179,7 @@ internal class ClimateProfileRepository(context: Context) {
 }
 
 @Composable
-internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, devices: List<UserDevice>) {
+internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, devices: List<UserDevice>, onApply: (ClimateProfile) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(context) { ClimateProfileRepository(context) }
     val syncStore = remember(context) { ClimateProfileSyncStore(context) }
@@ -242,6 +242,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                             Text(profile.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                             Text(profile.summary(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 12.sp)
                         }
+                        TextButton(onClick = { onApply(profile) }) { Text("Anwenden") }
                         TextButton(onClick = { editing = profile }) { Text("Bearbeiten") }
                         TextButton(onClick = { deleting = profile }) { Text("Löschen") }
                     }

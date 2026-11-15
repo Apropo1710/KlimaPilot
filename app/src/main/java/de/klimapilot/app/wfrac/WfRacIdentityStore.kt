@@ -59,8 +59,29 @@ class WfRacIdentityStore(context: Context) {
     fun findByHost(host: String): WfRacStoredIdentity? =
         all().firstOrNull { it.host.equals(host.trim(), ignoreCase = true) }
 
+    fun remove(airconId: String): Boolean {
+        val next = all().filterNot { it.airconId == airconId }
+        if (next.size == all().size) return true
+        val array = JSONArray().apply {
+            next.forEach { item ->
+                put(JSONObject()
+                    .put("airconId", item.airconId)
+                    .put("host", item.host)
+                    .put("scheme", item.scheme.name)
+                    .put("certificatePin", item.certificatePin)
+                    .put("lastVerifiedAt", item.lastVerifiedAt))
+            }
+        }
+        return prefs.edit().putString(KEY_IDENTITIES, array.toString()).commit()
+    }
+
     fun save(identity: WfRacStoredIdentity): Boolean {
-        val next = all().filterNot { it.airconId == identity.airconId } + identity
+        if (identity.airconId.isBlank() || identity.host.isBlank()) return false
+        val current = all()
+        if (current.any { it.airconId != identity.airconId && it.host.equals(identity.host, ignoreCase = true) }) {
+            return false
+        }
+        val next = current.filterNot { it.airconId == identity.airconId } + identity
         val array = JSONArray().apply {
             next.forEach { item ->
                 put(JSONObject()

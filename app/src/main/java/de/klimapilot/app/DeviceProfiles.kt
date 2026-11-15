@@ -9,12 +9,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import de.klimapilot.app.wfrac.WfRacControlRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import de.klimapilot.app.wfrac.WfRacDiscovery
+import de.klimapilot.app.wfrac.WfRacDiscoveredService
 
-/** Local device details only; transport and module identity are managed by the WF-RAC connection. */
+/** Per-device configuration and explicit first-time WF-RAC pairing. */
 @Composable
 internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onSave: (UserDevice) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var model by remember(device.id) { mutableStateOf(device.model) }
     var syncDeviceKey by remember(device.id) { mutableStateOf(device.syncDeviceKey) }
+    var wfRacHost by remember(device.id) { mutableStateOf(device.wfRacHost) }
+    var wfRacAirconId by remember(device.id) { mutableStateOf(device.wfRacAirconId) }
+    var demoMode by remember(device.id) { mutableStateOf(device.demoMode) }
+    var pairing by remember { mutableStateOf(false) }
+    var pairingStatus by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val repository = remember(context) { WfRacControlRepository(context) }
+    val discovery = remember(context) { WfRacDiscovery(context) }
+    var scanning by remember { mutableStateOf(false) }
+    var scanMessage by remember { mutableStateOf("") }
+    var foundModules by remember { mutableStateOf<List<WfRacDiscoveredService>>(emptyList()) }
+    DisposableEffect(discovery) { onDispose { discovery.stop() } }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -35,11 +54,89 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
                     singleLine = true
                 )
                 HorizontalDivider()
+                Text("DIREKTE WLAN-VERBINDUNG", color = Color(0xFF63748A), fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(checked = demoMode, onCheckedChange = { demoMode = it })
+                    Text("Simuliertes Gerät (Testmodus)")
+                }
+                Text(
+                    "Im Testmodus wird eine Klimaanlage simuliert. Es werden keine Netzwerkverbindungen und keine echten Steuerbefehle ausgeführt.",
+                    color = Color(0xFF63748A), fontSize = 11.sp
+                )
+                if (!demoMode) {
+                    OutlinedButton(
+                        enabled = !scanning && !pairing,
+                        onClick = {
+                            foundModules = emptyList()
+                            scanning = true
+                            scanMessage = "Suche im lokalen WLAN …"
+                            val started = discovery.start(
+                                onFound = { found ->
+                                    if (foundModules.none { it.host == found.host }) foundModules = foundModules + found
+                                },
+                                onError = { message -> scanMessage = message; scanning = false }
+                            )
+                            if (started) scope.launch {
+                                kotlinx.coroutines.delay(10_000L)
+                                discovery.stop()
+                                scanning = false
+                                scanMessage = if (foundModules.isEmpty()) "Keine WF-RAC-Module gefunden." else "${foundModules.size} Modul(e) gefunden"
+                            } else {
+                                scanning = false
+                                scanMessage = "Die WLAN-Suche konnte nicht gestartet werden."
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (scanning) "Suche läuft …" else "Im WLAN nach Klimaanlagen suchen") }
+                    if (scanMessage.isNotBlank()) Text(scanMessage, color = Color(0xFF63748A), fontSize = 11.sp)
+                    foundModules.forEach { found ->
+                        OutlinedButton(
+                            onClick = { wfRacHost = found.host },
+                            enabled = !pairing,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("${found.name} · ${found.host}") }
+                    }
+                    OutlinedTextField(
+                        value = wfRacHost,
+                        onValueChange = { wfRacHost = it.trim() },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("IP-Adresse des WF-RAC-Moduls") },
+                        placeholder = { Text("z. B. 192.168.178.100") },
+                        singleLine = true
+                    )
+                    OutlinedButton(
+                        enabled = !pairing && wfRacHost.isNotBlank(),
+                        onClick = {
+                            pairing = true
+                            pairingStatus = "Modul wird geprüft und gekoppelt …"
+                            scope.launch {
+                                try {
+                                    val result = withContext(Dispatchers.IO) { repository.pair(wfRacHost) }
+                                    wfRacAirconId = result.airconId
+                                    pairingStatus = "Erfolgreich gekoppelt. Geräte-ID: ${result.airconId}"
+                                } catch (error: Exception) {
+                                    pairingStatus = error.message ?: "Kopplung fehlgeschlagen."
+                                } finally {
+                                    pairing = false
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (pairing) "Kopplung läuft …" else "WLAN-Modul koppeln und auslesen") }
+                    if (wfRacAirconId.isNotBlank()) {
+                        Text("Gekoppelte Geräte-ID: $wfRacAirconId", color = Color(0xFF16845B), fontSize = 11.sp)
+                    }
+                    if (pairingStatus.isNotBlank()) Text(
+                        pairingStatus,
+                        color = if (pairingStatus.startsWith("Erfolgreich")) Color(0xFF16845B) else Color(0xFF63748A),
+                        fontSize = 11.sp
+                    )
+                }
+                HorizontalDivider()
                 Text("PROFIL-SYNCHRONISIERUNG", color = Color(0xFF63748A), fontWeight = FontWeight.Bold)
                 Text(
                     "Gleiche Kennung auf allen Smartphones eintragen, die dieselbe physische Klimaanlage verwenden. Die Kennung ordnet Profile dem Gerät zu; sie ist kein Zugangsschlüssel.",
-                    color = Color(0xFF63748A),
-                    fontSize = MaterialTheme.typography.bodySmall.fontSize
+                    color = Color(0xFF63748A), fontSize = 11.sp
                 )
                 OutlinedTextField(
                     value = syncDeviceKey,
@@ -49,19 +146,21 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
                     placeholder = { Text("z. B. wohnzimmer-klima") },
                     singleLine = true
                 )
-                Text("GERÄTEVERBINDUNG", color = Color(0xFF63748A), fontWeight = FontWeight.Bold)
-                Text(
-                    "Die Verbindung wird hier für dieses Klimagerät eingerichtet. Der aktuelle Verbindungstest bleibt read-only.",
-                    color = Color(0xFF63748A),
-                    fontSize = MaterialTheme.typography.bodySmall.fontSize
-                )
-                WfRacConnectionCard(onConnectionChanged = {})
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(device.copy(model = model.trim(), syncDeviceKey = syncDeviceKey.trim())) }) {
-                Text("Speichern", color = Color(0xFF1769AA))
-            }
+            TextButton(
+                enabled = !pairing,
+                onClick = {
+                    onSave(device.copy(
+                        model = model.trim(),
+                        syncDeviceKey = syncDeviceKey.trim(),
+                        wfRacHost = wfRacHost.trim(),
+                        wfRacAirconId = wfRacAirconId.trim(),
+                        demoMode = demoMode
+                    ))
+                }
+            ) { Text("Speichern", color = Color(0xFF1769AA)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } }
     )

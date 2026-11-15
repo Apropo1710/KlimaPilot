@@ -58,6 +58,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import de.klimapilot.app.wfrac.AirconState
+import de.klimapilot.app.wfrac.Mode
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
@@ -94,19 +96,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
-
-private class DemoRoomState(
-    val roomTemperature: String,
-    isOnInitial: Boolean,
-    targetTempInitial: Float,
-    modeInitial: String,
-    fanInitial: String
-) {
-    var isOn by mutableStateOf(isOnInitial)
-    var targetTemp by mutableFloatStateOf(targetTempInitial)
-    var mode by mutableStateOf(modeInitial)
-    var fan by mutableStateOf(fanInitial)
 }
 
 @Composable
@@ -147,7 +136,8 @@ private fun KlimaPilotApp(appVersion: String) {
                     add(UserDevice(
                         item.getString("id"), item.getString("name"), item.getString("room"),
                         item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
-                        item.optString("rootObjectId", ""), mappings, item.optString("model", ""), item.optString("syncDeviceKey", "")
+                        item.optString("rootObjectId", ""), mappings, item.optString("model", ""), item.optString("syncDeviceKey", ""),
+                        item.optString("wfRacHost", ""), item.optString("wfRacAirconId", ""), item.optBoolean("demoMode", false)
                     ))
                 }
             }
@@ -162,7 +152,9 @@ private fun KlimaPilotApp(appVersion: String) {
                         .put("id", device.id).put("name", device.name).put("room", device.room)
                         .put("adapterKey", device.adapterKey).put("adapterInstance", device.adapterInstance)
                         .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
-                        .put("model", device.model).put("syncDeviceKey", device.syncDeviceKey))
+                        .put("model", device.model).put("syncDeviceKey", device.syncDeviceKey)
+                        .put("wfRacHost", device.wfRacHost).put("wfRacAirconId", device.wfRacAirconId)
+                        .put("demoMode", device.demoMode))
                 }
             }.toString())
             .apply()
@@ -175,21 +167,49 @@ private fun KlimaPilotApp(appVersion: String) {
     val devicesInSelectedRoom = devices.filter { it.room == selectedRoom }
     val selectedDevice = devicesInSelectedRoom.firstOrNull { it.id == selectedDeviceId }
         ?: devicesInSelectedRoom.firstOrNull()
-    val roomStates = remember {
-        mutableStateMapOf(
-            "Wohnzimmer" to DemoRoomState("25,4 °C", true, 23f, "Kühlen", "Auto"),
-            "Schlafzimmer" to DemoRoomState("22,1 °C", false, 21f, "Aus", "Leise")
-        )
-    }
-    val room = roomStates.getOrPut(selectedRoom) { DemoRoomState("—", false, 21f, "Aus", "Auto") }
-
-    var airconConnected by remember { mutableStateOf(false) }
+    val controller = remember(context) { ClimateDeviceController(context) }
+    var currentAirconState by remember(selectedDevice?.id) { mutableStateOf<AirconState?>(null) }
+    var airconConnected by remember(selectedDevice?.id) { mutableStateOf(false) }
+    var controlBusy by remember(selectedDevice?.id) { mutableStateOf(false) }
+    var controlStatus by remember(selectedDevice?.id) { mutableStateOf("") }
+    val controlScope = rememberCoroutineScope()
     val accountRepository = remember(context) { KlimaPilotAccountRepository(context) }
-    val wfRacRepository = remember(context) { de.klimapilot.app.wfrac.WfRacConnectionRepository(context) }
-    val startupDiscovery = remember(context) { de.klimapilot.app.wfrac.WfRacDiscovery(context) }
+    LaunchedEffect(selectedDevice?.id, selectedDevice?.wfRacAirconId, selectedDevice?.demoMode, showSettings, showManager, showAccountSettings) {
+        currentAirconState = null
+        airconConnected = false
+        controlStatus = ""
+        if (showSettings || showManager || showAccountSettings) return@LaunchedEffect
+        val device = selectedDevice ?: return@LaunchedEffect
+        if (!device.demoMode && device.wfRacAirconId.isBlank()) return@LaunchedEffect
+        while (true) {
+            runCatching { withContext(Dispatchers.IO) { controller.read(device) } }
+                .onSuccess { state -> currentAirconState = state; airconConnected = true; controlStatus = "" }
+                .onFailure { error -> airconConnected = false; controlStatus = error.message ?: "Gerätestatus konnte nicht gelesen werden." }
+            delay(if (device.demoMode) 3_000L else 15_000L)
+        }
+    }
 
-    DisposableEffect(startupDiscovery) {
-        onDispose { startupDiscovery.stop() }
+    fun applyDeviceChange(change: (AirconState) -> AirconState) {
+        val device = selectedDevice ?: return
+        if (controlBusy) return
+        if (!device.demoMode && device.wfRacAirconId.isBlank()) {
+            controlStatus = "Bitte zuerst in den Geräteeinstellungen das WLAN-Modul koppeln."
+            return
+        }
+        controlScope.launch {
+            controlBusy = true
+            controlStatus = "Befehl wird übertragen …"
+            try {
+                val updated = withContext(Dispatchers.IO) { controller.apply(device, change) }
+                currentAirconState = updated
+                airconConnected = true
+                controlStatus = "Einstellung übernommen."
+            } catch (error: Exception) {
+                controlStatus = error.message ?: "Steuerbefehl fehlgeschlagen."
+            } finally {
+                controlBusy = false
+            }
+        }
     }
 
     fun loadAccounts() {
@@ -395,53 +415,6 @@ private fun KlimaPilotApp(appVersion: String) {
 
     LaunchedEffect(Unit) { loadAccounts() }
 
-    LaunchedEffect("wf-rac-startup-reconnect") {
-        val trustedIdentities = runCatching { wfRacRepository.identities.all() }.getOrElse {
-            airconConnected = false
-            return@LaunchedEffect
-        }
-        // First-time TOFU requires an explicit user action; startup only reconnects trusted modules.
-        if (trustedIdentities.isEmpty()) return@LaunchedEffect
-
-        val savedHost = prefs.getString("wf_rac_host", null)?.trim()?.takeIf { it.isNotBlank() }
-        if (savedHost != null) {
-            val previousConnection = runCatching {
-                withContext(Dispatchers.IO) { wfRacRepository.readStatus(savedHost) }
-            }
-            if (previousConnection.isSuccess) {
-                airconConnected = true
-                return@LaunchedEffect
-            }
-        } else if (wfRacRepository.identities.all().isEmpty()) {
-            return@LaunchedEffect
-        }
-
-        airconConnected = false
-        val discovered = mutableListOf<de.klimapilot.app.wfrac.WfRacDiscoveredService>()
-        val started = startupDiscovery.start(
-            onFound = { service ->
-                if (discovered.none { it.host == service.host }) discovered.add(service)
-            },
-            onError = { }
-        )
-        if (started) {
-            try {
-                delay(10_000)
-            } finally {
-                startupDiscovery.stop()
-            }
-            for (service in discovered) {
-                val verified = runCatching {
-                    withContext(Dispatchers.IO) { wfRacRepository.readStatus(service.host) }
-                }.isSuccess
-                if (verified) {
-                    airconConnected = true
-                    break
-                }
-            }
-        }
-    }
-
     BackHandler(enabled = !accountAuthenticated) { }
     BackHandler(enabled = accountAuthenticated && (showSettings || showManager || showAccountSettings)) {
         when {
@@ -474,11 +447,9 @@ private fun KlimaPilotApp(appVersion: String) {
             rooms, devices, ::saveData,
             { old, new ->
                 if (selectedRoom == old) selectedRoom = new
-                roomStates.remove(old)?.let { roomStates[new] = it }
             },
             { removed ->
                 if (selectedRoom == removed) selectedRoom = rooms.firstOrNull() ?: "Wohnzimmer"
-                roomStates.remove(removed)
             }
         ) { showManager = false }
     } else if (showAccountSettings) {
@@ -521,7 +492,6 @@ private fun KlimaPilotApp(appVersion: String) {
                 selectedRoom = roomName
                 selectedDeviceId = devices.firstOrNull { it.room == roomName }?.id ?: ""
             },
-            roomTemperature = room.roomTemperature,
             devicesInRoom = devicesInSelectedRoom,
             allDevices = devices,
             selectedDeviceId = selectedDevice?.id ?: "",
@@ -538,13 +508,38 @@ private fun KlimaPilotApp(appVersion: String) {
             deviceModel = selectedDevice?.model?.takeIf { it.isNotBlank() } ?: "Modell nicht hinterlegt",
             selectedDeviceName = selectedDevice?.name.orEmpty(),
             selectedDeviceSyncKey = selectedDevice?.syncDeviceKey.orEmpty(),
-            isOn = room.isOn,
-            targetTemp = room.targetTemp,
-            onTargetTemp = { room.targetTemp = it },
-            mode = room.mode,
-            onMode = { room.mode = it; room.isOn = it != "Aus" },
-            fan = room.fan,
-            onFan = { room.fan = it },
+            airconState = currentAirconState,
+            controlBusy = controlBusy,
+            controlStatus = controlStatus,
+            onPower = { enabled -> applyDeviceChange { it.copy(power = enabled) } },
+            onTargetTemp = { value -> applyDeviceChange { it.copy(presetTemp = value.toDouble()) } },
+            onMode = { selected ->
+                val mapped = when (selected) {
+                    "Auto" -> Mode.AUTO; "Kühlen" -> Mode.COOL; "Heizen" -> Mode.HEAT
+                    "Entfeuchten" -> Mode.DRY; else -> Mode.FAN
+                }
+                applyDeviceChange { it.copy(power = true, mode = mapped) }
+            },
+            onFan = { selected ->
+                val mapped = when (selected) { "Auto" -> 0; "Leise" -> 1; "1" -> 2; "2" -> 3; else -> 4 }
+                applyDeviceChange { it.copy(airFlow = mapped) }
+            },
+            onVerticalSwing = { value -> applyDeviceChange { it.copy(windUD = value) } },
+            onHorizontalSwing = { value -> applyDeviceChange { it.copy(windLR = value) } },
+            onThreeDAuto = { enabled -> applyDeviceChange { it.copy(entrust = enabled) } },
+            onApplyProfile = { profile ->
+                applyDeviceChange { current ->
+                    current.copy(
+                        power = profile.power ?: current.power,
+                        mode = profile.mode?.let { Mode.valueOf(it) } ?: current.mode,
+                        presetTemp = profile.targetTemp ?: current.presetTemp,
+                        airFlow = profile.fanSpeed ?: current.airFlow,
+                        windUD = profile.verticalSwing ?: current.windUD,
+                        windLR = profile.horizontalSwing ?: current.windLR,
+                        entrust = profile.threeDAuto ?: current.entrust
+                    )
+                }
+            },
             airconConnected = airconConnected,
             onSettings = { showSettings = true }
         )
@@ -610,7 +605,6 @@ private fun MainScreen(
     selectedRoom: String,
     rooms: List<String>,
     onRoomSelect: (String) -> Unit,
-    roomTemperature: String,
     devicesInRoom: List<UserDevice>,
     allDevices: List<UserDevice>,
     selectedDeviceId: String,
@@ -620,13 +614,17 @@ private fun MainScreen(
     deviceModel: String,
     selectedDeviceName: String,
     selectedDeviceSyncKey: String,
-    isOn: Boolean,
-    targetTemp: Float,
+    airconState: AirconState?,
+    controlBusy: Boolean,
+    controlStatus: String,
+    onPower: (Boolean) -> Unit,
     onTargetTemp: (Float) -> Unit,
-    mode: String,
     onMode: (String) -> Unit,
-    fan: String,
     onFan: (String) -> Unit,
+    onVerticalSwing: (Int) -> Unit,
+    onHorizontalSwing: (Int) -> Unit,
+    onThreeDAuto: (Boolean) -> Unit,
+    onApplyProfile: (ClimateProfile) -> Unit,
     airconConnected: Boolean,
     onSettings: () -> Unit
 ) {
@@ -713,7 +711,8 @@ private fun MainScreen(
         ClimateProfilesSection(
             deviceId = selectedDeviceId,
             syncDeviceKey = selectedDeviceSyncKey,
-            devices = allDevices
+            devices = allDevices,
+            onApply = onApplyProfile
         )
 
         AnimatedContent(
@@ -727,20 +726,69 @@ private fun MainScreen(
             label = "devicePage"
         ) { deviceId ->
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                val state = airconState
+                val ready = state != null && !controlBusy
+                val modeLabel = when (state?.mode) {
+                    Mode.AUTO -> "Auto"
+                    Mode.COOL -> "Kühlen"
+                    Mode.HEAT -> "Heizen"
+                    Mode.DRY -> "Entfeuchten"
+                    Mode.FAN -> "Lüfter"
+                    null -> "Unbekannt"
+                }
+                val fanLabel = when (state?.airFlow) {
+                    0 -> "Auto"; 1 -> "Leise"; 2 -> "1"; 3 -> "2"; 4 -> "3"; else -> "Unbekannt"
+                }
                 TemperatureCard(
                     deviceName = devicesInRoom.firstOrNull { it.id == deviceId }?.name ?: devicesInRoom.firstOrNull()?.name ?: selectedRoom,
-                    roomTemperature = roomTemperature,
-                    isOn = isOn,
-                    targetTemp = targetTemp,
+                    state = state,
+                    connected = airconConnected,
+                    busy = controlBusy,
+                    onPower = onPower,
                     onTargetTemp = onTargetTemp
                 )
 
                 SectionTitle("BETRIEBSMODUS")
-                FlowModeSelector(selected = mode, options = listOf("Aus", "Auto", "Kühlen", "Heizen", "Entfeuchten", "Lüfter"), onSelect = onMode, enabled = false)
+                FlowModeSelector(selected = modeLabel, options = listOf("Auto", "Kühlen", "Heizen", "Entfeuchten", "Lüfter"), onSelect = onMode, enabled = ready)
 
                 SectionTitle("LÜFTERSTUFE")
-                FlowModeSelector(selected = fan, options = listOf("Auto", "Leise", "1", "2", "3", "4"), onSelect = onFan, enabled = false)
-                Text("Bedienung und Messwerte werden nach der direkten Modul-Anbindung aktiviert.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+                FlowModeSelector(selected = fanLabel, options = listOf("Auto", "Leise", "1", "2", "3"), onSelect = onFan, enabled = ready)
+
+                SectionTitle("VERTIKALE LUFTFÜHRUNG")
+                val vertical = listOf("Auto", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten")
+                FlowModeSelector(
+                    selected = state?.windUD?.let { vertical.getOrNull(it) } ?: "",
+                    options = vertical,
+                    onSelect = { onVerticalSwing(vertical.indexOf(it)) },
+                    enabled = ready
+                )
+
+                if (state != null && state.vaneLRReported && de.klimapilot.app.wfrac.Codec.modelHasVaneLR(state.modelNrRaw)) {
+                    SectionTitle("HORIZONTALE LUFTFÜHRUNG")
+                    val horizontal = listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen")
+                    FlowModeSelector(
+                        selected = horizontal.getOrNull(state.windLR) ?: "",
+                        options = horizontal,
+                        onSelect = { onHorizontalSwing(horizontal.indexOf(it)) },
+                        enabled = ready
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("3D-Automatik", modifier = Modifier.weight(1f), color = TextMain)
+                        Switch(checked = state.entrust, onCheckedChange = onThreeDAuto, enabled = ready)
+                    }
+                }
+                if (state != null) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MetricCard(Modifier.weight(1f), "Außentemperatur", state.outdoorTemp?.let { String.format(Locale.GERMANY, "%.1f °C", it) } ?: "—", androidx.compose.material.icons.Icons.Default.DeviceThermostat, "WF-RAC-Messwert")
+                        MetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", androidx.compose.material.icons.Icons.Default.AcUnit, state.errorCode?.let { "Fehler: $it" } ?: "Kein Fehler gemeldet")
+                    }
+                } else {
+                    Text(
+                        if (devicesInRoom.firstOrNull { it.id == deviceId }?.demoMode == true) "Demo-Gerät wird initialisiert …" else "Kopple das WLAN-Modul in den Geräteeinstellungen oder aktiviere dort den Testmodus.",
+                        color = Muted, fontSize = 12.sp
+                    )
+                }
+                if (controlStatus.isNotBlank()) Text(controlStatus, color = if (controlStatus.contains("fehlgeschlagen", true) || controlStatus.contains("Sicherheitsprüfung", true)) MaterialTheme.colorScheme.error else Muted, fontSize = 11.sp)
             }
         }
 
@@ -751,21 +799,23 @@ private fun MainScreen(
 @Composable
 private fun TemperatureCard(
     deviceName: String,
-    roomTemperature: String,
-    isOn: Boolean,
-    targetTemp: Float,
+    state: AirconState?,
+    connected: Boolean,
+    busy: Boolean,
+    onPower: (Boolean) -> Unit,
     onTargetTemp: (Float) -> Unit
 ) {
+    var draftTemp by remember(state?.presetTemp) { mutableFloatStateOf((state?.presetTemp ?: 21.0).toFloat()) }
     Column(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Panel).padding(22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(Muted))
+            Box(Modifier.size(8.dp).clip(CircleShape).background(if (connected) Green else Muted))
             Text(
-                "${deviceName.uppercase()} · STATUS NICHT VERFÜGBAR",
-                color = Muted,
+                "${deviceName.uppercase()} · ${if (state == null) "NICHT VERBUNDEN" else if (state.power) "EINGESCHALTET" else "AUSGESCHALTET"}",
+                color = if (connected) Green else Muted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.8.sp,
@@ -779,29 +829,34 @@ private fun TemperatureCard(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("RAUMTEMPERATUR", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
-                Text(roomTemperature, color = TextMain, fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
+                Text(state?.indoorTemp?.let { String.format(Locale.GERMANY, "%.1f °C", it) } ?: "—", color = TextMain, fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
             }
             Box(Modifier.width(1.dp).height(48.dp).background(PanelRaised))
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("SOLL", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("—", color = TextMain, fontSize = 42.sp, fontWeight = FontWeight.Light)
-                }
+                Text(state?.let { String.format(Locale.GERMANY, "%.1f°", it.presetTemp) } ?: "—", color = TextMain, fontSize = 36.sp, fontWeight = FontWeight.Light)
             }
         }
+        Button(
+            onClick = { onPower(!(state?.power ?: false)) },
+            enabled = state != null && !busy,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = if (state?.power == true) Color(0xFFDCEBFA) else Blue, contentColor = if (state?.power == true) Color(0xFF123B60) else Color.White)
+        ) { Text(if (state?.power == true) "Klimaanlage ausschalten" else "Klimaanlage einschalten") }
         Text("Solltemperatur", color = Muted, fontSize = 13.sp)
         Slider(
-            value = targetTemp,
-            onValueChange = onTargetTemp,
+            value = draftTemp,
+            onValueChange = { draftTemp = it },
+            onValueChangeFinished = { onTargetTemp((draftTemp * 2f).toInt() / 2f) },
             valueRange = 16f..30f,
-            steps = 139,
-            enabled = false,
+            steps = 27,
+            enabled = state != null && !busy,
             colors = SliderDefaults.colors(thumbColor = Blue, activeTrackColor = Blue, inactiveTrackColor = PanelRaised),
             modifier = Modifier.fillMaxWidth()
         )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("16 °C", color = Muted, fontSize = 12.sp)
-            Text("Nach Datenpunkt-Zuordnung verfügbar", color = Muted, fontSize = 11.sp)
+            Text(if (state == null) "Keine Verbindung" else "Einstellbar in 0,5-°C-Schritten", color = Muted, fontSize = 11.sp)
             Text("30 °C", color = Muted, fontSize = 12.sp)
         }
     }
