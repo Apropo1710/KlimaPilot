@@ -1,16 +1,17 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- APK-Quellcommit: `853611dc4478f687d024f03b336ee2782f01c68a`
+- Quellcommit des APK-Builds: c947416add05e134c63c367298e0556db462b950
 - App-Version / versionCode: **0.4.42 / 72**
-- Build-Zeit: **15.11.2026, 15:52 Uhr MEZ** (14:52 UTC)
-- APK: `KlimaPilot.apk`
-- APK-Signaturprüfung: **erfolgreich** (`apksigner verify --print-certs`)
-- APK-SHA-256: `ad01fdd22c06b29281bdd0571c9333f3206164b82b3d557b00a8e3280c1cefc8`
-- Build-Artefakt: kein separates Actions-Artefakt; die APK wird im Release `latest` veröffentlicht.
-- GitHub-Release `latest`: **erfolgreich veröffentlicht**; Asset `KlimaPilot.apk` wurde aktualisiert.
-- Smartphone-Test: nicht durch CI geprüft; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
-- Updater: vom Nutzer erfolgreich getestet und abgeschlossen; bei anderen Arbeiten unverändert lassen.
+- Build-Zeit: 2026-11-15 15:43:34 UTC
+- APK-Dateiname: **KlimaPilot.apk**
+- APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
+- Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
+- APK-SHA-256: c3d2fedce996a9aaa114a273bcaa98d211cdc5caac861fa09877c0c20a973599
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
+- Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
+- Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
+          - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
@@ -107,4 +108,4 @@ Nicht wieder einführen: `REQUEST_INSTALL_PACKAGES`; nicht auf `ACTION_INSTALL_P
 - Nach App-Code-Änderungen Version/versionCode erhöhen, Änderungen pushen und den automatischen Build kontrollieren.
 - Build-Erfolg, APK-Signatur, Release-Aktualisierung und Smartphone-Test sind getrennte Nachweise.
 - Zeitangaben in deutscher Ortszeit mit MEZ/MESZ dokumentieren.
-- Diese Datei nach jedem abgeschlossenen Arbeitspaket aktualisieren. Veraltete Versionsstände gehören allenfalls in eine ausdrücklich als Historie gekennzeichnete Chronik, nicht in den aktuellen Projektstatus.
+- Diese Datei nach jedem abgeschlossenen Arbeitspaket aktualisieren. Veraltete Versionsstände gehören allenfalls in eine ausdrücklich als Historie gekennzeichnete Chronik, nicht in den aktuellen Projektstatus.\n
