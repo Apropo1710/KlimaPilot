@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: a20704f7aca736904986251eb625da92dd9ff409
-- App-Version / versionCode: **0.4.34 / 64**
-- Build-Zeit: 2026-11-15 10:52:04 UTC
+- Quellcommit des APK-Builds: ef6a10ab422331a70ca3eeaf6b4c6f03738edd71
+- App-Version / versionCode: **0.4.35 / 65**
+- Build-Zeit: 2026-11-15 10:54:59 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 58816d41cb35b2b15e3d5ff4fb41700bca333a15a565f674e8dafb8f2e6f5c77
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 22096e2794ad1b828cee71d1db281e9f3f91874868c05633f83e572d5ffbfdfa
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -170,4 +170,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Die Werte orientieren sich an den vorhandenen WF-RAC-Protokolltypen. Lüfterstufen und weitere modellabhängige Optionen sind bewusst noch nicht enthalten, weil die UI-Auswahl und die tatsächliche Gerätezuordnung noch nicht am installierten Gerät bestätigt sind.
 - **Wichtige Einschränkung:** Profile können aktuell gespeichert und verwaltet, aber noch nicht angewendet werden. Die App bleibt beim Lesen; Schreibsteuerung, Account-Registrierung und 60-Sekunden-Schreibsperre müssen am realen Modul geprüft werden, bevor Anwenden aktiviert wird.
 - Speicherung ist vorerst lokal auf dem Smartphone. Synchronisierung/Backup zwischen Smartphones ist noch nicht umgesetzt; die frühere ioBroker-Idee wird separat gegen die aktuelle Architektur geprüft.
-- App-Version: **0.4.35 / versionCode 65**. Build- und Release-Ergebnis sind nach dem Commit separat zu verifizieren.\n
+- App-Version: **0.4.35 / versionCode 65**. Build- und Release-Ergebnis sind nach dem Commit separat zu verifizieren.\n\n
