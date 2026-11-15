@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: b2c4521e3dea9be84a4043adf3eb5080a870bd24
-- App-Version / versionCode: **0.4.37 / 67**
-- Build-Zeit: 2026-11-15 11:45:03 UTC
+- Quellcommit des APK-Builds: b745bad136b175b27f65b8bd9c993f5cb7ea9d0d
+- App-Version / versionCode: **0.4.38 / 68**
+- Build-Zeit: 2026-11-15 11:57:53 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: a342dfa0ca388c78a7398c871a5b32b5a2db7aa333b610568d95f18728eca50c
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 51e0afeff30f7a01224397de2d35cca791619547908b39f8df75ee1e7f46ccd3
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -197,4 +197,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Nicht ausgewählte Felder bleiben null. Modell-/Firmwareabhängigkeit wird vor einer späteren Schreibfreigabe geprüft.
 - Solltemperatur bleibt bewusst bei 0,5 °C, da der WF-RAC-Protokollwert als halbe Gradstufen codiert ist; 0,1 °C würde vom Modul abgeschnitten.
 - Noch keine Profil-Anwendung und keine Smartphone-Synchronisierung freigegeben. Schreibzugriff, Account-Registrierung, Write-Lock und reales Geräteverhalten müssen nach Installation getestet werden.
-- App-Version **0.4.36 / versionCode 66**. Build und Release sind nach dem Commit separat zu verifizieren.\n\n\n
+- App-Version **0.4.36 / versionCode 66**. Build und Release sind nach dem Commit separat zu verifizieren.\n\n\n\n
