@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
@@ -795,15 +796,70 @@ private fun FlowModeSelector(selected: String, options: List<String>, onSelect: 
 private fun WfRacConnectionCard() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
+    val discovery = remember(context) { de.klimapilot.app.wfrac.WfRacDiscovery(context) }
     var host by remember { mutableStateOf(prefs.getString("wf_rac_host", "") ?: "") }
     var busy by remember { mutableStateOf(false) }
+    var scanning by remember { mutableStateOf(false) }
+    var scanMessage by remember { mutableStateOf("Noch keine Suche durchgeführt") }
+    var foundModules by remember { mutableStateOf<List<de.klimapilot.app.wfrac.WfRacDiscoveredService>>(emptyList()) }
     var result by remember { mutableStateOf("Noch nicht getestet") }
     var details by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+
+    DisposableEffect(discovery) {
+        onDispose { discovery.stop() }
+    }
+
     Card(shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Direkte Klimaanlagen-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Text("Read-only Verbindungstest zum WF-RAC-Modul. Es werden keine Steuerbefehle gesendet und kein Bedienerkonto registriert.", color = Muted, fontSize = 12.sp)
+            OutlinedButton(
+                enabled = !scanning && !busy,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    foundModules = emptyList()
+                    scanning = true
+                    scanMessage = "Suche im lokalen WLAN …"
+                    val started = discovery.start(
+                        onFound = { found ->
+                            if (foundModules.none { it.host == found.host }) foundModules = foundModules + found
+                        },
+                        onError = { message ->
+                            scanMessage = message
+                            scanning = false
+                        }
+                    )
+                    if (started) {
+                        scope.launch {
+                            delay(10_000)
+                            discovery.stop()
+                            scanning = false
+                            scanMessage = if (foundModules.isEmpty()) {
+                                "Keine WF-RAC-Module gefunden. Prüfe WLAN und Modul."
+                            } else {
+                                "${foundModules.size} Modul(e) gefunden"
+                            }
+                        }
+                    } else {
+                        scanning = false
+                        scanMessage = "Die Suche konnte nicht gestartet werden."
+                    }
+                }
+            ) { Text(if (scanning) "Suche läuft …" else "WLAN-Modul automatisch suchen") }
+            Text(scanMessage, color = Muted, fontSize = 12.sp)
+            foundModules.forEach { found ->
+                OutlinedButton(
+                    onClick = {
+                        host = found.host
+                        prefs.edit().putString("wf_rac_host", found.host).apply()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !busy
+                ) {
+                    Text("${found.name} · ${found.host}")
+                }
+            }
             OutlinedTextField(
                 value = host,
                 onValueChange = { host = it },
@@ -815,7 +871,7 @@ private fun WfRacConnectionCard() {
             Text(result, color = if (result.startsWith("Erfolgreich")) Green else Muted, fontSize = 12.sp)
             if (details.isNotBlank()) Text(details, color = TextMain, fontSize = 12.sp)
             Button(
-                enabled = !busy && host.trim().isNotEmpty(),
+                enabled = !busy && !scanning && host.trim().isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     val address = host.trim()

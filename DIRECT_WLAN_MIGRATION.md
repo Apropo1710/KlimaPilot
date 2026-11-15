@@ -1,6 +1,7 @@
 # KlimaPilot – Direkte WLAN-Kommunikation
 
 Stand: 15.11.2026 (MEZ)
+Produktivbasis: `main` nach Release 0.4.29 / versionCode 59
 Entwicklungsbranch: `feature/direct-wf-rac-wlan`
 Basis von `main`: `c2f92a4bd73ad0b59b6cbace713177d6b458353e`
 Produktionsstand auf Basisbranch: 0.4.28 / versionCode 58
@@ -10,6 +11,9 @@ Gemeinsame App-Version: 0.4.29 / versionCode 59 (bestehende Paketkennung und Upd
 Die bestehende KlimaPilot-App wird schrittweise um direkte lokale Kommunikation mit dem Mitsubishi-Heavy-WF-RAC-Modul ergänzt. `main` bleibt während der Entwicklung unverändert. Die ioBroker-Funktionen bleiben vorerst bestehen.
 
 ## Erster Entwicklungsschritt
+- Version 0.4.30 / versionCode 60: manuelle und automatische mDNS-Gerätesuche über `_beaver._tcp`; Auswahl eines gefundenen Moduls übernimmt dessen IP-Adresse in das vorhandene Feld.
+- Die mDNS-Suche ist bewusst manuell auslösbar, läuft maximal 10 Sekunden und beendet Discovery sowie Multicast-Lock anschließend. Die manuelle IP-Eingabe bleibt als Rückfallebene erhalten.
+- Keine Änderungen an Updater, ioBroker-Verbindung, Benutzerkonten oder vorhandenen Klimafunktionen.
 - WF-RAC-Protokollkomponenten aus AirLAN in das KlimaPilot-Paket übernommen.
 - Quelle: https://github.com/erdtsieck/airlan
 - Lizenz: MIT; vollständige Lizenz und Herkunftshinweis in `NOTICE-AIRLAN.md`.
@@ -21,12 +25,11 @@ Die bestehende KlimaPilot-App wird schrittweise um direkte lokale Kommunikation 
 ## Sicherheit und Netzwerk
 - HTTPS-Zertifikat wird beim Erstkontakt per SHA-256-Pinning gebunden; bei späterer Abweichung muss der Zugriff fehlschlagen.
 - HTTP/HTTPS wird anhand der tatsächlichen Modulantwort ermittelt.
-- Manuelle IP-Eingabe ist zunächst die vorgesehene Diagnosemethode. mDNS-Suche folgt nach dem ersten Lesezugriff.
+- Manuelle IP-Eingabe bleibt als Fallback verfügbar. Die App kann den Dienst `_beaver._tcp` jetzt per Android-NSD/mDNS suchen und gefundene Modul-IP-Adressen zur Auswahl anbieten. Die Suche läuft nur auf ausdrückliche Betätigung und endet nach 10 Sekunden.
 - WireGuard-Zugriff ist noch nicht praktisch geprüft.
 - Es werden keine Cloud-Dienste benötigt.
 
 ## Noch nicht umgesetzt
-- Automatische mDNS-Erkennung und Netzwerksuche.
 - Persistenz der Geräteidentität und des HTTPS-Pins je Klimaanlage.
 - Steuerbefehle und sichere Operator-Registrierung.
 - UI-Anbindung des echten Gerätestatus an die bisherige Klimaübersicht.
