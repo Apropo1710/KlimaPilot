@@ -217,8 +217,8 @@ internal fun KlimaPilotAccountLoginScreen(
     password: String, onPassword: (String) -> Unit,
     passwordConfirmation: String, onPasswordConfirmation: (String) -> Unit,
     displayName: String, onDisplayName: (String) -> Unit,
-    loading: Boolean, connected: Boolean, status: String,
-    onRetryConnection: () -> Unit, onReload: () -> Unit, onSubmit: () -> Unit
+    loading: Boolean, status: String,
+    onReload: () -> Unit, onSubmit: () -> Unit
 ) {
     val setup = registry?.accounts?.isEmpty() == true
     var showPassword by remember { mutableStateOf(false) }
@@ -235,7 +235,6 @@ internal fun KlimaPilotAccountLoginScreen(
         Spacer(Modifier.height(8.dp))
         Text(
             when {
-                !connected -> "Verbindung zu ioBroker wird benötigt"
                 registry == null -> "KlimaPilot-Konten werden geladen …"
                 setup -> "Ersteinrichtung · Administrator erstellen"
                 else -> "Mit deinem KlimaPilot-Konto anmelden"
