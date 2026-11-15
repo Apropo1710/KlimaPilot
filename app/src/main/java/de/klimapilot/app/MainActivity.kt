@@ -763,7 +763,7 @@ private fun MainScreen(
                     enabled = ready
                 )
 
-                if (state != null && state.vaneLRReported && de.klimapilot.app.wfrac.Codec.modelHasVaneLR(state.modelNrRaw)) {
+                if (state != null && de.klimapilot.app.wfrac.Codec.modelHasVaneLR(state.modelNrRaw)) {
                     SectionTitle("HORIZONTALE LUFTFÜHRUNG")
                     val horizontal = listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen")
                     FlowModeSelector(
