@@ -35,7 +35,6 @@ internal class ClimateProfileSyncStore(context: Context) {
     @Synchronized
     fun enqueueInitialProfiles(profiles: List<ClimateProfile>, deviceKey: String): Boolean {
         if (deviceKey.isBlank()) return false
-        val marker = "initial_" + deviceKey
         val root = readRoot()
         if (root.optJSONArray(KEY_INITIALIZED)?.let { array -> (0 until array.length()).any { array.optString(it) == deviceKey } } == true) return true
         val outbox = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
