@@ -33,14 +33,6 @@ android {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
-        create("wlanTest") {
-            initWith(getByName("release"))
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = ""
-            signingConfig = signingConfigs.getByName("release")
-            isDebuggable = false
-            isMinifyEnabled = false
-        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
