@@ -712,7 +712,6 @@ private fun MainScreen(
 
         ClimateProfilesSection(
             deviceId = selectedDeviceId,
-            deviceName = selectedDeviceName,
             syncDeviceKey = selectedDeviceSyncKey,
             devices = allDevices
         )
