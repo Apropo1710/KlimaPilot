@@ -145,9 +145,10 @@ internal class ClimateProfileRepository(context: Context) {
 }
 
 @Composable
-internal fun ClimateProfilesSection(deviceId: String, deviceName: String) {
+internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDeviceKey: String) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(context) { ClimateProfileRepository(context) }
+    val syncStore = remember(context) { ClimateProfileSyncStore(context) }
     val profiles = remember { mutableStateListOf<ClimateProfile>() }
     var loaded by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
@@ -161,6 +162,12 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String) {
     }
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
+    LaunchedEffect(loaded, syncDeviceKey, deviceId, profiles.size) {
+        if (loaded && syncDeviceKey.isNotBlank() && deviceId.isNotBlank()) {
+            runCatching { syncStore.enqueueInitialProfiles(deviceProfiles, syncDeviceKey) }
+                .onFailure { status = it.message ?: "Vorhandene Profile konnten nicht zur Synchronisierung vorgemerkt werden." }
+        }
+    }
     Card(shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -203,7 +210,13 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String) {
                     .onSuccess {
                         val index = profiles.indexOfFirst { it.id == profile.id }
                         if (index >= 0) profiles[index] = profile else profiles.add(profile)
-                        status = ""; creating = false; editing = null
+                        status = if (syncDeviceKey.isBlank()) {
+                            "Lokal gespeichert. Für die Synchronisierung auf anderen Smartphones fehlt noch die gemeinsame Gerätekennung."
+                        } else {
+                            runCatching { syncStore.enqueueUpsert(profile, syncDeviceKey) }
+                                .fold({ "" }, { it.message ?: "Profil lokal gespeichert; Synchronisierung konnte nicht vorgemerkt werden." })
+                        }
+                        creating = false; editing = null
                     }
                     .onFailure { status = it.message ?: "Profil konnte nicht gespeichert werden." }
             }
@@ -217,8 +230,20 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String) {
             text = { Text("„${profile.name}“ wird von diesem Smartphone gelöscht.") },
             confirmButton = {
                 TextButton(onClick = {
-                    runCatching { repository.delete(profile.id) }
-                        .onSuccess { profiles.removeAll { it.id == profile.id }; status = "" }
+                    runCatching {
+                        if (syncDeviceKey.isNotBlank()) {
+                            check(syncStore.enqueueDelete(profile.id, syncDeviceKey)) {
+                                "Löschung konnte nicht sicher zur Synchronisierung vorgemerkt werden."
+                            }
+                        }
+                        repository.delete(profile.id)
+                    }
+                        .onSuccess {
+                            profiles.removeAll { it.id == profile.id }
+                            status = if (syncDeviceKey.isBlank()) {
+                                "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
+                            } else ""
+                        }
                         .onFailure { status = it.message ?: "Profil konnte nicht gelöscht werden." }
                     deleting = null
                 }) { Text("Löschen") }
