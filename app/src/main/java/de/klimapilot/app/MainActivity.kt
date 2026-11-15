@@ -193,8 +193,8 @@ private fun KlimaPilotApp(appVersion: String) {
     }
 
     fun applyDeviceChange(
-        change: (AirconState) -> AirconState,
-        onComplete: ((Boolean, String?) -> Unit)? = null
+        onComplete: ((Boolean, String?) -> Unit)? = null,
+        change: (AirconState) -> AirconState
     ) {
         val device = selectedDevice
         if (device == null) {
