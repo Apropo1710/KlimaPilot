@@ -19,7 +19,12 @@ import de.klimapilot.app.wfrac.WfRacDiscoveredService
 
 /** Per-device configuration and explicit first-time WF-RAC pairing. */
 @Composable
-internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onSave: (UserDevice) -> Unit) {
+internal fun DeviceSettingsDialog(
+    device: UserDevice,
+    onDismiss: () -> Unit,
+    onResetPairing: (String) -> String?,
+    onSave: (UserDevice) -> Unit
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var model by remember(device.id) { mutableStateOf(device.model) }
     var syncDeviceKey by remember(device.id) { mutableStateOf(device.syncDeviceKey) }
@@ -33,6 +38,8 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
     val discovery = remember(context) { WfRacDiscovery(context) }
     var scanning by remember { mutableStateOf(false) }
     var scanMessage by remember { mutableStateOf("") }
+    var confirmResetPairing by remember { mutableStateOf(false) }
+    var resetPairingError by remember { mutableStateOf("") }
     var foundModules by remember { mutableStateOf<List<WfRacDiscoveredService>>(emptyList()) }
     DisposableEffect(discovery) { onDispose { discovery.stop() } }
 
@@ -126,6 +133,14 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
                     ) { Text(if (pairing) "Kopplung läuft …" else "WLAN-Modul koppeln und auslesen") }
                     if (wfRacAirconId.isNotBlank()) {
                         Text("Gekoppelte Geräte-ID: $wfRacAirconId", color = Color(0xFF16845B), fontSize = 11.sp)
+                        OutlinedButton(
+                            enabled = !pairing,
+                            onClick = { confirmResetPairing = true; resetPairingError = "" },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Kopplung zurücksetzen") }
+                        if (resetPairingError.isNotBlank()) {
+                            Text(resetPairingError, color = Color(0xFFB42318), fontSize = 11.sp)
+                        }
                     }
                     if (pairingStatus.isNotBlank()) Text(
                         pairingStatus,
@@ -169,4 +184,31 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } }
     )
+
+    if (confirmResetPairing) {
+        AlertDialog(
+            onDismissRequest = { confirmResetPairing = false },
+            title = { Text("WF-RAC-Kopplung zurücksetzen?") },
+            text = {
+                Text("Die gespeicherte Geräteidentität einschließlich Aircon-ID und Zertifikat-Fingerprint wird entfernt. Danach kann dieses Gerät ausdrücklich neu gekoppelt werden. Die übrigen Klimaanlagen bleiben unverändert.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val error = onResetPairing(wfRacAirconId)
+                    if (error == null) {
+                        wfRacAirconId = ""
+                        wfRacHost = ""
+                        onSave(device.copy(wfRacAirconId = "", wfRacHost = ""))
+                        confirmResetPairing = false
+                    } else {
+                        resetPairingError = error
+                        confirmResetPairing = false
+                    }
+                }) { Text("Kopplung zurücksetzen", color = Color(0xFFB42318)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmResetPairing = false }) { Text("Abbrechen") }
+            }
+        )
+    }
 }
