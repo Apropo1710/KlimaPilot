@@ -16,13 +16,14 @@
 
 # KlimaPilot – Projektstatus und technische Dokumentation
 
-**Dokumentationsstand:** 15.11.2026, 15:52 Uhr MEZ  
+**Dokumentationsstand:** 15.11.2026, 16:40 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`
 
 ## 1. Maßgeblicher Stand
 
-- Aktueller `main`-Head bei dieser Dokumentationsprüfung: `7d6935712137bc3ddef58820292882fb9b893eba` (Dokumentationscommit).
+- Vor der Dokumentationskorrektur geprüfter `main`-Head: `7d6935712137bc3ddef58820292882fb9b893eba`.
+- Dokumentationskorrektur: Commit `c947416add05e134c63c367298e0556db462b950` (15.11.2026, 16:40 Uhr MEZ).
 - Letzter App-Code-/APK-Quellcommit: `853611dc4478f687d024f03b336ee2782f01c68a`.
 - Produktionsversion: **0.4.42 / versionCode 72**.
 - Der automatisch gepflegte Nachweis oben dokumentiert den letzten erfolgreichen APK-Build, die Signaturprüfung und die Aktualisierung des Releases `latest`.
