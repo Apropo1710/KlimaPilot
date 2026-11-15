@@ -49,6 +49,7 @@ internal class ClimateProfileSyncClient {
                         if (uploadError != null) { finish(uploadError); return@uploadPending }
                         readRemoteEvents(socket) { events, readError ->
                             if (readError != null) { finish(readError); return@readRemoteEvents }
+                            store.observeRemoteClock(events.maxOfOrNull { it.optLong("logicalClock", 0L) } ?: 0L)
                             val deviceMap = devices.filter { it.syncDeviceKey.isNotBlank() }
                                 .groupBy { it.syncDeviceKey }.filterValues { it.size == 1 }
                                 .mapValues { it.value.single().id }
