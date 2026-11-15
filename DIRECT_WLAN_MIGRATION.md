@@ -46,3 +46,11 @@ Die bestehende KlimaPilot-App wird schrittweise um direkte lokale Kommunikation 
 
 ## Hardwaretest
 Zielgerät: Mitsubishi Heavy Industries SRK15ZS-WF. WLAN-/MCU-Firmware noch auszulesen. Beim ersten Test ausschließlich IP eingeben und Status lesen. Keine Operator-Registrierung, keine Steuerbefehle und keine konkurrierenden App-Schreibtests, bis Firmware und Verhalten verifiziert sind.
+
+
+## Konten lokal und ioBroker entkoppeln – Version 0.4.31 / versionCode 61
+- Benutzerkonten, Passwort-Hashes und persönliche Schriftgrößen werden künftig lokal in privaten App-SharedPreferences gespeichert.
+- Bei einem Upgrade ohne lokalen Kontenspeicher versucht die App genau einmalig, die bisherige Kontenliste aus `0_userdata.0.KlimaPilot.accounts` zu übernehmen. Die Migration verwendet die bisher gespeicherte ioBroker-Adresse nur für diesen Import; bei Netzwerkfehlern werden keine alten Daten gelöscht und die Übernahme kann erneut versucht werden.
+- Nach erfolgreicher lokaler Speicherung hängt Anmeldung und Benutzerverwaltung nicht mehr von ioBroker ab. Es wird keine dauerhafte ioBroker-Verbindung mehr aufgebaut und es gibt keine ioBroker-Verbindungsanzeige oder Serverkonfiguration in der App.
+- Das Wolkensymbol auf der Startseite zeigt den zuletzt erfolgreich manuell geprüften direkten WF-RAC-Verbindungsstatus an. Eine automatische Wiederverbindung nach Neustart folgt mit der Geräteidentitäts-Persistenz.
+- Der bestehende APK-Updater bleibt unverändert.
