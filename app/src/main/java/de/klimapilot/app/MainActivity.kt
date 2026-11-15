@@ -523,6 +523,7 @@ private fun KlimaPilotApp(appVersion: String) {
             },
             roomTemperature = room.roomTemperature,
             devicesInRoom = devicesInSelectedRoom,
+            allDevices = devices,
             selectedDeviceId = selectedDevice?.id ?: "",
             onDeviceSelect = { deviceId -> selectedDeviceId = deviceId },
             onRoomSwipe = { direction ->
@@ -611,6 +612,7 @@ private fun MainScreen(
     onRoomSelect: (String) -> Unit,
     roomTemperature: String,
     devicesInRoom: List<UserDevice>,
+    allDevices: List<UserDevice>,
     selectedDeviceId: String,
     onDeviceSelect: (String) -> Unit,
     onRoomSwipe: (Int) -> Unit,
@@ -711,7 +713,8 @@ private fun MainScreen(
         ClimateProfilesSection(
             deviceId = selectedDeviceId,
             deviceName = selectedDeviceName,
-            syncDeviceKey = selectedDeviceSyncKey
+            syncDeviceKey = selectedDeviceSyncKey,
+            devices = allDevices
         )
 
         AnimatedContent(
