@@ -536,6 +536,7 @@ private fun KlimaPilotApp(appVersion: String) {
             deviceManufacturer = if (selectedDevice != null) "Mitsubishi Heavy" else "Kein Gerät zugeordnet",
             deviceModel = selectedDevice?.model?.takeIf { it.isNotBlank() } ?: "Modell nicht hinterlegt",
             selectedDeviceName = selectedDevice?.name.orEmpty(),
+            selectedDeviceSyncKey = selectedDevice?.syncDeviceKey.orEmpty(),
             isOn = room.isOn,
             targetTemp = room.targetTemp,
             onTargetTemp = { room.targetTemp = it },
@@ -616,6 +617,7 @@ private fun MainScreen(
     deviceManufacturer: String,
     deviceModel: String,
     selectedDeviceName: String,
+    selectedDeviceSyncKey: String,
     isOn: Boolean,
     targetTemp: Float,
     onTargetTemp: (Float) -> Unit,
@@ -708,7 +710,8 @@ private fun MainScreen(
 
         ClimateProfilesSection(
             deviceId = selectedDeviceId,
-            deviceName = selectedDeviceName
+            deviceName = selectedDeviceName,
+            syncDeviceKey = selectedDeviceSyncKey
         )
 
         AnimatedContent(
