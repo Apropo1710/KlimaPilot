@@ -115,25 +115,17 @@ internal object GithubPrivateUpdates {
         return access
     }
 
-    private fun isWlanTest(context: Context) = context.packageName.endsWith(".debug")
-    private fun releaseTag(context: Context) = if (isWlanTest(context)) "wlan-test-latest" else "latest"
-    private fun releaseAssetName(context: Context) =
-        if (isWlanTest(context)) "KlimaPilot-WLAN-debug.apk" else "KlimaPilot.apk"
-
     suspend fun latestRelease(context: Context): Release = withContext(Dispatchers.IO) {
-        val testBuild = isWlanTest(context)
-        val json = get("https://api.github.com/repos/Apropo1710/KlimaPilot/releases/tags/${releaseTag(context)}", accessToken(context))
-        val marker = if (testBuild) "KlimaPilot-WLAN-Version:" else "KlimaPilot-Version:"
-        val version = Regex(Regex.escape(marker) + "\\s*([0-9]+(?:\\.[0-9]+)*)")
+        val json = get("https://api.github.com/repos/Apropo1710/KlimaPilot/releases/tags/latest", accessToken(context))
+        val version = Regex("KlimaPilot-Version:\\s*([0-9]+(?:\\.[0-9]+)*)")
             .find(json.optString("body"))?.groupValues?.get(1) ?: error("Release-Version konnte nicht gelesen werden.")
-        val expectedAsset = releaseAssetName(context)
         val assets = json.optJSONArray("assets") ?: error("Keine Release-Dateien gefunden.")
         var assetId = -1L
         for (i in 0 until assets.length()) {
             val asset = assets.getJSONObject(i)
-            if (asset.optString("name") == expectedAsset) { assetId = asset.getLong("id"); break }
+            if (asset.optString("name") == "KlimaPilot.apk") { assetId = asset.getLong("id"); break }
         }
-        if (assetId < 0) error("$expectedAsset fehlt im Release ${releaseTag(context)}.")
+        if (assetId < 0) error("KlimaPilot.apk fehlt im privaten Release.")
         Release(version, assetId)
     }
 
@@ -147,7 +139,7 @@ internal object GithubPrivateUpdates {
         try {
             if (c.responseCode !in 200..299) error("APK-Download fehlgeschlagen (HTTP ${c.responseCode}).")
             val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-            val file = File(dir, releaseAssetName(context))
+            val file = File(dir, "KlimaPilot.apk")
             c.inputStream.use { input -> file.outputStream().use { output -> input.copyTo(output) } }
             if (file.length() < 1000000L) { file.delete(); error("APK-Download ist unvollständig.") }
             file
