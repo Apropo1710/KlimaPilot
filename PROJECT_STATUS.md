@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: b005d28a4910e2b32c4f1e0e0bc39ba59a2bb101
+- Quellcommit des APK-Builds: d26ab57ef0df22c69da81d9fe17eb8786f39d483
 - App-Version / versionCode: **0.4.51 / 81**
-- Build-Zeit: 2026-11-15 21:22:28 UTC
+- Build-Zeit: 2026-11-15 21:27:13 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 052d829ef28ecc1ad37afbc85b3453a43955133b485d24bec00efe377a8701a5
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: bf2fa3df6f17229b67ee92bce8fbadf26d1063570363794c34a9ec5ec1a6c0a6
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -197,4 +197,4 @@ Nicht wieder einführen: `REQUEST_INSTALL_PACKAGES`; nicht auf `ACTION_INSTALL_P
 - Nach App-Code-Änderungen Version/versionCode erhöhen, Änderungen pushen und den automatischen Build kontrollieren.
 - Build-Erfolg, APK-Signatur, Release-Aktualisierung und Smartphone-Test sind getrennte Nachweise.
 - Zeitangaben in deutscher Ortszeit mit MEZ/MESZ dokumentieren.
-- Diese Datei nach jedem abgeschlossenen Arbeitspaket aktualisieren. Veraltete Versionsstände gehören allenfalls in eine ausdrücklich als Historie gekennzeichnete Chronik, nicht in den aktuellen Projektstatus.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
+- Diese Datei nach jedem abgeschlossenen Arbeitspaket aktualisieren. Veraltete Versionsstände gehören allenfalls in eine ausdrücklich als Historie gekennzeichnete Chronik, nicht in den aktuellen Projektstatus.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
