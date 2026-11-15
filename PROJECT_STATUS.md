@@ -56,6 +56,15 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - GitHub Actions: Run **#170** war der erfolgreiche Build dieser Zwischenversion; der aktuelle Produktionsbuild ist Run **#173** (siehe Produktionsstatus oben).
 - Kein Praxistest der Synchronisierung mit zwei Smartphones oder realem ioBroker durchgeführt. Dieser bleibt ausdrücklich offen.
 
+## Änderung 15.11.2026 – automatische Kennung für Profil-Synchronisierung (0.4.45)
+
+- Die manuelle Eingabe „Gemeinsame Gerätekennung“ wurde aus den Geräteeinstellungen entfernt.
+- Nach erfolgreicher Kopplung wird die Profil-Sync-Kennung automatisch aus der vom WF-RAC-Modul gelieferten physischen Aircon-ID gebildet (Präfix `wfrac:` plus Aircon-ID). Damit erhalten Installationen auf mehreren Smartphones für dieselbe physische Klimaanlage denselben Zuordnungsschlüssel.
+- Bereits vorhandene, nichtleere Sync-Kennungen bleiben aus Rückwärtskompatibilitätsgründen erhalten; bestehende Zuordnungen werden nicht stillschweigend umgestellt.
+- Ohne gekoppeltes WF-RAC-Modul wird keine Kennung erfunden oder erzeugt. Die Synchronisierung wird erst nach dem Pairing für dieses Gerät aktiv.
+- Die Aircon-ID bleibt eine vom Modul gelieferte technische Identität und wird nicht vom Nutzer eingegeben.
+- Hardware- und Mehrgeräte-Synchronisierungstest stehen weiterhin aus.
+
 ## 4. Aktuell vorhandene App-Funktionen
 
 ### Neue Steuerungsbasis 0.4.44

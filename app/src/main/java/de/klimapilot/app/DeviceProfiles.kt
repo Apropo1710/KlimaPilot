@@ -139,13 +139,13 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
                     "Gleiche Kennung auf allen Smartphones eintragen, die dieselbe physische Klimaanlage verwenden. Die Kennung ordnet Profile dem Gerät zu; sie ist kein Zugangsschlüssel.",
                     color = Color(0xFF63748A), fontSize = 11.sp
                 )
-                OutlinedTextField(
-                    value = syncDeviceKey,
-                    onValueChange = { syncDeviceKey = it.trim().take(80) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Gemeinsame Gerätekennung") },
-                    placeholder = { Text("z. B. wohnzimmer-klima") },
-                    singleLine = true
+                Text(
+                    if (wfRacAirconId.isNotBlank()) {
+                        "Die Profil-Synchronisierung verwendet automatisch die vom gekoppelten WLAN-Modul gelieferte Geräte-ID. Auf weiteren Smartphones wird dieselbe Klimaanlage dadurch automatisch erkannt."
+                    } else {
+                        "Nach dem Koppeln des WF-RAC-Moduls wird dessen Geräte-ID automatisch für die Profil-Synchronisierung verwendet. Du musst keine Kennung selbst vergeben."
+                    },
+                    color = Color(0xFF63748A), fontSize = 11.sp
                 )
             }
         },
@@ -155,7 +155,11 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
                 onClick = {
                     onSave(device.copy(
                         model = model.trim(),
-                        syncDeviceKey = syncDeviceKey.trim(),
+                        // Keep an existing legacy sync key; otherwise derive a stable key from
+                        // the physical module identity shared by all installations of this unit.
+                        syncDeviceKey = syncDeviceKey.trim().ifBlank {
+                            wfRacAirconId.trim().takeIf { it.isNotBlank() }?.let { "wfrac:$it" }.orEmpty()
+                        },
                         wfRacHost = wfRacHost.trim(),
                         wfRacAirconId = wfRacAirconId.trim(),
                         demoMode = demoMode
