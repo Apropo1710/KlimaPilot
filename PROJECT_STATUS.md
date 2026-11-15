@@ -25,6 +25,14 @@
 - Klimaprofile sind als nächster Funktionsumfang vorgemerkt, aber noch nicht umgesetzt. Die verfügbaren Profileinstellungen und deren Schreibbarkeit müssen nach Installation mit den realen Mitsubishi-/ioBroker-Datenpunkten festgelegt werden.
 - Der Updater bleibt unverändert und vom Nutzer bestätigt. Frühere Angaben zu Build-SHA `5548607c1689202ba0f5cd4f18b67a56a9077bbb3052a9f6d92a6e53ad23eb08` und `2ed2e26b1eb9d93f27ccbcee0764af16935ed03c46f5acec98b3b8ac9a4afe14` sind überholte Zwischenstände derselben Version 0.4.28.
 
+## Änderung 15.11.2026 – ioBroker-Verbindung für Profil-Synchronisierung
+
+- Einstellungen für ioBroker ergänzt: vorausgefüllte Adresse **192.168.178.54**, Port **8084**, Protokoll **ws://**. IP-Adresse/Hostname, Port und Protokoll sind änderbar.
+- Bestehende Einstellung `iobroker_server` wird beim ersten Öffnen berücksichtigt; beim Speichern wird sie kompatibel mit der neuen Konfiguration aktualisiert.
+- Verbindungstest verwendet die bestehende WebSocket-Authentifizierung und prüft `system.adapter.admin.0.alive`; danach wird die Testverbindung wieder getrennt.
+- Manuelle JSON-Export-/Importfunktion aus der Profilansicht entfernt. Die lokale Profilablage bleibt bestehen.
+- Version **0.4.38 / versionCode 68**. Automatische Profil-Synchronisierung ist damit noch nicht implementiert; dies ist die vorbereitende Verbindungskonfiguration.
+
 # KlimaPilot – Projektstatus
 
 Stand: 31.10.2026, 22:26 Uhr (MEZ)  

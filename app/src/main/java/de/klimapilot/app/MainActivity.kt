@@ -974,6 +974,79 @@ private fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+
+@Composable
+private fun IoBrokerConnectionSettingsCard() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
+    fun initialAddress(): String {
+        val configured = prefs.getString("klimapilot_iobroker_address", null)
+        if (!configured.isNullOrBlank()) return configured
+        val legacy = prefs.getString("iobroker_server", null)?.trim().orEmpty()
+        if (legacy.startsWith("ws://") || legacy.startsWith("wss://")) {
+            return legacy.substringAfter("://").substringBefore("/").substringBefore("?").substringBefore(":")
+        }
+        return "192.168.178.54"
+    }
+    fun initialPort(): String {
+        val configured = prefs.getString("klimapilot_iobroker_port", null)
+        if (!configured.isNullOrBlank()) return configured
+        val legacy = prefs.getString("iobroker_server", null)?.trim().orEmpty()
+        val authority = legacy.substringAfter("://", "")
+        val explicit = authority.substringBefore("/").substringAfterLast(":", "")
+        return explicit.takeIf { it.isNotBlank() } ?: "8084"
+    }
+    fun initialSecure(): Boolean {
+        val saved = prefs.getString("klimapilot_iobroker_protocol", null)
+        if (saved != null) return saved == "wss"
+        return prefs.getString("iobroker_server", null)?.trim()?.startsWith("wss://") == true
+    }
+    var address by remember { mutableStateOf(initialAddress()) }
+    var port by remember { mutableStateOf(initialPort()) }
+    var secure by remember { mutableStateOf(initialSecure()) }
+    var status by remember { mutableStateOf("") }
+    var testing by remember { mutableStateOf(false) }
+    val valid = address.trim().isNotBlank() && !address.contains("://") && !address.contains("/") &&
+        port.toIntOrNull()?.let { it in 1..65535 } == true
+    val url = (if (secure) "wss://" else "ws://") + address.trim() + ":" + port.toIntOrNull().coerceAtLeast(1)
+    Card(shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Diese Verbindung wird für die Synchronisierung deiner Klimaprofile verwendet.", color = Muted, fontSize = 12.sp)
+            OutlinedTextField(value = address, onValueChange = { address = it.trim() }, label = { Text("IP-Adresse oder Hostname") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = port, onValueChange = { port = it.filter(Char::isDigit).take(5) }, label = { Text("Port") }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = port.toIntOrNull()?.let { it !in 1..65535 } ?: true)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = !secure, onClick = { secure = false }, label = { Text("ws://") })
+                FilterChip(selected = secure, onClick = { secure = true }, label = { Text("wss://") })
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    if (!valid) { status = "Bitte IP-Adresse und einen gültigen Port eingeben."; return@OutlinedButton }
+                    prefs.edit().putString("klimapilot_iobroker_address", address.trim())
+                        .putString("klimapilot_iobroker_port", port)
+                        .putString("klimapilot_iobroker_protocol", if (secure) "wss" else "ws")
+                        .putString("iobroker_server", url).apply()
+                    status = "Verbindungseinstellungen gespeichert."
+                }, enabled = valid, modifier = Modifier.weight(1f)) { Text("Speichern") }
+                Button(onClick = {
+                    if (!valid) { status = "Bitte IP-Adresse und einen gültigen Port eingeben."; return@Button }
+                    prefs.edit().putString("klimapilot_iobroker_address", address.trim())
+                        .putString("klimapilot_iobroker_port", port)
+                        .putString("klimapilot_iobroker_protocol", if (secure) "wss" else "ws")
+                        .putString("iobroker_server", url).apply()
+                    testing = true; status = "Verbindung wird geprüft …"
+                    IoBrokerClient.connect(url, subscribeAll = false) { connected, message ->
+                        IoBrokerClient.disconnect()
+                        testing = false
+                        status = if (connected) "Verbindung erfolgreich: $message" else "Verbindung fehlgeschlagen: $message"
+                    }
+                }, enabled = valid && !testing, modifier = Modifier.weight(1f)) { Text(if (testing) "Prüfe …" else "Testen") }
+            }
+            if (status.isNotBlank()) Text(status, color = if (status.contains("fehlgeschlagen") || status.contains("Bitte")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+        }
+    }
+}
+
 @Composable
 private fun SettingsScreen(
     appVersion: String,
@@ -1045,6 +1118,7 @@ private fun SettingsScreen(
             }
         }
         if (isAdmin) {
+            IoBrokerConnectionSettingsCard()
             WfRacConnectionCard(onConnectionChanged = onAirconConnectionChanged)
             OutlinedButton(
                 onClick = onManageRoomsDevices,
