@@ -886,7 +886,7 @@ private fun SettingsScreen(
         Card(shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Schriftgröße", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("Wird in deinem Benutzerkonto gespeichert und auf anderen Geräten übernommen.", color = Muted, fontSize = 12.sp)
+                Text("Wird lokal in deinem Benutzerkonto auf diesem Gerät gespeichert.", color = Muted, fontSize = 12.sp)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     listOf(0.85f to "Klein", 1.0f to "Normal", 1.15f to "Groß", 1.30f to "Sehr groß", 1.50f to "Max.").forEach { (scale, label) ->
                         val selected = kotlin.math.abs(fontScale - scale) < 0.01f
