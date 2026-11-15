@@ -161,3 +161,13 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Bestehende Einstellungsfunktionen und deren Inhalte wurden nicht verändert.
 - App-Version: **0.4.34 / versionCode 64**. Produktionsbuild, APK-Signatur und Release `latest` sind nach dem Commit separat zu prüfen.
 - Klimaprofile sind davon getrennt und noch nicht implementiert. Ihre Synchronisierung muss angesichts der entfernten dauerhaften ioBroker-Verbindung vorab passend zur aktuellen Architektur geplant werden.\n\n
+
+## Änderung 15.11.2026 – Erste lokale Klimaprofil-Verwaltung
+
+- Neue lokale Profilablage in `klimapilot_climate_profiles`, getrennt von Benutzerkonten und Geräteeinstellungen.
+- Profile werden einem konkreten lokalen Gerät zugeordnet und können beliebig angelegt, umbenannt/bearbeitet und gelöscht werden.
+- Jedes Profil speichert nur ausdrücklich ausgewählte Werte: Ein/Aus, Betriebsmodus (Auto/Kühlen/Heizen/Entfeuchten/Lüfter) und Solltemperatur (16–30 °C in 0,5-°C-Schritten). Nicht ausgewählte Felder bleiben null und sind für spätere Anwendung ausdrücklich unverändert zu lassen.
+- Die Werte orientieren sich an den vorhandenen WF-RAC-Protokolltypen. Lüfterstufen und weitere modellabhängige Optionen sind bewusst noch nicht enthalten, weil die UI-Auswahl und die tatsächliche Gerätezuordnung noch nicht am installierten Gerät bestätigt sind.
+- **Wichtige Einschränkung:** Profile können aktuell gespeichert und verwaltet, aber noch nicht angewendet werden. Die App bleibt beim Lesen; Schreibsteuerung, Account-Registrierung und 60-Sekunden-Schreibsperre müssen am realen Modul geprüft werden, bevor Anwenden aktiviert wird.
+- Speicherung ist vorerst lokal auf dem Smartphone. Synchronisierung/Backup zwischen Smartphones ist noch nicht umgesetzt; die frühere ioBroker-Idee wird separat gegen die aktuelle Architektur geprüft.
+- App-Version: **0.4.35 / versionCode 65**. Build- und Release-Ergebnis sind nach dem Commit separat zu verifizieren.
