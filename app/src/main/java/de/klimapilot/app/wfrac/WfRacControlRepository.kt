@@ -194,9 +194,20 @@ class WfRacControlRepository(context: Context) {
     }
 
     fun forget(airconId: String): Boolean {
-        clients.remove(airconId)
-        registered.remove(airconId)
-        unitLocks.remove(airconId)
-        return identities.remove(airconId)
+        // Pairing reset must never detach a mutex that an active command is using.
+        // Keep the per-unit mutex in the map: queued commands then observe the removed
+        // identity after this critical section instead of running against a new lock.
+        val lock = unitLocks.computeIfAbsent(airconId) { Mutex() }
+        if (!lock.tryLock()) return false
+        try {
+            val removed = identities.remove(airconId)
+            if (removed) {
+                clients.remove(airconId)
+                registered.remove(airconId)
+            }
+            return removed
+        } finally {
+            lock.unlock()
+        }
     }
 }
