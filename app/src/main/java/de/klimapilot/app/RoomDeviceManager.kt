@@ -159,7 +159,7 @@ internal fun RoomDeviceManagerScreen(
             Spacer(Modifier.width(6.dp))
             Text("Hinzufügen")
         }
-        Text("Die Einträge werden lokal gespeichert. Die Klimageräte werden direkt über das WF-RAC-WLAN-Modul eingebunden.", fontSize = 12.sp, color = ManagerMuted)
+        Text("Die Einträge werden lokal gespeichert. Die echte ioBroker-Anbindung folgt später.", fontSize = 12.sp, color = ManagerMuted)
     }
 
     if (showAddOptions) {

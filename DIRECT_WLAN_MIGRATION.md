@@ -1,41 +1,56 @@
 # KlimaPilot – Direkte WLAN-Kommunikation
 
-Stand: 15.11.2026
-Produktionsbranch: `main`
-Produktivversion vor diesem Arbeitsschritt: 0.4.31 / versionCode 61
+Stand: 15.11.2026 (MEZ)
+Produktivbasis: `main` nach Release 0.4.29 / versionCode 59
+Entwicklungsbranch: `feature/direct-wf-rac-wlan`
+Basis von `main`: `c2f92a4bd73ad0b59b6cbace713177d6b458353e`
+Produktionsstand auf Basisbranch: 0.4.28 / versionCode 58
+Gemeinsame App-Version: 0.4.29 / versionCode 59 (bestehende Paketkennung und Updater)
 
 ## Ziel
-KlimaPilot kommuniziert direkt und lokal mit Mitsubishi-Heavy-WF-RAC-WLAN-Modulen. Eine dauerhafte ioBroker-Verbindung ist nicht mehr Teil des App-Betriebs. Eine einmalige ioBroker-Leseverbindung bleibt ausschließlich für die Übernahme älterer Benutzerkonten aus `0_userdata.0.KlimaPilot.accounts` erhalten.
+Die bestehende KlimaPilot-App wird schrittweise um direkte lokale Kommunikation mit dem Mitsubishi-Heavy-WF-RAC-Modul ergänzt. `main` bleibt während der Entwicklung unverändert. Die ioBroker-Funktionen bleiben vorerst bestehen.
 
-## Umgesetzte Schritte
-- **0.4.30 / 60:** Manuelle und automatische mDNS-Suche nach `_beaver._tcp`, Port 51443; manuelle IP bleibt als Fallback.
-- **0.4.31 / 61:** Benutzerkonten, Passwort-Hashes und persönliche Schriftgrößen lokal gespeichert. Bei Upgrades erfolgt einmalig ein Import der bisherigen ioBroker-Konten, ohne Gesamtabonnierung. Nach erfolgreicher Übernahme ist ioBroker für Anmeldung und Benutzerverwaltung nicht mehr erforderlich. Das Wolkensymbol zeigt den direkten Klimaanlagen-Verbindungsstatus.
-- **0.4.32 / 62:** Geräteidentität und Transport-Sicherheitsbindung werden dauerhaft pro WF-RAC-Modul gespeichert. Die App verbindet sich nach Neustart automatisch mit der zuletzt bekannten Adresse. Falls diese nicht erreichbar ist, wird lokal per mDNS gesucht und ein gefundenes Modul nur dann übernommen, wenn Identität und gespeicherter Fingerprint übereinstimmen.
+## Erster Entwicklungsschritt
+- Version 0.4.30 / versionCode 60: manuelle und automatische mDNS-Gerätesuche über `_beaver._tcp`; Auswahl eines gefundenen Moduls übernimmt dessen IP-Adresse in das vorhandene Feld.
+- Die mDNS-Suche ist bewusst manuell auslösbar, läuft maximal 10 Sekunden und beendet Discovery sowie Multicast-Lock anschließend. Die manuelle IP-Eingabe bleibt als Rückfallebene erhalten.
+- Keine Änderungen an Updater, ioBroker-Verbindung, Benutzerkonten oder vorhandenen Klimafunktionen.
+- WF-RAC-Protokollkomponenten aus AirLAN in das KlimaPilot-Paket übernommen.
+- Quelle: https://github.com/erdtsieck/airlan
+- Lizenz: MIT; vollständige Lizenz und Herkunftshinweis in `NOTICE-AIRLAN.md`.
+- Enthalten: HTTP/HTTPS-Transport, TLS-Zertifikat-Pinning (Trust-on-first-use), JSON-Request-Writer, Statuscodec, Temperaturtabellen, Request-Queue und Protokolltrace.
+- Erste UI-Diagnosefunktion in den Administratoreinstellungen: manuelle Modul-IP, `getDeviceInfo` und `getAirconStat`, Anzeige von Firmware- und Statusinformationen.
+- Diagnose bleibt zunächst read-only: keine Registrierung eines Operator-Kontos und keine `setAirconStat`-Schreibbefehle.
+- Pro Modul maximal vier Operator-Konten und 60-Sekunden-Schreibsperre anderer Clients beachten.
 
-## Geräteidentität und TLS-Sicherheit
-- Gespeichert werden die vom Modul gelieferte `airconId`, Host/IP, HTTP- oder HTTPS-Verfahren, letzter erfolgreicher Prüfzeitpunkt und – bei HTTPS – der SHA-256-Fingerprint des Serverzertifikats.
-- Beim bekannten Host wird der gespeicherte HTTPS-Pin bereits beim TLS-Handshake geprüft.
-- Bei einer geänderten IP wird zunächst ausschließlich `getDeviceInfo` gelesen. Die zurückgelieferte `airconId`, das Transportverfahren und der beobachtete Zertifikat-Fingerprint werden mit dem gespeicherten Datensatz verglichen.
-- Erst nach erfolgreichem Identitäts- und Fingerprintvergleich wird `getAirconStat` aufgerufen.
-- Ein abweichendes Zertifikat, ein geändertes Transportverfahren, eine andere Geräte-ID an einer bekannten IP oder ein unbekanntes Modul bei bereits vorhandener Vertrauensbindung führen zum Abbruch. Der gespeicherte Fingerprint wird niemals automatisch überschrieben.
-- Bei einem ersten Modul ohne vorhandene Vertrauensbindung wird TOFU (Trust on First Use) verwendet und nach erfolgreichem read-only Statusabruf dauerhaft gespeichert.
-- Die Installationskennung `deviceId` bleibt ebenfalls lokal dauerhaft gespeichert.
-- Die Diagnose bleibt read-only: keine Operator-Registrierung und keine `setAirconStat`-Schreibbefehle.
-
-## ioBroker-Abgrenzung
-- Keine dauerhafte ioBroker-Verbindung, keine Datenpunktabonnements und keine ioBroker-Konfiguration in der Bedienoberfläche.
-- Die alte Adapter-/Datenpunktzuordnung in der Gerätekonfiguration wurde aus der Oberfläche entfernt. Bestehende lokale Raum- und Geräteeinträge bleiben erhalten; ältere Adapterfelder werden nur aus Kompatibilitätsgründen beim Lesen toleriert.
-- Eine spätere optionale Sicherung/Synchronisierung lokaler Profile kann getrennt entworfen werden; sie ist derzeit nicht aktiv.
-
-## Hardware und Grenzen
-- Zielgerät: Mitsubishi Heavy Industries SRK15ZS-WF.
-- WLAN-/MCU-Firmware ist noch auszulesen; die Klimaanlage ist noch nicht für einen Hardwaretest verfügbar.
-- mDNS-Wiedererkennung nach IP-Wechsel und Zertifikat-Pinning müssen nach Installation am echten Modul geprüft werden.
+## Sicherheit und Netzwerk
+- HTTPS-Zertifikat wird beim Erstkontakt per SHA-256-Pinning gebunden; bei späterer Abweichung muss der Zugriff fehlschlagen.
+- HTTP/HTTPS wird anhand der tatsächlichen Modulantwort ermittelt.
+- Manuelle IP-Eingabe bleibt als Fallback verfügbar. Die App kann den Dienst `_beaver._tcp` jetzt per Android-NSD/mDNS suchen und gefundene Modul-IP-Adressen zur Auswahl anbieten. Die Suche läuft nur auf ausdrückliche Betätigung und endet nach 10 Sekunden.
 - WireGuard-Zugriff ist noch nicht praktisch geprüft.
-- Keine Steuerbefehle, bis Firmware, Datenmodell und Schreibverhalten am Gerät verifiziert sind.
+- Es werden keine Cloud-Dienste benötigt.
 
-## Updater
-- Bestehende Application-ID: `de.klimapilot.app`.
-- Bestehender Produktionskanal: Release-Tag `latest`, Asset `KlimaPilot.apk`.
-- Der funktionierende FileProvider-/`ACTION_VIEW`-Installationsablauf bleibt unverändert.
-- Keine separate Test-App und kein zweiter Updatekanal.
+## Noch nicht umgesetzt
+- Persistenz der Geräteidentität und des HTTPS-Pins je Klimaanlage.
+- Steuerbefehle und sichere Operator-Registrierung.
+- UI-Anbindung des echten Gerätestatus an die bisherige Klimaübersicht.
+- Lokale Profile/Datenbank und ioBroker-Backup-Synchronisierung.
+- WireGuard- und Stabilitätstests.
+
+## Gemeinsame App und Updateweg
+- Es gibt nur die bestehende App mit Application-ID `de.klimapilot.app`; keine parallele Test-App und keinen zweiten Updatekanal.
+- Die WLAN-Funktionen werden in dieselbe App integriert, die bereits installiert ist.
+- Der bestehende Updater bleibt unverändert auf dem privaten GitHub-Release-Tag `latest` und dem Asset `KlimaPilot.apk`.
+- Signiert wird mit dem bereits verwendeten stabilen KlimaPilot-Release-Keystore aus den vorhandenen GitHub Actions Secrets. Der Schlüssel liegt nicht im Repository.
+- Der Branch-Workflow baut und prüft einen signierten Release-Kandidaten mit der echten Paketkennung, veröffentlicht ihn aber nicht selbst. Nach Review und Merge in `main` übernimmt der bestehende Produktionsworkflow den normalen Build und aktualisiert `latest`.
+- Die Installationsübergabe bleibt beim bewährten FileProvider-/`ACTION_VIEW`-Ablauf mit APK-MIME-Typ und URI-Berechtigung.
+
+## Hardwaretest
+Zielgerät: Mitsubishi Heavy Industries SRK15ZS-WF. WLAN-/MCU-Firmware noch auszulesen. Beim ersten Test ausschließlich IP eingeben und Status lesen. Keine Operator-Registrierung, keine Steuerbefehle und keine konkurrierenden App-Schreibtests, bis Firmware und Verhalten verifiziert sind.
+
+
+## Konten lokal und ioBroker entkoppeln – Version 0.4.31 / versionCode 61
+- Benutzerkonten, Passwort-Hashes und persönliche Schriftgrößen werden künftig lokal in privaten App-SharedPreferences gespeichert.
+- Bei einem Upgrade ohne lokalen Kontenspeicher versucht die App genau einmalig, die bisherige Kontenliste aus `0_userdata.0.KlimaPilot.accounts` zu übernehmen. Die Migration verwendet die bisher gespeicherte ioBroker-Adresse nur für diesen Import; bei Netzwerkfehlern werden keine alten Daten gelöscht und die Übernahme kann erneut versucht werden.
+- Nach erfolgreicher lokaler Speicherung hängt Anmeldung und Benutzerverwaltung nicht mehr von ioBroker ab. Es wird keine dauerhafte ioBroker-Verbindung mehr aufgebaut und es gibt keine ioBroker-Verbindungsanzeige oder Serverkonfiguration in der App.
+- Das Wolkensymbol auf der Startseite zeigt den zuletzt erfolgreich manuell geprüften direkten WF-RAC-Verbindungsstatus an. Eine automatische Wiederverbindung nach Neustart folgt mit der Geräteidentitäts-Persistenz.
+- Der bestehende APK-Updater bleibt unverändert.

@@ -19,38 +19,22 @@ class WfRacIdentityStore(context: Context) {
 
     fun all(): List<WfRacStoredIdentity> {
         val raw = prefs.getString(KEY_IDENTITIES, null) ?: return emptyList()
-        return try {
+        return runCatching {
             val array = JSONArray(raw)
-            val parsed = (0 until array.length()).map { index ->
-                val item = array.getJSONObject(index)
-                val airconId = item.getString("airconId").takeIf { it.isNotBlank() }
-                    ?: throw SecurityException("Gespeicherte WF-RAC-Geräte-ID ist leer.")
-                val host = item.getString("host").takeIf { it.isNotBlank() }
-                    ?: throw SecurityException("Gespeicherte WF-RAC-Adresse ist leer.")
-                val scheme = Scheme.valueOf(item.getString("scheme"))
-                val pin = (item.opt("certificatePin") as? String)?.takeIf { it.isNotBlank() }
-                if (scheme == Scheme.HTTPS && pin == null) {
-                    throw SecurityException("Für ein gespeichertes HTTPS-Modul fehlt der Zertifikat-Fingerprint.")
-                }
+            (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                val scheme = runCatching { Scheme.valueOf(item.getString("scheme")) }.getOrNull()
+                    ?: return@mapNotNull null
+                val pin = item.opt("certificatePin") as? String
                 WfRacStoredIdentity(
-                    airconId = airconId,
-                    host = host,
+                    airconId = item.getString("airconId"),
+                    host = item.getString("host"),
                     scheme = scheme,
-                    certificatePin = pin,
+                    certificatePin = pin?.takeIf { it.isNotBlank() },
                     lastVerifiedAt = item.optLong("lastVerifiedAt", 0L),
                 )
             }
-            if (parsed.map { it.airconId }.distinct().size != parsed.size ||
-                parsed.map { it.host.lowercase() }.distinct().size != parsed.size) {
-                throw SecurityException("Die gespeicherten WF-RAC-Identitäten sind nicht eindeutig.")
-            }
-            parsed
-        } catch (error: Exception) {
-            throw SecurityException(
-                "Gespeicherte WF-RAC-Vertrauensdaten sind ungültig. Aus Sicherheitsgründen wird kein neues Modul automatisch akzeptiert.",
-                error
-            )
-        }
+        }.getOrDefault(emptyList())
     }
 
     fun findByAirconId(airconId: String): WfRacStoredIdentity? =
