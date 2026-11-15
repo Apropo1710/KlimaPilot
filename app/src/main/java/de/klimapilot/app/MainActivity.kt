@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
@@ -789,6 +790,78 @@ private fun FlowModeSelector(selected: String, options: List<String>, onSelect: 
     }
 }
 
+
+@Composable
+private fun WfRacConnectionCard() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
+    var host by remember { mutableStateOf(prefs.getString("wf_rac_host", "") ?: "") }
+    var busy by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf("Noch nicht getestet") }
+    var details by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    Card(shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Direkte Klimaanlagen-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text("Read-only Verbindungstest zum WF-RAC-Modul. Es werden keine Steuerbefehle gesendet und kein Bedienerkonto registriert.", color = Muted, fontSize = 12.sp)
+            OutlinedTextField(
+                value = host,
+                onValueChange = { host = it },
+                label = { Text("IP-Adresse des WLAN-Moduls") },
+                placeholder = { Text("z. B. 192.168.178.100") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(result, color = if (result.startsWith("Erfolgreich")) Green else Muted, fontSize = 12.sp)
+            if (details.isNotBlank()) Text(details, color = TextMain, fontSize = 12.sp)
+            Button(
+                enabled = !busy && host.trim().isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    val address = host.trim()
+                    prefs.edit().putString("wf_rac_host", address).apply()
+                    busy = true
+                    result = "Verbindung wird geprüft …"
+                    details = ""
+                    scope.launch {
+                        try {
+                            val deviceId = prefs.getString("wf_rac_device_id", null) ?: java.util.UUID.randomUUID().toString().also {
+                                prefs.edit().putString("wf_rac_device_id", it).apply()
+                            }
+                            val client = de.klimapilot.app.wfrac.WfRacClient(address, deviceId)
+                            val airconId = client.getDeviceInfo()
+                            val status = client.getStatus(airconId)
+                            val module = client.trace.module
+                            val state = status.state
+                            result = "Erfolgreich verbunden – nur gelesen"
+                            details = buildString {
+                                append("Aircon-ID: ").append(airconId)
+                                append("\nWLAN-Firmware: ").append(module?.wireless ?: "nicht gemeldet")
+                                append("\nMCU-Firmware: ").append(module?.mcu ?: "nicht gemeldet")
+                                append("\nModultyp: ").append(module?.firmType ?: "nicht gemeldet")
+                                append("\nBelegte Konten: ").append(status.accounts?.toString() ?: "unbekannt").append(" / 4")
+                                append("\nGerätestatus: ").append(if (state.power) "Ein" else "Aus")
+                                append("\nBetriebsmodus: ").append(state.mode?.name ?: "unbekannt")
+                                append("\nSolltemperatur: ").append(state.presetTemp).append(" °C")
+                                append("\nLüfterstufe: ").append(state.airFlow)
+                                append("\nRaumtemperatur: ").append(state.indoorTemp?.let { "$it °C" } ?: "nicht gemeldet")
+                                append("\nAußentemperatur: ").append(state.outdoorTemp?.let { "$it °C" } ?: "nicht gemeldet")
+                                append("\nFehlercode: ").append(state.errorCode ?: "keiner gemeldet")
+                                if (status.lockedForS > 0) append("\nSchreibsperre eines anderen Clients: ").append(status.lockedForS).append(" s")
+                            }
+                        } catch (error: Exception) {
+                            result = "Verbindung fehlgeschlagen"
+                            details = error.message ?: error.javaClass.simpleName
+                        } finally {
+                            busy = false
+                        }
+                    }
+                }
+            ) { Text(if (busy) "Prüfe Verbindung …" else "WLAN-Modul auslesen") }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(
@@ -859,6 +932,7 @@ private fun SettingsScreen(
             }
         }
         if (isAdmin) {
+            WfRacConnectionCard()
             OutlinedButton(
                 onClick = onManageRoomsDevices,
                 modifier = Modifier.fillMaxWidth().height(52.dp),

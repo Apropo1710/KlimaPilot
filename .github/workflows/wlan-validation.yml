@@ -1,0 +1,75 @@
+name: KlimaPilot WLAN Branch Validation
+
+on:
+  push:
+    branches: [ feature/direct-wf-rac-wlan ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: klimapilot-wlan-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quellcode auschecken
+        uses: actions/checkout@v4
+      - name: Java 17 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK einrichten
+        uses: android-actions/setup-android@v4
+      - name: Android SDK Pakete installieren
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Gradle 8.9 einrichten
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Pull Request – Unit-Tests und Debug-Kompilierung
+        if: github.event_name == 'pull_request'
+        run: gradle --no-daemon testDebugUnitTest assembleDebug
+      - name: Release-Keystore bereitstellen
+        if: github.event_name != 'pull_request'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KLIMAPILOT_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "Release-Keystore-Secret fehlt"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/klimapilot-release.jks"
+          chmod 600 "$RUNNER_TEMP/klimapilot-release.jks"
+      - name: Signierte bestehende KlimaPilot-App bauen
+        if: github.event_name != 'pull_request'
+        env:
+          KLIMAPILOT_KEYSTORE_PATH: ${{ runner.temp }}/klimapilot-release.jks
+          KLIMAPILOT_STORE_PASSWORD: ${{ secrets.KLIMAPILOT_STORE_PASSWORD }}
+          KLIMAPILOT_KEY_ALIAS: ${{ secrets.KLIMAPILOT_KEY_ALIAS }}
+          KLIMAPILOT_KEY_PASSWORD: ${{ secrets.KLIMAPILOT_KEY_PASSWORD }}
+        run: gradle --no-daemon testDebugUnitTest assembleRelease
+      - name: Paketkennung, Version und APK-Signatur prüfen
+        if: github.event_name != 'pull_request'
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          APP_ID=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK")
+          VERSION_CODE=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK")
+          VERSION_NAME=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK")
+          test "$APP_ID" = "de.klimapilot.app"
+          test "$VERSION_CODE" = "59"
+          test "$VERSION_NAME" = "0.4.29"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+          sha256sum "$APK"
+      - name: APK als geprüftes Branch-Artefakt hochladen
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: KlimaPilot-release-candidate
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
