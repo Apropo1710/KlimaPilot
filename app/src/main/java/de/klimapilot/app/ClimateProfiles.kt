@@ -179,7 +179,7 @@ internal class ClimateProfileRepository(context: Context) {
 }
 
 @Composable
-internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, devices: List<UserDevice>, onApply: (ClimateProfile) -> Unit) {
+internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, devices: List<UserDevice>, currentState: AirconState? = null, managerMode: Boolean = false, onApply: (ClimateProfile) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(context) { ClimateProfileRepository(context) }
     val syncStore = remember(context) { ClimateProfileSyncStore(context) }
@@ -193,6 +193,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ClimateProfile?>(null) }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
+    var selectedProfileId by remember(deviceId) { mutableStateOf<String?>(null) }
+    var profileMenuExpanded by remember { mutableStateOf(false) }
     LaunchedEffect(repository) {
         runCatching { repository.load() }
             .onSuccess { profiles.clear(); profiles.addAll(it); loadSucceeded = true; loaded = true }
@@ -200,6 +202,19 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     }
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
+    val selectedProfile = deviceProfiles.firstOrNull { it.id == selectedProfileId }
+    LaunchedEffect(selectedProfileId, currentState?.power, currentState?.mode, currentState?.presetTemp, currentState?.airFlow, currentState?.windUD, currentState?.windLR, currentState?.entrust) {
+        val selected = selectedProfile ?: return@LaunchedEffect
+        val state = currentState ?: return@LaunchedEffect
+        val matches = (selected.power == null || selected.power == state.power) &&
+            (selected.mode == null || selected.mode == state.mode.name) &&
+            (selected.targetTemp == null || kotlin.math.abs(selected.targetTemp - state.presetTemp) < 0.01) &&
+            (selected.fanSpeed == null || selected.fanSpeed == state.airFlow) &&
+            (selected.verticalSwing == null || selected.verticalSwing == state.windUD) &&
+            (selected.horizontalSwing == null || selected.horizontalSwing == state.windLR) &&
+            (selected.threeDAuto == null || selected.threeDAuto == state.entrust)
+        if (!matches) selectedProfileId = null
+    }
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
         if (!loaded || !loadSucceeded) return@LaunchedEffect
@@ -234,25 +249,46 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth())
             else if (deviceId.isBlank()) Text("Wähle zuerst eine Klimaanlage aus.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             else {
-                if (deviceProfiles.isEmpty()) {
+                if (!managerMode) {
+                    Box {
+                        Surface(onClick = { profileMenuExpanded = true }, shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(selectedProfile?.let { profileSymbol(it) } ?: "⚙️", fontSize = 19.sp)
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(selectedProfile?.name ?: "Individuell", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    Text(if (selectedProfile == null) "Eigene Einstellungen" else selectedProfile.summary(),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1)
+                                }
+                                Text("⌄", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        DropdownMenu(expanded = profileMenuExpanded, onDismissRequest = { profileMenuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("⚙️  Individuell") },
+                                onClick = { selectedProfileId = null; profileMenuExpanded = false })
+                            deviceProfiles.forEach { profile ->
+                                DropdownMenuItem(text = { Text(profileSymbol(profile) + "  " + profile.name) },
+                                    onClick = { selectedProfileId = profile.id; profileMenuExpanded = false; onApply(profile) })
+                            }
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { creating = true }, enabled = currentState != null) {
+                            Text("＋ Aktuelle Einstellungen speichern", fontSize = 11.sp)
+                        }
+                    }
+                } else if (deviceProfiles.isEmpty()) {
                     Text("Noch keine Profile für dieses Gerät gespeichert.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 } else deviceProfiles.forEach { profile ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
                             Text(profile.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text(profile.summary(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 12.sp)
+                            Text(profile.summary(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
                         }
-                        TextButton(onClick = { onApply(profile) }) { Text("Anwenden") }
                         TextButton(onClick = { editing = profile }) { Text("Bearbeiten") }
                         TextButton(onClick = { deleting = profile }) { Text("Löschen") }
                     }
-                }
-                Button(
-                    onClick = { creating = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
-                ) {
-                    Text("Profil hinzufügen", fontSize = 13.sp)
                 }
             }
             if (status.isNotBlank()) {
@@ -273,7 +309,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     val profileToEdit = editing
     if (creating || profileToEdit != null) {
         ClimateProfileEditorDialog(
-            deviceId = deviceId, profile = profileToEdit,
+            deviceId = deviceId, profile = profileToEdit, initialState = if (creating) currentState else null,
             onDismiss = { creating = false; editing = null },
             onSave = { profile ->
                 runCatching { repository.save(profile) }
@@ -327,28 +363,56 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     }
 }
 
+
+private fun profileSymbol(profile: ClimateProfile): String = when (profile.mode) {
+    "HEAT" -> "☀️"
+    "COOL" -> "❄️"
+    "DRY" -> "💧"
+    "FAN" -> "🌀"
+    "AUTO" -> "🔄"
+    else -> "🌡️"
+}
+
+@Composable
+internal fun ClimateProfileManagerScreen(devices: List<UserDevice>, onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("‹ Zurück") }
+            Text("Klimaprofile verwalten", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            devices.forEach { device ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(device.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    ClimateProfilesSection(deviceId = device.id, syncDeviceKey = device.syncDeviceKey, devices = devices, managerMode = true, onApply = {})
+                }
+            }
+        }
+    }
+}
 @Composable
 private fun ClimateProfileEditorDialog(
     deviceId: String,
     profile: ClimateProfile?,
+    initialState: AirconState? = null,
     onDismiss: () -> Unit,
     onSave: (ClimateProfile) -> Unit
 ) {
     var name by remember(profile?.id) { mutableStateOf(profile?.name.orEmpty()) }
-    var includePower by remember(profile?.id) { mutableStateOf(profile?.power != null || profile == null) }
-    var power by remember(profile?.id) { mutableStateOf(profile?.power ?: true) }
-    var includeMode by remember(profile?.id) { mutableStateOf(profile?.mode != null || profile == null) }
-    var mode by remember(profile?.id) { mutableStateOf(profile?.mode ?: "COOL") }
-    var includeTemp by remember(profile?.id) { mutableStateOf(profile?.targetTemp != null || profile == null) }
-    var tempText by remember(profile?.id) { mutableStateOf(profile?.targetTemp?.toString()?.replace('.', ',') ?: "22,0") }
-    var includeFan by remember(profile?.id) { mutableStateOf(profile?.fanSpeed != null) }
-    var fanSpeed by remember(profile?.id) { mutableIntStateOf(profile?.fanSpeed ?: 0) }
-    var includeVertical by remember(profile?.id) { mutableStateOf(profile?.verticalSwing != null) }
-    var verticalSwing by remember(profile?.id) { mutableIntStateOf(profile?.verticalSwing ?: 0) }
-    var includeHorizontal by remember(profile?.id) { mutableStateOf(profile?.horizontalSwing != null) }
-    var horizontalSwing by remember(profile?.id) { mutableIntStateOf(profile?.horizontalSwing ?: 0) }
-    var include3d by remember(profile?.id) { mutableStateOf(profile?.threeDAuto != null) }
-    var threeDAuto by remember(profile?.id) { mutableStateOf(profile?.threeDAuto ?: true) }
+    var includePower by remember(profile?.id) { mutableStateOf(profile?.power != null || initialState != null) }
+    var power by remember(profile?.id) { mutableStateOf(profile?.power ?: initialState?.power ?: true) }
+    var includeMode by remember(profile?.id) { mutableStateOf(profile?.mode != null || initialState != null) }
+    var mode by remember(profile?.id) { mutableStateOf(profile?.mode ?: initialState?.mode?.name ?: "COOL") }
+    var includeTemp by remember(profile?.id) { mutableStateOf(profile?.targetTemp != null || initialState != null) }
+    var tempText by remember(profile?.id) { mutableStateOf((profile?.targetTemp ?: initialState?.presetTemp)?.toString()?.replace('.', ',') ?: "22,0") }
+    var includeFan by remember(profile?.id) { mutableStateOf(profile?.fanSpeed != null || initialState != null) }
+    var fanSpeed by remember(profile?.id) { mutableIntStateOf(profile?.fanSpeed ?: initialState?.airFlow ?: 0) }
+    var includeVertical by remember(profile?.id) { mutableStateOf(profile?.verticalSwing != null || initialState != null) }
+    var verticalSwing by remember(profile?.id) { mutableIntStateOf(profile?.verticalSwing ?: initialState?.windUD ?: 0) }
+    var includeHorizontal by remember(profile?.id) { mutableStateOf(profile?.horizontalSwing != null || initialState != null) }
+    var horizontalSwing by remember(profile?.id) { mutableIntStateOf(profile?.horizontalSwing ?: initialState?.windLR ?: 0) }
+    var include3d by remember(profile?.id) { mutableStateOf(profile?.threeDAuto != null || initialState != null) }
+    var threeDAuto by remember(profile?.id) { mutableStateOf(profile?.threeDAuto ?: initialState?.entrust ?: false) }
 
     val temp = tempText.trim().replace(',', '.').toDoubleOrNull()
     val tempValid = !includeTemp || (temp != null && temp.isFinite() && temp in 16.0..30.0 &&
@@ -368,7 +432,7 @@ private fun ClimateProfileEditorDialog(
                 OutlinedTextField(name, { name = it }, label = { Text("Profilname") },
                     placeholder = { Text("z. B. Nachtmodus") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 HorizontalDivider()
-                Text("Welche Einstellungen gehören in dieses Profil?", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(if (profile == null) "Die aktuellen Einstellungen werden übernommen. Du kannst nur den Namen festlegen oder Werte bei Bedarf anpassen." else "Gespeicherte Einstellungen", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(includePower, { includePower = it }); Text("Ein-/Aus-Zustand")
                 }

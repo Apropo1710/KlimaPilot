@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -104,6 +105,7 @@ private fun KlimaPilotApp(appVersion: String) {
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
     var showSettings by remember { mutableStateOf(false) }
     var showManager by remember { mutableStateOf(false) }
+    var showProfileManager by remember { mutableStateOf(false) }
     var showAccountSettings by remember { mutableStateOf(false) }
     var currentAccount by remember { mutableStateOf<KlimaPilotAccount?>(null) }
     var accountAuthenticated by remember { mutableStateOf(false) }
@@ -174,11 +176,11 @@ private fun KlimaPilotApp(appVersion: String) {
     var controlStatus by remember(selectedDevice?.id) { mutableStateOf("") }
     val controlScope = rememberCoroutineScope()
     val accountRepository = remember(context) { KlimaPilotAccountRepository(context) }
-    LaunchedEffect(selectedDevice?.id, selectedDevice?.wfRacAirconId, selectedDevice?.demoMode, showSettings, showManager, showAccountSettings) {
+    LaunchedEffect(selectedDevice?.id, selectedDevice?.wfRacAirconId, selectedDevice?.demoMode, showSettings, showManager, showProfileManager, showAccountSettings) {
         currentAirconState = null
         airconConnected = false
         controlStatus = ""
-        if (showSettings || showManager || showAccountSettings) return@LaunchedEffect
+        if (showSettings || showManager || showProfileManager || showAccountSettings) return@LaunchedEffect
         val device = selectedDevice ?: return@LaunchedEffect
         if (!device.demoMode && device.wfRacAirconId.isBlank()) return@LaunchedEffect
         while (true) {
@@ -416,9 +418,10 @@ private fun KlimaPilotApp(appVersion: String) {
     LaunchedEffect(Unit) { loadAccounts() }
 
     BackHandler(enabled = !accountAuthenticated) { }
-    BackHandler(enabled = accountAuthenticated && (showSettings || showManager || showAccountSettings)) {
+    BackHandler(enabled = accountAuthenticated && (showSettings || showManager || showProfileManager || showAccountSettings)) {
         when {
             showManager -> { showManager = false; showSettings = true }
+            showProfileManager -> { showProfileManager = false; showSettings = true }
             showAccountSettings -> { showAccountSettings = false; showSettings = true }
             else -> showSettings = false
         }
@@ -452,6 +455,8 @@ private fun KlimaPilotApp(appVersion: String) {
                 if (selectedRoom == removed) selectedRoom = rooms.firstOrNull() ?: "Wohnzimmer"
             }
         ) { showManager = false; showSettings = true }
+    } else if (showProfileManager && currentAccount?.role == KlimaPilotAccount.ADMIN) {
+        ClimateProfileManagerScreen(devices = devices) { showProfileManager = false; showSettings = true }
     } else if (showAccountSettings) {
         KlimaPilotAccountSettingsScreen(
             account = currentAccount!!,
@@ -480,6 +485,7 @@ private fun KlimaPilotApp(appVersion: String) {
             onAirconConnectionChanged = { airconConnected = it },
             onAccountSettings = { showAccountSettings = true; showSettings = false },
             onManageRoomsDevices = { showManager = true; showSettings = false },
+            onManageProfiles = { showProfileManager = true; showSettings = false },
             fontScale = currentAccount!!.fontScale,
             onFontScale = { updateAccountFontScale(it) },
             onBack = { showSettings = false }
@@ -712,6 +718,7 @@ private fun MainScreen(
             deviceId = selectedDeviceId,
             syncDeviceKey = selectedDeviceSyncKey,
             devices = allDevices,
+            currentState = airconState,
             onApply = onApplyProfile
         )
 
@@ -815,7 +822,13 @@ private fun TemperatureCard(
             Box(Modifier.size(8.dp).clip(CircleShape).background(if (connected) Green else Muted))
             Text(
                 "${deviceName.uppercase()} · ${if (state == null) "NICHT VERBUNDEN" else if (state.power) "EINGESCHALTET" else "AUSGESCHALTET"}",
-                color = if (connected) Green else Muted,
+                color = if (!connected || state == null || !state.power) Muted else when (state.mode) {
+                    Mode.HEAT -> Color(0xFFD84343)
+                    Mode.COOL -> Color(0xFF1976D2)
+                    Mode.DRY -> Color(0xFF008B8B)
+                    Mode.FAN -> Color(0xFF388E7D)
+                    Mode.AUTO -> Color(0xFFB7791F)
+                },
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.8.sp,
@@ -834,7 +847,7 @@ private fun TemperatureCard(
             Box(Modifier.width(1.dp).height(48.dp).background(PanelRaised))
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("SOLL", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
-                Text(state?.let { String.format(Locale.GERMANY, "%.1f°", it.presetTemp) } ?: "—", color = TextMain, fontSize = 36.sp, fontWeight = FontWeight.Light)
+                Text(if (state == null) "—" else String.format(Locale.GERMANY, "%.1f°", draftTemp), color = TextMain, fontSize = 36.sp, fontWeight = FontWeight.Light)
             }
         }
         Button(
@@ -846,8 +859,8 @@ private fun TemperatureCard(
         Text("Solltemperatur", color = Muted, fontSize = 13.sp)
         Slider(
             value = draftTemp,
-            onValueChange = { draftTemp = it },
-            onValueChangeFinished = { onTargetTemp((draftTemp * 2f).toInt() / 2f) },
+            onValueChange = { value -> draftTemp = (value * 2f).roundToInt() / 2f },
+            onValueChangeFinished = { onTargetTemp(draftTemp) },
             valueRange = 16f..30f,
             steps = 27,
             enabled = state != null && !busy,
@@ -1115,6 +1128,7 @@ private fun SettingsScreen(
     account: KlimaPilotAccount,
     onAccountSettings: () -> Unit,
     onManageRoomsDevices: () -> Unit,
+    onManageProfiles: () -> Unit,
     fontScale: Float,
     onFontScale: (Float) -> Unit,
     onBack: () -> Unit
@@ -1167,6 +1181,13 @@ private fun SettingsScreen(
                 Icon(Icons.Default.Tune, contentDescription = null)
                 Spacer(Modifier.width(9.dp))
                 Text("Räume & Geräte verwalten", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        if (isAdmin) {
+            OutlinedButton(onClick = onManageProfiles, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) {
+                Icon(Icons.Default.Tune, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Klimaprofile verwalten")
             }
         }
         Card(shape = RoundedCornerShape(18.dp)) {

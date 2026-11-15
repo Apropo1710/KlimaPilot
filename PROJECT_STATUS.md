@@ -56,6 +56,14 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - GitHub Actions: Run **#170** war der erfolgreiche Build dieser Zwischenversion; der aktuelle Produktionsbuild ist Run **#173** (siehe Produktionsstatus oben).
 - Kein Praxistest der Synchronisierung mit zwei Smartphones oder realem ioBroker durchgeführt. Dieser bleibt ausdrücklich offen.
 
+## Änderung 15.11.2026 – Profile als kompakte Auswahl und direkte Zustandsübernahme (0.4.47)
+
+- Auf der Startseite wird nur das aktuell gewählte Profil angezeigt. Antippen öffnet eine Dropdown-Auswahl mit allen Profilen und „Individuell“.
+- Ändert sich ein gespeicherter Profilwert durch manuelle Bedienung, wechselt die Anzeige automatisch auf „Individuell“. Die Auswahl bleibt nur aktiv, solange die gespeicherten Profilwerte zum Gerätezustand passen.
+- Neue Profile werden mit den aktuellen Geräteeinstellungen vorausgefüllt; der Nutzer muss nur den Namen festlegen. Werte können im Editor bei Bedarf angepasst werden.
+- In den Einstellungen gibt es einen eigenen Bereich zum Bearbeiten, Umbenennen und Löschen der Profile.
+- Die Solltemperatur-Anzeige folgt der Sliderbewegung live; der Steuerbefehl wird weiterhin erst beim Loslassen gesendet. Die Statusfarbe folgt dem Betriebsmodus (Heizen rot, Kühlen blau, Entfeuchten türkis, Lüfter grünlich, Automatik amber).
+
 ## Änderung 15.11.2026 – Navigation und kompaktere Einstellungen (0.4.46)
 
 - Die Kopfzeile „Räume & Geräte“ bleibt beim Scrollen fixiert.
