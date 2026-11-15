@@ -172,6 +172,15 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Speicherung ist vorerst lokal auf dem Smartphone. Synchronisierung/Backup zwischen Smartphones ist noch nicht umgesetzt; die frühere ioBroker-Idee wird separat gegen die aktuelle Architektur geprüft.
 - App-Version: **0.4.35 / versionCode 65**. Build- und Release-Ergebnis sind nach dem Commit separat zu verifizieren.\n\n
 
+## Änderung 15.11.2026 – Lokaler Export und Import von Klimaprofilen
+
+- Klimaprofile des aktuell ausgewählten Geräts können als JSON-Datei exportiert und über die Android-Dateiauswahl importiert werden.
+- Beim Import werden alle Profile der Datei dem aktuell ausgewählten lokalen Gerät zugeordnet. Das ist erforderlich, weil lokale Geräte-IDs auf unterschiedlichen Smartphones nicht stabil übereinstimmen.
+- Der Import validiert Formatversion, Profil-IDs, Namen, Betriebsmodus, Temperatur und alle Wertebereiche vollständig, bevor Daten gespeichert werden. Beschädigte, unbekannte oder übergroße Dateien werden abgelehnt.
+- Zusammenführung statt blindem Überschreiben: neue Profil-IDs werden ergänzt; bestehende IDs werden nur bei neuerem Zeitstempel ersetzt. Nicht enthaltene Profile werden nicht gelöscht. Löschungen werden daher nicht zwischen Smartphones synchronisiert.
+- Es gibt keinen Cloudserver und keine zusätzliche dauerhafte ioBroker-Verbindung. Die Funktion ist ein manueller Datei-Transfer/Backup, keine automatische Synchronisierung.
+- App-Version: **0.4.37 / versionCode 67**. Build, Signatur und Release sind separat zu prüfen.
+
 ## Änderung 15.11.2026 – Erweiterte Klimaprofil-Einstellungen
 
 - Klimaprofile speichern zusätzlich Lüftergeschwindigkeit (Auto/Leise/Stufe 1–3), vertikale Luftführung, horizontale Luftführung und 3D-Automatik.

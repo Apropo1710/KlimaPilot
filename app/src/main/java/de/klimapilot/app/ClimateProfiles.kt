@@ -112,6 +112,88 @@ internal class ClimateProfileRepository(context: Context) {
         write(next)
     }
 
+    /** Exportiert ausschließlich Profile des aktuell ausgewählten Geräts. */
+    @Synchronized
+    fun exportJson(deviceId: String): String {
+        require(deviceId.isNotBlank()) { "Kein Zielgerät ausgewählt." }
+        val selected = load().filter { it.deviceId == deviceId }
+        require(selected.isNotEmpty()) { "Für dieses Gerät gibt es keine Profile zum Exportieren." }
+        val profilesJson = JSONArray().apply {
+            selected.forEach { item ->
+                put(JSONObject()
+                    .put("id", item.id).put("deviceId", item.deviceId).put("name", item.name)
+                    .put("power", item.power ?: JSONObject.NULL)
+                    .put("mode", item.mode ?: JSONObject.NULL)
+                    .put("targetTemp", item.targetTemp ?: JSONObject.NULL)
+                    .put("fanSpeed", item.fanSpeed ?: JSONObject.NULL)
+                    .put("verticalSwing", item.verticalSwing ?: JSONObject.NULL)
+                    .put("horizontalSwing", item.horizontalSwing ?: JSONObject.NULL)
+                    .put("threeDAuto", item.threeDAuto ?: JSONObject.NULL)
+                    .put("updatedAt", item.updatedAt))
+            }
+        }
+        return JSONObject()
+            .put("format", TRANSFER_FORMAT)
+            .put("formatVersion", TRANSFER_VERSION)
+            .put("exportedAt", System.currentTimeMillis())
+            .put("profiles", profilesJson)
+            .toString(2)
+    }
+
+    /** Validiert die komplette Datei vor dem Schreiben und ordnet alle Profile dem gewählten lokalen Gerät zu. */
+    @Synchronized
+    fun importJson(raw: String, targetDeviceId: String): List<ClimateProfile> {
+        require(targetDeviceId.isNotBlank()) { "Bitte zuerst ein Zielgerät auswählen." }
+        require(raw.length <= MAX_TRANSFER_CHARS) { "Die Profildatei ist ungewöhnlich groß und wurde abgelehnt." }
+        val root = JSONObject(raw)
+        require(root.optString("format") == TRANSFER_FORMAT) { "Die Datei ist keine KlimaPilot-Profildatei." }
+        require(root.optInt("formatVersion", -1) == TRANSFER_VERSION) { "Diese Version der Profildatei wird nicht unterstützt." }
+        val array = root.optJSONArray("profiles") ?: throw IllegalArgumentException("Die Profildatei enthält keine Profile.")
+        require(array.length() in 1..MAX_TRANSFER_PROFILES) { "Die Anzahl der Profile ist ungültig." }
+        val imported = (0 until array.length()).map { index ->
+            val item = array.optJSONObject(index) ?: throw IllegalArgumentException("Ein importiertes Profil ist ungültig.")
+            val id = item.optString("id").takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Ein Profil hat keine ID.")
+            require(item.optString("deviceId").isNotBlank()) { "Ein Profil hat keine Gerätezuordnung." }
+            val name = item.optString("name").trim().takeIf { it.isNotBlank() && it.length <= 60 }
+                ?: throw IllegalArgumentException("Ein Profilname ist leer oder zu lang.")
+            val mode = if (!item.has("mode") || item.isNull("mode")) null else item.getString("mode").also {
+                require(it in SUPPORTED_MODES) { "Ein Profil enthält einen unbekannten Betriebsmodus." }
+            }
+            val temp = if (!item.has("targetTemp") || item.isNull("targetTemp")) null else item.getDouble("targetTemp").also {
+                require(it.isFinite() && it in 16.0..30.0 && abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001) { "Ein Profil enthält eine ungültige Solltemperatur." }
+            }
+            fun indexValue(key: String, max: Int): Int? = if (!item.has(key) || item.isNull(key)) null else item.getInt(key).also {
+                require(it in 0..max) { "Ein Profil enthält eine ungültige Einstellung ($key)." }
+            }
+            ClimateProfile(
+                id = id, deviceId = targetDeviceId, name = name,
+                power = if (!item.has("power") || item.isNull("power")) null else item.getBoolean("power"),
+                mode = mode, targetTemp = temp,
+                fanSpeed = indexValue("fanSpeed", 4),
+                verticalSwing = indexValue("verticalSwing", 4),
+                horizontalSwing = indexValue("horizontalSwing", 7),
+                threeDAuto = if (!item.has("threeDAuto") || item.isNull("threeDAuto")) null else item.getBoolean("threeDAuto"),
+                updatedAt = item.optLong("updatedAt", 0L).also { require(it >= 0L) }
+            ).also { profile ->
+                require(profile.power != null || profile.mode != null || profile.targetTemp != null || profile.fanSpeed != null ||
+                    profile.verticalSwing != null || profile.horizontalSwing != null || profile.threeDAuto != null) {
+                    "Ein importiertes Profil enthält keine Einstellungen."
+                }
+            }
+        }
+        require(imported.map { it.id }.distinct().size == imported.size) { "Die Profildatei enthält doppelte Profil-IDs." }
+        val merged = load().toMutableList()
+        imported.forEach { incoming ->
+            val existingIndex = merged.indexOfFirst { it.id == incoming.id }
+            if (existingIndex < 0) merged.add(incoming)
+            else if (merged[existingIndex].deviceId == targetDeviceId && incoming.updatedAt > merged[existingIndex].updatedAt) {
+                merged[existingIndex] = incoming
+            }
+        }
+        write(merged)
+        return merged
+    }
+
     @Synchronized
     fun delete(profileId: String) {
         write(load().filterNot { it.id == profileId })
@@ -140,6 +222,10 @@ internal class ClimateProfileRepository(context: Context) {
     companion object {
         private const val KEY_PROFILES = "climate_profiles_v1"
         private const val SCHEMA_VERSION = 2
+        private const val TRANSFER_FORMAT = "klimapilot-climate-profiles"
+        private const val TRANSFER_VERSION = 1
+        private const val MAX_TRANSFER_PROFILES = 200
+        private const val MAX_TRANSFER_CHARS = 512 * 1024
         private val SUPPORTED_MODES = setOf("AUTO", "COOL", "HEAT", "DRY", "FAN")
     }
 }
@@ -154,6 +240,28 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String) {
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ClimateProfile?>(null) }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
+    var transferStatus by remember { mutableStateOf("") }
+    val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) runCatching {
+            val json = repository.exportJson(deviceId)
+            val stream = context.contentResolver.openOutputStream(uri) ?: error("Die Zieldatei konnte nicht geöffnet werden.")
+            stream.bufferedWriter(Charsets.UTF_8).use { it.write(json) }
+        }.onSuccess { transferStatus = "Profile wurden exportiert." }
+            .onFailure { transferStatus = it.message ?: "Export fehlgeschlagen." }
+    }
+    val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) runCatching {
+            val stream = context.contentResolver.openInputStream(uri) ?: error("Die ausgewählte Datei konnte nicht geöffnet werden.")
+            val json = stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            repository.importJson(json, deviceId)
+        }.onSuccess { merged ->
+            profiles.clear(); profiles.addAll(merged); transferStatus = "Import abgeschlossen. Vorhandene Profile wurden zusammengeführt; nichts wurde durch fehlende Einträge gelöscht."
+        }.onFailure { transferStatus = it.message ?: "Import fehlgeschlagen." }
+    }
 
     LaunchedEffect(repository) {
         runCatching { repository.load() }
@@ -189,6 +297,21 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String) {
                 Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Neues Klimaprofil erstellen")
                 }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { exportLauncher.launch("KlimaPilot-Profile.json") },
+                        enabled = deviceProfiles.isNotEmpty(), modifier = Modifier.weight(1f)
+                    ) { Text("Exportieren") }
+                    OutlinedButton(
+                        onClick = { importLauncher.launch(arrayOf("application/json", "text/json")) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Importieren") }
+                }
+                Text(
+                    "Beim Import werden alle Datei-Profile diesem Gerät zugeordnet. Gleiche Profil-IDs werden nur durch einen neueren Stand ersetzt; fehlende Profile werden nicht gelöscht.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 15.sp
+                )
+                if (transferStatus.isNotBlank()) Text(transferStatus, color = if (transferStatus.contains("fehlgeschlagen") || transferStatus.contains("ungültig") || transferStatus.contains("abgelehnt")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 Text(
                     "Die Profile werden lokal auf diesem Smartphone gespeichert. Anwenden wird erst nach Prüfung und Freigabe der Schreibsteuerung aktiviert.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 15.sp
