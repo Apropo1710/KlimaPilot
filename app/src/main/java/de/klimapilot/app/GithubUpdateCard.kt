@@ -5,12 +5,10 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -27,7 +25,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -93,7 +90,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                 Text("GitHub-Code: $code", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Gib diesen Code auf der geöffneten GitHub-Seite ein und bestätige den Zugriff.", style = MaterialTheme.typography.bodySmall)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 if (!connected) {
                     Button(enabled = !busy, onClick = {
                         scope.launch {
@@ -125,7 +122,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                 if (newerVersion != null && assetId != null) {
                     Button(
                         enabled = !busy,
-                        modifier = Modifier.widthIn(min = 116.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                         onClick = {
                             scope.launch {
@@ -155,7 +152,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                                 }
                             }
                         }
-                    ) { Text("Update laden", maxLines = 1, softWrap = false, overflow = TextOverflow.Clip) }
+                    ) { Text("Update laden", maxLines = 2, softWrap = true) }
                 }
             }
             if (busy) {

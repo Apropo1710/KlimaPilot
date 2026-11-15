@@ -706,6 +706,11 @@ private fun MainScreen(
             }
         }
 
+        ClimateProfilesSection(
+            deviceId = selectedDeviceId,
+            deviceName = selectedDeviceName
+        )
+
         AnimatedContent(
             targetState = selectedDeviceId,
             transitionSpec = {
@@ -733,11 +738,6 @@ private fun MainScreen(
                 Text("Bedienung und Messwerte werden nach der direkten Modul-Anbindung aktiviert.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
             }
         }
-
-        ClimateProfilesSection(
-            deviceId = selectedDeviceId,
-            deviceName = selectedDeviceName
-        )
 
         Spacer(Modifier.height(20.dp))
     }
@@ -843,7 +843,7 @@ private fun FlowModeSelector(selected: String, options: List<String>, onSelect: 
 
 
 @Composable
-private fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
+internal fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
     val discovery = remember(context) { de.klimapilot.app.wfrac.WfRacDiscovery(context) }
@@ -1119,7 +1119,6 @@ private fun SettingsScreen(
         }
         if (isAdmin) {
             IoBrokerConnectionSettingsCard()
-            WfRacConnectionCard(onConnectionChanged = onAirconConnectionChanged)
             OutlinedButton(
                 onClick = onManageRoomsDevices,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
