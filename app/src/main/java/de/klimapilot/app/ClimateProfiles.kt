@@ -194,6 +194,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var editing by remember { mutableStateOf<ClimateProfile?>(null) }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
     var selectedProfileId by remember(deviceId) { mutableStateOf<String?>(null) }
+    var selectedProfileConfirmed by remember(deviceId) { mutableStateOf(false) }
     var profileMenuExpanded by remember { mutableStateOf(false) }
     LaunchedEffect(repository) {
         runCatching { repository.load() }
@@ -213,7 +214,11 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             (selected.verticalSwing == null || selected.verticalSwing == state.windUD) &&
             (selected.horizontalSwing == null || selected.horizontalSwing == state.windLR) &&
             (selected.threeDAuto == null || selected.threeDAuto == state.entrust)
-        if (!matches) selectedProfileId = null
+        if (matches) selectedProfileConfirmed = true
+        else if (selectedProfileConfirmed) {
+            selectedProfileId = null
+            selectedProfileConfirmed = false
+        }
     }
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
@@ -266,10 +271,10 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         }
                         DropdownMenu(expanded = profileMenuExpanded, onDismissRequest = { profileMenuExpanded = false }) {
                             DropdownMenuItem(text = { Text("⚙️  Individuell") },
-                                onClick = { selectedProfileId = null; profileMenuExpanded = false })
+                                onClick = { selectedProfileId = null; selectedProfileConfirmed = false; profileMenuExpanded = false })
                             deviceProfiles.forEach { profile ->
                                 DropdownMenuItem(text = { Text(profileSymbol(profile) + "  " + profile.name) },
-                                    onClick = { selectedProfileId = profile.id; profileMenuExpanded = false; onApply(profile) })
+                                    onClick = { selectedProfileId = profile.id; selectedProfileConfirmed = false; profileMenuExpanded = false; onApply(profile) })
                             }
                         }
                     }
