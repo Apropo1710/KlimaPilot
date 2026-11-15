@@ -17,7 +17,7 @@
 
 # KlimaPilot – Projektstatus und technische Dokumentation
 
-**Dokumentationsstand:** 15.11.2026, 16:40 Uhr MEZ  
+**Dokumentationsstand:** 15.11.2026, 17:00 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`
 
@@ -25,8 +25,8 @@
 
 - Vor der Dokumentationskorrektur geprüfter `main`-Head: `7d6935712137bc3ddef58820292882fb9b893eba`.
 - Dokumentationskorrektur: Commit `c947416add05e134c63c367298e0556db462b950` (15.11.2026, 16:40 Uhr MEZ).
-- Letzter App-Code-/APK-Quellcommit: `853611dc4478f687d024f03b336ee2782f01c68a`.
-- Produktionsversion: **0.4.42 / versionCode 72**.
+- Letzter erfolgreich veröffentlichter APK-Quellcommit: `c947416add05e134c63c367298e0556db462b950` (Version **0.4.42 / versionCode 72**).
+- Aktueller App-Code-Stand auf `main`: `bb7d4e764d71b87803feaba404843b9113e61b49`, vorgesehen als **0.4.43 / versionCode 73**; Produktionsbuild und Veröffentlichung sind noch nicht abgeschlossen.
 - Der automatisch gepflegte Nachweis oben dokumentiert den letzten erfolgreichen APK-Build, die Signaturprüfung und die Aktualisierung des Releases `latest`.
 - Ein Dokumentationscommit verändert weder App-Version noch APK. Versionsnummer und versionCode werden nur bei App-Code-Änderungen erhöht.
 
@@ -42,7 +42,17 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - SENEC/`energyfluss` wird nicht als Datenquelle eingeplant.
 - Keine Zugangsdaten, Tokens, Keystore-Passwörter oder privaten Schlüssel dokumentieren.
 
-## 3. Aktuell vorhandene App-Funktionen
+## 3. Änderung 15.11.2026 – Profil-Synchronisierung und kompaktere Oberfläche
+
+- Beim Löschen eines Profils wird zuerst die lokale Löschung dauerhaft gespeichert. Erst danach wird das Löschereignis in der Synchronisierungs-Outbox vorgemerkt. Damit kann ein fehlgeschlagenes lokales Löschen nicht mehr versehentlich eine Löschung auf anderen Smartphones auslösen.
+- Die Profilansicht startet keinen zusätzlichen Synchronisierungslauf mehr allein deshalb, weil sich die Anzahl der Profile durch einen empfangenen Remote-Stand geändert hat. Der Abgleich läuft beim Öffnen, nach lokalen Änderungen und weiterhin im 60-Sekunden-Rhythmus.
+- Die Klimaprofil-Kachel wurde kompakter gestaltet; die Geräte-Unterzeile entfällt. Erfolgs- und Fehlermeldungen werden farblich unterschieden.
+- Der Downloadknopf „Update laden“ erhält eine feste Mindesthöhe und nutzt die volle verfügbare Kartenbreite, damit seine Beschriftung nicht abgeschnitten wird.
+- Aktueller Quellstand: `bb7d4e764d71b87803feaba404843b9113e61b49`. App-Version vorgesehen: **0.4.43 / versionCode 73**.
+- GitHub Actions: Run **#166** (Zwischenstand vor dem Versionssprung) war beim Dokumentationsupdate noch in Bearbeitung; Run **#170** für den aktuellen Quellstand war vorgemerkt. Der Build, die APK-Signatur und das Release `latest` sind daher noch nicht als erfolgreich bestätigt.
+- Kein Praxistest der Synchronisierung mit zwei Smartphones oder realem ioBroker durchgeführt. Dieser bleibt ausdrücklich offen.
+
+## 4. Aktuell vorhandene App-Funktionen
 
 ### Benutzerkonten und Einstellungen
 - KlimaPilot besitzt ein verpflichtendes Benutzerkonto-/Anmeldemodell mit den Rollen `admin` und `user`.
