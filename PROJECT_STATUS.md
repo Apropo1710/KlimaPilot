@@ -17,18 +17,18 @@
 
 # KlimaPilot – Projektstatus und technische Dokumentation
 
-**Dokumentationsstand:** 15.11.2026, 17:56 Uhr MEZ  
+**Dokumentationsstand:** 15.11.2026, 22:16 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`
 
 ## 1. Maßgeblicher Stand
 
-- Aktuelle Produktionsversion: **0.4.44 / versionCode 74**.
-- App-Code- und APK-Quellcommit auf `main`: `dfa9e4bb7a32cfc2c53fdeb158cd82ab37fa3fd0`.
-- GitHub-Actions-Run **#173** wurde am 15.11.2026 um 17:56:36 Uhr MEZ mit `success` abgeschlossen.
+- Aktuelle Produktionsversion: **0.4.50 / versionCode 80**.
+- App-Code- und APK-Quellcommit auf `main`: `ae00c5dc093113a9b090ec34b8cf682c545bcd0c`.
+- GitHub-Actions-Run **#186** wurde am 15.11.2026 um 22:15 Uhr MEZ mit `success` abgeschlossen.
 - Release-APK-Build, APK-Benennung, Signaturprüfung, Produktionsstatus-Aktualisierung, Git-Tag `latest` und Veröffentlichung waren erfolgreich.
 - Das Release `latest` enthält `KlimaPilot.apk`; der Git-Tag `latest` zeigt auf denselben Quellcommit.
-- APK-SHA-256: `9969baaf50266da4ef6ad27cd5bab2ee7a82ae335b67ee1b128ebcd6a3c38c45`.
+- APK-SHA-256: `338e542f934c260221aeefced14a8a0ff9a4de9f8dd9339017bad14a6252bbaf`.
 - Der automatisch gepflegte Nachweis oben ist die maßgebliche Quelle für Buildzeit, Version, Signatur und Release.
 - Ein Dokumentationscommit verändert weder App-Version noch APK. Versionsnummer und versionCode werden nur bei App-Code-Änderungen erhöht.
 
@@ -45,6 +45,17 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - Der Adapter `mhi-wfrac` ist für die direkte lokale Steuerung nicht erforderlich. Die konkrete Anlage und Firmware sind noch nicht installiert und daher noch nicht hardwareseitig geprüft.
 - SENEC/`energyfluss` wird nicht als Datenquelle eingeplant.
 - Keine Zugangsdaten, Tokens, Keystore-Passwörter oder privaten Schlüssel dokumentieren.
+
+## Änderung 15.11.2026 – Schutz der lokalen Konten-Registry vor Datenverlust (0.4.50)
+
+- `KlimaPilotAccountRepository.load()` unterscheidet jetzt ausdrücklich zwischen einer tatsächlich fehlenden Registry, einer gültig geladenen Registry und vorhandenen, aber ungültigen/beschädigten Daten.
+- Vorhandene beschädigte Rohdaten werden unter einem inhaltsabhängigen internen Backup-Schlüssel gesichert. Die lokale Registry wird weder als leer interpretiert noch automatisch durch eine ioBroker-Altlast ersetzt.
+- Die Ersteinrichtung und einmalige ioBroker-Migration sind ausschließlich bei tatsächlich fehlendem lokalem Registry-Schlüssel möglich.
+- `saveInitial()` verweigert ein Überschreiben, sobald der lokale Schlüssel bereits existiert. Reguläre Speicherungen prüfen den aktuellen Registry-Zustand und verweigern Änderungen bei fehlenden oder beschädigten Daten.
+- Die Anmeldeansicht zeigt bei beschädigten Daten eine verständliche Fehlermeldung und lässt die Kontenliste gesperrt, statt eine neue Ersteinrichtung anzubieten.
+- GitHub Actions Run **#186**: Build erfolgreich; APK-Signaturprüfung, Tag `latest` und Release-Veröffentlichung erfolgreich. APK-SHA-256 siehe automatisch gepflegten Produktionsstatus oben.
+- Keine Hardwareprüfung erforderlich; ein gezielter Laufzeittest mit absichtlich beschädigtem SharedPreferences-Inhalt steht noch aus.
+- Der Updater wurde nicht geändert.
 
 ## 3. Änderung 15.11.2026 – Profil-Synchronisierung und kompaktere Oberfläche (0.4.43)
 
@@ -113,7 +124,7 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 
 ### Benutzerkonten und Einstellungen
 - KlimaPilot besitzt ein verpflichtendes Benutzerkonto-/Anmeldemodell mit den Rollen `admin` und `user`.
-- Kontodaten werden lokal gespeichert; Passwörter werden als PBKDF2-HMAC-SHA256-Hashes mit individuellen Salts gespeichert. Bei einem Upgrade können ältere Konten einmalig aus `0_userdata.0.KlimaPilot.accounts` übernommen werden.
+- Kontodaten werden lokal gespeichert; Passwörter werden als PBKDF2-HMAC-SHA256-Hashes mit individuellen Salts gespeichert. Bei einem Upgrade können ältere Konten einmalig aus `0_userdata.0.KlimaPilot.accounts` übernommen werden. Eine fehlende lokale Registry wird strikt von vorhandenen beschädigten Daten unterschieden; beschädigte Rohdaten werden gesichert und nicht automatisch überschrieben (seit 0.4.50).
 - Administratoren verwalten Konten, Räume, Geräte und ioBroker-Verbindungseinstellungen. Benutzer können die Klimaübersicht bedienen, ihr eigenes Passwort ändern und den Benutzer wechseln.
 - Die Schriftgröße wird als `fontScale` im jeweiligen Benutzerkonto gespeichert. Verfügbare Stufen: 85 %, 100 %, 115 %, 130 % und 150 %; Standardwert ist 100 %.
 - Die Einstellungen besitzen eine fixierte Kopfzeile; die darunterliegenden Inhalte scrollen.
