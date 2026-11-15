@@ -123,6 +123,9 @@ private fun KlimaPilotApp(appVersion: String) {
     var accountPassword by remember { mutableStateOf("") }
     var accountPasswordConfirmation by remember { mutableStateOf("") }
     var accountDisplayName by remember { mutableStateOf("") }
+    var airconConnected by remember { mutableStateOf(false) }
+    val accountRepository = remember(context) { KlimaPilotAccountRepository(context) }
+
     fun loadAccounts() {
         val local = accountRepository.load()
         if (local != null) {
