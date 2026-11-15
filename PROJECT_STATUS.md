@@ -56,6 +56,14 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - GitHub Actions: Run **#170** war der erfolgreiche Build dieser Zwischenversion; der aktuelle Produktionsbuild ist Run **#173** (siehe Produktionsstatus oben).
 - Kein Praxistest der Synchronisierung mit zwei Smartphones oder realem ioBroker durchgeführt. Dieser bleibt ausdrücklich offen.
 
+## Änderung 15.11.2026 – Navigation und kompaktere Einstellungen (0.4.46)
+
+- Die Kopfzeile „Räume & Geräte“ bleibt beim Scrollen fixiert.
+- Zurück-Pfeil und Android-System-Zurück führen aus der Raum-/Geräteverwaltung zurück zu den Einstellungen, von denen die Verwaltung geöffnet wurde.
+- Die ioBroker-Verbindung wurde durch kompaktere Felder, Abstände und Schaltflächen verkleinert.
+- „Räume & Geräte verwalten“ steht direkt unter der Anmeldekachel und ist als hervorgehobene Hauptaktion gestaltet.
+- Die Anmeldekachel ist kompakter; der Update-Downloadknopf wurde auf 42 dp Höhe verkleinert. Der bewährte APK-Installationsablauf wurde nicht geändert.
+
 ## Änderung 15.11.2026 – automatische Kennung für Profil-Synchronisierung (0.4.45)
 
 - Die manuelle Eingabe „Gemeinsame Gerätekennung“ wurde aus den Geräteeinstellungen entfernt.

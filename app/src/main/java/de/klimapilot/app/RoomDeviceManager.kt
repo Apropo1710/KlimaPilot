@@ -43,14 +43,18 @@ internal fun RoomDeviceManagerScreen(
 
     Column(
         Modifier.fillMaxSize().background(Color(0xFFE8EEF5)).statusBarsPadding().navigationBarsPadding().imePadding()
-            .verticalScroll(rememberScrollState()).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().background(Color(0xFFE8EEF5)).padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = ManagerText) }
             Text("Räume & Geräte", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = ManagerText)
         }
-
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp).padding(bottom = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
         Text("Jeder Raum zeigt direkt die ihm zugeordneten Geräte.", color = ManagerMuted, fontSize = 13.sp)
 
         rooms.toList().forEach { room ->
@@ -160,6 +164,7 @@ internal fun RoomDeviceManagerScreen(
             Text("Hinzufügen")
         }
         Text("Die Einträge werden lokal gespeichert. Die Klimageräte werden direkt über das WF-RAC-WLAN-Modul eingebunden.", fontSize = 12.sp, color = ManagerMuted)
+        }
     }
 
     if (showAddOptions) {

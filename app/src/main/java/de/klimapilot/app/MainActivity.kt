@@ -418,8 +418,8 @@ private fun KlimaPilotApp(appVersion: String) {
     BackHandler(enabled = !accountAuthenticated) { }
     BackHandler(enabled = accountAuthenticated && (showSettings || showManager || showAccountSettings)) {
         when {
-            showManager -> showManager = false
-            showAccountSettings -> showAccountSettings = false
+            showManager -> { showManager = false; showSettings = true }
+            showAccountSettings -> { showAccountSettings = false; showSettings = true }
             else -> showSettings = false
         }
     }
@@ -451,7 +451,7 @@ private fun KlimaPilotApp(appVersion: String) {
             { removed ->
                 if (selectedRoom == removed) selectedRoom = rooms.firstOrNull() ?: "Wohnzimmer"
             }
-        ) { showManager = false }
+        ) { showManager = false; showSettings = true }
     } else if (showAccountSettings) {
         KlimaPilotAccountSettingsScreen(
             account = currentAccount!!,
@@ -778,7 +778,7 @@ private fun MainScreen(
                     }
                 }
                 if (state != null) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         MetricCard(Modifier.weight(1f), "Außentemperatur", state.outdoorTemp?.let { String.format(Locale.GERMANY, "%.1f °C", it) } ?: "—", androidx.compose.material.icons.Icons.Default.DeviceThermostat, "WF-RAC-Messwert")
                         MetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", androidx.compose.material.icons.Icons.Default.AcUnit, state.errorCode?.let { "Fehler: $it" } ?: "Kein Fehler gemeldet")
                     }
@@ -1070,12 +1070,12 @@ private fun IoBrokerConnectionSettingsCard() {
         port.toIntOrNull()?.let { it in 1..65535 } == true
     val url = (if (secure) "wss://" else "ws://") + address.trim() + ":" + (port.toIntOrNull() ?: 8084)
     Card(shape = RoundedCornerShape(18.dp)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text("ioBroker-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Text("Diese Verbindung wird für die Synchronisierung deiner Klimaprofile verwendet.", color = Muted, fontSize = 12.sp)
-            OutlinedTextField(value = address, onValueChange = { address = it.trim() }, label = { Text("IP-Adresse oder Hostname") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = port, onValueChange = { port = it.filter(Char::isDigit).take(5) }, label = { Text("Port") }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = port.toIntOrNull()?.let { it !in 1..65535 } ?: true)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Für die Synchronisierung deiner Klimaprofile.", color = Muted, fontSize = 11.sp)
+            OutlinedTextField(value = address, onValueChange = { address = it.trim() }, label = { Text("IP-Adresse oder Hostname") }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp), modifier = Modifier.fillMaxWidth().height(56.dp))
+            OutlinedTextField(value = port, onValueChange = { port = it.filter(Char::isDigit).take(5) }, label = { Text("Port") }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp), modifier = Modifier.fillMaxWidth().height(56.dp), isError = port.toIntOrNull()?.let { it !in 1..65535 } ?: true)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = !secure, onClick = { secure = false }, label = { Text("ws://") })
                 FilterChip(selected = secure, onClick = { secure = true }, label = { Text("wss://") })
             }
@@ -1087,7 +1087,7 @@ private fun IoBrokerConnectionSettingsCard() {
                         .putString("klimapilot_iobroker_protocol", if (secure) "wss" else "ws")
                         .putString("iobroker_server", url).apply()
                     status = "Verbindungseinstellungen gespeichert."
-                }, enabled = valid, modifier = Modifier.weight(1f)) { Text("Speichern") }
+                }, enabled = valid, modifier = Modifier.weight(1f).height(40.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) { Text("Speichern", fontSize = 13.sp) }
                 Button(onClick = {
                     if (!valid) { status = "Bitte IP-Adresse und einen gültigen Port eingeben."; return@Button }
                     prefs.edit().putString("klimapilot_iobroker_address", address.trim())
@@ -1100,7 +1100,7 @@ private fun IoBrokerConnectionSettingsCard() {
                         testing = false
                         status = if (connected) "Verbindung erfolgreich: $message" else "Verbindung fehlgeschlagen: $message"
                     }
-                }, enabled = valid && !testing, modifier = Modifier.weight(1f)) { Text(if (testing) "Prüfe …" else "Testen") }
+                }, enabled = valid && !testing, modifier = Modifier.weight(1f).height(40.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) { Text(if (testing) "Prüfe …" else "Testen", fontSize = 13.sp) }
             }
             if (status.isNotBlank()) Text(status, color = if (status.contains("fehlgeschlagen") || status.contains("Bitte")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, fontSize = 12.sp)
         }
@@ -1139,18 +1139,34 @@ private fun SettingsScreen(
             modifier = Modifier.weight(1f).fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-        Card(shape = RoundedCornerShape(18.dp)) {
-            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Angemeldet als", color = Muted, fontSize = 12.sp)
-                Text(account.displayName, color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("${account.username} · ${if (isAdmin) "Administrator" else "Benutzer"}", color = Muted, fontSize = 12.sp)
-                OutlinedButton(onClick = onAccountSettings, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.AccountCircle, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Benutzerkonto und Benutzerwechsel")
+        Card(shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Angemeldet als", color = Muted, fontSize = 11.sp)
+                Text(account.displayName, color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("${account.username} · ${if (isAdmin) "Administrator" else "Benutzer"}", color = Muted, fontSize = 11.sp)
+                OutlinedButton(
+                    onClick = onAccountSettings,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("Benutzerkonto und Benutzerwechsel", fontSize = 13.sp)
                 }
+            }
+        }
+        if (isAdmin) {
+            Button(
+                onClick = onManageRoomsDevices,
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.Tune, contentDescription = null)
+                Spacer(Modifier.width(9.dp))
+                Text("Räume & Geräte verwalten", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         Card(shape = RoundedCornerShape(18.dp)) {
@@ -1179,15 +1195,6 @@ private fun SettingsScreen(
         }
         if (isAdmin) {
             IoBrokerConnectionSettingsCard()
-            OutlinedButton(
-                onClick = onManageRoomsDevices,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Tune, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Räume & Geräte verwalten")
-            }
         } else {
             Card(shape = RoundedCornerShape(16.dp)) {
                 Text(
