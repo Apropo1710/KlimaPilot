@@ -179,10 +179,13 @@ internal class ClimateProfileRepository(context: Context) {
 }
 
 @Composable
-internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDeviceKey: String) {
+internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDeviceKey: String, devices: List<UserDevice>) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(context) { ClimateProfileRepository(context) }
     val syncStore = remember(context) { ClimateProfileSyncStore(context) }
+    val syncClient = remember { ClimateProfileSyncClient() }
+    val settingsPrefs = remember(context) { context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE) }
+    var syncRevision by remember { mutableIntStateOf(0) }
     val profiles = remember { mutableStateListOf<ClimateProfile>() }
     var loaded by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
@@ -196,10 +199,29 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
     }
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
-    LaunchedEffect(loaded, syncDeviceKey, deviceId, profiles.size) {
-        if (loaded && syncDeviceKey.isNotBlank() && deviceId.isNotBlank()) {
-            runCatching { syncStore.enqueueInitialProfiles(deviceProfiles, syncDeviceKey) }
+    val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
+    LaunchedEffect(loaded, deviceSyncSignature, profiles.size, syncRevision) {
+        if (!loaded) return@LaunchedEffect
+        devices.filter { it.syncDeviceKey.isNotBlank() }.forEach { device ->
+            runCatching { syncStore.enqueueInitialProfiles(profiles.filter { it.deviceId == device.id }, device.syncDeviceKey) }
                 .onFailure { status = it.message ?: "Vorhandene Profile konnten nicht zur Synchronisierung vorgemerkt werden." }
+        }
+        val address = settingsPrefs.getString("iobroker_server", null).orEmpty()
+        if (devices.none { it.syncDeviceKey.isNotBlank() } || address.isBlank()) return@LaunchedEffect
+        syncClient.syncNow(address, devices, syncStore, repository) { message ->
+            status = message
+            runCatching { repository.load() }.onSuccess { latest -> profiles.clear(); profiles.addAll(latest) }
+        }
+    }
+    LaunchedEffect(loaded, deviceSyncSignature) {
+        if (!loaded || devices.none { it.syncDeviceKey.isNotBlank() }) return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(60_000L)
+            val address = settingsPrefs.getString("iobroker_server", null).orEmpty()
+            if (address.isNotBlank()) syncClient.syncNow(address, devices, syncStore, repository) { message ->
+                status = message
+                runCatching { repository.load() }.onSuccess { latest -> profiles.clear(); profiles.addAll(latest) }
+            }
         }
     }
     Card(shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
@@ -250,6 +272,7 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
                             runCatching { syncStore.enqueueUpsert(profile, syncDeviceKey) }
                                 .fold({ "" }, { it.message ?: "Profil lokal gespeichert; Synchronisierung konnte nicht vorgemerkt werden." })
                         }
+                        syncRevision++
                         creating = false; editing = null
                     }
                     .onFailure { status = it.message ?: "Profil konnte nicht gespeichert werden." }
@@ -274,6 +297,7 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
                     }
                         .onSuccess {
                             profiles.removeAll { it.id == profile.id }
+                            syncRevision++
                             status = if (syncDeviceKey.isBlank()) {
                                 "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
                             } else ""
