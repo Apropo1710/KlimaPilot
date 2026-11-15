@@ -198,7 +198,13 @@ internal fun DeviceSettingsDialog(
                     if (error == null) {
                         wfRacAirconId = ""
                         wfRacHost = ""
-                        onSave(device.copy(wfRacAirconId = "", wfRacHost = ""))
+                        onSave(device.copy(
+                            model = model.trim(),
+                            syncDeviceKey = syncDeviceKey.trim(),
+                            wfRacAirconId = "",
+                            wfRacHost = "",
+                            demoMode = demoMode
+                        ))
                         confirmResetPairing = false
                     } else {
                         resetPairingError = error
