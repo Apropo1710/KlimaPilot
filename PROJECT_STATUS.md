@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: d26ab57ef0df22c69da81d9fe17eb8786f39d483
-- App-Version / versionCode: **0.4.51 / 81**
-- Build-Zeit: 2026-11-15 21:27:13 UTC
+- Quellcommit des APK-Builds: 2b0799817ed7e2e8ee9c41fc7354a15c86887659
+- App-Version / versionCode: **0.4.52 / 82**
+- Build-Zeit: 2026-11-15 21:30:48 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: bf2fa3df6f17229b67ee92bce8fbadf26d1063570363794c34a9ec5ec1a6c0a6
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: f1e5397967aa2c0a3af5f2566c150567b4a5079d605f188936d155639615849c
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -197,4 +197,4 @@ Nicht wieder einführen: `REQUEST_INSTALL_PACKAGES`; nicht auf `ACTION_INSTALL_P
 - Nach App-Code-Änderungen Version/versionCode erhöhen, Änderungen pushen und den automatischen Build kontrollieren.
 - Build-Erfolg, APK-Signatur, Release-Aktualisierung und Smartphone-Test sind getrennte Nachweise.
 - Zeitangaben in deutscher Ortszeit mit MEZ/MESZ dokumentieren.
-- Diese Datei nach jedem abgeschlossenen Arbeitspaket aktualisieren. Veraltete Versionsstände gehören allenfalls in eine ausdrücklich als Historie gekennzeichnete Chronik, nicht in den aktuellen Projektstatus.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
+- Diese Datei nach jedem abgeschlossenen Arbeitspaket aktualisieren. Veraltete Versionsstände gehören allenfalls in eine ausdrücklich als Historie gekennzeichnete Chronik, nicht in den aktuellen Projektstatus.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
