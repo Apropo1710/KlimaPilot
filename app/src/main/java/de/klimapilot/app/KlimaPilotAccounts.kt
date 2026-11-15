@@ -178,35 +178,82 @@ internal data class KlimaPilotAccountRegistry(
     }
 }
 
+internal sealed interface KlimaPilotAccountLoadResult {
+    data class Loaded(val registry: KlimaPilotAccountRegistry) : KlimaPilotAccountLoadResult
+    data object Missing : KlimaPilotAccountLoadResult
+    data class Invalid(val backupSaved: Boolean) : KlimaPilotAccountLoadResult
+}
+
 /** Lokaler Kontenspeicher. Die alte ioBroker-Ablage wird ausschließlich einmalig migriert. */
 internal class KlimaPilotAccountRepository(context: Context) {
     companion object {
         const val LEGACY_STATE_ID = "0_userdata.0.KlimaPilot.accounts"
         private const val LOCAL_STATE_KEY = "klimapilot_account_registry_v1"
+        private const val CORRUPT_BACKUP_PREFIX = "klimapilot_account_registry_corrupt_backup_"
     }
 
     private val prefs = context.applicationContext.getSharedPreferences("klimapilot_accounts", Context.MODE_PRIVATE)
+    private val lock = Any()
 
-    fun load(): KlimaPilotAccountRegistry? {
-        val raw = prefs.getString(LOCAL_STATE_KEY, null) ?: return null
-        return runCatching { KlimaPilotAccountRegistry.fromJson(JSONObject(raw)) }.getOrNull()
+    /**
+     * Fehlende Daten sind ausschließlich dann "Missing", wenn der Schlüssel wirklich nicht existiert.
+     * Vorhandene, aber nicht lesbare Daten werden gesichert und niemals als leere Registry behandelt.
+     */
+    fun load(): KlimaPilotAccountLoadResult = synchronized(lock) {
+        if (!prefs.contains(LOCAL_STATE_KEY)) return@synchronized KlimaPilotAccountLoadResult.Missing
+
+        val stored = prefs.all[LOCAL_STATE_KEY]
+        if (stored !is String) {
+            return@synchronized KlimaPilotAccountLoadResult.Invalid(backupCorruptValue(stored))
+        }
+
+        val registry = runCatching {
+            KlimaPilotAccountRegistry.fromJson(JSONObject(stored))
+        }.getOrNull()
+
+        if (registry != null) KlimaPilotAccountLoadResult.Loaded(registry)
+        else KlimaPilotAccountLoadResult.Invalid(backupCorruptValue(stored))
     }
 
-    fun saveInitial(registry: KlimaPilotAccountRegistry): Boolean =
+    /** Sichert den unveränderten Rohtext unter einem inhaltsabhängigen Schlüssel. */
+    private fun backupCorruptValue(value: Any?): Boolean {
+        val backupValue = if (value is String) value else
+            "<ungültiger gespeicherter Wert: ${value?.javaClass?.name ?: "null"}> ${value ?: ""}"
+        val digestInput = "${value?.javaClass?.name ?: "null"}:$backupValue"
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(digestInput.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        val backupKey = CORRUPT_BACKUP_PREFIX + digest
+        if (prefs.contains(backupKey)) return true
+        return prefs.edit().putString(backupKey, backupValue).commit()
+    }
+
+    /** Initialisierung/Migration darf nur schreiben, wenn lokal tatsächlich noch kein Schlüssel existiert. */
+    fun saveInitial(registry: KlimaPilotAccountRegistry): Boolean = synchronized(lock) {
+        if (prefs.contains(LOCAL_STATE_KEY)) return@synchronized false
         prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
+    }
 
     fun save(expectedRevision: Long, registry: KlimaPilotAccountRegistry, callback: (Boolean, String?) -> Unit) {
-        val current = load() ?: KlimaPilotAccountRegistry()
-        if (current.revision != expectedRevision) {
-            callback(false, "Die lokale Kontenliste wurde zwischenzeitlich geändert. Bitte erneut laden.")
-            return
+        val result = synchronized(lock) {
+            when (val loaded = load()) {
+                is KlimaPilotAccountLoadResult.Loaded -> {
+                    val current = loaded.registry
+                    when {
+                        current.revision != expectedRevision ->
+                            false to "Die lokale Kontenliste wurde zwischenzeitlich geändert. Bitte erneut laden."
+                        registry.revision != expectedRevision + 1 ->
+                            false to "Ungültige Versionsnummer der Kontenliste."
+                        else -> prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit() to null
+                    }
+                }
+                KlimaPilotAccountLoadResult.Missing ->
+                    false to "Die lokale Kontenliste ist nicht mehr vorhanden. Bitte erneut laden."
+                is KlimaPilotAccountLoadResult.Invalid ->
+                    false to "Die vorhandenen Kontendaten sind beschädigt. Sie wurden nicht überschrieben."
+            }
         }
-        if (registry.revision != expectedRevision + 1) {
-            callback(false, "Ungültige Versionsnummer der Kontenliste.")
-            return
-        }
-        val saved = saveInitial(registry)
-        callback(saved, if (saved) null else "Konten konnten nicht lokal gespeichert werden.")
+        callback(result.first, result.second ?: if (result.first) null else "Konten konnten nicht lokal gespeichert werden.")
     }
 }
 
