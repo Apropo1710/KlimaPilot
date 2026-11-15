@@ -111,9 +111,6 @@ private fun KlimaPilotApp(appVersion: String) {
     var accountAuthenticated by remember { mutableStateOf(false) }
     var accountRegistry by remember { mutableStateOf<KlimaPilotAccountRegistry?>(null) }
     var accountLoading by remember { mutableStateOf(false) }
-    var accountExpanded by remember { mutableStateOf(false) }
-    var fontSizeExpanded by remember { mutableStateOf(false) }
-    var ioBrokerExpanded by remember { mutableStateOf(false) }
     var accountStatus by remember { mutableStateOf("") }
     var accountUsername by remember { mutableStateOf("") }
     var accountPassword by remember { mutableStateOf("") }
@@ -1144,6 +1141,9 @@ private fun SettingsScreen(
     onFontScale: (Float) -> Unit,
     onBack: () -> Unit
 ) {
+    var accountExpanded by remember { mutableStateOf(false) }
+    var fontSizeExpanded by remember { mutableStateOf(false) }
+    var ioBrokerExpanded by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
             .background(AppBg)
