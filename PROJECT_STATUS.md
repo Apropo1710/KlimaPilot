@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: de8a17a76dd020a8dda966cba8f0c86380080663
-- App-Version / versionCode: **0.4.40 / 70**
-- Build-Zeit: 2026-11-15 13:50:08 UTC
+- Quellcommit des APK-Builds: c4ae890d0df2f6126389f42aa5a858f5254c01c9
+- App-Version / versionCode: **0.4.41 / 71**
+- Build-Zeit: 2026-11-15 14:39:27 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 77aed01e82c6eee7fcbfe7827b1b4bd7b6a45d7d90ef7f11c29de3324a609f1a
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: b781354e54646cabca8ead558b7498c2ea2505841b5235779ae96d9df3c5ff96
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -197,4 +197,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - Nicht ausgewählte Felder bleiben null. Modell-/Firmwareabhängigkeit wird vor einer späteren Schreibfreigabe geprüft.
 - Solltemperatur bleibt bewusst bei 0,5 °C, da der WF-RAC-Protokollwert als halbe Gradstufen codiert ist; 0,1 °C würde vom Modul abgeschnitten.
 - Noch keine Profil-Anwendung und keine Smartphone-Synchronisierung freigegeben. Schreibzugriff, Account-Registrierung, Write-Lock und reales Geräteverhalten müssen nach Installation getestet werden.
-- App-Version **0.4.36 / versionCode 66**. Build und Release sind nach dem Commit separat zu verifizieren.\n\n\n\n\n\n\n
+- App-Version **0.4.36 / versionCode 66**. Build und Release sind nach dem Commit separat zu verifizieren.\n\n\n\n\n\n\n\n
