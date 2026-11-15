@@ -23,12 +23,12 @@
 
 ## 1. Maßgeblicher Stand
 
-- Aktuelle Produktionsversion: **0.4.50 / versionCode 80**.
-- App-Code- und APK-Quellcommit auf `main`: `ae00c5dc093113a9b090ec34b8cf682c545bcd0c`.
-- GitHub-Actions-Run **#186** wurde am 15.11.2026 um 22:15 Uhr MEZ mit `success` abgeschlossen.
+- Aktuelle Produktionsversion vor dem nächsten App-Code-Build: **0.4.51 / versionCode 81**.
+- APK-Quellcommit: `b005d28a4910e2b32c4f1e0e0bc39ba59a2bb101`.
+- GitHub-Actions-Run **#191** wurde am 15.11.2026 um 22:22 Uhr MEZ mit `success` abgeschlossen.
 - Release-APK-Build, APK-Benennung, Signaturprüfung, Produktionsstatus-Aktualisierung, Git-Tag `latest` und Veröffentlichung waren erfolgreich.
-- Das Release `latest` enthält `KlimaPilot.apk`; der Git-Tag `latest` zeigt auf denselben Quellcommit.
-- APK-SHA-256: `338e542f934c260221aeefced14a8a0ff9a4de9f8dd9339017bad14a6252bbaf`.
+- Das Release `latest` enthält `KlimaPilot.apk`; der Git-Tag `latest` zeigt auf den APK-Quellcommit.
+- APK-SHA-256: `052d829ef28ecc1ad37afbc85b3453a43955133b485d24bec00efe377a8701a5`.
 - Der automatisch gepflegte Nachweis oben ist die maßgebliche Quelle für Buildzeit, Version, Signatur und Release.
 - Ein Dokumentationscommit verändert weder App-Version noch APK. Versionsnummer und versionCode werden nur bei App-Code-Änderungen erhöht.
 
@@ -56,6 +56,14 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - GitHub Actions Run **#186**: Build erfolgreich; APK-Signaturprüfung, Tag `latest` und Release-Veröffentlichung erfolgreich. APK-SHA-256 siehe automatisch gepflegten Produktionsstatus oben.
 - Keine Hardwareprüfung erforderlich; ein gezielter Laufzeittest mit absichtlich beschädigtem SharedPreferences-Inhalt steht noch aus.
 - Der Updater wurde nicht geändert.
+
+## Änderung 15.11.2026 – WF-RAC-Kopplungsverwaltung abgesichert (0.4.52)
+
+- Das Zurücksetzen einer WF-RAC-Identität verwendet jetzt dieselbe pro Klimaanlage verwaltete Mutex-Sperre wie laufende Steuerbefehle. Ist ein Steuerbefehl aktiv, wird das Zurücksetzen abgelehnt, statt die Lock-Instanz zu entfernen und dadurch parallele Schreibvorgänge auf unterschiedlichen Mutex-Instanzen zu ermöglichen.
+- Die Lock-Instanz bleibt nach dem Zurücksetzen im Repository erhalten. Bereits wartende Steuerbefehle sehen nach Freigabe der Sperre die entfernte Identität und können nicht mehr mit ihr schreiben.
+- Beim erfolgreichen Zurücksetzen bleiben gleichzeitig im Geräteeinstellungsdialog geänderte Modell-, Sync-Kennungs- und Demo-Einstellungen erhalten; nur Aircon-ID und Host werden geleert.
+- Diese Änderung betrifft ausschließlich die Kopplungsverwaltung und Dialogzustände. Der Updater wurde nicht verändert.
+- Laufzeit-/Hardwaretest steht noch aus; die Nebenläufigkeitssicherung wird durch den Mutex-Ablauf im Code hergestellt und im CI-Build kompiliert.
 
 ## 3. Änderung 15.11.2026 – Profil-Synchronisierung und kompaktere Oberfläche (0.4.43)
 
