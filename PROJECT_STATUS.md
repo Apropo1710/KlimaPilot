@@ -23,12 +23,12 @@
 
 ## 1. Maßgeblicher Stand
 
-- Aktuelle Produktionsversion vor dem nächsten App-Code-Build: **0.4.51 / versionCode 81**.
-- APK-Quellcommit: `b005d28a4910e2b32c4f1e0e0bc39ba59a2bb101`.
-- GitHub-Actions-Run **#191** wurde am 15.11.2026 um 22:22 Uhr MEZ mit `success` abgeschlossen.
-- Release-APK-Build, APK-Benennung, Signaturprüfung, Produktionsstatus-Aktualisierung, Git-Tag `latest` und Veröffentlichung waren erfolgreich.
+- Aktuelle Produktionsversion: **0.4.53 / versionCode 83**.
+- APK-Quellcommit: `8eefbf5233784ba250b6f84940ccdd54fbae1ac7`.
+- GitHub-Actions-Run **#198** wurde am 15.11.2026 um 22:42 Uhr MEZ mit `success` abgeschlossen.
+- Release-APK-Build, APK-Benennung, Signaturprüfung (`apksigner verify --print-certs`), Produktionsstatus-Aktualisierung, Git-Tag `latest` und Veröffentlichung waren erfolgreich.
 - Das Release `latest` enthält `KlimaPilot.apk`; der Git-Tag `latest` zeigt auf den APK-Quellcommit.
-- APK-SHA-256: `052d829ef28ecc1ad37afbc85b3453a43955133b485d24bec00efe377a8701a5`.
+- APK-SHA-256: `39c3eba2aba7e4fd6d20e66f8ef64a5738247eab0a750aece7b6081c87a71bdd`.
 - Der automatisch gepflegte Nachweis oben ist die maßgebliche Quelle für Buildzeit, Version, Signatur und Release.
 - Ein Dokumentationscommit verändert weder App-Version noch APK. Versionsnummer und versionCode werden nur bei App-Code-Änderungen erhöht.
 
@@ -45,6 +45,15 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - Der Adapter `mhi-wfrac` ist für die direkte lokale Steuerung nicht erforderlich. Die konkrete Anlage und Firmware sind noch nicht installiert und daher noch nicht hardwareseitig geprüft.
 - SENEC/`energyfluss` wird nicht als Datenquelle eingeplant.
 - Keine Zugangsdaten, Tokens, Keystore-Passwörter oder privaten Schlüssel dokumentieren.
+
+## Änderung 15.11.2026 – Klimaprofile modellabhängig, Anwendung bestätigt und Sync-Kennung migriert (0.4.53)
+
+- Horizontale Luftführung und 3D-Automatik werden nur angeboten bzw. angewendet, wenn die ausgelesene Modellkennung die Unterstützung ausdrücklich bestätigt. Unbekannte Modelle werden nicht mehr pauschal als kompatibel behandelt; vorhandene Profilwerte bleiben bei unbekannter Modellfähigkeit erhalten.
+- Ein Klimaprofil wird in der Auswahl erst dann als aktiv markiert, wenn die Übertragung an das Gerät erfolgreich abgeschlossen wurde. Bei fehlendem Gerät, laufendem Steuerbefehl, fehlender Kopplung oder Übertragungsfehler bleibt das zuvor aktive Profil ausgewählt.
+- Automatisch erzeugte `wfrac:`-Synchronisierungskennungen werden bei einem Wechsel der Aircon-ID auf die neue Kennung umgestellt. Manuell vergebene Kennungen bleiben unverändert. Ausstehende Outbox-Ereignisse werden bei eindeutiger Gerätezuordnung auf den neuen Schlüssel migriert; bestätigte Ereignisse bleiben beim alten Schlüssel. Mehrdeutige Zuordnungen blockieren die Migration.
+- GitHub Actions Run **#198**: Build erfolgreich; APK-Signaturprüfung, Produktionsstatus-Aktualisierung, Git-Tag `latest` und Release-Veröffentlichung erfolgreich. APK-SHA-256 siehe automatisch gepflegten Produktionsstatus oben.
+- Die vorherigen Runs #196 und #197 scheiterten an einer inkompatiblen Parameterreihenfolge der neuen Callback-Funktion. Die Signatur wurde so korrigiert, dass bestehende abschließende Lambdas der Gerätesteuerung erhalten bleiben. Der korrigierte Stand ist in Run #198 erfolgreich gebaut.
+- Profil-Synchronisierung mit zwei realen Smartphones/ioBroker sowie Modell- und Steuerungsverhalten an der noch nicht installierten Klimaanlage bleiben Praxistests. Der Updater wurde nicht verändert.
 
 ## Änderung 15.11.2026 – Schutz der lokalen Konten-Registry vor Datenverlust (0.4.50)
 
