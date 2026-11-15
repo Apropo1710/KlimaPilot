@@ -17,17 +17,17 @@
 
 # KlimaPilot – Projektstatus und technische Dokumentation
 
-**Dokumentationsstand:** 15.11.2026, 17:02 Uhr MEZ  
+**Dokumentationsstand:** 15.11.2026, 17:29 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`
 
 ## 1. Maßgeblicher Stand
 
-- Vor der Dokumentationskorrektur geprüfter `main`-Head: `7d6935712137bc3ddef58820292882fb9b893eba`.
-- Dokumentationskorrektur: Commit `c947416add05e134c63c367298e0556db462b950` (15.11.2026, 16:40 Uhr MEZ).
-- Letzter erfolgreich veröffentlichter APK-Quellcommit: `c947416add05e134c63c367298e0556db462b950` (Version **0.4.42 / versionCode 72**).
-- Aktueller App-Code-Stand auf `main`: `bb7d4e764d71b87803feaba404843b9113e61b49`, vorgesehen als **0.4.43 / versionCode 73**; Produktionsbuild und Veröffentlichung sind noch nicht abgeschlossen.
-- Der automatisch gepflegte Nachweis oben dokumentiert den letzten erfolgreichen APK-Build, die Signaturprüfung und die Aktualisierung des Releases `latest`.
+- Letzter App-Code- und APK-Quellcommit auf `main`: `bb7d4e764d71b87803feaba404843b9113e61b49` (Version **0.4.43 / versionCode 73**).
+- GitHub-Actions-Run **#170** wurde am 15.11.2026 um 17:05:59 Uhr MEZ mit `success` abgeschlossen. Build, APK-Benennung, Signaturprüfung, Statusaktualisierung, Git-Tag und Release-Veröffentlichung waren erfolgreich.
+- Das Release `latest` enthält `KlimaPilot.apk`; der Git-Tag `latest` zeigt auf denselben Quellcommit.
+- APK-SHA-256: `45194ba55d0e8148b3beee3f4b397bc11d5f178c1a7b6dffdd7b4b90fd4cd308`.
+- Der automatisch gepflegte Nachweis oben dokumentiert Build, Signaturprüfung und Release-Veröffentlichung.
 - Ein Dokumentationscommit verändert weder App-Version noch APK. Versionsnummer und versionCode werden nur bei App-Code-Änderungen erhöht.
 
 Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betroffenen Dateien erneut eingelesen werden. Diese Datei ist eine Orientierung und ersetzt die Quellcodeprüfung nicht.
@@ -48,8 +48,8 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - Die Profilansicht startet keinen zusätzlichen Synchronisierungslauf mehr allein deshalb, weil sich die Anzahl der Profile durch einen empfangenen Remote-Stand geändert hat. Der Abgleich läuft beim Öffnen, nach lokalen Änderungen und weiterhin im 60-Sekunden-Rhythmus.
 - Die Klimaprofil-Kachel wurde kompakter gestaltet; die Geräte-Unterzeile entfällt. Erfolgs- und Fehlermeldungen werden farblich unterschieden.
 - Der Downloadknopf „Update laden“ erhält eine feste Mindesthöhe und nutzt die volle verfügbare Kartenbreite, damit seine Beschriftung nicht abgeschnitten wird.
-- Aktueller Quellstand: `bb7d4e764d71b87803feaba404843b9113e61b49`. App-Version vorgesehen: **0.4.43 / versionCode 73**.
-- GitHub Actions: Run **#166** (Zwischenstand vor dem Versionssprung) war beim Dokumentationsupdate noch in Bearbeitung; Run **#170** für den aktuellen Quellstand war vorgemerkt. Der Build, die APK-Signatur und das Release `latest` sind daher noch nicht als erfolgreich bestätigt.
+- Aktueller Quellstand: `bb7d4e764d71b87803feaba404843b9113e61b49`. App-Version: **0.4.43 / versionCode 73**.
+- GitHub Actions: Run **#170** für den aktuellen Quellstand ist erfolgreich abgeschlossen; APK-Signatur und Release `latest` sind bestätigt.
 - Kein Praxistest der Synchronisierung mit zwei Smartphones oder realem ioBroker durchgeführt. Dieser bleibt ausdrücklich offen.
 
 ## 4. Aktuell vorhandene App-Funktionen
