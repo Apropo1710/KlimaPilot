@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
@@ -183,6 +185,12 @@ private fun KlimaPilotApp(appVersion: String) {
 
     var airconConnected by remember { mutableStateOf(false) }
     val accountRepository = remember(context) { KlimaPilotAccountRepository(context) }
+    val wfRacRepository = remember(context) { de.klimapilot.app.wfrac.WfRacConnectionRepository(context) }
+    val startupDiscovery = remember(context) { de.klimapilot.app.wfrac.WfRacDiscovery(context) }
+
+    DisposableEffect(startupDiscovery) {
+        onDispose { startupDiscovery.stop() }
+    }
 
     fun loadAccounts() {
         val local = accountRepository.load()
@@ -387,6 +395,47 @@ private fun KlimaPilotApp(appVersion: String) {
 
     LaunchedEffect(Unit) { loadAccounts() }
 
+    LaunchedEffect("wf-rac-startup-reconnect") {
+        val savedHost = prefs.getString("wf_rac_host", null)?.trim()?.takeIf { it.isNotBlank() }
+        if (savedHost != null) {
+            val previousConnection = runCatching {
+                withContext(Dispatchers.IO) { wfRacRepository.readStatus(savedHost) }
+            }
+            if (previousConnection.isSuccess) {
+                airconConnected = true
+                return@LaunchedEffect
+            }
+        } else if (wfRacRepository.identities.all().isEmpty()) {
+            return@LaunchedEffect
+        }
+
+        airconConnected = false
+        val discovered = mutableListOf<de.klimapilot.app.wfrac.WfRacDiscoveredService>()
+        val started = startupDiscovery.start(
+            onFound = { service ->
+                if (discovered.none { it.host == service.host }) discovered.add(service)
+            },
+            onError = { }
+        )
+        if (started) {
+            try {
+                delay(10_000)
+            } finally {
+                startupDiscovery.stop()
+            }
+            for (service in discovered) {
+                if (service.host.equals(savedHost, ignoreCase = true)) continue
+                val verified = runCatching {
+                    withContext(Dispatchers.IO) { wfRacRepository.readStatus(service.host) }
+                }.isSuccess
+                if (verified) {
+                    airconConnected = true
+                    break
+                }
+            }
+        }
+    }
+
     BackHandler(enabled = !accountAuthenticated) { }
     BackHandler(enabled = accountAuthenticated && (showSettings || showManager || showAccountSettings)) {
         when {
@@ -478,10 +527,7 @@ private fun KlimaPilotApp(appVersion: String) {
                     selectedDeviceId = devices.firstOrNull { it.room == nextRoom }?.id ?: ""
                 }
             },
-            deviceManufacturer = selectedDevice?.let { device ->
-                AdapterProfiles.all.firstOrNull { it.key == device.adapterKey }?.title?.takeUnless { it.startsWith("Universell") }
-                    ?: "Klimaanlage"
-            } ?: "Kein Gerät zugeordnet",
+            deviceManufacturer = if (selectedDevice != null) "Mitsubishi Heavy" else "Kein Gerät zugeordnet",
             deviceModel = selectedDevice?.model?.takeIf { it.isNotBlank() } ?: "Modell nicht hinterlegt",
             isOn = room.isOn,
             targetTemp = room.targetTemp,
@@ -788,6 +834,7 @@ private fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
     val discovery = remember(context) { de.klimapilot.app.wfrac.WfRacDiscovery(context) }
+    val connectionRepository = remember(context) { de.klimapilot.app.wfrac.WfRacConnectionRepository(context) }
     var host by remember { mutableStateOf(prefs.getString("wf_rac_host", "") ?: "") }
     var busy by remember { mutableStateOf(false) }
     var scanning by remember { mutableStateOf(false) }
@@ -843,7 +890,6 @@ private fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
                 OutlinedButton(
                     onClick = {
                         host = found.host
-                        prefs.edit().putString("wf_rac_host", found.host).apply()
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !busy
@@ -866,25 +912,27 @@ private fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     val address = host.trim()
-                    prefs.edit().putString("wf_rac_host", address).apply()
                     busy = true
                     result = "Verbindung wird geprüft …"
                     onConnectionChanged(false)
                     details = ""
                     scope.launch {
                         try {
-                            val deviceId = prefs.getString("wf_rac_device_id", null) ?: java.util.UUID.randomUUID().toString().also {
-                                prefs.edit().putString("wf_rac_device_id", it).apply()
+                            val connection = withContext(Dispatchers.IO) {
+                                connectionRepository.readStatus(address)
                             }
-                            val client = de.klimapilot.app.wfrac.WfRacClient(address, deviceId)
-                            val airconId = client.getDeviceInfo()
-                            val status = client.getStatus(airconId)
-                            val module = client.trace.module
+                            val status = connection.status
+                            val module = connection.module
                             val state = status.state
-                            result = "Erfolgreich verbunden – nur gelesen"
+                            result = "Erfolgreich verbunden – Identität geprüft, Status nur gelesen"
                             onConnectionChanged(true)
                             details = buildString {
-                                append("Aircon-ID: ").append(airconId)
+                                append("Aircon-ID: ").append(connection.airconId)
+                                append("\nVerfahren: ").append(connection.scheme.name)
+                                if (connection.scheme == de.klimapilot.app.wfrac.Scheme.HTTPS) {
+                                    append("\nHTTPS-Fingerprint: ").append(connection.certificatePin ?: "fehlt")
+                                }
+                                append("\nGeräteidentität dauerhaft gespeichert")
                                 append("\nWLAN-Firmware: ").append(module?.wireless ?: "nicht gemeldet")
                                 append("\nMCU-Firmware: ").append(module?.mcu ?: "nicht gemeldet")
                                 append("\nModultyp: ").append(module?.firmType ?: "nicht gemeldet")
@@ -900,7 +948,7 @@ private fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
                             }
                         } catch (error: Exception) {
                             onConnectionChanged(false)
-                            result = "Verbindung fehlgeschlagen"
+                            result = if (error is SecurityException) "Sicherheitsprüfung fehlgeschlagen" else "Verbindung fehlgeschlagen"
                             details = error.message ?: error.javaClass.simpleName
                         } finally {
                             busy = false
