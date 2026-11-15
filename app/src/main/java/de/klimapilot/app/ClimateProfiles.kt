@@ -25,6 +25,10 @@ internal data class ClimateProfile(
     val power: Boolean?,
     val mode: String?,
     val targetTemp: Double?,
+    val fanSpeed: Int?,
+    val verticalSwing: Int?,
+    val horizontalSwing: Int?,
+    val threeDAuto: Boolean?,
     val updatedAt: Long
 ) {
     fun summary(): String = buildList {
@@ -38,6 +42,10 @@ internal data class ClimateProfile(
             else -> it
         }) }
         targetTemp?.let { add("${it.toString().replace('.', ',')} °C") }
+        fanSpeed?.let { add("Lüfter: " + listOf("Auto", "Leise", "Stufe 1", "Stufe 2", "Stufe 3").getOrElse(it) { "?" }) }
+        verticalSwing?.let { add("Vertikal: " + listOf("Auto", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten").getOrElse(it) { "?" }) }
+        horizontalSwing?.let { add("Horizontal: " + listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen").getOrElse(it) { "?" }) }
+        threeDAuto?.let { if (it) add("3D Auto") }
     }.joinToString(" · ")
 }
 
@@ -49,7 +57,8 @@ internal class ClimateProfileRepository(context: Context) {
     fun load(): List<ClimateProfile> {
         val raw = prefs.getString(KEY_PROFILES, null) ?: return emptyList()
         val root = JSONObject(raw)
-        require(root.optInt("schemaVersion", -1) == SCHEMA_VERSION) { "Unbekannte Version der Klimaprofile." }
+        val schemaVersion = root.optInt("schemaVersion", -1)
+        require(schemaVersion in 1..SCHEMA_VERSION) { "Unbekannte Version der Klimaprofile." }
         val array = root.optJSONArray("profiles") ?: throw IllegalStateException("Die Klimaprofile sind beschädigt.")
         val profiles = (0 until array.length()).map { index ->
             val item = array.optJSONObject(index) ?: throw IllegalStateException("Ein Klimaprofil ist ungültig.")
@@ -67,10 +76,17 @@ internal class ClimateProfileRepository(context: Context) {
                     "Ein Klimaprofil enthält eine ungültige Solltemperatur."
                 }
             }
+            fun optionalIndex(key: String, max: Int): Int? =
+                if (item.isNull(key) || !item.has(key)) null else item.getInt(key).also { require(it in 0..max) { "Ein Klimaprofil enthält eine ungültige Einstellung." } }
             ClimateProfile(
                 id, deviceId, name,
                 if (item.isNull("power")) null else item.getBoolean("power"),
-                mode, temp, item.optLong("updatedAt", 0L).coerceAtLeast(0L)
+                mode, temp,
+                optionalIndex("fanSpeed", 4),
+                optionalIndex("verticalSwing", 4),
+                optionalIndex("horizontalSwing", 7),
+                if (item.isNull("threeDAuto") || !item.has("threeDAuto")) null else item.getBoolean("threeDAuto"),
+                item.optLong("updatedAt", 0L).coerceAtLeast(0L)
             )
         }
         require(profiles.map { it.id }.distinct().size == profiles.size) { "Klimaprofil-IDs sind nicht eindeutig." }
@@ -84,7 +100,12 @@ internal class ClimateProfileRepository(context: Context) {
         profile.targetTemp?.let {
             require(it.isFinite() && it in 16.0..30.0 && abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001)
         }
-        require(profile.power != null || profile.mode != null || profile.targetTemp != null) {
+        require(profile.fanSpeed == null || profile.fanSpeed in 0..4)
+        require(profile.verticalSwing == null || profile.verticalSwing in 0..4)
+        require(profile.horizontalSwing == null || profile.horizontalSwing in 0..7)
+        require(profile.power != null || profile.mode != null || profile.targetTemp != null ||
+            profile.fanSpeed != null || profile.verticalSwing != null || profile.horizontalSwing != null ||
+            profile.threeDAuto != null) {
             "Bitte mindestens eine Einstellung für das Profil auswählen."
         }
         val next = load().filterNot { it.id == profile.id } + profile.copy(name = profile.name.trim())
@@ -104,6 +125,10 @@ internal class ClimateProfileRepository(context: Context) {
                     .put("power", item.power ?: JSONObject.NULL)
                     .put("mode", item.mode ?: JSONObject.NULL)
                     .put("targetTemp", item.targetTemp ?: JSONObject.NULL)
+                    .put("fanSpeed", item.fanSpeed ?: JSONObject.NULL)
+                    .put("verticalSwing", item.verticalSwing ?: JSONObject.NULL)
+                    .put("horizontalSwing", item.horizontalSwing ?: JSONObject.NULL)
+                    .put("threeDAuto", item.threeDAuto ?: JSONObject.NULL)
                     .put("updatedAt", item.updatedAt))
             }
         })
@@ -114,7 +139,7 @@ internal class ClimateProfileRepository(context: Context) {
 
     companion object {
         private const val KEY_PROFILES = "climate_profiles_v1"
-        private const val SCHEMA_VERSION = 1
+        private const val SCHEMA_VERSION = 2
         private val SUPPORTED_MODES = setOf("AUTO", "COOL", "HEAT", "DRY", "FAN")
     }
 }
@@ -222,12 +247,24 @@ private fun ClimateProfileEditorDialog(
     var mode by remember(profile?.id) { mutableStateOf(profile?.mode ?: "COOL") }
     var includeTemp by remember(profile?.id) { mutableStateOf(profile?.targetTemp != null || profile == null) }
     var tempText by remember(profile?.id) { mutableStateOf(profile?.targetTemp?.toString()?.replace('.', ',') ?: "22,0") }
+    var includeFan by remember(profile?.id) { mutableStateOf(profile?.fanSpeed != null) }
+    var fanSpeed by remember(profile?.id) { mutableIntStateOf(profile?.fanSpeed ?: 0) }
+    var includeVertical by remember(profile?.id) { mutableStateOf(profile?.verticalSwing != null) }
+    var verticalSwing by remember(profile?.id) { mutableIntStateOf(profile?.verticalSwing ?: 0) }
+    var includeHorizontal by remember(profile?.id) { mutableStateOf(profile?.horizontalSwing != null) }
+    var horizontalSwing by remember(profile?.id) { mutableIntStateOf(profile?.horizontalSwing ?: 0) }
+    var include3d by remember(profile?.id) { mutableStateOf(profile?.threeDAuto != null) }
+    var threeDAuto by remember(profile?.id) { mutableStateOf(profile?.threeDAuto ?: true) }
 
     val temp = tempText.trim().replace(',', '.').toDoubleOrNull()
     val tempValid = !includeTemp || (temp != null && temp.isFinite() && temp in 16.0..30.0 &&
         abs(temp * 2.0 - (temp * 2.0).roundToInt()) < 0.001)
-    val anySetting = includePower || includeMode || includeTemp
+    val anySetting = includePower || includeMode || includeTemp || includeFan || includeVertical ||
+        includeHorizontal || include3d
     val modes = listOf("AUTO" to "Automatik", "COOL" to "Kühlen", "HEAT" to "Heizen", "DRY" to "Entfeuchten", "FAN" to "Lüfter")
+    val fanOptions = listOf("Automatik", "Leise", "Stufe 1", "Stufe 2", "Stufe 3")
+    val verticalOptions = listOf("Automatik", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten")
+    val horizontalOptions = listOf("Automatik", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -262,8 +299,39 @@ private fun ClimateProfileEditorDialog(
                     supportingText = { Text("16–30 °C in 0,5-°C-Schritten") },
                     isError = !tempValid, singleLine = true, modifier = Modifier.fillMaxWidth()
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(includeFan, { includeFan = it }); Text("Lüftergeschwindigkeit")
+                }
+                if (includeFan) fanOptions.forEachIndexed { index, label ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = fanSpeed == index, onClick = { fanSpeed = index }); Text(label)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(includeVertical, { includeVertical = it }); Text("Vertikale Luftführung")
+                }
+                if (includeVertical) verticalOptions.forEachIndexed { index, label ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = verticalSwing == index, onClick = { verticalSwing = index }); Text(label)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(includeHorizontal, { includeHorizontal = it }); Text("Horizontale Luftführung")
+                }
+                if (includeHorizontal) horizontalOptions.forEachIndexed { index, label ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = horizontalSwing == index, onClick = { horizontalSwing = index }); Text(label)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(include3d, { include3d = it }); Text("3D-Automatik")
+                }
+                if (include3d) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = threeDAuto, onClick = { threeDAuto = true }, label = { Text("Ein") })
+                    FilterChip(selected = !threeDAuto, onClick = { threeDAuto = false }, label = { Text("Aus") })
+                }
                 Text(
-                    "Lüfterstufe und weitere modellabhängige Optionen ergänzen wir nach Prüfung am installierten Gerät.",
+                    "Horizontale Luftführung und 3D-Automatik sind modell- bzw. firmwareabhängig. Vor dem Anwenden werden die Fähigkeiten des Geräts geprüft.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
                 )
             }
@@ -276,6 +344,10 @@ private fun ClimateProfileEditorDialog(
                     power = if (includePower) power else null,
                     mode = if (includeMode) mode else null,
                     targetTemp = if (includeTemp) temp else null,
+                    fanSpeed = if (includeFan) fanSpeed else null,
+                    verticalSwing = if (includeVertical) verticalSwing else null,
+                    horizontalSwing = if (includeHorizontal) horizontalSwing else null,
+                    threeDAuto = if (include3d) threeDAuto else null,
                     updatedAt = System.currentTimeMillis()
                 ))
             }) { Text("Speichern") }
