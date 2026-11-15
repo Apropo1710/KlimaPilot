@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onSave: (UserDevice) -> Unit) {
     var model by remember(device.id) { mutableStateOf(device.model) }
+    var syncDeviceKey by remember(device.id) { mutableStateOf(device.syncDeviceKey) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -33,6 +34,21 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
                     placeholder = { Text("z. B. SRK15ZS-WF") },
                     singleLine = true
                 )
+                HorizontalDivider()
+                Text("PROFIL-SYNCHRONISIERUNG", color = Color(0xFF63748A), fontWeight = FontWeight.Bold)
+                Text(
+                    "Gleiche Kennung auf allen Smartphones eintragen, die dieselbe physische Klimaanlage verwenden. Die Kennung ordnet Profile dem Gerät zu; sie ist kein Zugangsschlüssel.",
+                    color = Color(0xFF63748A),
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize
+                )
+                OutlinedTextField(
+                    value = syncDeviceKey,
+                    onValueChange = { syncDeviceKey = it.trim().take(80) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Gemeinsame Gerätekennung") },
+                    placeholder = { Text("z. B. wohnzimmer-klima") },
+                    singleLine = true
+                )
                 Text("GERÄTEVERBINDUNG", color = Color(0xFF63748A), fontWeight = FontWeight.Bold)
                 Text(
                     "Die Verbindung wird hier für dieses Klimagerät eingerichtet. Der aktuelle Verbindungstest bleibt read-only.",
@@ -43,7 +59,7 @@ internal fun DeviceSettingsDialog(device: UserDevice, onDismiss: () -> Unit, onS
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(device.copy(model = model.trim())) }) {
+            TextButton(onClick = { onSave(device.copy(model = model.trim(), syncDeviceKey = syncDeviceKey.trim())) }) {
                 Text("Speichern", color = Color(0xFF1769AA))
             }
         },
