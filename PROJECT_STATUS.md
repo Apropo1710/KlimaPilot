@@ -1,29 +1,29 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 3c55b7c28cdc5455fafc8b386b5494b55567e20a
+- Quellcommit des APK-Builds: 3fb5abc09974bd8fad0e7b10ea287946c9ca5352
 - App-Version / versionCode: **0.4.28 / 58**
-- Build-Zeit: 2026-11-14 22:12:18 UTC
+- Build-Zeit: 2026-11-15 02:06:56 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 5548607c1689202ba0f5cd4f18b67a56a9077bbb3052a9f6d92a6e53ad23eb08
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 2ed2e26b1eb9d93f27ccbcee0764af16935ed03c46f5acec98b3b8ac9a4afe14
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
-## Verbindliche Aktualisierung – 15.11.2026
-- Aktueller `main`-Head: `cab7594dcd1f9e1894dff1db6f835673584ef682` (Dokumentationscommit).
-- Letzter App-Code-Commit: `485d274fbb5e10d321f76a72033d6e108ce1a2c5`; Produktionsversion **0.4.28 / versionCode 58**.
-- Die Schriftgröße ist als `fontScale` im jeweiligen ioBroker-Benutzerkonto gespeichert. Verfügbar sind 85 %, 100 %, 115 %, 130 % und 150 %; neue und bestehende Konten ohne gespeicherten Wert verwenden 100 %.
-- Version-/APK-Build-Commit: `3c55b7c28cdc5455fafc8b386b5494b55567e20a`; GitHub Actions Run `43646394623`: **completed / success**. Der Code-Build für `485d274` (Run `43646365945`) war ebenfalls erfolgreich.
-- Release `latest` enthält `KlimaPilot.apk`, SHA-256 `5548607c1689202ba0f5cd4f18b67a56a9077bbb3052a9f6d92a6e53ad23eb08`; Signaturprüfung laut automatisch gepflegtem Produktionsnachweis erfolgreich.
-- Ein Smartphone-Test der neuen Schriftgrößenfunktion ist noch nicht als Nutzerbestätigung dokumentiert.
-- Klimaprofile sind als nächster Funktionsumfang vorgemerkt, aber noch nicht umgesetzt. Die verfügbaren Profileinstellungen und deren Schreibbarkeit müssen nach Installation mit den realen Mitsubishi-/ioBroker-Datenpunkten festgelegt werden.
-- Der Updater bleibt unverändert und vom Nutzer bestätigt. Frühere Angaben zu Version 0.4.27 / versionCode 57 und deren APK-SHA sind historische Produktionsstände.
+## Verbindliche Aktualisierung – 14.11.2026
+- App-Code-Commit: `56b49749a77f07b50f6c2bac2085edd250e56116`; Version **0.4.27 / versionCode 57**.
+- Der aktuelle APK-Build wurde aus Dokumentationscommit `7984def11f7da78407f24697ab4d6128ab700706` erstellt; der App-Code entspricht weiterhin `56b49749a77f07b50f6c2bac2085edd250e56116`.
+- GitHub Actions Run `43405429051` (#103) für den APK-Build-Quellcommit: **completed / success**. Der vorherige Code-Build Run `43403206733` (#101) für den App-Code-Commit war ebenfalls erfolgreich.
+- Release `latest` enthält `KlimaPilot.apk`, SHA-256 `537ea7f086b88a1fecc7106dc8733d20c860c2deabfca666b39fdc11fdbe705d`; APK-Signaturprüfung erfolgreich.
+- Der Nutzer hat die scrollbaren Dialoge der Kontenverwaltung auf dem Android-Gerät erfolgreich geprüft.
+- Der vor dieser Statuspflege geprüfte `main`-Head `1a7c5d7460d9cdf2241027eb7de3f90a6b92ebb8` war ein Dokumentationscommit; auch diese Aktualisierung ändert den App-Code nicht.
+- Alle älteren Build-Pending- und Versionsvorschau-Angaben im Änderungsverlauf sind historische Zwischenstände, soweit sie denselben Produktionsstand betreffen.
+- Offen bleiben ausschließlich die hardwareabhängigen Arbeiten nach Installation der Mitsubishi-Klimaanlage; siehe Abschnitt „Offene Punkte / nächste Schritte“.
 
 # KlimaPilot – Projektstatus
 
@@ -152,4 +152,4 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 
 - Die Eingabebereiche der Dialoge „KlimaPilot-Benutzer anlegen“ (max. 280 dp) und „Passwort zurücksetzen“ (max. 240 dp) sind begrenzt und vertikal scrollbar. Damit bleiben die Dialogaktionen auch auf kleinen Displays mit geöffneter Tastatur erreichbar.
 - Kontenmodell, Rollen, Passwort-Hashing, Datenpunkt und ioBroker-Verbindung unverändert.
-- Vorgesehene App-Version: **0.4.27 / versionCode 57**; CI-Build und Release noch zu prüfen.\n\n\n
+- Vorgesehene App-Version: **0.4.27 / versionCode 57**; CI-Build und Release noch zu prüfen.\n\n\n\n
