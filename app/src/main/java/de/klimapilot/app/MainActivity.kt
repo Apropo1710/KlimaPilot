@@ -342,9 +342,7 @@ private fun KlimaPilotApp(appVersion: String) {
             passwordConfirmation = accountPasswordConfirmation, onPasswordConfirmation = { accountPasswordConfirmation = it },
             displayName = accountDisplayName, onDisplayName = { accountDisplayName = it },
             loading = accountLoading,
-            connected = true,
             status = accountStatus,
-            onRetryConnection = { loadAccounts() },
             onReload = { loadAccounts() },
             onSubmit = { submitAccountLogin() }
         )
