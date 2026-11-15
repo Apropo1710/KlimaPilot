@@ -45,7 +45,7 @@ internal data class ClimateProfile(
         fanSpeed?.let { add("Lüfter: " + listOf("Auto", "Leise", "Stufe 1", "Stufe 2", "Stufe 3").getOrElse(it) { "?" }) }
         verticalSwing?.let { add("Vertikal: " + listOf("Auto", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten").getOrElse(it) { "?" }) }
         horizontalSwing?.let { add("Horizontal: " + listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen").getOrElse(it) { "?" }) }
-        threeDAuto?.let { if (it) add("3D Auto") }
+        threeDAuto?.let { add(if (it) "3D Auto ein" else "3D Auto aus") }
     }.joinToString(" · ")
 }
 
