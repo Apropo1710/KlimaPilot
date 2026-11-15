@@ -171,3 +171,13 @@ Diese Lösung ist die KlimaPilot-Referenz und darf nicht blind auf HomePilot üb
 - **Wichtige Einschränkung:** Profile können aktuell gespeichert und verwaltet, aber noch nicht angewendet werden. Die App bleibt beim Lesen; Schreibsteuerung, Account-Registrierung und 60-Sekunden-Schreibsperre müssen am realen Modul geprüft werden, bevor Anwenden aktiviert wird.
 - Speicherung ist vorerst lokal auf dem Smartphone. Synchronisierung/Backup zwischen Smartphones ist noch nicht umgesetzt; die frühere ioBroker-Idee wird separat gegen die aktuelle Architektur geprüft.
 - App-Version: **0.4.35 / versionCode 65**. Build- und Release-Ergebnis sind nach dem Commit separat zu verifizieren.\n\n
+
+## Änderung 15.11.2026 – Erweiterte Klimaprofil-Einstellungen
+
+- Klimaprofile speichern zusätzlich Lüftergeschwindigkeit (Auto/Leise/Stufe 1–3), vertikale Luftführung, horizontale Luftführung und 3D-Automatik.
+- Die Werte entsprechen den vorhandenen WF-RAC-Codec-Indizes: Lüfter 0–4, vertikal 0–4, horizontal 0–7; 3D-Automatik wird über das separate Entrust-Bit abgebildet.
+- Profil-Schema auf Version 2 erweitert. Vorhandene Schema-1-Profile werden weiterhin geladen; neue optionale Felder bleiben bei Altprofilen leer. Beim nächsten Speichern werden sie im neuen Schema gesichert.
+- Nicht ausgewählte Felder bleiben null. Modell-/Firmwareabhängigkeit wird vor einer späteren Schreibfreigabe geprüft.
+- Solltemperatur bleibt bewusst bei 0,5 °C, da der WF-RAC-Protokollwert als halbe Gradstufen codiert ist; 0,1 °C würde vom Modul abgeschnitten.
+- Noch keine Profil-Anwendung und keine Smartphone-Synchronisierung freigegeben. Schreibzugriff, Account-Registrierung, Write-Lock und reales Geräteverhalten müssen nach Installation getestet werden.
+- App-Version **0.4.36 / versionCode 66**. Build und Release sind nach dem Commit separat zu verifizieren.
