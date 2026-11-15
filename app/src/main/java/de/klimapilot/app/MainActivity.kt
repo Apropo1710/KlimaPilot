@@ -462,14 +462,34 @@ private fun KlimaPilotApp(appVersion: String) {
         )
     } else if (showManager && currentAccount?.role == KlimaPilotAccount.ADMIN) {
         RoomDeviceManagerScreen(
-            rooms, devices, ::saveData,
-            { old, new ->
+            rooms = rooms,
+            devices = devices,
+            save = ::saveData,
+            rename = { old, new ->
                 if (selectedRoom == old) selectedRoom = new
             },
-            { removed ->
+            onRemoveRoom = { removed ->
                 if (selectedRoom == removed) selectedRoom = rooms.firstOrNull() ?: "Wohnzimmer"
-            }
-        ) { showManager = false; showSettings = true }
+            },
+            onDeleteDevice = { device ->
+                if (device.wfRacAirconId.isBlank()) null
+                else try {
+                    if (controller.forget(device.wfRacAirconId)) null
+                    else "Die gespeicherte Kopplung konnte nicht entfernt werden. Das Gerät wurde nicht gelöscht."
+                } catch (error: Exception) {
+                    error.message ?: "Die Kopplung konnte nicht sicher zurückgesetzt werden. Das Gerät wurde nicht gelöscht."
+                }
+            },
+            onResetPairing = { airconId ->
+                try {
+                    if (controller.forget(airconId)) null
+                    else "Die gespeicherte Kopplung konnte nicht entfernt werden."
+                } catch (error: Exception) {
+                    error.message ?: "Die Kopplung konnte nicht sicher zurückgesetzt werden."
+                }
+            },
+            back = { showManager = false; showSettings = true }
+        )
     } else if (showProfileManager && currentAccount?.role == KlimaPilotAccount.ADMIN) {
         ClimateProfileManagerScreen(devices = devices) { showProfileManager = false; showSettings = true }
     } else if (showAccountSettings) {
