@@ -424,7 +424,6 @@ private fun KlimaPilotApp(appVersion: String) {
                 startupDiscovery.stop()
             }
             for (service in discovered) {
-                if (service.host.equals(savedHost, ignoreCase = true)) continue
                 val verified = runCatching {
                     withContext(Dispatchers.IO) { wfRacRepository.readStatus(service.host) }
                 }.isSuccess
