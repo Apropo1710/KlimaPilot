@@ -201,7 +201,7 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
-    LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, profiles.size, syncRevision) {
+    LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
         if (!loaded || !loadSucceeded) return@LaunchedEffect
         devices.filter { it.syncDeviceKey.isNotBlank() }.forEach { device ->
             runCatching { syncStore.enqueueInitialProfiles(profiles.filter { it.deviceId == device.id }, device.syncDeviceKey) }
@@ -225,14 +225,11 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
             }
         }
     }
-    Card(shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Card(shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f)) {
-                    Text("Klimaprofile", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text(deviceName.ifBlank { "Kein Gerät ausgewählt" }, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                }
-                Text("${deviceProfiles.size}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text("Klimaprofile", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("${deviceProfiles.size}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
             if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth())
             else if (deviceId.isBlank()) Text("Wähle zuerst eine Klimaanlage aus.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -240,20 +237,35 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
                 if (deviceProfiles.isEmpty()) {
                     Text("Noch keine Profile für dieses Gerät gespeichert.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 } else deviceProfiles.forEach { profile ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Column(Modifier.weight(1f)) {
-                            Text(profile.name, fontWeight = FontWeight.SemiBold)
-                            Text(profile.summary(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text(profile.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text(profile.summary(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 12.sp)
                         }
                         TextButton(onClick = { editing = profile }) { Text("Bearbeiten") }
                         TextButton(onClick = { deleting = profile }) { Text("Löschen") }
                     }
                 }
-                Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Neues Klimaprofil erstellen")
+                Button(
+                    onClick = { creating = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+                ) {
+                    Text("Profil hinzufügen", fontSize = 13.sp)
                 }
             }
-            if (status.isNotBlank()) Text(status, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            if (status.isNotBlank()) {
+                val failed = listOf("fehlgeschlagen", "konnte nicht", "ungültig", "abgebrochen", "beschädigt")
+                    .any { status.contains(it, ignoreCase = true) }
+                Text(
+                    status,
+                    color = if (failed) MaterialTheme.colorScheme.error
+                    else if (status.startsWith("Synchronisierung abgeschlossen")) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp
+                )
+            }
         }
     }
 
@@ -288,20 +300,22 @@ internal fun ClimateProfilesSection(deviceId: String, deviceName: String, syncDe
             text = { Text("„${profile.name}“ wird von diesem Smartphone gelöscht.") },
             confirmButton = {
                 TextButton(onClick = {
-                    runCatching {
-                        if (syncDeviceKey.isNotBlank()) {
-                            check(syncStore.enqueueDelete(profile.id, syncDeviceKey)) {
-                                "Löschung konnte nicht sicher zur Synchronisierung vorgemerkt werden."
-                            }
-                        }
-                        repository.delete(profile.id)
-                    }
+                    runCatching { repository.delete(profile.id) }
                         .onSuccess {
                             profiles.removeAll { it.id == profile.id }
                             syncRevision++
-                            status = if (syncDeviceKey.isBlank()) {
-                                "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
-                            } else ""
+                            status = when {
+                                syncDeviceKey.isBlank() ->
+                                    "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
+                                else -> runCatching {
+                                    check(syncStore.enqueueDelete(profile.id, syncDeviceKey)) {
+                                        "Löschung konnte nicht zur Synchronisierung vorgemerkt werden."
+                                    }
+                                }.fold(
+                                    { "" },
+                                    { "Lokal gelöscht, aber die Synchronisierung konnte nicht vorgemerkt werden: ${it.message ?: "Unbekannter Fehler"}" }
+                                )
+                            }
                         }
                         .onFailure { status = it.message ?: "Profil konnte nicht gelöscht werden." }
                     deleting = null
