@@ -117,6 +117,40 @@ internal class ClimateProfileRepository(context: Context) {
         write(load().filterNot { it.id == profileId })
     }
 
+    /** Applies a remote event locally without creating a new outbound event. */
+    @Synchronized
+    fun applyRemoteEvent(event: JSONObject, localDeviceId: String) {
+        require(localDeviceId.isNotBlank())
+        val profileId = event.optString("profileId").takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Synchronisierungsereignis ohne Profil-ID.")
+        when (event.optString("type")) {
+            "delete" -> write(load().filterNot { it.id == profileId })
+            "upsert" -> {
+                val item = event.optJSONObject("profile")
+                    ?: throw IllegalArgumentException("Synchronisierungsereignis enthält kein Profil.")
+                val name = item.optString("name").trim().takeIf { it.isNotBlank() }
+                    ?: throw IllegalArgumentException("Synchronisiertes Profil hat keinen Namen.")
+                val mode = if (item.isNull("mode")) null else item.optString("mode")
+                val targetTemp = if (item.isNull("targetTemp")) null else item.optDouble("targetTemp")
+                val profile = ClimateProfile(
+                    id = profileId,
+                    deviceId = localDeviceId,
+                    name = name,
+                    power = if (item.isNull("power")) null else item.optBoolean("power"),
+                    mode = mode,
+                    targetTemp = targetTemp,
+                    fanSpeed = if (item.isNull("fanSpeed")) null else item.optInt("fanSpeed"),
+                    verticalSwing = if (item.isNull("verticalSwing")) null else item.optInt("verticalSwing"),
+                    horizontalSwing = if (item.isNull("horizontalSwing")) null else item.optInt("horizontalSwing"),
+                    threeDAuto = if (item.isNull("threeDAuto")) null else item.optBoolean("threeDAuto"),
+                    updatedAt = item.optLong("updatedAt", 0L).coerceAtLeast(0L)
+                )
+                save(profile)
+            }
+            else -> throw IllegalArgumentException("Unbekannter Synchronisierungstyp.")
+        }
+    }
+
     private fun write(profiles: List<ClimateProfile>) {
         val json = JSONObject().put("schemaVersion", SCHEMA_VERSION).put("profiles", JSONArray().apply {
             profiles.forEach { item ->
