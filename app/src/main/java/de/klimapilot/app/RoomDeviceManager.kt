@@ -33,9 +33,13 @@ internal fun RoomDeviceManagerScreen(
     save: () -> Unit,
     rename: (String, String) -> Unit,
     onRemoveRoom: (String) -> Unit,
+    onDeleteDevice: (UserDevice) -> String?,
+    onResetPairing: (String) -> String?,
     back: () -> Unit
 ) {
     var showAddOptions by remember { mutableStateOf(false) }
+    var deletingDevice by remember { mutableStateOf<UserDevice?>(null) }
+    var deleteError by remember { mutableStateOf("") }
     var addRoom by remember { mutableStateOf(false) }
     var addDevice by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<UserDevice?>(null) }
@@ -144,7 +148,7 @@ internal fun RoomDeviceManagerScreen(
                                 IconButton(onClick = { editing = device }) {
                                     Icon(Icons.Default.Edit, contentDescription = "Gerät bearbeiten", tint = ManagerBlue)
                                 }
-                                IconButton(onClick = { devices.remove(device); save() }) {
+                                IconButton(onClick = { deletingDevice = device; deleteError = "" }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Gerät löschen", tint = ManagerMuted)
                                 }
                             }
@@ -195,6 +199,35 @@ internal fun RoomDeviceManagerScreen(
         )
     }
 
+    if (deletingDevice != null) {
+        val target = deletingDevice!!
+        AlertDialog(
+            onDismissRequest = { deletingDevice = null; deleteError = "" },
+            containerColor = Color.White,
+            title = { Text("Gerät wirklich löschen?", color = ManagerText) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("„${target.name}“ wird aus der Raumverwaltung entfernt. Eine vorhandene WF-RAC-Kopplung und die lokal gespeicherte Modulidentität werden ebenfalls zurückgesetzt.")
+                    if (deleteError.isNotBlank()) Text(deleteError, color = Color(0xFFB42318))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val error = onDeleteDevice(target)
+                    if (error == null) {
+                        devices.remove(target)
+                        save()
+                        deletingDevice = null
+                        deleteError = ""
+                    } else deleteError = error
+                }) { Text("Löschen", color = Color(0xFFB42318)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingDevice = null; deleteError = "" }) { Text("Abbrechen") }
+            }
+        )
+    }
+
     if (addRoom) {
         var name by remember { mutableStateOf("") }
         AlertDialog(
@@ -226,12 +259,17 @@ internal fun RoomDeviceManagerScreen(
     }
 
     if (configuring != null) {
-        DeviceSettingsDialog(device = configuring!!, onDismiss = { configuring = null }, onSave = { updated ->
-            val index = devices.indexOfFirst { it.id == updated.id }
-            if (index >= 0) devices[index] = updated
-            save()
-            configuring = null
-        })
+        DeviceSettingsDialog(
+            device = configuring!!,
+            onDismiss = { configuring = null },
+            onResetPairing = onResetPairing,
+            onSave = { updated ->
+                val index = devices.indexOfFirst { it.id == updated.id }
+                if (index >= 0) devices[index] = updated
+                save()
+                configuring = null
+            }
+        )
     }
 
     if (addDevice || editing != null) {
