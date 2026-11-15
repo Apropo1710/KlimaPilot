@@ -16,14 +16,14 @@
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
 ## Verbindliche Aktualisierung – 15.11.2026
-- Aktueller `main`-Head: `cab7594dcd1f9e1894dff1db6f835673584ef682` (Dokumentationscommit).
+- Vor dieser Statusaktualisierung geprüfter `main`-Head: `d714516abe7cf5b1f27533cdd81c332e2dd9989d` (Dokumentationscommit nach erfolgreicher Veröffentlichung).
 - Letzter App-Code-Commit: `485d274fbb5e10d321f76a72033d6e108ce1a2c5`; Produktionsversion **0.4.28 / versionCode 58**.
 - Die Schriftgröße ist als `fontScale` im jeweiligen ioBroker-Benutzerkonto gespeichert. Verfügbar sind 85 %, 100 %, 115 %, 130 % und 150 %; neue und bestehende Konten ohne gespeicherten Wert verwenden 100 %.
-- Version-/APK-Build-Commit: `3c55b7c28cdc5455fafc8b386b5494b55567e20a`; GitHub Actions Run `43646394623`: **completed / success**. Der Code-Build für `485d274` (Run `43646365945`) war ebenfalls erfolgreich.
-- Release `latest` enthält `KlimaPilot.apk`, SHA-256 `5548607c1689202ba0f5cd4f18b67a56a9077bbb3052a9f6d92a6e53ad23eb08`; Signaturprüfung laut automatisch gepflegtem Produktionsnachweis erfolgreich.
+- APK-Build-Quellcommit: `bd20181e86972f390901d65c442996bc3cf109d1`; GitHub Actions Run `43666033340`: **completed / success**. Der vorherige Dokumentationsbuild Run `43666030742` war ebenfalls erfolgreich.
+- Release `latest` enthält `KlimaPilot.apk`, SHA-256 `0d3f44fda8d003a92268644048db1a851f7fbd7ab8c30468f4a7d6b6f55b31c2`; Signaturprüfung laut automatisch gepflegtem Produktionsnachweis erfolgreich.
 - Ein Smartphone-Test der neuen Schriftgrößenfunktion ist noch nicht als Nutzerbestätigung dokumentiert.
 - Klimaprofile sind als nächster Funktionsumfang vorgemerkt, aber noch nicht umgesetzt. Die verfügbaren Profileinstellungen und deren Schreibbarkeit müssen nach Installation mit den realen Mitsubishi-/ioBroker-Datenpunkten festgelegt werden.
-- Der Updater bleibt unverändert und vom Nutzer bestätigt. Frühere Angaben zu Version 0.4.27 / versionCode 57 und deren APK-SHA sind historische Produktionsstände.
+- Der Updater bleibt unverändert und vom Nutzer bestätigt. Frühere Angaben zu Build-SHA `5548607c1689202ba0f5cd4f18b67a56a9077bbb3052a9f6d92a6e53ad23eb08` und `2ed2e26b1eb9d93f27ccbcee0764af16935ed03c46f5acec98b3b8ac9a4afe14` sind überholte Zwischenstände derselben Version 0.4.28.
 
 # KlimaPilot – Projektstatus
 
