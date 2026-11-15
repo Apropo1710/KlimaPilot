@@ -4,7 +4,7 @@ Stand: 15.11.2026 (MEZ)
 Entwicklungsbranch: `feature/direct-wf-rac-wlan`
 Basis von `main`: `c2f92a4bd73ad0b59b6cbace713177d6b458353e`
 Produktionsstand auf Basisbranch: 0.4.28 / versionCode 58
-WLAN-Testbuild: 0.4.29 / versionCode 59 (Build und Release-Prüfung noch ausstehend)
+Gemeinsame App-Version: 0.4.29 / versionCode 59 (bestehende Paketkennung und Updater)
 
 ## Ziel
 Die bestehende KlimaPilot-App wird schrittweise um direkte lokale Kommunikation mit dem Mitsubishi-Heavy-WF-RAC-Modul ergänzt. `main` bleibt während der Entwicklung unverändert. Die ioBroker-Funktionen bleiben vorerst bestehen.
@@ -33,15 +33,13 @@ Die bestehende KlimaPilot-App wird schrittweise um direkte lokale Kommunikation 
 - Lokale Profile/Datenbank und ioBroker-Backup-Synchronisierung.
 - WireGuard- und Stabilitätstests.
 
-## Teststrategie und eigener Updater
-- Eigener Buildtyp `wlanTest` mit Application-ID `de.klimapilot.app.debug`; die produktive App `de.klimapilot.app` bleibt parallel installiert.
-- Der WLAN-Testbuild wird dauerhaft mit dem bestehenden, stabilen KlimaPilot-Signaturschlüssel signiert. Dadurch bleiben Folgeupdates installierbar; es wird kein kurzlebiger CI-Debug-Schlüssel verwendet.
-- Der Signaturschlüssel wird ausschließlich aus den bereits vorhandenen GitHub Actions Secrets geladen und nicht im Repository abgelegt.
-- Der Test-Updater erkennt die getrennte Paketkennung und verwendet ausschließlich das private GitHub-Release-Tag `wlan-test-latest` mit dem Asset `KlimaPilot-WLAN-debug.apk`.
-- Die Produktivversion verwendet weiterhin ausschließlich `latest` und `KlimaPilot.apk`. Die beiden Updatekanäle sind im App-Code getrennt.
-- Der WLAN-Workflow baut und prüft den signierten Testbuild, kontrolliert Paketkennung, Versionscode, Versionsname und APK-Signatur und veröffentlicht anschließend das separate Test-Release. Pull Requests führen nur die Build-/Unit-Test-Prüfung aus.
+## Gemeinsame App und Updateweg
+- Es gibt nur die bestehende App mit Application-ID `de.klimapilot.app`; keine parallele Test-App und keinen zweiten Updatekanal.
+- Die WLAN-Funktionen werden in dieselbe App integriert, die bereits installiert ist.
+- Der bestehende Updater bleibt unverändert auf dem privaten GitHub-Release-Tag `latest` und dem Asset `KlimaPilot.apk`.
+- Signiert wird mit dem bereits verwendeten stabilen KlimaPilot-Release-Keystore aus den vorhandenen GitHub Actions Secrets. Der Schlüssel liegt nicht im Repository.
+- Der Branch-Workflow baut und prüft einen signierten Release-Kandidaten mit der echten Paketkennung, veröffentlicht ihn aber nicht selbst. Nach Review und Merge in `main` übernimmt der bestehende Produktionsworkflow den normalen Build und aktualisiert `latest`.
 - Die Installationsübergabe bleibt beim bewährten FileProvider-/`ACTION_VIEW`-Ablauf mit APK-MIME-Typ und URI-Berechtigung.
-- Der Produktivworkflow und `main` werden nicht verändert. Erst nach erfolgreichem Hardwaretest und Review wird eine Integration in `main` vorbereitet.
 
 ## Hardwaretest
 Zielgerät: Mitsubishi Heavy Industries SRK15ZS-WF. WLAN-/MCU-Firmware noch auszulesen. Beim ersten Test ausschließlich IP eingeben und Status lesen. Keine Operator-Registrierung, keine Steuerbefehle und keine konkurrierenden App-Schreibtests, bis Firmware und Verhalten verifiziert sind.
