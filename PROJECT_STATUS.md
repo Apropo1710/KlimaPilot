@@ -17,17 +17,19 @@
 
 # KlimaPilot – Projektstatus und technische Dokumentation
 
-**Dokumentationsstand:** 15.11.2026, 17:29 Uhr MEZ  
+**Dokumentationsstand:** 15.11.2026, 17:56 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`
 
 ## 1. Maßgeblicher Stand
 
-- Letzter App-Code- und APK-Quellcommit auf `main`: `bb7d4e764d71b87803feaba404843b9113e61b49` (Version **0.4.43 / versionCode 73**).
-- GitHub-Actions-Run **#170** wurde am 15.11.2026 um 17:05:59 Uhr MEZ mit `success` abgeschlossen. Build, APK-Benennung, Signaturprüfung, Statusaktualisierung, Git-Tag und Release-Veröffentlichung waren erfolgreich.
+- Aktuelle Produktionsversion: **0.4.44 / versionCode 74**.
+- App-Code- und APK-Quellcommit auf `main`: `dfa9e4bb7a32cfc2c53fdeb158cd82ab37fa3fd0`.
+- GitHub-Actions-Run **#173** wurde am 15.11.2026 um 17:56:36 Uhr MEZ mit `success` abgeschlossen.
+- Release-APK-Build, APK-Benennung, Signaturprüfung, Produktionsstatus-Aktualisierung, Git-Tag `latest` und Veröffentlichung waren erfolgreich.
 - Das Release `latest` enthält `KlimaPilot.apk`; der Git-Tag `latest` zeigt auf denselben Quellcommit.
-- APK-SHA-256: `45194ba55d0e8148b3beee3f4b397bc11d5f178c1a7b6dffdd7b4b90fd4cd308`.
-- Der automatisch gepflegte Nachweis oben dokumentiert Build, Signaturprüfung und Release-Veröffentlichung.
+- APK-SHA-256: `9969baaf50266da4ef6ad27cd5bab2ee7a82ae335b67ee1b128ebcd6a3c38c45`.
+- Der automatisch gepflegte Nachweis oben ist die maßgebliche Quelle für Buildzeit, Version, Signatur und Release.
 - Ein Dokumentationscommit verändert weder App-Version noch APK. Versionsnummer und versionCode werden nur bei App-Code-Änderungen erhöht.
 
 Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betroffenen Dateien erneut eingelesen werden. Diese Datei ist eine Orientierung und ersetzt die Quellcodeprüfung nicht.
@@ -36,27 +38,43 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 
 - Android-App mit Kotlin und Jetpack Compose.
 - Application-ID: `de.klimapilot.app`; Mindestversion API 26; Compile-/Target-SDK 35; Java 17.
-- ioBroker-Verbindung über WebSocket (`ws.0`, Standardport 8084), mit Authentifizierung, Datenpunkt-Abonnements und Reconnect.
-- Die Hauptverbindung gilt erst nach erfolgreicher Prüfung von `system.adapter.admin.0.alive` als verbunden.
-- Der Adapter `mhi-wfrac` ist noch nicht eingerichtet. Reale Datenpunktzuordnungen und Steuerfunktionen werden erst mit installierter Klimaanlage verifiziert.
+- Die Klimaanlagensteuerung erfolgt direkt und lokal über das WF-RAC-WLAN-Modul (mDNS-Dienst `_beaver._tcp`, Standardport 51443). Die ioBroker-Verbindung ist nicht der Steuerungsweg.
+- Benutzerkonten werden lokal verwaltet. Eine einmalige Übernahme älterer Konten aus ioBroker bleibt für Upgrades erhalten.
+- Die Klimaprofil-Synchronisierung verwendet eine getrennte, optionale ioBroker-WebSocket-Verbindung; sie ist unabhängig von der direkten Gerätekommunikation.
+- Jede physische Klimaanlage erhält eine eigene Gerätezuordnung und WF-RAC-Identität. HTTPS-Zertifikate werden pro Gerät gepinnt; unbekannte Module werden nur durch eine bewusste Kopplungsaktion aufgenommen.
+- Der Adapter `mhi-wfrac` ist für die direkte lokale Steuerung nicht erforderlich. Die konkrete Anlage und Firmware sind noch nicht installiert und daher noch nicht hardwareseitig geprüft.
 - SENEC/`energyfluss` wird nicht als Datenquelle eingeplant.
 - Keine Zugangsdaten, Tokens, Keystore-Passwörter oder privaten Schlüssel dokumentieren.
 
-## 3. Änderung 15.11.2026 – Profil-Synchronisierung und kompaktere Oberfläche
+## 3. Änderung 15.11.2026 – Profil-Synchronisierung und kompaktere Oberfläche (0.4.43)
 
 - Beim Löschen eines Profils wird zuerst die lokale Löschung dauerhaft gespeichert. Erst danach wird das Löschereignis in der Synchronisierungs-Outbox vorgemerkt. Damit kann ein fehlgeschlagenes lokales Löschen nicht mehr versehentlich eine Löschung auf anderen Smartphones auslösen.
 - Die Profilansicht startet keinen zusätzlichen Synchronisierungslauf mehr allein deshalb, weil sich die Anzahl der Profile durch einen empfangenen Remote-Stand geändert hat. Der Abgleich läuft beim Öffnen, nach lokalen Änderungen und weiterhin im 60-Sekunden-Rhythmus.
 - Die Klimaprofil-Kachel wurde kompakter gestaltet; die Geräte-Unterzeile entfällt. Erfolgs- und Fehlermeldungen werden farblich unterschieden.
 - Der Downloadknopf „Update laden“ erhält eine feste Mindesthöhe und nutzt die volle verfügbare Kartenbreite, damit seine Beschriftung nicht abgeschnitten wird.
-- Aktueller Quellstand: `bb7d4e764d71b87803feaba404843b9113e61b49`. App-Version: **0.4.43 / versionCode 73**.
-- GitHub Actions: Run **#170** für den aktuellen Quellstand ist erfolgreich abgeschlossen; APK-Signatur und Release `latest` sind bestätigt.
+- Historischer Quellstand dieser Änderung: `bb7d4e764d71b87803feaba404843b9113e61b49`. Die Änderung ist in der aktuellen Version 0.4.44 enthalten.
+- GitHub Actions: Run **#170** war der erfolgreiche Build dieser Zwischenversion; der aktuelle Produktionsbuild ist Run **#173** (siehe Produktionsstatus oben).
 - Kein Praxistest der Synchronisierung mit zwei Smartphones oder realem ioBroker durchgeführt. Dieser bleibt ausdrücklich offen.
 
 ## 4. Aktuell vorhandene App-Funktionen
 
+### Neue Steuerungsbasis 0.4.44
+- Pro Gerät können WF-RAC-Module separat über mDNS-Suche oder manuelle IP gekoppelt werden. Die Geräte-ID, das Transportverfahren und bei HTTPS der Zertifikat-Fingerprint werden geprüft und dauerhaft gespeichert.
+- Die Vertrauensstellung für ein zusätzliches Modul erfolgt ausschließlich durch eine ausdrücklich gestartete Kopplungsaktion.
+- Die Startseite liest den Status des ausgewählten Geräts direkt vom WF-RAC-Modul. Die Statusabfrage läuft für das ausgewählte Gerät im Hintergrund weiter, solange die Hauptansicht aktiv ist.
+- Ein/Aus, Betriebsmodus (Automatik, Kühlen, Heizen, Entfeuchten, Lüfter), Solltemperatur in 0,5-°C-Schritten, Lüfterstufe und vertikale Luftführung sind an die WF-RAC-Schreibfunktion angebunden.
+- Horizontale Luftführung und 3D-Automatik werden anhand der Modellkennung angeboten, wenn die Modellreihe diese Funktionen unterstützt.
+- Statusanzeige enthält Raum-/Außentemperatur, Verbindungszustand, Kompressorstatus und gemeldeten Fehlercode, sofern das Modul Werte liefert.
+- Klimaprofile besitzen eine Schaltfläche „Anwenden“ und übertragen nur die im Profil gespeicherten Werte; nicht gesetzte Werte bleiben unverändert.
+- Schreibvorgänge lesen vor der Änderung den aktuellen Zustand und übernehmen nicht veränderte Modell-/Protokollfelder. Die gemeinsame WF-RAC-Operator-ID wird bei Bedarf registriert; erkannte Schreibsperren anderer Clients werden nicht übergangen.
+- Pro Gerät kann ein isolierter Demo-Modus aktiviert werden. Er simuliert eine Anlage im Arbeitsspeicher und verwendet den produktiven WF-RAC-Frame-Encoder/Decoder. Es werden keine echten Netzwerkbefehle gesendet. Der Demo-Zustand ist nicht hardwarebestätigt und wird beim Prozessneustart zurückgesetzt.
+- **Noch nicht durch echte Hardware bestätigt:** Befehlsannahme, Firmware-Kompatibilität, verfügbare Messwerte, Klappen-/3D-Funktion und Schreibverhalten an der installierten SRK15ZS-WF.
+- Ausschalt-Timer, wiederkehrende Zeitpläne, automatische Wiedererkennung nach DHCP-IP-Wechsel sowie zusätzliche Sonderfunktionen wie Vacant/Self Clean sind noch nicht integriert.
+
+
 ### Benutzerkonten und Einstellungen
 - KlimaPilot besitzt ein verpflichtendes Benutzerkonto-/Anmeldemodell mit den Rollen `admin` und `user`.
-- Kontodaten liegen im ioBroker-Namensraum `0_userdata.0.KlimaPilot.accounts`; Passwörter werden als PBKDF2-HMAC-SHA256-Hashes mit individuellen Salts gespeichert.
+- Kontodaten werden lokal gespeichert; Passwörter werden als PBKDF2-HMAC-SHA256-Hashes mit individuellen Salts gespeichert. Bei einem Upgrade können ältere Konten einmalig aus `0_userdata.0.KlimaPilot.accounts` übernommen werden.
 - Administratoren verwalten Konten, Räume, Geräte und ioBroker-Verbindungseinstellungen. Benutzer können die Klimaübersicht bedienen, ihr eigenes Passwort ändern und den Benutzer wechseln.
 - Die Schriftgröße wird als `fontScale` im jeweiligen Benutzerkonto gespeichert. Verfügbare Stufen: 85 %, 100 %, 115 %, 130 % und 150 %; Standardwert ist 100 %.
 - Die Einstellungen besitzen eine fixierte Kopfzeile; die darunterliegenden Inhalte scrollen.
@@ -106,8 +124,11 @@ Nicht wieder einführen: `REQUEST_INSTALL_PACKAGES`; nicht auf `ACTION_INSTALL_P
 
 1. Profil-Synchronisierung mit zwei realen Installationen und ioBroker testen: erstmaliger Profilbestand, neue/geänderte Profile, Löschungen, Wiederholungen nach Verbindungsabbruch und Konflikte.
 2. Prüfen, ob ioBroker die benötigten Objekte/States im vorgesehenen Namespace mit den tatsächlichen Rechten korrekt anlegt, schreibt und über `getStates` zurückliefert.
-3. Nach Installation der Klimaanlage `mhi-wfrac` einrichten und alle realen Datenpunkte, Statuswerte und Steuerbefehle verifizieren.
-4. Erst nach erfolgreicher Hardwareprüfung entscheiden, welche Profilwerte sicher angewendet werden können.
+3. Nach Installation der Klimaanlage beide WF-RAC-Module koppeln und Ein/Aus, Modi, Temperatur, Lüfter, Luftklappen, 3D-Automatik, Statuswerte und Fehlercodes praktisch verifizieren.
+4. Ausschalt-Timer und wiederkehrende Zeitpläne ergänzen und vor der Hardwareinstallation mit dem Demo-Modus testen.
+5. Automatische Wiedererkennung bereits gekoppelter Module nach DHCP-IP-Wechsel ergänzen.
+6. Vacant/Self Clean und weitere durch das konkrete Modell bestätigte Sonderfunktionen samt Profilunterstützung ergänzen.
+7. Profil-Synchronisierung mit zwei realen Installationen und ioBroker testen.
 
 ## 8. Verbindliche Arbeitsweise
 
