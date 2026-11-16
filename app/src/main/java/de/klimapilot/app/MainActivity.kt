@@ -65,7 +65,7 @@ import de.klimapilot.app.wfrac.Codec
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
-private val PanelRaised = Color(0xFFE6EDF5)
+private val PanelRaised = Color(0xFFDCEBFA)
 private val Blue = Color(0xFF1769AA)
 private val Green = Color(0xFF16845B)
 private val Muted = Color(0xFF63748A)
@@ -960,7 +960,11 @@ private fun TemperatureCard(
                     contentColor = if (state?.power == true) Color(0xFF123B60) else Color.White
                 ),
                 contentPadding = PaddingValues(vertical = 4.dp)
-            ) { Text(if (state?.power == true) "⏻  Ausschalten" else "⏻  Einschalten", fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+            ) {
+                Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (state?.power == true) "Ausschalten" else "Einschalten", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
@@ -973,7 +977,16 @@ private fun ModeTile(modifier: Modifier, label: String, symbol: String, selected
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(symbol, color = if (selected) Color.White else Muted, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        if (label == "Kühlen") {
+            Icon(
+                Icons.Default.AcUnit,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = if (selected) Color.White else Muted
+            )
+        } else {
+            Text(symbol, color = if (selected) Color.White else Muted, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        }
         Text(label, color = if (selected) Color.White else TextMain, fontSize = 9.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
     }
 }
@@ -991,12 +1004,39 @@ private fun ChoicePill(label: String, selected: Boolean, enabled: Boolean, onCli
 
 @Composable
 private fun AirflowCard(modifier: Modifier, title: String, selected: String, options: List<String>, enabled: Boolean, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
     Card(modifier = modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
-        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-            Text(selected.ifBlank { "—" }, color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                options.forEach { option -> ChoicePill(option, selected == option, enabled) { onSelect(option) } }
+            Box(Modifier.fillMaxWidth()) {
+                Surface(
+                    onClick = { expanded = true },
+                    enabled = enabled,
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF2F5F8),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(selected.ifBlank { "—" }, color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Spacer(Modifier.weight(1f))
+                        Text("▾", color = Muted, fontSize = 17.sp)
+                    }
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    options.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                expanded = false
+                                onSelect(option)
+                            },
+                            enabled = enabled
+                        )
+                    }
+                }
             }
         }
     }

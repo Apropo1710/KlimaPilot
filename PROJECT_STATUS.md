@@ -15,6 +15,15 @@
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
+## Änderung 16.11.2026 – UI-Feinschliff (0.4.55)
+
+- Das Kühlen-Symbol nutzt nun die gleich große einfarbige Material-Schneeflocke wie die übrigen Betriebsmodus-Symbole.
+- Der Ein-/Ausschaltknopf zeigt das Material-Power-Symbol statt des auf manchen Geräten fehlerhaft dargestellten Unicode-Zeichens.
+- Die Auswahl der vertikalen und horizontalen Luftführung wurde von horizontal scrollenden Optionen auf jeweils ein Dropdown umgestellt.
+- Die gemeinsame helle Flächenfarbe für hervorgehobene Auswahl-/Profilflächen wurde auf das vorhandene helle Blau vereinheitlicht.
+- Der Button „Update laden“ erhält eine größere Mindesthöhe und großzügigere Innenabstände. Der Download-, APK-Prüf- und Android-Installationsablauf wurde nicht verändert.
+- Build- und Release-Nachweis wird nach Abschluss des GitHub-Actions-Laufs im automatisch gepflegten Produktionsstatus ergänzt.
+
 # KlimaPilot – Projektstatus und technische Dokumentation
 
 **Dokumentationsstand:** 15.11.2026, 22:16 Uhr MEZ  

@@ -122,8 +122,8 @@ internal fun GithubUpdateCard(appVersion: String) {
                 if (newerVersion != null && assetId != null) {
                     Button(
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().height(42.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         onClick = {
                             scope.launch {
                                 busy = true
