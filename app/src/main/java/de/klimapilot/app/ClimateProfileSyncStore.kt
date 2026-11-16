@@ -262,7 +262,11 @@ internal class ClimateProfileSyncStore(context: Context) {
     private fun appendEvent(type: String, profileId: String, deviceKey: String, profile: JSONObject?, stableEventId: String? = null): Boolean {
         val root = readRoot()
         val outbox = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
-        if (stableEventId != null && (0 until outbox.length()).any { outbox.optJSONObject(it)?.optString("eventId") == stableEventId }) return true
+        if (stableEventId != null) {
+            val imported = root.optJSONArray(KEY_IMPORTED_JOURNAL_IDS) ?: JSONArray()
+            if ((0 until imported.length()).any { imported.optString(it) == stableEventId } ||
+                (0 until outbox.length()).any { outbox.optJSONObject(it)?.optString("eventId") == stableEventId }) return true
+        }
         val installation = root.optString(KEY_INSTALLATION_ID).takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
         val sequence = root.optLong(KEY_SEQUENCE, 0L).coerceAtLeast(0L) + 1L
         val logicalClock = root.optLong(KEY_LOGICAL_CLOCK, 0L).coerceAtLeast(0L) + 1L
@@ -273,6 +277,11 @@ internal class ClimateProfileSyncStore(context: Context) {
         outbox.put(event)
         root.put(KEY_INSTALLATION_ID, installation).put(KEY_SEQUENCE, sequence)
             .put(KEY_LOGICAL_CLOCK, logicalClock).put(KEY_OUTBOX, outbox)
+        if (stableEventId != null) {
+            val imported = root.optJSONArray(KEY_IMPORTED_JOURNAL_IDS) ?: JSONArray()
+            imported.put(stableEventId)
+            root.put(KEY_IMPORTED_JOURNAL_IDS, imported)
+        }
         val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
         versions.put(versionKey(deviceKey, profileId), versionOf(event))
         root.put(KEY_PROFILE_VERSIONS, versions)
@@ -300,6 +309,7 @@ internal class ClimateProfileSyncStore(context: Context) {
         private const val KEY_SEQUENCE = "sequence"
         private const val KEY_LOGICAL_CLOCK = "logicalClock"
         private const val KEY_OUTBOX = "outbox"
+        private const val KEY_IMPORTED_JOURNAL_IDS = "importedJournalEventIds"
         private const val KEY_INITIALIZED = "initializedDeviceKeys"
         private const val KEY_PROFILE_VERSIONS = "profileVersions"
         private const val KEY_ACTIVE_PROFILES = "activeProfiles"
