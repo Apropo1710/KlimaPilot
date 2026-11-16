@@ -972,20 +972,19 @@ private fun TemperatureCard(
 @Composable
 private fun ModeTile(modifier: Modifier, label: String, symbol: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Column(
-        modifier.clip(RoundedCornerShape(14.dp)).background(if (selected) Blue else Color(0xFFF2F5F8))
-            .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 2.dp, vertical = 9.dp),
+        modifier.height(88.dp).clip(RoundedCornerShape(14.dp))
+            .background(if (selected) Blue else Color(0xFFF2F5F8))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (label == "Kühlen") {
-            Icon(
-                Icons.Default.AcUnit,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = if (selected) Color.White else Muted
-            )
-        } else {
-            Text(symbol, color = if (selected) Color.White else Muted, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+            if (label == "Kühlen") {
+                Icon(Icons.Default.AcUnit, contentDescription = null, modifier = Modifier.size(18.dp), tint = if (selected) Color.White else Muted)
+            } else {
+                Text(symbol, color = if (selected) Color.White else Muted, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            }
         }
         Text(label, color = if (selected) Color.White else TextMain, fontSize = 9.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
     }
@@ -1077,7 +1076,7 @@ internal fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
         onDispose { discovery.stop() }
     }
 
-    Card(shape = RoundedCornerShape(18.dp)) {
+    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Direkte Klimaanlagen-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Text("Read-only Verbindungstest zum WF-RAC-Modul. Es werden keine Steuerbefehle gesendet und kein Bedienerkonto registriert.", color = Muted, fontSize = 12.sp)
@@ -1225,7 +1224,7 @@ private fun IoBrokerConnectionSettingsCard(expanded: Boolean, onExpandedChange: 
     val valid = address.trim().isNotBlank() && !address.contains("://") && !address.contains("/") &&
         port.toIntOrNull()?.let { it in 1..65535 } == true
     val url = (if (secure) "wss://" else "ws://") + address.trim() + ":" + (port.toIntOrNull() ?: 8084)
-    Card(shape = RoundedCornerShape(18.dp)) {
+    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(Modifier.fillMaxWidth().clickable { onExpandedChange(!expanded) }, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -1308,7 +1307,7 @@ private fun SettingsScreen(
                 .padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-        Card(shape = RoundedCornerShape(16.dp)) {
+        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.fillMaxWidth().clickable { accountExpanded = !accountExpanded }, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -1348,7 +1347,7 @@ private fun SettingsScreen(
                 Text("Klimaprofile verwalten", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
         }
-        Card(shape = RoundedCornerShape(18.dp)) {
+        Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth().clickable { fontSizeExpanded = !fontSizeExpanded }, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -1383,7 +1382,7 @@ private fun SettingsScreen(
         if (isAdmin) {
             IoBrokerConnectionSettingsCard(expanded = ioBrokerExpanded, onExpandedChange = { ioBrokerExpanded = it })
         } else {
-            Card(shape = RoundedCornerShape(16.dp)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
                 Text(
                     "Verbindungs-, Raum- und Gerätekonfiguration kann nur ein Administrator ändern.",
                     modifier = Modifier.padding(14.dp), color = Muted, fontSize = 12.sp

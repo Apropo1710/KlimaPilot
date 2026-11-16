@@ -1,3 +1,10 @@
+## Änderung 16.11.2026 – Farb- und Kachelkorrektur (0.4.56)
+
+- Ursache der weiterhin rosa/lila Flächen: mehrere Material3-Cards verwendeten die nicht explizit gesetzte Standard-Card-Oberfläche. Konto-, Schriftgrößen-, Verbindungs- und weitere Einstellungsflächen setzen nun ausdrücklich den KlimaPilot-Hellblauton; auch die äußere Profilkarte nutzt die definierte helle Surface-Variante.
+- Die fünf Betriebsmodus-Kacheln haben jetzt eine feste gemeinsame Höhe von 88 dp und einen identischen 24-dp-Symbolbereich. Die Schneeflocke ist auf 18 dp verkleinert und entspricht in der visuellen Gewichtung den übrigen Symbolen.
+- Steuerungslogik, Profil- und Synchronisierungsabläufe sowie der Updater-Installationsablauf bleiben unverändert.
+- Build-, Signatur- und Release-Nachweis werden nach Abschluss der GitHub-Actions-Prüfung ergänzt.
+
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
