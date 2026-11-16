@@ -10,7 +10,7 @@
 ## 1. Aktueller GitHub-, Build- und Release-Stand
 
 - Repository: `Apropo1710/KlimaPilot`; produktive Arbeit ausschließlich auf `main`.
-- Aktueller `main`-HEAD beim Abgleich: `3291d3786a5c0574b737c04329a98c8600a88b4c` (Dokumentationscommit nach Veröffentlichung).
+- `main`-HEAD bei der technischen Vorprüfung vor dem Dokumentationsabgleich: `3291d3786a5c0574b737c04329a98c8600a88b4c`. Die nachfolgenden Commits dieses Abgleichs ändern ausschließlich Status-/README-Dokumentation, keinen App-Code.
 - App-Code-/APK-Quellcommit: `058c3cc456beecccaab8b102e6af3d1e6a42017f`.
 - App-Version aus `app/build.gradle.kts`: **0.4.59**, `versionCode = 89`.
 - Application-ID: `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
