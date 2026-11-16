@@ -121,9 +121,85 @@ internal class ClimateProfileRepository(context: Context) {
     }
 
     @Synchronized
-    fun delete(profileId: String) {
-        write(load().filterNot { it.id == profileId })
+    fun saveWithPendingSync(profile: ClimateProfile, deviceKey: String): ClimateProfile {
+        require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
+        validateProfile(profile)
+        val normalized = profile.copy(name = profile.name.trim())
+        val next = load().filterNot { it.id == normalized.id } + normalized
+        val journal = readJournal()
+        journal.put(newJournalEvent("upsert", normalized.id, deviceKey, profileToJson(normalized)))
+        writeProfilesAndJournal(next, journal)
+        return normalized
     }
+
+    @Synchronized
+    fun deleteWithPendingSync(profileId: String, deviceKey: String) {
+        require(profileId.isNotBlank() && deviceKey.isNotBlank())
+        val next = load().filterNot { it.id == profileId }
+        val journal = readJournal()
+        journal.put(newJournalEvent("delete", profileId, deviceKey, null))
+        writeProfilesAndJournal(next, journal)
+    }
+
+    /** Moves durable repository journal entries into the outbox; stable IDs make retries idempotent. */
+    @Synchronized
+    fun flushPendingSyncJournal(store: ClimateProfileSyncStore): Int {
+        val journal = readJournal()
+        if (journal.length() == 0) return 0
+        val remaining = JSONArray()
+        var transferred = 0
+        for (index in 0 until journal.length()) {
+            val event = journal.optJSONObject(index)
+                ?: throw IllegalStateException("Das lokale Profiländerungsjournal enthält einen ungültigen Eintrag.")
+            if (store.enqueueJournalEvent(JSONObject(event.toString()))) transferred++ else remaining.put(event)
+        }
+        check(prefs.edit().putString(KEY_PENDING_SYNC_JOURNAL, remaining.toString()).commit()) {
+            "Das Profiländerungsjournal konnte nach der Übernahme nicht bereinigt werden."
+        }
+        return transferred
+    }
+
+    private fun readJournal(): JSONArray {
+        val raw = prefs.getString(KEY_PENDING_SYNC_JOURNAL, null) ?: return JSONArray()
+        return try { JSONArray(raw) } catch (_: Exception) {
+            throw IllegalStateException("Das lokale Profiländerungsjournal ist beschädigt und wurde nicht überschrieben.")
+        }
+    }
+
+    private fun newJournalEvent(type: String, profileId: String, deviceKey: String, profile: JSONObject?): JSONObject {
+        val event = JSONObject().put("eventId", "journal:" + UUID.randomUUID().toString())
+            .put("type", type).put("profileId", profileId).put("deviceKey", deviceKey)
+            .put("createdAt", System.currentTimeMillis())
+        if (profile != null) event.put("profile", profile)
+        return event
+    }
+
+    private fun writeProfilesAndJournal(profiles: List<ClimateProfile>, journal: JSONArray) {
+        val json = profilesJson(profiles)
+        check(prefs.edit().putString(KEY_PROFILES, json).putString(KEY_PENDING_SYNC_JOURNAL, journal.toString()).commit()) {
+            "Klimaprofil und Synchronisierungsvormerkung konnten nicht gemeinsam gespeichert werden."
+        }
+    }
+
+    private fun validateProfile(profile: ClimateProfile) {
+        require(profile.id.isNotBlank() && profile.deviceId.isNotBlank() && profile.name.isNotBlank())
+        require(profile.mode == null || profile.mode in SUPPORTED_MODES)
+        profile.targetTemp?.let { require(it.isFinite() && it in 16.0..30.0 && abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001) }
+        require(profile.fanSpeed == null || profile.fanSpeed in 0..4)
+        require(profile.verticalSwing == null || profile.verticalSwing in 0..4)
+        require(profile.horizontalSwing == null || profile.horizontalSwing in 0..7)
+        require(profile.power != null || profile.mode != null || profile.targetTemp != null ||
+            profile.fanSpeed != null || profile.verticalSwing != null || profile.horizontalSwing != null || profile.threeDAuto != null) {
+            "Bitte mindestens eine Einstellung für das Profil auswählen."
+        }
+    }
+
+    private fun profileToJson(item: ClimateProfile): JSONObject = JSONObject()
+        .put("id", item.id).put("name", item.name).put("power", item.power ?: JSONObject.NULL)
+        .put("mode", item.mode ?: JSONObject.NULL).put("targetTemp", item.targetTemp ?: JSONObject.NULL)
+        .put("fanSpeed", item.fanSpeed ?: JSONObject.NULL).put("verticalSwing", item.verticalSwing ?: JSONObject.NULL)
+        .put("horizontalSwing", item.horizontalSwing ?: JSONObject.NULL).put("threeDAuto", item.threeDAuto ?: JSONObject.NULL)
+        .put("updatedAt", item.updatedAt)
 
     /** Applies a remote event locally without creating a new outbound event. */
     @Synchronized
@@ -160,7 +236,13 @@ internal class ClimateProfileRepository(context: Context) {
     }
 
     private fun write(profiles: List<ClimateProfile>) {
-        val json = JSONObject().put("schemaVersion", SCHEMA_VERSION).put("profiles", JSONArray().apply {
+        check(prefs.edit().putString(KEY_PROFILES, profilesJson(profiles)).commit()) {
+            "Klimaprofile konnten nicht lokal gespeichert werden."
+        }
+    }
+
+    private fun profilesJson(profiles: List<ClimateProfile>): String =
+        JSONObject().put("schemaVersion", SCHEMA_VERSION).put("profiles", JSONArray().apply {
             profiles.forEach { item ->
                 put(JSONObject()
                     .put("id", item.id).put("deviceId", item.deviceId).put("name", item.name)
@@ -173,14 +255,11 @@ internal class ClimateProfileRepository(context: Context) {
                     .put("threeDAuto", item.threeDAuto ?: JSONObject.NULL)
                     .put("updatedAt", item.updatedAt))
             }
-        })
-        check(prefs.edit().putString(KEY_PROFILES, json.toString()).commit()) {
-            "Klimaprofile konnten nicht lokal gespeichert werden."
-        }
-    }
+        }).toString()
 
     companion object {
         private const val KEY_PROFILES = "climate_profiles_v1"
+        private const val KEY_PENDING_SYNC_JOURNAL = "pending_sync_journal_v1"
         private const val SCHEMA_VERSION = 2
         private val SUPPORTED_MODES = setOf("AUTO", "COOL", "HEAT", "DRY", "FAN")
     }
