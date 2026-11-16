@@ -353,6 +353,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
         if (!loaded || !loadSucceeded) return@LaunchedEffect
+        runCatching { repository.flushPendingSyncJournal(syncStore) }
+            .onFailure { status = it.message ?: "Profiländerungsjournal konnte nicht übernommen werden." }
         devices.filter { it.syncDeviceKey.isNotBlank() }.forEach { device ->
             runCatching { syncStore.enqueueInitialProfiles(profiles.filter { it.deviceId == device.id }, device.syncDeviceKey) }
                 .onFailure { status = it.message ?: "Vorhandene Profile konnten nicht zur Synchronisierung vorgemerkt werden." }
@@ -473,15 +475,17 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             modelSupportsVaneLR = modelSupportsVaneLR,
             onDismiss = { editing = null },
             onSave = { profile ->
-                runCatching { repository.save(profile) }
+                runCatching {
+                    if (syncDeviceKey.isBlank()) repository.save(profile)
+                    else repository.saveWithPendingSync(profile, syncDeviceKey)
+                }
                     .onSuccess {
                         val index = profiles.indexOfFirst { it.id == profile.id }
                         if (index >= 0) profiles[index] = profile else profiles.add(profile)
                         status = if (syncDeviceKey.isBlank()) {
                             "Lokal gespeichert. Für die Synchronisierung auf anderen Smartphones fehlt noch die gemeinsame Gerätekennung."
                         } else {
-                            runCatching { syncStore.enqueueUpsert(profile, syncDeviceKey) }
-                                .fold({ "" }, { it.message ?: "Profil lokal gespeichert; Synchronisierung konnte nicht vorgemerkt werden." })
+                            "Profil lokal gespeichert und dauerhaft zur Synchronisierung vorgemerkt."
                         }
                         syncRevision++
                         editing = null
@@ -518,11 +522,14 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                     threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
                                     updatedAt = System.currentTimeMillis()
                                 )
-                                runCatching { repository.save(updated) }.onSuccess {
+                                runCatching {
+                                    if (syncDeviceKey.isBlank()) repository.save(updated)
+                                    else repository.saveWithPendingSync(updated, syncDeviceKey)
+                                }.onSuccess {
                                     val index = profiles.indexOfFirst { it.id == updated.id }
                                     if (index >= 0) profiles[index] = updated
                                     status = if (syncDeviceKey.isBlank()) "Profil aktualisiert." else
-                                        runCatching { syncStore.enqueueUpsert(updated, syncDeviceKey) }.fold({ "" }, { it.message ?: "Lokal aktualisiert; Synchronisierung fehlgeschlagen." })
+                                        "Profil aktualisiert und dauerhaft zur Synchronisierung vorgemerkt."
                                     syncRevision++
                                 }.onFailure { status = it.message ?: "Profil konnte nicht aktualisiert werden." }
                                 saveChoiceDialog = false
@@ -577,13 +584,14 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
                         updatedAt = System.currentTimeMillis()
                     )
-                    runCatching { repository.save(created) }.onSuccess {
+                    runCatching {
+                        if (syncDeviceKey.isBlank()) repository.save(created)
+                        else repository.saveWithPendingSync(created, syncDeviceKey)
+                    }.onSuccess {
                         profiles.add(created)
                         val selectionError = persistActiveProfile(created.id, requestSync = false)
-                        val profileSyncError = if (syncDeviceKey.isBlank()) null else
-                            runCatching { check(syncStore.enqueueUpsert(created, syncDeviceKey)) { "Profil konnte nicht zur Synchronisierung vorgemerkt werden." } }
-                                .exceptionOrNull()?.message
-                        status = selectionError ?: profileSyncError.orEmpty()
+                        status = selectionError ?: if (syncDeviceKey.isBlank()) "" else
+                            "Profil lokal gespeichert und dauerhaft zur Synchronisierung vorgemerkt."
                         syncRevision++
                         saveNameDialog = false
                     }.onFailure { status = it.message ?: "Profil konnte nicht gespeichert werden." }
@@ -600,23 +608,17 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             text = { Text("„${profile.name}“ wird von diesem Smartphone gelöscht.") },
             confirmButton = {
                 TextButton(onClick = {
-                    runCatching { repository.delete(profile.id) }
+                    runCatching {
+                        if (syncDeviceKey.isBlank()) repository.delete(profile.id)
+                        else repository.deleteWithPendingSync(profile.id, syncDeviceKey)
+                    }
                         .onSuccess {
                             profiles.removeAll { it.id == profile.id }
                             val selectionError = if (selectedProfileId == profile.id) persistActiveProfile(null, requestSync = false) else null
                             syncRevision++
-                            status = selectionError ?: when {
-                                syncDeviceKey.isBlank() ->
-                                    "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
-                                else -> runCatching {
-                                    check(syncStore.enqueueDelete(profile.id, syncDeviceKey)) {
-                                        "Löschung konnte nicht zur Synchronisierung vorgemerkt werden."
-                                    }
-                                }.fold(
-                                    { "" },
-                                    { "Lokal gelöscht, aber die Synchronisierung konnte nicht vorgemerkt werden: ${it.message ?: "Unbekannter Fehler"}" }
-                                )
-                            }
+                            status = selectionError ?: if (syncDeviceKey.isBlank())
+                                "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
+                            else "Profil gelöscht und Löschung dauerhaft zur Synchronisierung vorgemerkt."
                         }
                         .onFailure { status = it.message ?: "Profil konnte nicht gelöscht werden." }
                     deleting = null
