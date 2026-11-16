@@ -62,7 +62,26 @@ internal class ClimateProfileSyncClient {
                                 val deviceId = deviceMap[key]
                                 if (deviceId == null || !store.isRemoteEventNewer(event)) { skipped++; continue }
                                 try {
-                                    repository.applyRemoteEvent(event, deviceId)
+                                    when (event.optString("type")) {
+                                        "selection" -> {
+                                            val payload = event.optJSONObject("profile")
+                                                ?: throw IllegalArgumentException("Aktive Profilauswahl enthält keine Daten.")
+                                            val activeId = if (payload.isNull("activeProfileId")) null
+                                                else payload.optString("activeProfileId").takeIf { it.isNotBlank() }
+                                            check(store.saveActiveProfileId(deviceId, activeId)) {
+                                                "Aktive Profilauswahl konnte lokal nicht gespeichert werden."
+                                            }
+                                        }
+                                        else -> {
+                                            repository.applyRemoteEvent(event, deviceId)
+                                            if (event.optString("type") == "delete" &&
+                                                store.activeProfileId(deviceId) == event.optString("profileId")) {
+                                                check(store.saveActiveProfileId(deviceId, null)) {
+                                                    "Gelöschte aktive Profilauswahl konnte nicht zurückgesetzt werden."
+                                                }
+                                            }
+                                        }
+                                    }
                                     check(store.recordRemoteEvent(event)) { "Versionsstand konnte nicht lokal gespeichert werden." }
                                     applied++
                                 } catch (error: Exception) {

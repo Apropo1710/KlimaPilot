@@ -33,6 +33,29 @@ internal class ClimateProfileSyncStore(context: Context) {
     }
 
     @Synchronized
+    fun activeProfileId(deviceId: String): String? {
+        require(deviceId.isNotBlank())
+        return readRoot().optJSONObject(KEY_ACTIVE_PROFILES)?.optString(deviceId)?.takeIf { it.isNotBlank() }
+    }
+
+    @Synchronized
+    fun saveActiveProfileId(deviceId: String, profileId: String?): Boolean {
+        require(deviceId.isNotBlank())
+        val root = readRoot()
+        val active = root.optJSONObject(KEY_ACTIVE_PROFILES) ?: JSONObject()
+        active.put(deviceId, profileId ?: "")
+        root.put(KEY_ACTIVE_PROFILES, active)
+        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+    }
+
+    @Synchronized
+    fun enqueueActiveProfileSelection(profileId: String?, deviceKey: String): Boolean {
+        require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
+        val payload = JSONObject().put("activeProfileId", profileId ?: JSONObject.NULL)
+        return appendEvent("selection", ACTIVE_SELECTION_EVENT_ID, deviceKey, payload)
+    }
+
+    @Synchronized
     fun enqueueInitialProfiles(profiles: List<ClimateProfile>, deviceKey: String): Boolean {
         if (deviceKey.isBlank()) return false
         val root = readRoot()
@@ -205,5 +228,7 @@ internal class ClimateProfileSyncStore(context: Context) {
         private const val KEY_OUTBOX = "outbox"
         private const val KEY_INITIALIZED = "initializedDeviceKeys"
         private const val KEY_PROFILE_VERSIONS = "profileVersions"
+        private const val KEY_ACTIVE_PROFILES = "activeProfiles"
+        private const val ACTIVE_SELECTION_EVENT_ID = "__active_profile_selection__"
     }
 }

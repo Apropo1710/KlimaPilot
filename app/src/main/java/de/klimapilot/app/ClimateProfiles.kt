@@ -204,8 +204,26 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var saveChoiceDialog by remember { mutableStateOf(false) }
     var newProfileName by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
-    var selectedProfileId by remember(deviceId) { mutableStateOf<String?>(null) }
+    var selectedProfileId by remember(deviceId) { mutableStateOf(syncStore.activeProfileId(deviceId)) }
+
     var profileMenuExpanded by remember { mutableStateOf(false) }
+
+    fun persistActiveProfile(profileId: String?, requestSync: Boolean = true): String? {
+        selectedProfileId = profileId
+        if (!syncStore.saveActiveProfileId(deviceId, profileId)) {
+            return "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
+        }
+        if (syncDeviceKey.isNotBlank()) {
+            val queued = runCatching {
+                syncStore.enqueueActiveProfileSelection(profileId, syncDeviceKey)
+            }.getOrElse {
+                return it.message ?: "Die aktive Profilauswahl konnte nicht zur Synchronisierung vorgemerkt werden."
+            }
+            if (!queued) return "Die aktive Profilauswahl konnte nicht zur Synchronisierung vorgemerkt werden."
+            if (requestSync) syncRevision++
+        }
+        return null
+    }
     LaunchedEffect(repository) {
         runCatching { repository.load() }
             .onSuccess { profiles.clear(); profiles.addAll(it); loadSucceeded = true; loaded = true }
@@ -236,6 +254,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         syncClient.syncNow(address, devices, syncStore, repository) { message ->
             status = message
             runCatching { repository.load() }.onSuccess { latest -> profiles.clear(); profiles.addAll(latest) }
+            selectedProfileId = syncStore.activeProfileId(deviceId)
         }
     }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature) {
@@ -246,6 +265,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             if (address.isNotBlank()) syncClient.syncNow(address, devices, syncStore, repository) { message ->
                 status = message
                 runCatching { repository.load() }.onSuccess { latest -> profiles.clear(); profiles.addAll(latest) }
+                selectedProfileId = syncStore.activeProfileId(deviceId)
             }
         }
     }
@@ -269,14 +289,18 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                             }
                             DropdownMenu(expanded = profileMenuExpanded, onDismissRequest = { profileMenuExpanded = false }) {
                                 DropdownMenuItem(text = { Text("⚙️  Individuell") },
-                                    onClick = { selectedProfileId = null; profileMenuExpanded = false })
+                                    onClick = {
+                                        profileMenuExpanded = false
+                                        status = persistActiveProfile(null) ?: "Individuelle Einstellungen ausgewählt."
+                                    })
                                 deviceProfiles.forEach { profile ->
                                     DropdownMenuItem(text = { Text(profileSymbol(profile) + "  " + profile.name) },
                                         onClick = {
                                             profileMenuExpanded = false
                                             onApply(profile) { success, message ->
-                                                if (success) selectedProfileId = profile.id
-                                                status = message ?: if (success) "Profil erfolgreich angewendet." else "Profil konnte nicht angewendet werden."
+                                                status = if (success) {
+                                                    persistActiveProfile(profile.id) ?: (message ?: "Profil erfolgreich angewendet.")
+                                                } else message ?: "Profil konnte nicht angewendet werden."
                                             }
                                         })
                                 }
@@ -433,9 +457,11 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                     )
                     runCatching { repository.save(created) }.onSuccess {
                         profiles.add(created)
-                        selectedProfileId = created.id
-                        status = if (syncDeviceKey.isBlank()) "Profil lokal gespeichert." else
-                            runCatching { syncStore.enqueueUpsert(created, syncDeviceKey) }.fold({ "" }, { it.message ?: "Lokal gespeichert; Synchronisierung fehlgeschlagen." })
+                        val selectionError = persistActiveProfile(created.id, requestSync = false)
+                        val profileSyncError = if (syncDeviceKey.isBlank()) null else
+                            runCatching { check(syncStore.enqueueUpsert(created, syncDeviceKey)) { "Profil konnte nicht zur Synchronisierung vorgemerkt werden." } }
+                                .exceptionOrNull()?.message
+                        status = selectionError ?: profileSyncError.orEmpty()
                         syncRevision++
                         saveNameDialog = false
                     }.onFailure { status = it.message ?: "Profil konnte nicht gespeichert werden." }
@@ -455,8 +481,9 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                     runCatching { repository.delete(profile.id) }
                         .onSuccess {
                             profiles.removeAll { it.id == profile.id }
+                            val selectionError = if (selectedProfileId == profile.id) persistActiveProfile(null, requestSync = false) else null
                             syncRevision++
-                            status = when {
+                            status = selectionError ?: when {
                                 syncDeviceKey.isBlank() ->
                                     "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
                                 else -> runCatching {
