@@ -248,7 +248,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             }
         }
     }
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE3EEF7))) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth())
             else if (deviceId.isBlank()) Text("Wähle zuerst eine Klimaanlage aus.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -257,7 +257,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         Box(Modifier.weight(1f)) {
                             Surface(onClick = { profileMenuExpanded = true }, shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+                                color = Color(0xFFE3EEF7), modifier = Modifier.fillMaxWidth()) {
                                 Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(selectedProfile?.let { profileSymbol(it) } ?: "⚙️", fontSize = 17.sp)
                                     Spacer(Modifier.width(7.dp))

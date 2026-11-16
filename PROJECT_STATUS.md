@@ -1,3 +1,12 @@
+## Änderung 16.11.2026 – Kopfzeile, Cloud-Symbol und Farbangleichung (0.4.57)
+
+- Die Profil-/Auswahlflächen und markierten Raumchips verwenden nun denselben exakten Hellblauton wie die Klimaanlagen-Temperaturkachel (#E3EEF7).
+- Das Cloud-Symbol wurde neben der KLIMAPILOT-Kopfzeile wieder sichtbar ergänzt.
+- Die Kopfzeile mit Gerätemodell, Verbindungsstatus und Zahnrad-Einstellungen liegt nun außerhalb des scrollbaren Inhalts. Das Zahnrad bleibt beim Scrollen dauerhaft erreichbar.
+- Die Scrollfläche und der bisherige Wischwechsel zwischen Räumen bleiben erhalten.
+- Keine Änderungen an Steuerungslogik, Profil-Synchronisierung oder Updater-Installationsablauf.
+- Build-, Signatur- und Release-Nachweis folgen nach Abschluss der CI-Prüfung.
+
 ## Änderung 16.11.2026 – Farb- und Kachelkorrektur (0.4.56)
 
 - Ursache der weiterhin rosa/lila Flächen: mehrere Material3-Cards verwendeten die nicht explizit gesetzte Standard-Card-Oberfläche. Konto-, Schriftgrößen-, Verbindungs- und weitere Einstellungsflächen setzen nun ausdrücklich den KlimaPilot-Hellblauton; auch die äußere Profilkarte nutzt die definierte helle Surface-Variante.

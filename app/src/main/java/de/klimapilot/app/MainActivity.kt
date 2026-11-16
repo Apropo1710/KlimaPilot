@@ -65,7 +65,7 @@ import de.klimapilot.app.wfrac.Codec
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
-private val PanelRaised = Color(0xFFDCEBFA)
+private val PanelRaised = Color(0xFFE3EEF7)
 private val Blue = Color(0xFF1769AA)
 private val Green = Color(0xFF16845B)
 private val Muted = Color(0xFF63748A)
@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
             val scheme = lightColorScheme(
                 primary = Blue,
                 onPrimary = Color.White,
-                primaryContainer = Color(0xFFDCEBFA),
+                primaryContainer = Color(0xFFE3EEF7),
                 onPrimaryContainer = Color(0xFF123B60),
                 secondary = Green,
                 onSecondary = Color.White,
@@ -691,31 +691,17 @@ private fun MainScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
-            .pointerInput(rooms, selectedRoom) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    var totalDrag = 0f
-                    val horizontalStart = awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
-                        totalDrag += overSlop
-                        change.consume()
-                    }
-                    if (horizontalStart != null) {
-                        horizontalDrag(horizontalStart.id) { change ->
-                            totalDrag += change.positionChange().x
-                            change.consume()
-                        }
-                        if (rooms.size > 1 && totalDrag < -65f) onRoomSwipe(1)
-                        else if (rooms.size > 1 && totalDrag > 65f) onRoomSwipe(-1)
-                    }
-                }
-            }
-            .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("KLIMAPILOT", color = Blue, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Cloud, contentDescription = "Cloud", tint = Blue, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("KLIMAPILOT", color = Blue, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
+                }
                 Text(deviceManufacturer, color = TextMain, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 Text(deviceModel, color = Muted, fontSize = 12.sp, maxLines = 1)
             }
@@ -728,7 +714,31 @@ private fun MainScreen(
             }
         }
 
-        SectionTitle("RAUM")
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth()
+                .pointerInput(rooms, selectedRoom) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var totalDrag = 0f
+                        val horizontalStart = awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
+                            totalDrag += overSlop
+                            change.consume()
+                        }
+                        if (horizontalStart != null) {
+                            horizontalDrag(horizontalStart.id) { change ->
+                                totalDrag += change.positionChange().x
+                                change.consume()
+                            }
+                            if (rooms.size > 1 && totalDrag < -65f) onRoomSwipe(1)
+                            else if (rooms.size > 1 && totalDrag > 65f) onRoomSwipe(-1)
+                        }
+                    }
+                }
+                .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Spacer(Modifier.height(8.dp))
+            SectionTitle("RAUM")
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             rooms.forEach { room ->
                 FilterChip(
@@ -736,7 +746,7 @@ private fun MainScreen(
                     onClick = { onRoomSelect(room) },
                     label = { Text(room, maxLines = 1) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFDCEBFA),
+                        selectedContainerColor = Color(0xFFE3EEF7),
                         selectedLabelColor = Color(0xFF123B60),
                         containerColor = Panel,
                         labelColor = TextMain
@@ -753,7 +763,7 @@ private fun MainScreen(
                         onClick = { onDeviceSelect(device.id) },
                         label = { Text(device.name, maxLines = 1, softWrap = false) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFDCEBFA),
+                            selectedContainerColor = Color(0xFFE3EEF7),
                             selectedLabelColor = Color(0xFF123B60),
                             containerColor = Panel,
                             labelColor = TextMain
@@ -887,7 +897,8 @@ private fun MainScreen(
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
+        }
     }
 }
 
