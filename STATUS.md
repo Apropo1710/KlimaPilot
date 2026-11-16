@@ -1,4 +1,14 @@
 ## Geprüfter Gesamtstand – 15.11.2026, 03:12 MEZ
+
+## Verifizierter Abgleich – 16.11.2026, 03:02 MEZ
+
+- Maßgeblicher Branch: `main`, aktueller Head `060dde5f5b94104b63b0427810fc94f72f9cf9e5` (Dokumentationscommit vom 15.11.2026, 21:45:38 UTC).
+- App-Version laut `app/build.gradle.kts`: **0.4.53 / versionCode 83**. Letzter bestätigter App-Code-Commit: `8eefbf5233784ba250b6f84940ccdd54fbae1ac7` (15.11.2026, 21:39:26 UTC; Korrektur des asynchronen Profil-Anwendungsaufrufs).
+- PR #1 zur direkten WF-RAC-WLAN-Anbindung wurde am 15.11.2026 um 06:31:55 UTC nach `main` gemergt. Die direkte lokale Gerätekommunikation ist damit Bestandteil von `main`; ioBroker bleibt für die optionale Profilsynchronisierung relevant. Der Adapter `mhi-wfrac` ist für den direkten WLAN-Steuerweg nicht erforderlich.
+- Der Remote-Branch `feature/direct-wf-rac-wlan` besteht noch (Head `9705e55b0c6a5a948a513b3950906b93016f0b01`, Version 0.4.29 / 59), sein PR ist aber gemergt. Der Branch ist nur noch historisch; neue Arbeit ausschließlich auf `main`.
+- **APK-Nachweis nicht widerspruchsfrei:** Der automatisch gepflegte Produktionsblock in `PROJECT_STATUS.md` nennt Build-Quellcommit `51945f6670383977cb48f7926b75ec9392edac57` und SHA-256 `0c5721ec4c5b25ca963e0fcc59bbbd6ed6661337055bcd42ee60ebea46ff052b`. Der manuelle Abschnitt nennt dagegen Run #198, Quellcommit `8eefbf5233784ba250b6f84940ccdd54fbae1ac7` und SHA-256 `39c3eba2aba7e4fd6d20e66f8ef64a5738247eab0a750aece7b6081c87a71bdd`. Die Release-Asset-Prüfung war über die verfügbare GitHub-Schnittstelle nicht abrufbar; deshalb wird keiner der beiden Hashes hier als abschließend verifiziert festgelegt.
+- Hardwaretest der direkten WLAN-Steuerung bleibt offen, bis die Klimaanlage installiert und erreichbar ist. Der Updater bleibt unverändert und vom Nutzer bestätigt.
+
 - Maßgeblicher Branch: `main`; vor dieser Statusaktualisierung geprüfter Head `d714516abe7cf5b1f27533cdd81c332e2dd9989d` (Dokumentationscommit nach erfolgreichem APK-Release-Workflow).
 - Letzter App-Code-Commit: `485d274fbb5e10d321f76a72033d6e108ce1a2c5` – Schriftgröße je Benutzerkonto gespeichert; Version **0.4.28 / versionCode 58**.
 - APK-Build-Quellcommit: `bd20181e86972f390901d65c442996bc3cf109d1`; GitHub Actions Run `43666033340`: **completed / success**. Der vorherige Dokumentationsbuild `43666030742` war ebenfalls erfolgreich.
