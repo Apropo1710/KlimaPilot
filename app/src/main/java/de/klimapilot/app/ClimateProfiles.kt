@@ -377,7 +377,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)) { Text("Abbrechen", maxLines = 1) }
                 }
             },
-            dismissButton = {}
+            dismissButton = null
         )
     }
 
