@@ -1005,7 +1005,7 @@ private fun ModeTile(modifier: Modifier, label: String, symbol: String, selected
 private fun ChoicePill(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, onClick = onClick),
-        color = if (selected) Color(0xFFDCEBFA) else Color(0xFFF3F6F9),
+        color = if (selected) Color(0xFFE3EEF7) else Color(0xFFF3F6F9),
         shape = RoundedCornerShape(12.dp)
     ) {
         Text(label, Modifier.padding(horizontal = 11.dp, vertical = 9.dp), color = if (selected) Color(0xFF123B60) else TextMain, fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
