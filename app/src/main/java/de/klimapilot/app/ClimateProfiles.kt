@@ -379,6 +379,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         if (!loaded || !loadSucceeded || devices.none { it.syncDeviceKey.isNotBlank() }) return@LaunchedEffect
         while (true) {
             kotlinx.coroutines.delay(60_000L)
+            runCatching { repository.flushPendingSyncJournal(syncStore) }
+                .onFailure { status = it.message ?: "Profiländerungsjournal konnte nicht übernommen werden." }
             val address = settingsPrefs.getString("iobroker_server", null).orEmpty()
             if (address.isNotBlank()) syncClient.syncNow(address, devices, syncStore, repository) { message ->
                 status = message
