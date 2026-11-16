@@ -347,12 +347,13 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
 
 
     if (saveChoiceDialog && selectedProfile != null && currentState != null) {
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { saveChoiceDialog = false },
             title = { Text("Profil speichern") },
             text = { Text("Möchtest du die geänderten Einstellungen im Profil „${selectedProfile.name}“ aktualisieren oder ein neues Profil anlegen?") },
             confirmButton = {
-                TextButton(onClick = {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = {
                     val updated = selectedProfile.copy(
                         power = currentState.power, mode = currentState.mode?.name,
                         targetTemp = currentState.presetTemp, fanSpeed = currentState.airFlow,
@@ -369,19 +370,19 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         syncRevision++
                     }.onFailure { status = it.message ?: "Profil konnte nicht aktualisiert werden." }
                     saveChoiceDialog = false
-                }) { Text("Aktuelles Profil aktualisieren") }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { saveChoiceDialog = false; newProfileName = ""; saveNameDialog = true }) { Text("Neues Profil") }
-                    TextButton(onClick = { saveChoiceDialog = false }) { Text("Abbrechen") }
+                }, modifier = Modifier.weight(1.2f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) { Text("Aktualisieren", maxLines = 1) }
+                    OutlinedButton(onClick = { saveChoiceDialog = false; newProfileName = ""; saveNameDialog = true },
+                        modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)) { Text("Neues Profil", maxLines = 1) }
+                    TextButton(onClick = { saveChoiceDialog = false }, modifier = Modifier.weight(0.8f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)) { Text("Abbrechen", maxLines = 1) }
                 }
-            }
+            },
+            dismissButton = {}
         )
     }
 
     if (saveNameDialog && currentState != null) {
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { saveNameDialog = false },
             title = { Text("Neues Klimaprofil") },
             text = {
@@ -417,7 +418,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     }
 
     deleting?.let { profile ->
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("Profil löschen?") },
             text = { Text("„${profile.name}“ wird von diesem Smartphone gelöscht.") },
@@ -513,7 +514,7 @@ private fun ClimateProfileEditorDialog(
     val verticalOptions = listOf("Automatik", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten")
     val horizontalOptions = listOf("Automatik", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen")
 
-    AlertDialog(
+    KlimaPilotAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (profile == null) "Neues Klimaprofil" else "Klimaprofil bearbeiten") },
         text = {

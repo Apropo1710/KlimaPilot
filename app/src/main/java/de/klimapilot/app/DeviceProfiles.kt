@@ -46,7 +46,7 @@ internal fun DeviceSettingsDialog(
     var foundModules by remember { mutableStateOf<List<WfRacDiscoveredService>>(emptyList()) }
     DisposableEffect(discovery) { onDispose { discovery.stop() } }
 
-    AlertDialog(
+    KlimaPilotAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color.White,
         title = { Text("Geräteeinstellungen", fontWeight = FontWeight.Bold) },
@@ -209,7 +209,7 @@ internal fun DeviceSettingsDialog(
     )
 
     if (confirmResetPairing) {
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { confirmResetPairing = false },
             title = { Text("WF-RAC-Kopplung zurücksetzen?") },
             text = {

@@ -642,7 +642,7 @@ private fun StartupUpdateCheck(appVersion: String, onOpenSettings: () -> Unit) {
     }
 
     availableVersion?.let { version ->
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { availableVersion = null },
             title = { Text("KlimaPilot-Update verfügbar") },
             text = {
