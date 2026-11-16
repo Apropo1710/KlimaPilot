@@ -1,3 +1,11 @@
+## Änderung 16.11.2026 – Kopfzeilen-Cloud rechts neben Einstellungen (0.4.58)
+
+- Cloud-Symbol aus der KLIMAPILOT-Markenbeschriftung entfernt und rechts neben dem Zahnrad platziert.
+- Die Textanzeige „Verbunden“/„Offline“ aus der Kopfzeile entfernt, damit nichts mehr abgeschnitten wird. Der Cloud-Indikator zeigt den Verbindungsstatus über Farbe und Content Description.
+- Kopfzeile bleibt außerhalb des Scrollbereichs fixiert; Zahnrad und Cloud bleiben sichtbar.
+- Keine Änderungen am Updater oder an der Klimasteuerungslogik.
+- Build-, Signatur- und Release-Nachweis werden nach CI-Abschluss ergänzt.
+
 ## Änderung 16.11.2026 – Kopfzeile, Cloud-Symbol und Farbangleichung (0.4.57)
 
 - Die Profil-/Auswahlflächen und markierten Raumchips verwenden nun denselben exakten Hellblauton wie die Klimaanlagen-Temperaturkachel (#E3EEF7).

@@ -697,18 +697,16 @@ private fun MainScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Cloud, contentDescription = "Cloud", tint = Blue, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text("KLIMAPILOT", color = Blue, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
-                }
+                Text("KLIMAPILOT", color = Blue, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
                 Text(deviceManufacturer, color = TextMain, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 Text(deviceModel, color = Muted, fontSize = 12.sp, maxLines = 1)
             }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Box(Modifier.size(9.dp).clip(CircleShape).background(if (airconConnected) Green else Muted))
-                Text(if (airconConnected) "Verbunden" else "Offline", color = Muted, fontSize = 10.sp)
-            }
+            Icon(
+                Icons.Default.Cloud,
+                contentDescription = if (airconConnected) "Verbunden" else "Offline",
+                tint = if (airconConnected) Blue else Muted,
+                modifier = Modifier.size(24.dp).padding(end = 4.dp)
+            )
             IconButton(onClick = onSettings, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Panel)) {
                 Icon(Icons.Default.Settings, contentDescription = "Einstellungen", tint = TextMain)
             }
