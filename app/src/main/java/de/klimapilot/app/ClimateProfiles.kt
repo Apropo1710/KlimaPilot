@@ -161,6 +161,9 @@ internal class ClimateProfileRepository(context: Context) {
         check(prefs.edit().putString(KEY_PENDING_SYNC_JOURNAL, remaining.toString()).commit()) {
             "Das Profiländerungsjournal konnte nach der Übernahme nicht bereinigt werden."
         }
+        check(remaining.length() == 0) {
+            "Nicht alle Profiländerungen konnten in die Synchronisierungswarteschlange übernommen werden."
+        }
         return transferred
     }
 
