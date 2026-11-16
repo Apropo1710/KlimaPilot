@@ -56,6 +56,63 @@ internal class ClimateProfileSyncStore(context: Context) {
     }
 
     @Synchronized
+    fun individualProfile(deviceId: String): ClimateProfile? {
+        require(deviceId.isNotBlank())
+        val item = readRoot().optJSONObject(KEY_INDIVIDUAL_PROFILES)?.optJSONObject(deviceId) ?: return null
+        return profileFromJson(deviceId, item)
+    }
+
+    @Synchronized
+    fun saveIndividualProfile(deviceId: String, profile: ClimateProfile): Boolean {
+        require(deviceId.isNotBlank() && profile.deviceId == deviceId)
+        val root = readRoot()
+        val snapshots = root.optJSONObject(KEY_INDIVIDUAL_PROFILES) ?: JSONObject()
+        snapshots.put(deviceId, profile.toSyncJson())
+        root.put(KEY_INDIVIDUAL_PROFILES, snapshots)
+        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+    }
+
+    @Synchronized
+    fun enqueueIndividualProfile(profile: ClimateProfile, deviceKey: String): Boolean {
+        require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
+        return appendEvent("individual", INDIVIDUAL_PROFILE_EVENT_ID, deviceKey, profile.toSyncJson())
+    }
+
+    @Synchronized
+    fun applyRemoteIndividualProfile(deviceId: String, payload: JSONObject): Boolean {
+        val profile = profileFromJson(deviceId, payload)
+        return saveIndividualProfile(deviceId, profile)
+    }
+
+    private fun profileFromJson(deviceId: String, item: JSONObject): ClimateProfile {
+        val mode = if (item.isNull("mode")) null else item.optString("mode").also {
+            require(it in setOf("AUTO", "COOL", "HEAT", "DRY", "FAN")) { "Individuelle Einstellungen enthalten einen ungültigen Modus." }
+        }
+        val temperature = if (item.isNull("targetTemp")) null else item.optDouble("targetTemp").also {
+            require(it.isFinite() && it in 16.0..30.0 && kotlin.math.abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001) {
+                "Individuelle Einstellungen enthalten eine ungültige Solltemperatur."
+            }
+        }
+        fun optionalIndex(key: String, max: Int): Int? =
+            if (!item.has(key) || item.isNull(key)) null else item.optInt(key).also {
+                require(it in 0..max) { "Individuelle Einstellungen enthalten einen ungültigen Wert." }
+            }
+        return ClimateProfile(
+            id = INDIVIDUAL_PROFILE_ID,
+            deviceId = deviceId,
+            name = "Individuell",
+            power = if (!item.has("power") || item.isNull("power")) null else item.optBoolean("power"),
+            mode = mode,
+            targetTemp = temperature,
+            fanSpeed = optionalIndex("fanSpeed", 4),
+            verticalSwing = optionalIndex("verticalSwing", 4),
+            horizontalSwing = optionalIndex("horizontalSwing", 7),
+            threeDAuto = if (!item.has("threeDAuto") || item.isNull("threeDAuto")) null else item.optBoolean("threeDAuto"),
+            updatedAt = item.optLong("updatedAt", 0L).coerceAtLeast(0L)
+        )
+    }
+
+    @Synchronized
     fun enqueueInitialProfiles(profiles: List<ClimateProfile>, deviceKey: String): Boolean {
         if (deviceKey.isBlank()) return false
         val root = readRoot()
@@ -230,5 +287,8 @@ internal class ClimateProfileSyncStore(context: Context) {
         private const val KEY_PROFILE_VERSIONS = "profileVersions"
         private const val KEY_ACTIVE_PROFILES = "activeProfiles"
         private const val ACTIVE_SELECTION_EVENT_ID = "__active_profile_selection__"
+        private const val KEY_INDIVIDUAL_PROFILES = "individualProfiles"
+        private const val INDIVIDUAL_PROFILE_ID = "__individual_profile_snapshot__"
+        private const val INDIVIDUAL_PROFILE_EVENT_ID = "__individual_profile_snapshot__"
     }
 }

@@ -72,6 +72,13 @@ internal class ClimateProfileSyncClient {
                                                 "Aktive Profilauswahl konnte lokal nicht gespeichert werden."
                                             }
                                         }
+                                        "individual" -> {
+                                            val payload = event.optJSONObject("profile")
+                                                ?: throw IllegalArgumentException("Individuelle Einstellungen enthalten keine Daten.")
+                                            check(store.applyRemoteIndividualProfile(deviceId, payload)) {
+                                                "Individuelle Einstellungen konnten lokal nicht gespeichert werden."
+                                            }
+                                        }
                                         else -> {
                                             repository.applyRemoteEvent(event, deviceId)
                                             if (event.optString("type") == "delete" &&

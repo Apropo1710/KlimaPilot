@@ -224,6 +224,35 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         }
         return null
     }
+
+    fun captureIndividualSettings(): String? {
+        val state = currentState
+            ?: return "Der aktuelle Gerätestatus fehlt. Der Profilwechsel wurde abgebrochen, damit keine individuellen Werte verloren gehen."
+        val supportsVaneLR = Codec.modelHasVaneLR(state.modelNrRaw) == true
+        val snapshot = ClimateProfile(
+            id = "__individual_profile_snapshot__",
+            deviceId = deviceId,
+            name = "Individuell",
+            power = state.power,
+            mode = state.mode?.name,
+            targetTemp = state.presetTemp,
+            fanSpeed = state.airFlow,
+            verticalSwing = state.windUD,
+            horizontalSwing = state.windLR.takeIf { supportsVaneLR },
+            threeDAuto = state.entrust.takeIf { supportsVaneLR },
+            updatedAt = System.currentTimeMillis()
+        )
+        if (!syncStore.saveIndividualProfile(deviceId, snapshot)) {
+            return "Die individuellen Einstellungen konnten nicht lokal gesichert werden. Der Profilwechsel wurde abgebrochen."
+        }
+        if (syncDeviceKey.isNotBlank()) {
+            val queued = runCatching { syncStore.enqueueIndividualProfile(snapshot, syncDeviceKey) }
+                .getOrElse { return it.message ?: "Die individuellen Einstellungen konnten nicht zur Synchronisierung vorgemerkt werden." }
+            if (!queued) return "Die individuellen Einstellungen konnten nicht zur Synchronisierung vorgemerkt werden."
+            syncRevision++
+        }
+        return null
+    }
     LaunchedEffect(repository) {
         runCatching { repository.load() }
             .onSuccess { profiles.clear(); profiles.addAll(it); loadSucceeded = true; loaded = true }
@@ -291,16 +320,30 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                 DropdownMenuItem(text = { Text("⚙️  Individuell") },
                                     onClick = {
                                         profileMenuExpanded = false
-                                        status = persistActiveProfile(null) ?: "Individuelle Einstellungen ausgewählt."
+                                        val snapshot = runCatching { syncStore.individualProfile(deviceId) }.getOrNull()
+                                        if (snapshot == null) {
+                                            status = persistActiveProfile(null) ?: "Noch keine individuellen Einstellungen gespeichert. Die aktuellen Geräteeinstellungen bleiben unverändert."
+                                        } else {
+                                            onApply(snapshot) { success, message ->
+                                                status = if (success) {
+                                                    persistActiveProfile(null) ?: (message ?: "Individuelle Einstellungen wiederhergestellt.")
+                                                } else message ?: "Individuelle Einstellungen konnten nicht wiederhergestellt werden."
+                                            }
+                                        }
                                     })
                                 deviceProfiles.forEach { profile ->
                                     DropdownMenuItem(text = { Text(profileSymbol(profile) + "  " + profile.name) },
                                         onClick = {
                                             profileMenuExpanded = false
-                                            onApply(profile) { success, message ->
-                                                status = if (success) {
-                                                    persistActiveProfile(profile.id) ?: (message ?: "Profil erfolgreich angewendet.")
-                                                } else message ?: "Profil konnte nicht angewendet werden."
+                                            val captureError = if (selectedProfileId == null) captureIndividualSettings() else null
+                                            if (captureError != null) {
+                                                status = captureError
+                                            } else {
+                                                onApply(profile) { success, message ->
+                                                    status = if (success) {
+                                                        persistActiveProfile(profile.id) ?: (message ?: "Profil erfolgreich angewendet.")
+                                                    } else message ?: "Profil konnte nicht angewendet werden."
+                                                }
                                             }
                                         })
                                 }
