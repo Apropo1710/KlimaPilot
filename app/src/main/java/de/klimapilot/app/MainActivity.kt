@@ -704,9 +704,10 @@ private fun MainScreen(
             Icon(
                 Icons.Default.Cloud,
                 contentDescription = if (airconConnected) "Verbunden" else "Offline",
-                tint = if (airconConnected) Blue else Muted,
-                modifier = Modifier.size(24.dp).padding(end = 4.dp)
+                tint = if (airconConnected) Green else Muted,
+                modifier = Modifier.size(24.dp)
             )
+            Spacer(Modifier.width(12.dp))
             IconButton(onClick = onSettings, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Panel)) {
                 Icon(Icons.Default.Settings, contentDescription = "Einstellungen", tint = TextMain)
             }

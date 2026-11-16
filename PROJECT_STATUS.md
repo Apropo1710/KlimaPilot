@@ -1,3 +1,10 @@
+## Änderung 16.11.2026 – Cloud-Abstand und Verbindungsfarbe (0.4.59)
+
+- Cloud-Symbol in der fixierten Kopfzeile um 12 dp weiter vom Zahnrad abgesetzt.
+- Cloud-Symbol zeigt bei bestehender Verbindung Grün (Green); bei Offline-Status bleibt es gedimmt (Muted).
+- Keine Änderungen an Klimasteuerung, Navigation, Synchronisierung oder Updater.
+- Build-, Signatur- und Release-Nachweis werden nach CI-Abschluss ergänzt.
+
 ## Änderung 16.11.2026 – Kopfzeilen-Cloud rechts neben Einstellungen (0.4.58)
 
 - Cloud-Symbol aus der KLIMAPILOT-Markenbeschriftung entfernt und rechts neben dem Zahnrad platziert.
