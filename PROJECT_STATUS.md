@@ -26,18 +26,17 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: `058c3cc456beecccaab8b102e6af3d1e6a42017f`
-- App-Version / versionCode: **0.4.59 / 89**
-- GitHub Actions: **#211 / 43866655609 – completed / success**
-- Build-Abschluss: 16.11.2026, 13:29:31 Uhr MEZ
+- Quellcommit des APK-Builds: 0c455b82d19674901be26e7454d257798b3372d3
+- App-Version / versionCode: **0.4.60 / 90**
+- Build-Zeit: 2026-11-16 14:52:22 UTC
 - APK-Dateiname: **KlimaPilot.apk**
-- APK-Paket-/Versionsprüfung: erfolgreich
-- APK-Signaturprüfung: erfolgreich (`apksigner verify --print-certs`)
-- GitHub-Release `latest`: erfolgreich veröffentlicht; Asset `KlimaPilot.apk` aktualisiert 16.11.2026, 13:29:15 Uhr MEZ
-- APK-SHA-256: `18ad8cbaf473a88e7a8ae1da7c28ff95e0fcbfa90b5cf005d40c12d3485116b3`
-- Smartphone-Test der installierten 0.4.59: nicht bestätigt.
-- Updater: abgeschlossen und vom Nutzer bestätigt; Installationsablauf bleibt unangetastet.
-- ChatGPT-Library: ausführliche Langzeitakte wird separat synchronisiert.
+- APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
+- Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
+- APK-SHA-256: 9072c95ff4b6c44fb565731760696d0f8d501c884f335a556ff2a1e864277b5d
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
+- Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
+- Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
+          - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
@@ -105,4 +104,4 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 5. Hardwarefunktionen und Praxistests nur als bestätigt markieren, wenn sie tatsächlich durchgeführt wurden.
 6. Nach App-Code-Änderungen versionName/versionCode erhöhen; reine Dokumentationsänderungen erhöhen keine App-Version.
 7. Build, APK-Paket-/Versionsdaten, Signatur und `latest`-Release getrennt kontrollieren.
-8. `PROJECT_STATUS.md` ist die zentrale Statusquelle auf GitHub; `STATUS.md` und die ChatGPT-Library-Akten sind synchronisierte Übergabeansichten.
+8. `PROJECT_STATUS.md` ist die zentrale Statusquelle auf GitHub; `STATUS.md` und die ChatGPT-Library-Akten sind synchronisierte Übergabeansichten.\n
