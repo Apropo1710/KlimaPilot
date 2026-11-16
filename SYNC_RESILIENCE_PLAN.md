@@ -188,3 +188,23 @@ Dieses Vorhaben ist ausdrücklich **zeitnah** einzuplanen und nicht nur eine unv
 Die Umsetzung erfolgt schrittweise auf dem produktiven Branch `main`. Vor jeder Codeänderung werden der aktuelle GitHub-Stand und alle betroffenen Dateien geprüft. Bestehende funktionierende Synchronisations- und Steuerungsfunktionen bleiben erhalten. Jede Phase wird gebaut und gezielt getestet, bevor die nächste größere Änderung erfolgt.
 
 **Wichtig:** Eine Cloud oder direkte Geräteverbindung ist noch nicht ausgewählt oder implementiert. Festgelegt ist zunächst das Ziel: lokale Nutzbarkeit, dauerhafte Speicherung, zuverlässige Nachlieferung und Austauschbarkeit der Synchronisationsanbieter.
+
+
+## 9. Umsetzungsstand – dauerhafte Profiländerungen (Arbeitsbranch)
+
+**Stand: 16.11.2026 – in Arbeit, noch nicht für Produktion freigegeben.**
+
+Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Teil der Offline-Absicherung umgesetzt:
+
+- Profil-Upserts und Profil-Löschungen werden im selben synchronen SharedPreferences-Commit wie der lokale Profilbestand in ein dauerhaftes Journal geschrieben.
+- Jedes Journal-Ereignis erhält bereits beim lokalen Commit eine stabile UUID-basierte Ereignis-ID.
+- Die Übernahme in die vorhandene Outbox ist idempotent. Eine dauerhaft gespeicherte Import-ID verhindert auch dann eine erneute Einreihung, wenn die Outbox das Ereignis zwischenzeitlich bereits übertragen und bestätigt hat.
+- Journal-Einträge werden erst nach erfolgreicher Übernahme in die Outbox entfernt. Scheitert die Bereinigung, kann der nächste Lauf denselben Eintrag erneut sicher übernehmen.
+- Die Profil-UI verwendet für Änderungen und Löschungen mit gemeinsamer Gerätekennung diesen atomaren Speicherweg. Ohne Gerätekennung bleibt das bisherige rein lokale Speichern erhalten.
+- Das Journal wird beim nächsten Profil-Synchronisationslauf vor dem Upload in die Outbox überführt.
+
+**Noch nicht abgesichert:** aktive Profilauswahl und individuelle Einstellungen besitzen weiterhin getrennte lokale Speicherung und Outbox-Vormerkung. Auch die Remote-Übernahme und der zugehörige Versionsmarker sind noch nicht atomar gekoppelt. Diese Punkte bleiben ausdrücklich offen.
+
+**Prüfstatus:** Noch kein Android-Build und keine automatisierten Laufzeittests für diesen Arbeitsbranch bestätigt. Im bisherigen Repository-Baum ist kein `app/src/test`-Testbestand vorhanden. Vor Freigabe sind mindestens Kotlin-/Gradle-Build, gezielte Tests der Journal-Wiederanläufe, Code-Review (einschließlich des vereinbarten unabhängigen Claude-Reviews) und eine erneute Prüfung des vollständigen Diffs erforderlich.
+
+Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
