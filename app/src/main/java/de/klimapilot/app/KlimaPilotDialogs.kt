@@ -22,6 +22,7 @@ import androidx.compose.ui.window.Dialog
 @Composable
 internal fun KlimaPilotAlertDialog(
     onDismissRequest: () -> Unit,
+    containerColor: Color = Color(0xFFF3F7FC),
     title: @Composable () -> Unit,
     text: @Composable () -> Unit,
     confirmButton: @Composable () -> Unit,
@@ -33,7 +34,7 @@ internal fun KlimaPilotAlertDialog(
         Surface(
             modifier = Modifier.fillMaxWidth().border(1.25.dp, accent.copy(alpha = 0.72f), shape),
             shape = shape,
-            color = Color(0xFFF3F7FC),
+            color = containerColor,
             tonalElevation = 8.dp,
             shadowElevation = 10.dp
         ) {
