@@ -244,13 +244,29 @@ internal class ClimateProfileSyncStore(context: Context) {
         }
     }
 
-    private fun appendEvent(type: String, profileId: String, deviceKey: String, profile: JSONObject?): Boolean {
+    @Synchronized
+    fun enqueueJournalEvent(journalEvent: JSONObject): Boolean {
+        val eventId = journalEvent.optString("eventId").takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Journal-Ereignis ohne stabile ID.")
+        val type = journalEvent.optString("type")
+        require(type == "upsert" || type == "delete") { "Unbekannter Journal-Ereignistyp." }
+        val profileId = journalEvent.optString("profileId").takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Journal-Ereignis ohne Profil-ID.")
+        val deviceKey = journalEvent.optString("deviceKey").takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Journal-Ereignis ohne Gerätekennung.")
+        val profile = journalEvent.optJSONObject("profile")?.let { JSONObject(it.toString()) }
+        if (type == "upsert" && profile == null) throw IllegalArgumentException("Journal-Upsert ohne Profilinhalt.")
+        return appendEvent(type, profileId, deviceKey, profile, eventId)
+    }
+
+    private fun appendEvent(type: String, profileId: String, deviceKey: String, profile: JSONObject?, stableEventId: String? = null): Boolean {
         val root = readRoot()
+        val outbox = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
+        if (stableEventId != null && (0 until outbox.length()).any { outbox.optJSONObject(it)?.optString("eventId") == stableEventId }) return true
         val installation = root.optString(KEY_INSTALLATION_ID).takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
         val sequence = root.optLong(KEY_SEQUENCE, 0L).coerceAtLeast(0L) + 1L
         val logicalClock = root.optLong(KEY_LOGICAL_CLOCK, 0L).coerceAtLeast(0L) + 1L
-        val outbox = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
-        val event = JSONObject().put("eventId", "$installation:$sequence").put("installationId", installation)
+        val event = JSONObject().put("eventId", stableEventId ?: "$installation:$sequence").put("installationId", installation)
             .put("sequence", sequence).put("logicalClock", logicalClock).put("type", type)
             .put("deviceKey", deviceKey).put("profileId", profileId).put("createdAt", System.currentTimeMillis())
         if (profile != null) event.put("profile", profile)
