@@ -26,14 +26,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 42472a3af147f45c99f990e55986d8dff02088f2
+- Quellcommit des APK-Builds: 42a3d299790b9932c1a83cfcbc033c0446ea9c41
 - App-Version / versionCode: **0.4.63 / 93**
-- Build-Zeit: 2026-11-16 21:00:39 UTC
+- Build-Zeit: 2026-11-16 21:16:13 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 62431eeadeb892cfbe0e14583798a018adb44c2b70344ed31176642d8901003f
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 339a42723995290e4152e8229a342bc7b6b2b30807503c6badd9e8dd1ce22c6d
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -117,4 +117,4 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - ioBroker bleibt zunächst als bestehender Synchronisationsanbieter erhalten. Eine unabhängige Cloud oder direkte Smartphone-Synchronisation kann später ergänzend hinzukommen.
 - Konfliktbehandlung, doppelte Events, Wiederanlauf und Löschungen müssen ausdrücklich berücksichtigt und mit mindestens zwei Smartphones getestet werden.
 - Ein absolut ausfallfreies System kann nicht garantiert werden. Ziel ist, dass der Ausfall eines Synchronisationsdienstes weder die lokale Bedienung noch gespeicherte Daten gefährdet.
-- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.
+- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n
