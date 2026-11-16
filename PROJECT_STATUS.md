@@ -46,6 +46,15 @@ Vor jeder Entwicklungsarbeit müssen der aktuelle Stand von `main` und alle betr
 - SENEC/`energyfluss` wird nicht als Datenquelle eingeplant.
 - Keine Zugangsdaten, Tokens, Keystore-Passwörter oder privaten Schlüssel dokumentieren.
 
+## Änderung 16.11.2026 – Kompakte Klimasteuerungsoberfläche (0.4.54)
+
+- Die Klima-Hauptansicht wurde an das gewünschte MyAirco-Layout angelehnt: kompakte Temperaturkarte mit Innen-/Außentemperatur, zentraler Solltemperatur, Plus/Minus, Slider und Ein/Aus-Schaltfläche.
+- Betriebsmodi werden als Auswahlkacheln dargestellt; Lüfterstufen als horizontale Auswahl mit den Bezeichnungen Auto, Leise, Niedrig, Mittel und Hoch.
+- Vertikale und – nur bei bestätigter Modellunterstützung – horizontale Luftführung werden nebeneinander kompakt dargestellt. Die 3D-Automatik bleibt modellabhängig.
+- Raum-/Geräteauswahl und Klimaprofile bleiben erhalten. Steuerungs-Callbacks, Profilanwendung, Statusabfrage und Synchronisierungslogik wurden nicht neu implementiert.
+- Der Updater und sein Installationsablauf wurden nicht verändert.
+- Build- und Release-Nachweis wird nach Abschluss des GitHub-Actions-Laufs im automatisch gepflegten Produktionsstatus ergänzt.
+
 ## Änderung 15.11.2026 – Klimaprofile modellabhängig, Anwendung bestätigt und Sync-Kennung migriert (0.4.53)
 
 - Horizontale Luftführung und 3D-Automatik werden nur angeboten bzw. angewendet, wenn die ausgelesene Modellkennung die Unterstützung ausdrücklich bestätigt. Unbekannte Modelle werden nicht mehr pauschal als kompatibel behandelt; vorhandene Profilwerte bleiben bei unbekannter Modellfähigkeit erhalten.
