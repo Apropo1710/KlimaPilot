@@ -202,6 +202,7 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 - Journal-Einträge werden erst nach erfolgreicher Übernahme in die Outbox entfernt. Scheitert die Bereinigung, kann der nächste Lauf denselben Eintrag erneut sicher übernehmen.
 - Die Profil-UI verwendet für Änderungen und Löschungen mit gemeinsamer Gerätekennung diesen atomaren Speicherweg. Ohne Gerätekennung bleibt das bisherige rein lokale Speichern erhalten.
 - Das Journal wird beim nächsten Profil-Synchronisationslauf vor dem Upload in die Outbox überführt.
+- Vor einer Änderung der automatisch erzeugten WF-RAC-Gerätekennung werden noch offene Journal-Einträge zunächst vollständig in die Outbox übernommen. Erst danach werden die ausstehenden Ereignisse gemeinsam auf die neue Kennung umgestellt; bei unvollständiger Übernahme wird die Kennungsänderung abgebrochen.
 
 **Noch nicht abgesichert:** aktive Profilauswahl und individuelle Einstellungen besitzen weiterhin getrennte lokale Speicherung und Outbox-Vormerkung. Auch die Remote-Übernahme und der zugehörige Versionsmarker sind noch nicht atomar gekoppelt. Diese Punkte bleiben ausdrücklich offen.
 
