@@ -7,7 +7,7 @@
 
 ## Verifizierter Produktionsstand
 
-- `main`-HEAD: `3291d3786a5c0574b737c04329a98c8600a88b4c` (Dokumentationscommit).
+- `main`-HEAD bei der technischen Vorprüfung vor dem Dokumentationsabgleich: `3291d3786a5c0574b737c04329a98c8600a88b4c`; danach folgten ausschließlich Dokumentationscommits.
 - APK-Quellcommit: `058c3cc456beecccaab8b102e6af3d1e6a42017f`.
 - GitHub Actions [#211](https://github.com/Apropo1710/KlimaPilot/actions/runs/43866655609): **completed / success**, 16.11.2026, 13:29:31 Uhr MEZ.
 - APK-Paket-/Versionsprüfung und `apksigner verify --print-certs`: erfolgreich.
