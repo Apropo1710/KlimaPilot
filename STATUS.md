@@ -61,5 +61,20 @@ Der Updater funktioniert und wurde vom Nutzer erfolgreich getestet. Keine offene
 
 - `PROJECT_STATUS.md`: maßgebliche aktuelle technische und produktive Statusakte.
 - `STATUS.md`: kompakte operative Übergabedatei.
+- `SYNC_RESILIENCE_PLAN.md`: **priorisiertes Architekturvorhaben** für ausfallsichere, vom ioBroker unabhängige Synchronisation. Enthält Zielarchitektur, Alternativen, verbindliche Entscheidungen, Umsetzungsphasen und Erfolgskriterien.
 - ChatGPT Library: `KlimaPilot_Projektstand_aktualisiert.md` ist die ausführliche Langzeitakte; `KlimaPilot_Projektstand.md` bleibt als historisches Archiv mit aktuellem Statuskopf erhalten.
 - Vor jeder Entwicklungsarbeit `main` und betroffene Dateien live prüfen. CI-Erfolg nicht mit Hardwaretest oder vollständiger Fehlerfreiheit gleichsetzen.
+
+## Priorität: Ausfallsichere Synchronisation zeitnah umsetzen
+
+Das Vorhaben ist ausdrücklich nicht nur eine unverbindliche Zukunftsidee. KlimaPilot soll bei Ausfall von ioBroker oder eines anderen Synchronisationsdienstes lokal vollständig nutzbar bleiben.
+
+Verbindliche Leitlinien:
+1. Local-first: Profile und Einstellungen sind auf jedem Smartphone dauerhaft lokal vorhanden.
+2. Offline-Outbox: Änderungen werden während eines Ausfalls vorgemerkt und später zuverlässig übertragen.
+3. Synchronisationsanbieter entkoppeln: ioBroker bleibt zunächst erhalten; Cloud und direkte Smartphone-Synchronisation können ergänzend folgen.
+4. Konflikte, doppelte Events, Löschungen und Wiederanlauf kontrolliert behandeln.
+5. Mindestens zwei Smartphones und reale Ausfall-/Wiederherstellungsszenarien testen.
+6. Direkte lokale Klimasteuerung und funktionierenden Updater nicht unnötig verändern.
+
+Ein absolut ausfallfreies System ist nicht garantierbar. Ziel ist, dass der Ausfall eines Synchronisationsdienstes weder die lokale Bedienung noch gespeicherte Daten gefährdet.
