@@ -133,6 +133,11 @@ internal class ClimateProfileRepository(context: Context) {
     }
 
     @Synchronized
+    fun delete(profileId: String) {
+        write(load().filterNot { it.id == profileId })
+    }
+
+    @Synchronized
     fun deleteWithPendingSync(profileId: String, deviceKey: String) {
         require(profileId.isNotBlank() && deviceKey.isNotBlank())
         val next = load().filterNot { it.id == profileId }
