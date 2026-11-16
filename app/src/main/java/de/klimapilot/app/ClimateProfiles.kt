@@ -352,31 +352,59 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             title = { Text("Profil speichern") },
             text = { Text("Möchtest du die geänderten Einstellungen im Profil „${selectedProfile.name}“ aktualisieren oder ein neues Profil anlegen?") },
             confirmButton = {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = {
-                    val updated = selectedProfile.copy(
-                        power = currentState.power, mode = currentState.mode?.name,
-                        targetTemp = currentState.presetTemp, fanSpeed = currentState.airFlow,
-                        verticalSwing = currentState.windUD,
-                        horizontalSwing = currentState.windLR.takeIf { modelSupportsVaneLR == true },
-                        threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
-                        updatedAt = System.currentTimeMillis()
-                    )
-                    runCatching { repository.save(updated) }.onSuccess {
-                        val index = profiles.indexOfFirst { it.id == updated.id }
-                        if (index >= 0) profiles[index] = updated
-                        status = if (syncDeviceKey.isBlank()) "Profil aktualisiert." else
-                            runCatching { syncStore.enqueueUpsert(updated, syncDeviceKey) }.fold({ "" }, { it.message ?: "Lokal aktualisiert; Synchronisierung fehlgeschlagen." })
-                        syncRevision++
-                    }.onFailure { status = it.message ?: "Profil konnte nicht aktualisiert werden." }
-                    saveChoiceDialog = false
-                }, modifier = Modifier.weight(1.2f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) { Text("Aktualisieren", maxLines = 1) }
-                    OutlinedButton(onClick = { saveChoiceDialog = false; newProfileName = ""; saveNameDialog = true },
-                        modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)) { Text("Neues Profil", maxLines = 1) }
-                    TextButton(onClick = { saveChoiceDialog = false }, modifier = Modifier.weight(0.8f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)) { Text("Abbrechen", maxLines = 1) }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                val updated = selectedProfile.copy(
+                                    power = currentState.power, mode = currentState.mode?.name,
+                                    targetTemp = currentState.presetTemp, fanSpeed = currentState.airFlow,
+                                    verticalSwing = currentState.windUD,
+                                    horizontalSwing = currentState.windLR.takeIf { modelSupportsVaneLR == true },
+                                    threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
+                                    updatedAt = System.currentTimeMillis()
+                                )
+                                runCatching { repository.save(updated) }.onSuccess {
+                                    val index = profiles.indexOfFirst { it.id == updated.id }
+                                    if (index >= 0) profiles[index] = updated
+                                    status = if (syncDeviceKey.isBlank()) "Profil aktualisiert." else
+                                        runCatching { syncStore.enqueueUpsert(updated, syncDeviceKey) }.fold({ "" }, { it.message ?: "Lokal aktualisiert; Synchronisierung fehlgeschlagen." })
+                                    syncRevision++
+                                }.onFailure { status = it.message ?: "Profil konnte nicht aktualisiert werden." }
+                                saveChoiceDialog = false
+                            },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Aktualisieren", maxLines = 1, fontSize = 11.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { saveChoiceDialog = false; newProfileName = ""; saveNameDialog = true },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Neues Profil", maxLines = 1, fontSize = 11.sp)
+                        }
+                    }
+                    TextButton(
+                        onClick = { saveChoiceDialog = false },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                        contentPadding = PaddingValues(vertical = 6.dp)
+                    ) {
+                        Text("Abbrechen", fontSize = 13.sp)
+                    }
                 }
-            },
+            }
             dismissButton = null
         )
     }

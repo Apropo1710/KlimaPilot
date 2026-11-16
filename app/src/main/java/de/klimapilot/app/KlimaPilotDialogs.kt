@@ -22,7 +22,7 @@ import androidx.compose.ui.window.Dialog
 @Composable
 internal fun KlimaPilotAlertDialog(
     onDismissRequest: () -> Unit,
-    containerColor: Color = Color(0xFFF3F7FC),
+    containerColor: Color = Color(0xFFEAF3FC),
     title: @Composable () -> Unit,
     text: @Composable () -> Unit,
     confirmButton: @Composable () -> Unit,
@@ -32,7 +32,7 @@ internal fun KlimaPilotAlertDialog(
     val accent = MaterialTheme.colorScheme.primary
     Dialog(onDismissRequest = onDismissRequest) {
         Surface(
-            modifier = Modifier.fillMaxWidth().border(1.25.dp, accent.copy(alpha = 0.72f), shape),
+            modifier = Modifier.fillMaxWidth().border(2.5.dp, Color(0xFF1769AA), shape),
             shape = shape,
             color = containerColor,
             tonalElevation = 8.dp,
@@ -51,13 +51,13 @@ internal fun KlimaPilotAlertDialog(
                 ) {
                     Box(
                         modifier = Modifier.weight(1f).defaultMinSize(minHeight = 44.dp)
-                            .background(Color(0xFFDCEBFA), RoundedCornerShape(13.dp)),
+                            .background(Color(0xFFCFE3F7), RoundedCornerShape(13.dp)),
                         contentAlignment = Alignment.Center
                     ) { confirmButton() }
                     if (dismissButton != null) {
                         Box(
                             modifier = Modifier.weight(1f).defaultMinSize(minHeight = 44.dp)
-                                .background(Color(0xFFE7EDF4), RoundedCornerShape(13.dp)),
+                                .background(Color(0xFFDCE6F0), RoundedCornerShape(13.dp)),
                             contentAlignment = Alignment.Center
                         ) { dismissButton() }
                     }
