@@ -117,13 +117,17 @@ internal fun GithubUpdateCard(appVersion: String) {
                         }
                     }) { Text(if (pending != null) "Anmeldung fortsetzen" else "Mit GitHub verbinden") }
                 } else {
-                    OutlinedButton(enabled = !busy, onClick = { scope.launch { checkForUpdates() } }) { Text("Nach Updates suchen") }
+                    OutlinedButton(
+                        enabled = !busy,
+                        modifier = Modifier.widthIn(min = 220.dp).height(48.dp),
+                        onClick = { scope.launch { checkForUpdates() } }
+                    ) { Text("Nach Updates suchen", maxLines = 1, softWrap = false) }
                 }
                 if (newerVersion != null && assetId != null) {
                     Button(
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.widthIn(min = 220.dp).height(48.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         onClick = {
                             scope.launch {
                                 busy = true
