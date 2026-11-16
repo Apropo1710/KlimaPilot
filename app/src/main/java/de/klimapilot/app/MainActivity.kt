@@ -578,7 +578,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 applyDeviceChange { it.copy(power = true, mode = mapped) }
             },
             onFan = { selected ->
-                val mapped = when (selected) { "Auto" -> 0; "Leise" -> 1; "1" -> 2; "2" -> 3; else -> 4 }
+                val mapped = when (selected) { "Auto" -> 0; "Leise" -> 1; "Niedrig" -> 2; "Mittel" -> 3; else -> 4 }
                 applyDeviceChange { it.copy(airFlow = mapped) }
             },
             onVerticalSwing = { value -> applyDeviceChange { it.copy(windUD = value) } },
@@ -690,10 +690,7 @@ private fun MainScreen(
     onSettings: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
+        modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
             .pointerInput(rooms, selectedRoom) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -712,58 +709,55 @@ private fun MainScreen(
                     }
                 }
             }
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Spacer(Modifier.height(24.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("KLIMAPILOT", color = Blue, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                AnimatedContent(targetState = selectedDeviceId, transitionSpec = {
-                    val forward = devicesInRoom.indexOfFirst { it.id == targetState } >= devicesInRoom.indexOfFirst { it.id == initialState }
-                    if (forward) (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it / 3 } + fadeOut())
-                    else (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it / 3 } + fadeOut())
-                }, label = "deviceHeader") { key ->
-                    Column {
-                        Text(deviceManufacturer, color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Text(deviceModel, color = Muted, fontSize = 13.sp)
-                    }
-                }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("KLIMAPILOT", color = Blue, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
+                Text(deviceManufacturer, color = TextMain, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(deviceModel, color = Muted, fontSize = 12.sp, maxLines = 1)
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                Box(Modifier.size(38.dp).clip(CircleShape).background(Panel), contentAlignment = Alignment.Center) {
-                    Icon(if (airconConnected) Icons.Default.Cloud else Icons.Default.CloudOff, contentDescription = if (airconConnected) "Klimaanlage verbunden" else "Klimaanlage nicht verbunden", tint = if (airconConnected) Green else Muted, modifier = Modifier.size(19.dp))
-                }
-                IconButton(onClick = onSettings, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Panel)) {
-                    Icon(Icons.Default.Settings, contentDescription = "Einstellungen", tint = TextMain)
-                }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Box(Modifier.size(9.dp).clip(CircleShape).background(if (airconConnected) Green else Muted))
+                Text(if (airconConnected) "Verbunden" else "Offline", color = Muted, fontSize = 10.sp)
+            }
+            IconButton(onClick = onSettings, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Panel)) {
+                Icon(Icons.Default.Settings, contentDescription = "Einstellungen", tint = TextMain)
             }
         }
 
-        SectionTitle("RAUM AUSWÄHLEN")
-        FlowModeSelector(selected = selectedRoom, options = rooms, onSelect = onRoomSelect)
+        SectionTitle("RAUM")
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            rooms.forEach { room ->
+                FilterChip(
+                    selected = selectedRoom == room,
+                    onClick = { onRoomSelect(room) },
+                    label = { Text(room, maxLines = 1) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFDCEBFA),
+                        selectedLabelColor = Color(0xFF123B60),
+                        containerColor = Panel,
+                        labelColor = TextMain
+                    )
+                )
+            }
+        }
         if (devicesInRoom.size > 1) {
-            SectionTitle("GERÄT AUSWÄHLEN")
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            SectionTitle("KLIMAANLAGE")
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 devicesInRoom.forEach { device ->
                     FilterChip(
                         selected = selectedDeviceId == device.id,
                         onClick = { onDeviceSelect(device.id) },
                         label = { Text(device.name, maxLines = 1, softWrap = false) },
-                        leadingIcon = if (selectedDeviceId == device.id) ({ Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }) else null,
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color(0xFFDCEBFA),
                             selectedLabelColor = Color(0xFF123B60),
-                            selectedLeadingIconColor = Blue,
-                            containerColor = Color(0xFFF8FAFC),
+                            containerColor = Panel,
                             labelColor = TextMain
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selectedDeviceId == device.id, borderColor = Color(0xFFCBD5E1), selectedBorderColor = Blue)
+                        )
                     )
                 }
             }
@@ -787,7 +781,7 @@ private fun MainScreen(
             modifier = Modifier.fillMaxWidth(),
             label = "devicePage"
         ) { deviceId ->
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val state = airconState
                 val ready = state != null && !controlBusy
                 val modeLabel = when (state?.mode) {
@@ -799,8 +793,9 @@ private fun MainScreen(
                     null -> "Unbekannt"
                 }
                 val fanLabel = when (state?.airFlow) {
-                    0 -> "Auto"; 1 -> "Leise"; 2 -> "1"; 3 -> "2"; 4 -> "3"; else -> "Unbekannt"
+                    0 -> "Auto"; 1 -> "Leise"; 2 -> "Niedrig"; 3 -> "Mittel"; 4 -> "Hoch"; else -> "Unbekannt"
                 }
+
                 TemperatureCard(
                     deviceName = devicesInRoom.firstOrNull { it.id == deviceId }?.name ?: devicesInRoom.firstOrNull()?.name ?: selectedRoom,
                     state = state,
@@ -810,51 +805,89 @@ private fun MainScreen(
                     onTargetTemp = onTargetTemp
                 )
 
-                SectionTitle("BETRIEBSMODUS")
-                FlowModeSelector(selected = modeLabel, options = listOf("Auto", "Kühlen", "Heizen", "Entfeuchten", "Lüfter"), onSelect = onMode, enabled = ready)
-
-                SectionTitle("LÜFTERSTUFE")
-                FlowModeSelector(selected = fanLabel, options = listOf("Auto", "Leise", "1", "2", "3"), onSelect = onFan, enabled = ready)
-
-                SectionTitle("VERTIKALE LUFTFÜHRUNG")
-                val vertical = listOf("Auto", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten")
-                FlowModeSelector(
-                    selected = state?.windUD?.let { vertical.getOrNull(it) } ?: "",
-                    options = vertical,
-                    onSelect = { onVerticalSwing(vertical.indexOf(it)) },
-                    enabled = ready
-                )
-
-                if (state != null && Codec.modelHasVaneLR(state.modelNrRaw) == true) {
-                    SectionTitle("HORIZONTALE LUFTFÜHRUNG")
-                    val horizontal = listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen")
-                    FlowModeSelector(
-                        selected = horizontal.getOrNull(state.windLR) ?: "",
-                        options = horizontal,
-                        onSelect = { onHorizontalSwing(horizontal.indexOf(it)) },
-                        enabled = ready
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("3D-Automatik", modifier = Modifier.weight(1f), color = TextMain)
-                        Switch(checked = state.entrust, onCheckedChange = onThreeDAuto, enabled = ready)
+                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SectionTitle("BETRIEBSMODUS")
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val modes = listOf(
+                                Triple("Auto", "✦", "Auto"),
+                                Triple("Kühlen", "❄", "Kühlen"),
+                                Triple("Heizen", "☼", "Heizen"),
+                                Triple("Lüfter", "≋", "Lüfter"),
+                                Triple("Entfeuchten", "♢", "Trocknen")
+                            )
+                            modes.forEach { (value, symbol, label) ->
+                                ModeTile(Modifier.weight(1f), label, symbol, modeLabel == value, ready) { onMode(value) }
+                            }
+                        }
                     }
                 }
+
+                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        SectionTitle("LÜFTER")
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            listOf("Auto", "Leise", "Niedrig", "Mittel", "Hoch").forEach { option ->
+                                ChoicePill(option, fanLabel == option, ready) { onFan(option) }
+                            }
+                        }
+                    }
+                }
+
+                val vertical = listOf("Auto", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten")
+                val horizontal = listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen")
+                val supportsHorizontal = state != null && Codec.modelHasVaneLR(state.modelNrRaw) == true
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AirflowCard(
+                        modifier = Modifier.weight(1f),
+                        title = "VERTIKAL",
+                        selected = state?.windUD?.let { vertical.getOrNull(it) } ?: "",
+                        options = vertical,
+                        enabled = ready,
+                        onSelect = { onVerticalSwing(vertical.indexOf(it)) }
+                    )
+                    if (supportsHorizontal) {
+                        AirflowCard(
+                            modifier = Modifier.weight(1f),
+                            title = "HORIZONTAL",
+                            selected = horizontal.getOrNull(state!!.windLR) ?: "",
+                            options = horizontal,
+                            enabled = ready,
+                            onSelect = { onHorizontalSwing(horizontal.indexOf(it)) }
+                        )
+                    }
+                }
+
+                if (supportsHorizontal && state != null) {
+                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("3D-Auto-Luftstrom", color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Verteilt die Luft im Raum", color = Muted, fontSize = 11.sp)
+                            }
+                            Switch(checked = state.entrust, onCheckedChange = onThreeDAuto, enabled = ready)
+                        }
+                    }
+                }
+
                 if (state != null) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        MetricCard(Modifier.weight(1f), "Außentemperatur", state.outdoorTemp?.let { String.format(Locale.GERMANY, "%.1f °C", it) } ?: "—", androidx.compose.material.icons.Icons.Default.DeviceThermostat, "WF-RAC-Messwert")
-                        MetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", androidx.compose.material.icons.Icons.Default.AcUnit, state.errorCode?.let { "Fehler: $it" } ?: "Kein Fehler gemeldet")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CompactMetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", state.errorCode?.let { "Statuscode: $it" } ?: "Kein Code gemeldet")
+                        CompactMetricCard(Modifier.weight(1f), "Verbindung", if (airconConnected) "Lokal" else "Getrennt", if (controlBusy) "Befehl läuft …" else "WF-RAC")
                     }
                 } else {
                     Text(
-                        if (devicesInRoom.firstOrNull { it.id == deviceId }?.demoMode == true) "Demo-Gerät wird initialisiert …" else "Kopple das WLAN-Modul in den Geräteeinstellungen oder aktiviere dort den Testmodus.",
+                        if (devicesInRoom.firstOrNull { it.id == deviceId }?.demoMode == true) "Demo-Gerät wird initialisiert …"
+                        else "Kopple das WLAN-Modul in den Geräteeinstellungen oder aktiviere dort den Testmodus.",
                         color = Muted, fontSize = 12.sp
                     )
                 }
-                if (controlStatus.isNotBlank()) Text(controlStatus, color = if (controlStatus.contains("fehlgeschlagen", true) || controlStatus.contains("Sicherheitsprüfung", true)) MaterialTheme.colorScheme.error else Muted, fontSize = 11.sp)
+                if (controlStatus.isNotBlank()) {
+                    Text(controlStatus, color = if (controlStatus.contains("fehlgeschlagen", true) || controlStatus.contains("Sicherheitsprüfung", true)) MaterialTheme.colorScheme.error else Muted, fontSize = 11.sp)
+                }
             }
         }
-
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -867,109 +900,123 @@ private fun TemperatureCard(
     onPower: (Boolean) -> Unit,
     onTargetTemp: (Float) -> Unit
 ) {
-    var draftTemp by remember(state?.presetTemp) { mutableFloatStateOf((state?.presetTemp ?: 21.0).toFloat()) }
-    Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Panel).padding(22.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(if (connected) Green else Muted))
-            Text(
-                "${deviceName.uppercase()} · ${if (state == null) "NICHT VERBUNDEN" else if (state.power) "EINGESCHALTET" else "AUSGESCHALTET"}",
-                color = if (!connected || state == null || !state.power) Muted else when (state.mode) {
-                    Mode.HEAT -> Color(0xFFD84343)
-                    Mode.COOL -> Color(0xFF1976D2)
-                    Mode.DRY -> Color(0xFF008B8B)
-                    Mode.FAN -> Color(0xFF388E7D)
-                    Mode.AUTO -> Color(0xFFB7791F)
-                    null -> Muted
-                },
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.8.sp,
-                textAlign = TextAlign.Center
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+    var draftTemp by remember(state?.presetTemp) { mutableFloatStateOf((state?.presetTemp ?: 21.0).toFloat().coerceIn(16f, 30f)) }
+    Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE3EEF7))) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("RAUMTEMPERATUR", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
-                Text(state?.indoorTemp?.let { String.format(Locale.GERMANY, "%.1f °C", it) } ?: "—", color = TextMain, fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(deviceName, color = TextMain, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(if (state == null) "Nicht verbunden" else if (state.power) "Eingeschaltet" else "Ausgeschaltet", color = if (connected && state?.power == true) Blue else Muted, fontSize = 11.sp)
+                }
+                Text(if (connected) "● Lokal verbunden" else "○ Offline", color = if (connected) Green else Muted, fontSize = 10.sp)
             }
-            Box(Modifier.width(1.dp).height(48.dp).background(PanelRaised))
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("SOLL", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
-                Text(if (state == null) "—" else String.format(Locale.GERMANY, "%.1f°", draftTemp), color = TextMain, fontSize = 36.sp, fontWeight = FontWeight.Light)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                    Text(state?.indoorTemp?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = state != null && !busy && draftTemp > 16f) {
+                            draftTemp = (draftTemp - 0.5f).coerceAtLeast(16f); onTargetTemp(draftTemp)
+                        }, color = Panel
+                    ) { Box(contentAlignment = Alignment.Center) { Text("−", color = Blue, fontSize = 23.sp) } }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        Text(if (state == null) "—" else String.format(Locale.GERMANY, "%.1f", draftTemp), color = TextMain, fontSize = 38.sp, fontWeight = FontWeight.Light)
+                        Text("SOLL °C", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    }
+                    Surface(
+                        modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = state != null && !busy && draftTemp < 30f) {
+                            draftTemp = (draftTemp + 0.5f).coerceAtMost(30f); onTargetTemp(draftTemp)
+                        }, color = Panel
+                    ) { Box(contentAlignment = Alignment.Center) { Text("+", color = Blue, fontSize = 21.sp) } }
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("AUSSEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                    Text(state?.outdoorTemp?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
-        }
-        Button(
-            onClick = { onPower(!(state?.power ?: false)) },
-            enabled = state != null && !busy,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = if (state?.power == true) Color(0xFFDCEBFA) else Blue, contentColor = if (state?.power == true) Color(0xFF123B60) else Color.White)
-        ) { Text(if (state?.power == true) "Klimaanlage ausschalten" else "Klimaanlage einschalten") }
-        Text("Solltemperatur", color = Muted, fontSize = 13.sp)
-        Slider(
-            value = draftTemp,
-            onValueChange = { value -> draftTemp = (value * 2f).roundToInt() / 2f },
-            onValueChangeFinished = { onTargetTemp(draftTemp) },
-            valueRange = 16f..30f,
-            steps = 27,
-            enabled = state != null && !busy,
-            colors = SliderDefaults.colors(thumbColor = Blue, activeTrackColor = Blue, inactiveTrackColor = PanelRaised),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("16 °C", color = Muted, fontSize = 12.sp)
-            Text(if (state == null) "Keine Verbindung" else "Einstellbar in 0,5-°C-Schritten", color = Muted, fontSize = 11.sp)
-            Text("30 °C", color = Muted, fontSize = 12.sp)
+            Slider(
+                value = draftTemp,
+                onValueChange = { value -> draftTemp = (value * 2f).roundToInt() / 2f },
+                onValueChangeFinished = { onTargetTemp(draftTemp) },
+                valueRange = 16f..30f,
+                steps = 27,
+                enabled = state != null && !busy,
+                colors = SliderDefaults.colors(thumbColor = Blue, activeTrackColor = Blue, inactiveTrackColor = Color(0xFFC8D8E6)),
+                modifier = Modifier.fillMaxWidth().height(28.dp)
+            )
+            Button(
+                onClick = { onPower(!(state?.power ?: false)) },
+                enabled = state != null && !busy,
+                modifier = Modifier.fillMaxWidth().height(42.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (state?.power == true) Color(0xFFD1E2F0) else Blue,
+                    contentColor = if (state?.power == true) Color(0xFF123B60) else Color.White
+                ),
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) { Text(if (state?.power == true) "⏻  Ausschalten" else "⏻  Einschalten", fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
         }
     }
 }
 
 @Composable
-private fun MetricCard(modifier: Modifier, title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, subtitle: String) {
-    Column(modifier.clip(RoundedCornerShape(20.dp)).background(Panel).padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(icon, contentDescription = null, tint = Blue, modifier = Modifier.size(22.dp))
-        Text(title, color = Muted, fontSize = 12.sp)
-        Text(value, color = TextMain, fontSize = if (value.length > 12) 15.sp else 19.sp, fontWeight = FontWeight.Bold)
-        Text(subtitle, color = Muted, fontSize = 11.sp)
+private fun ModeTile(modifier: Modifier, label: String, symbol: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier.clip(RoundedCornerShape(14.dp)).background(if (selected) Blue else Color(0xFFF2F5F8))
+            .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 2.dp, vertical = 9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(symbol, color = if (selected) Color.White else Muted, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = if (selected) Color.White else TextMain, fontSize = 9.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+    }
+}
+
+@Composable
+private fun ChoicePill(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, onClick = onClick),
+        color = if (selected) Color(0xFFDCEBFA) else Color(0xFFF3F6F9),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(label, Modifier.padding(horizontal = 11.dp, vertical = 9.dp), color = if (selected) Color(0xFF123B60) else TextMain, fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+    }
+}
+
+@Composable
+private fun AirflowCard(modifier: Modifier, title: String, selected: String, options: List<String>, enabled: Boolean, onSelect: (String) -> Unit) {
+    Card(modifier = modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
+        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text(title, color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+            Text(selected.ifBlank { "—" }, color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                options.forEach { option -> ChoicePill(option, selected == option, enabled) { onSelect(option) } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactMetricCard(modifier: Modifier, title: String, value: String, subtitle: String) {
+    Card(modifier = modifier, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, color = Muted, fontSize = 10.sp)
+            Text(value, color = TextMain, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(subtitle, color = Muted, fontSize = 10.sp, maxLines = 1)
+        }
     }
 }
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+    Text(text, color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
 }
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FlowModeSelector(selected: String, options: List<String>, onSelect: (String) -> Unit, optionLabels: Map<String, String> = emptyMap(), enabled: Boolean = true) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        options.forEach { option ->
-            FilterChip(
-                selected = selected == option,
-                onClick = { onSelect(option) },
-                enabled = enabled,
-                label = { Text(optionLabels[option] ?: option) },
-                leadingIcon = if (selected == option) ({ Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }) else null,
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = if (option == "Aus") Color(0xFFFFE1E1) else Color(0xFFDCEBFA),
-                    selectedLabelColor = if (option == "Aus") Color(0xFFB42318) else Color(0xFF123B60),
-                    selectedLeadingIconColor = if (option == "Aus") Color(0xFFD93025) else Blue,
-                    containerColor = Color(0xFFF8FAFC),
-                    labelColor = TextMain
-                ),
-                border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selected == option, borderColor = Color(0xFFCBD5E1), selectedBorderColor = if (option == "Aus") Color(0xFFD93025) else Blue)
-            )
-        }
-    }
-}
-
 
 @Composable
 internal fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
