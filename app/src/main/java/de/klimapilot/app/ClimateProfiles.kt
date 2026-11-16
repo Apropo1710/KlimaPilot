@@ -404,7 +404,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         Text("Abbrechen", fontSize = 13.sp)
                     }
                 }
-            }
+            },
             dismissButton = null
         )
     }
