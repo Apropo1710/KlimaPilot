@@ -4,6 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import kotlin.math.roundToInt
 
 /** Durable local outbox. Events are retained until an explicit upload acknowledgement. */
 internal class ClimateProfileSyncStore(context: Context) {
