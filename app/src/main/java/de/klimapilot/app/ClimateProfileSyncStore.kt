@@ -212,9 +212,12 @@ internal class ClimateProfileSyncStore(context: Context) {
         // that no longer exist in the outbox. Otherwise the migrated initialization marker
         // could suppress the initial upload while the new key has no comparable version.
         val oldVersionPrefix = "$oldDeviceKey|"
+        // Snapshot keys before adding target entries; mutating JSONObject while iterating
+        // its live key iterator can invalidate the iterator.
+        val oldVersionKeys = mutableListOf<String>()
         val versionKeys = versions.keys()
-        while (versionKeys.hasNext()) {
-            val oldVersionKey = versionKeys.next()
+        while (versionKeys.hasNext()) oldVersionKeys.add(versionKeys.next())
+        for (oldVersionKey in oldVersionKeys) {
             if (!oldVersionKey.startsWith(oldVersionPrefix)) continue
             val profileId = oldVersionKey.removePrefix(oldVersionPrefix)
             if (profileId.isBlank()) continue
