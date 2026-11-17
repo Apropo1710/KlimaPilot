@@ -62,42 +62,7 @@ internal class ClimateProfileSyncClient {
                                 val deviceId = deviceMap[key]
                                 if (deviceId == null) { skipped++; continue }
                                 try {
-                                    val wasApplied = synchronized(ClimateProfileStorageLock.monitor) {
-                                        // Include every locally committed but not yet versioned change
-                                        // before deciding whether this remote revision may overwrite it.
-                                        repository.flushPendingSyncJournal(store)
-                                        if (!store.isRemoteEventNewer(event)) false else {
-                                            when (event.optString("type")) {
-                                                "selection" -> {
-                                                    val payload = event.optJSONObject("profile")
-                                                        ?: throw IllegalArgumentException("Aktive Profilauswahl enthält keine Daten.")
-                                                    val activeId = if (payload.isNull("activeProfileId")) null
-                                                        else payload.optString("activeProfileId").takeIf { it.isNotBlank() }
-                                                    check(store.saveActiveProfileId(deviceId, activeId)) {
-                                                        "Aktive Profilauswahl konnte nicht lokal gespeichert werden."
-                                                    }
-                                                }
-                                                "individual" -> {
-                                                    val payload = event.optJSONObject("profile")
-                                                        ?: throw IllegalArgumentException("Individuelle Einstellungen enthalten keine Daten.")
-                                                    check(store.applyRemoteIndividualProfile(deviceId, payload)) {
-                                                        "Individuelle Einstellungen konnten nicht lokal gespeichert werden."
-                                                    }
-                                                }
-                                                else -> {
-                                                    repository.applyRemoteEvent(event, deviceId)
-                                                    if (event.optString("type") == "delete" &&
-                                                        store.activeProfileId(deviceId) == event.optString("profileId")) {
-                                                        check(store.saveActiveProfileId(deviceId, null)) {
-                                                            "Gelöschte aktive Profilauswahl konnte nicht zurückgesetzt werden."
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            check(store.recordRemoteEvent(event)) { "Versionsstand konnte nicht lokal gespeichert werden." }
-                                            true
-                                        }
-                                    }
+                                    val wasApplied = applyRemoteEventIfNewer(event, deviceId, store, repository)
                                     if (wasApplied) applied++ else skipped++
                                 } catch (error: Exception) {
                                     finish("Ein empfangenes Profil konnte nicht sicher übernommen werden: ${error.message ?: "Ungültige Daten"}.")
@@ -114,6 +79,51 @@ internal class ClimateProfileSyncClient {
         socket.on("connect_error") { args -> finish("ioBroker-Synchronisierung fehlgeschlagen: ${args.firstOrNull() ?: "Verbindung fehlgeschlagen"}") }
         socket.on("disconnect") { if (!completed.get()) finish("ioBroker-Verbindung während der Synchronisierung getrennt.") }
         socket.connect()
+    }
+
+    /** Applies one remote event only after local journal entries have received comparable versions. */
+    internal fun applyRemoteEventIfNewer(
+        event: JSONObject,
+        deviceId: String,
+        store: ClimateProfileSyncStore,
+        repository: ClimateProfileRepository
+    ): Boolean = synchronized(ClimateProfileStorageLock.monitor) {
+        // This must happen for every event, not just once at sync start: local edits may
+        // be committed while upload/read network operations are in flight.
+        repository.flushPendingSyncJournal(store)
+        if (!store.isRemoteEventNewer(event)) {
+            false
+        } else {
+            when (event.optString("type")) {
+                "selection" -> {
+                    val payload = event.optJSONObject("profile")
+                        ?: throw IllegalArgumentException("Aktive Profilauswahl enthält keine Daten.")
+                    val activeId = if (payload.isNull("activeProfileId")) null
+                        else payload.optString("activeProfileId").takeIf { it.isNotBlank() }
+                    check(store.saveActiveProfileId(deviceId, activeId)) {
+                        "Aktive Profilauswahl konnte nicht lokal gespeichert werden."
+                    }
+                }
+                "individual" -> {
+                    val payload = event.optJSONObject("profile")
+                        ?: throw IllegalArgumentException("Individuelle Einstellungen enthalten keine Daten.")
+                    check(store.applyRemoteIndividualProfile(deviceId, payload)) {
+                        "Individuelle Einstellungen konnten nicht lokal gespeichert werden."
+                    }
+                }
+                else -> {
+                    repository.applyRemoteEvent(event, deviceId)
+                    if (event.optString("type") == "delete" &&
+                        store.activeProfileId(deviceId) == event.optString("profileId")) {
+                        check(store.saveActiveProfileId(deviceId, null)) {
+                            "Gelöschte aktive Profilauswahl konnte nicht zurückgesetzt werden."
+                        }
+                    }
+                }
+            }
+            check(store.recordRemoteEvent(event)) { "Versionsstand konnte nicht lokal gespeichert werden." }
+            true
+        }
     }
 
     private fun uploadPending(socket: IoBrokerSocket, store: ClimateProfileSyncStore, done: (Int, String?) -> Unit) {
