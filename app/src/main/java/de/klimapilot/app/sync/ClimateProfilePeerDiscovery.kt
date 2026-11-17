@@ -26,6 +26,7 @@ private const val TXT_DISCOVERY_ID = "id"
 private const val MAX_DISCOVERED_PEERS = 20
 private const val MAX_PENDING_RESOLVES = 20
 private const val MAX_RESOLVE_RETRIES = 2
+private const val RESOLVE_TIMEOUT_MS = 8_000L
 
 /** A discovered announcement only. It is deliberately not a trusted/paired device. */
 internal data class UnverifiedClimatePeer(
@@ -107,6 +108,9 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     private val resolveRetries = mutableMapOf<String, Int>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var resolving = false
+    private var resolveTokenCounter = 0L
+    private var activeResolveToken: Long? = null
+    private var resolveTimeout: Runnable? = null
 
     @Synchronized
     fun start(
@@ -243,12 +247,30 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         if (!isCurrent(run) || resolving || pending.isEmpty()) return
         resolving = true
         val candidate = pending.removeFirst()
+        val token = ++resolveTokenCounter
+        activeResolveToken = token
+        val timeout = Runnable {
+            synchronized(this@ClimateProfilePeerDiscovery) {
+                if (isCurrent(run) && activeResolveToken == token) {
+                    activeResolveToken = null
+                    resolveTimeout = null
+                    resolving = false
+                    scheduleResolveRetry(run, candidate)
+                    resolveNext(run)
+                }
+            }
+        }
+        resolveTimeout = timeout
+        mainHandler.postDelayed(timeout, RESOLVE_TIMEOUT_MS)
         try {
             @Suppress("DEPRECATION")
             nsd.resolveService(candidate, object : NsdManager.ResolveListener {
                 override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                     synchronized(this@ClimateProfilePeerDiscovery) {
-                        if (!isCurrent(run)) return
+                        if (!isCurrent(run) || activeResolveToken != token) return
+                        resolveTimeout?.let(mainHandler::removeCallbacks)
+                        resolveTimeout = null
+                        activeResolveToken = null
                         resolving = false
                         scheduleResolveRetry(run, serviceInfo)
                         resolveNext(run)
@@ -256,7 +278,10 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                 }
                 override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
                     synchronized(this@ClimateProfilePeerDiscovery) {
-                        if (!isCurrent(run)) return
+                        if (!isCurrent(run) || activeResolveToken != token) return
+                        resolveTimeout?.let(mainHandler::removeCallbacks)
+                        resolveTimeout = null
+                        activeResolveToken = null
                         resolving = false
                         resolveRetries.remove(serviceInfo.serviceName)
                         val peer = ClimatePeerAnnouncement.parse(
@@ -273,6 +298,9 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                 }
             })
         } catch (_: Exception) {
+            resolveTimeout?.let(mainHandler::removeCallbacks)
+            resolveTimeout = null
+            activeResolveToken = null
             resolving = false
             scheduleResolveRetry(run, candidate)
             resolveNext(run)
@@ -338,6 +366,9 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
 
     private fun cleanupLocked() {
         active = false
+        resolveTimeout?.let(mainHandler::removeCallbacks)
+        resolveTimeout = null
+        activeResolveToken = null
         val callback = networkCallback
         networkCallback = null
         if (callback != null) runCatching { connectivity.unregisterNetworkCallback(callback) }
