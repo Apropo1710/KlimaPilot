@@ -32,6 +32,7 @@ internal class ClimatePairingSessionController(
             "Es läuft bereits eine Pairing-Sitzung."
         }
         val invitation = createInvitation(nowMillis)
+        check(invitation.peerId == localPeerId) { "Die Einladung gehört nicht zu dieser Geräteidentität." }
         outgoingInvitation = invitation
         outgoingConfirmation = null
         pendingResponsePeer = null
@@ -76,6 +77,11 @@ internal class ClimatePairingSessionController(
         check(nowMillis <= invitation.expiresAtMillis) { "Die Pairing-Einladung ist abgelaufen." }
 
         val response = createResponse(invitation, nowMillis)
+        check(response.responderPeerId == localPeerId &&
+            response.sessionId == invitation.sessionId &&
+            response.invitationPeerId == invitation.peerId &&
+            response.invitationNonceBase64 == invitation.nonceBase64
+        ) { "Die Pairing-Antwort passt nicht zur aktiven Geräteidentität oder Sitzung." }
         trustedPeerStore.trustPeer(invitation.publicKeyBase64, displayName)
         consumedIncomingSessions[invitation.sessionId] = invitation.expiresAtMillis
         incomingInvitation = null
