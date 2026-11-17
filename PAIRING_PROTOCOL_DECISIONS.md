@@ -81,3 +81,12 @@ Nicht Teil dieses Arbeitspakets sind:
 - `ClimatePairingQrCodeTest` dekodiert einen erzeugten QR-Code wieder und vergleicht den UTF-8-Payload exakt.
 - GitHub Actions #122 (Push) und #123 (PR) für Head `2657dbb99e65cbaff107737ecd040edcf401bbd4`: beide erfolgreich; Unit-Tests und Debug-Kompilierung bestanden.
 - Noch kein Zwei-Smartphone-Praxistest, kein TLS, kein Netzwerktransport und keine Profilübertragung. Pairing-UI/QR-Codes allein geben keine Synchronisierung frei.
+
+## 9. TLS-Testdiagnose (17.11.2026)
+
+- Der erste Emulatorlauf [#2](https://github.com/Apropo1710/KlimaPilot/actions/runs/44131206603) schlug auf API 26 und API 35 fehl.
+- API 26 führte den Test aus, meldete aber `SSLHandshakeException: Connection closed by peer`. Der Test wurde angepasst, damit ein Fehler des Server-Endpunkts künftig zusammen mit dem Clientfehler ausgegeben wird; ein Socket-Timeout verhindert unbegrenztes Warten.
+- API 35 startete zeitweise mit einer `offline`-ADB-Verbindung; anschließend stürzte der Instrumentierungsprozess ab, bevor ein Test ausgeführt wurde. Der Workflow sichert deshalb nun nach dem Testlauf die Emulator-Logcat-Ausgabe als Actions-Artefakt.
+- Diese Anpassungen verbessern ausschließlich die Diagnose. Sie sind kein Nachweis, dass mTLS bereits funktioniert.
+- Nächster Schritt: neuen automatischen CI-Lauf vollständig auswerten und anhand der Server-Ausnahme bzw. Logcat gezielt korrigieren. Bis dahin bleiben Transport und Profilübertragung gesperrt.
+- Claude-Review wird nach Wiederverfügbarkeit des Nutzerlimits vor Beginn weiterer Transportarbeiten nachgeholt.
