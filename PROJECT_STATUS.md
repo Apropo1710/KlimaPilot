@@ -1,6 +1,6 @@
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
-**Zuletzt abgeglichen:** 17.11.2026, 02:56 Uhr MEZ  
+**Zuletzt abgeglichen:** 17.11.2026, ca. 21:00 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`  
 **Produktionsversion:** **0.4.63 / versionCode 93**
@@ -19,19 +19,20 @@
 
 ## Offener Synchronisations-PR
 
-- [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – ist offen und Draft; Head `ad84fe8d3cc7`. Die jüngste GitHub-Abfrage lieferte für die Mergeability `unknown` (eine frühere Abfrage meldete `clean`); daher derzeit keine abschließende Konfliktbewertung.
-- Die PR-Validierung #15 / Run `43964905903` war **completed / success**. Der PR-Stand ist noch nicht gemergt und nicht Teil des Releases 0.4.63.
+- [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – ist offen und Draft. Der Branch `fix/durable-profile-change-journal` wurde mit dem aktuellen `main`-Stand `7dcab2477619` abgeglichen; die sechs zuvor fehlenden Commits betrafen ausschließlich Status-/Projektdokumentation.
+- Claude hat den vorherigen Code-Head `ac80a09` am 17.11.2026 statisch erneut geprüft und aus Code-Sicht als mergefähig bewertet. Für den nachfolgenden Merge-Commit ist ein frischer CI-Lauf (Unit-Tests und Debug-Kompilierung) noch abzuwarten. Der PR ist nicht gemergt und nicht Teil des Releases 0.4.63.
+
 
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: c7a1c6a458f0c44533d08672db5592a20748bfc6
+- Quellcommit des APK-Builds: eb7bfd623eba444bc505f1919bc74b85e987fa0c
 - App-Version / versionCode: **0.4.63 / 93**
-- Build-Zeit: 2026-11-16 21:19:14 UTC
+- Build-Zeit: 2026-11-17 09:17:58 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 48e876e988186d3021d79364bd3405400c5a98a7168332b5d4c0d221f474f52f
+- APK-SHA-256: 92f90999d132865612e8cf0dfbaef9582b2f1ec146f18db259ff163c5fbefb46
 - GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
@@ -123,4 +124,4 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - ioBroker bleibt zunächst als bestehender Synchronisationsanbieter erhalten. Eine unabhängige Cloud oder direkte Smartphone-Synchronisation kann später ergänzend hinzukommen.
 - Konfliktbehandlung, doppelte Events, Wiederanlauf und Löschungen müssen ausdrücklich berücksichtigt und mit mindestens zwei Smartphones getestet werden.
 - Ein absolut ausfallfreies System kann nicht garantiert werden. Ziel ist, dass der Ausfall eines Synchronisationsdienstes weder die lokale Bedienung noch gespeicherte Daten gefährdet.
-- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n
+- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n\n\n

@@ -264,7 +264,7 @@ Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-
 - **Rekey ohne initialisierten Quellschlüssel:** War der alte Geräteschlüssel noch nicht als initialisiert markiert, wird dieser Marker beim Rekey nicht übertragen. Der neue Schlüssel kann deshalb beim nächsten Initialisierungslauf einen vollständigen Initial-Upload auslösen. Dabei besteht das dokumentierte Risiko, dass lokal vorhandene ältere Profile neuere Remote-Stände überschreiben können; dieser Sonderfall ist vor einer späteren Erweiterung der Rekey-Logik gezielt zu bewerten.
 - **Remote-Clock abgelehnter Ereignisse:** `syncNow` beobachtet derzeit die höchste Clock aller eingelesenen Remote-Ereignisse, bevor die Einzelvalidierung und Anwendung beginnt. Dadurch kann auch ein später abgelehntes Ereignis die lokale Logical Clock erhöhen. Ein sehr hoher, aber syntaktisch lesbarer Clock-Wert kann den lokalen Zähler entsprechend weit anheben; die Ereignisvalidierung begrenzt diesen Wert derzeit nicht.
 
-## 9. Verbindliche Entscheidung: Synchronisation ohne Cloud- und Dienstbindung (17.11.2026)
+## 11. Verbindliche Entscheidung: Synchronisation ohne Cloud- und Dienstbindung (17.11.2026)
 
 Die Zielarchitektur wird ausdrücklich auf Kostenkontrolle, lokale Nutzbarkeit und Unabhängigkeit von externen Anbietern ausgerichtet.
 
@@ -274,7 +274,7 @@ Die Zielarchitektur wird ausdrücklich auf Kostenkontrolle, lokale Nutzbarkeit u
 2. **ioBroker bleibt zunächst der vorhandene zentrale Austauschpunkt:** Der bereits genutzte ioBroker-Weg wird weiterverwendet. Es wird kein zusätzlicher Server nur für KlimaPilot-Synchronisation eingerichtet.
 3. **Local-first bleibt maßgeblich:** Jedes Smartphone hält seine benötigten Profile und Einstellungen lokal vor. Die App muss diese Daten ohne ioBroker-Verbindung anzeigen und lokal verwenden können. Die lokale Klimaanlagensteuerung bleibt davon vollständig unabhängig.
 4. **Offline-Outbox und spätere Nachlieferung:** Änderungen werden zuerst dauerhaft lokal gespeichert. Ist ioBroker nicht erreichbar, bleiben sie in der lokalen Outbox und werden übertragen, sobald der bestehende Austauschweg wieder verfügbar ist.
-5. **Direkte Geräte-Synchronisation nur optional im selben lokalen Netzwerk:** Eine direkte Smartphone-zu-Smartphone-Verbindung, beispielsweise im selben WLAN, kann später als zusätzliche Möglichkeit geprüft werden. Sie ist keine Voraussetzung für die Grundfunktion und wird erst nach separater technischer Bewertung umgesetzt.
+5. **Direkte Geräte-Synchronisation als lokaler Fallback im selben WLAN:** Nach Abschluss und Stabilisierung der laufenden Profil-Synchronisation soll eine direkte Smartphone-zu-Smartphone-Verbindung als zusätzlicher Synchronisationsweg geprüft und anschließend separat umgesetzt werden. Sie funktioniert ausschließlich, wenn beide Smartphones gleichzeitig im selben lokalen WLAN erreichbar sind. Ist ioBroker nicht erreichbar, bleiben Änderungen auf jedem Smartphone lokal gespeichert. Sobald beide Geräte wieder im selben WLAN sind, gleichen sie die bis dahin aufgelaufenen Änderungen automatisch nachträglich in beide Richtungen ab. Die App und die lokale Klimasteuerung bleiben währenddessen vollständig nutzbar. Die vorhandene Outbox-, Ereignis- und Konfliktlogik wird weiterverwendet; es entsteht kein zweites unabhängiges Synchronisationssystem.
 6. **Keine garantierte Sofortsynchronisation über getrennte Netze:** Sind beide Smartphones unterwegs, in unterschiedlichen WLANs oder nur über Mobilfunk erreichbar und ist ioBroker von dort nicht erreichbar, können sie ohne Vermittlungsdienst nicht zuverlässig sofort miteinander synchronisieren. Änderungen bleiben lokal vorgemerkt und werden beim nächsten erreichbaren gemeinsamen Austauschweg nachgeliefert. Das ist ein bewusster Kompromiss zugunsten von Kosten- und Dienstunabhängigkeit.
 7. **Keine Einschränkung der Klimasteuerung:** Der direkte WF-RAC-Steuerungsweg bleibt unabhängig von ioBroker und jeder Synchronisationsverbindung.
 
@@ -282,9 +282,9 @@ Die Zielarchitektur wird ausdrücklich auf Kostenkontrolle, lokale Nutzbarkeit u
 
 - Zuerst Local-first-Datenhaltung, dauerhafte Outbox, Wiederanlauf und Konfliktbehandlung zuverlässig absichern.
 - ioBroker als einzigen zunächst vorgesehenen geräteübergreifenden Austauschpunkt beibehalten.
-- Danach optional prüfen, ob eine direkte Synchronisation im selben WLAN einen echten Mehrwert bietet und ohne zusätzliche Infrastruktur zuverlässig umgesetzt werden kann.
+- Nach Abschluss und Stabilisierung von PR #3 die direkte WLAN-Synchronisation als separates Entwicklungspaket umsetzen: Geräteerkennung und sichere Verbindung im selben lokalen Netzwerk, danach automatischer beidseitiger Nachholabgleich über die vorhandene Outbox- und Konfliktlogik.
 - Cloud-, Relay- oder sonstige externe Vermittlungsdienste sind nicht Bestandteil der aktuellen Planung. Eine spätere Änderung dieser Grundentscheidung erfordert eine ausdrückliche neue Entscheidung; sie wird nicht stillschweigend vorausgesetzt.
 
 ### Bewusste Einschränkung
 
-Ohne erreichbaren gemeinsamen Austauschpunkt gibt es keine sofortige Synchronisation zwischen räumlich getrennten Smartphones. KlimaPilot bleibt auf beiden Geräten lokal nutzbar; die Synchronisation wird nachgeholt, sobald ioBroker oder ein später ausdrücklich freigegebener direkter lokaler Weg verfügbar ist.
+Ohne erreichbaren gemeinsamen Austauschpunkt gibt es keine sofortige Synchronisation zwischen räumlich getrennten Smartphones. KlimaPilot bleibt auf beiden Geräten lokal nutzbar. Sobald beide Smartphones wieder gleichzeitig im selben WLAN sind, soll der direkte lokale Weg die während der Trennung gespeicherten Änderungen automatisch nachträglich in beide Richtungen abgleichen. Sind die Geräte in unterschiedlichen WLANs oder nur über Mobilfunk erreichbar und ioBroker ist nicht verfügbar, bleiben Änderungen bis zum nächsten gemeinsamen Austauschweg lokal vorgemerkt.
