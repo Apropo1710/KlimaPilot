@@ -62,6 +62,7 @@ import kotlinx.coroutines.withContext
 import de.klimapilot.app.wfrac.AirconState
 import de.klimapilot.app.wfrac.Mode
 import de.klimapilot.app.wfrac.Codec
+import de.klimapilot.app.sync.ClimateProfilePeerDiscovery
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
@@ -1295,6 +1296,14 @@ private fun SettingsScreen(
     var accountExpanded by remember { mutableStateOf(false) }
     var fontSizeExpanded by remember { mutableStateOf(false) }
     var ioBrokerExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val peerDiscovery = remember(context) { ClimateProfilePeerDiscovery(context) }
+    var peerScanning by remember { mutableStateOf(false) }
+    var peerScanMessage by remember { mutableStateOf("Noch keine lokale WLAN-Suche gestartet.") }
+    val discoveredPeers = remember { mutableStateListOf<String>() }
+    DisposableEffect(peerDiscovery) {
+        onDispose { peerDiscovery.stop() }
+    }
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
             .background(AppBg)
@@ -1397,6 +1406,43 @@ private fun SettingsScreen(
                     "Verbindungs-, Raum- und Gerätekonfiguration kann nur ein Administrator ändern.",
                     modifier = Modifier.padding(14.dp), color = Muted, fontSize = 12.sp
                 )
+            }
+        }
+        Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("Lokales WLAN", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Sucht nach anderen KlimaPilot-Geräten im selben Netzwerk. Gefundene Geräte sind zunächst nicht vertrauenswürdig.", color = Muted, fontSize = 11.sp)
+                Button(
+                    onClick = {
+                        if (peerScanning) {
+                            peerDiscovery.stop()
+                            peerScanning = false
+                            discoveredPeers.clear()
+                            peerScanMessage = "WLAN-Suche beendet."
+                        } else {
+                            discoveredPeers.clear()
+                            peerScanMessage = "Suche im lokalen WLAN …"
+                            peerScanning = peerDiscovery.start(
+                                onPeerFound = { peer ->
+                                    val entry = "${peer.instanceName} · ${peer.hostAddress}:${peer.port}"
+                                    if (entry !in discoveredPeers) discoveredPeers.add(entry)
+                                    peerScanMessage = "Unbestätigte Dienstankündigung gefunden."
+                                },
+                                onError = { message ->
+                                    peerScanning = false
+                                    peerScanMessage = message
+                                }
+                            )
+                            if (!peerScanning) peerScanMessage = "WLAN-Suche konnte nicht gestartet werden."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (peerScanning) "Suche beenden" else "KlimaPilot-Geräte suchen") }
+                Text(peerScanMessage, color = Muted, fontSize = 12.sp)
+                discoveredPeers.forEach { peer ->
+                    Text(peer, color = TextMain, fontSize = 12.sp)
+                    Text("Nicht gekoppelt · keine Datenübertragung", color = Muted, fontSize = 10.sp)
+                }
             }
         }
         GithubUpdateCard(appVersion)

@@ -188,7 +188,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                             ownInstanceNames = setOfNotNull(ownServiceName),
                             ownDiscoveryId = ownDiscoveryId,
                         )
-                        if (peer != null) onPeerFound?.invoke(peer)
+                        if (peer != null && serviceInfo.serviceName in seenNames) onPeerFound?.invoke(peer)
                         resolveNext(run)
                     }
                 }
