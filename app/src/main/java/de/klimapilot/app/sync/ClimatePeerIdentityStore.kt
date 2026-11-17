@@ -45,7 +45,7 @@ internal class ClimatePeerIdentityStore {
                     // Application identity signatures use SHA-256withECDSA.
                     // Conscrypt also needs the raw NONEwithECDSA operation when this
                     // Keystore key signs the TLS server CertificateVerify message.
-                    .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_NONE)
+                    .setDigests(KeyProperties.DIGEST_SHA256)
                     .setUserAuthenticationRequired(false)
                     .build()
             )
