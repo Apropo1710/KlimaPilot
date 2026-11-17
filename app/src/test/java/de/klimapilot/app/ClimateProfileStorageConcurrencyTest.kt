@@ -113,6 +113,55 @@ class ClimateProfileStorageConcurrencyTest {
     }
 
     @Test
+    fun pendingLocalEditWinsAgainstOlderRemoteEventDuringApply() {
+        val repository = ClimateProfileRepository(context)
+        val store = ClimateProfileSyncStore(context)
+        val client = ClimateProfileSyncClient()
+        repository.saveWithPendingSync(profile("conflict"), "wfrac:shared-device")
+
+        val remote = org.json.JSONObject()
+            .put("eventId", "remote-install:1")
+            .put("type", "upsert")
+            .put("deviceKey", "wfrac:shared-device")
+            .put("profileId", "conflict")
+            .put("installationId", "remote-install")
+            .put("sequence", 1L)
+            .put("logicalClock", 0L)
+            .put("profile", org.json.JSONObject()
+                .put("name", "Older remote")
+                .put("power", false)
+                .put("mode", "HEAT")
+                .put("targetTemp", 25.0)
+                .put("fanSpeed", 1)
+                .put("verticalSwing", 2)
+                .put("updatedAt", 1L))
+
+        assertTrue(!client.applyRemoteEventIfNewer(remote, "device-1", store, repository))
+        assertEquals("conflict", repository.load().single().id)
+        assertEquals("conflict", repository.load().single().name)
+        assertEquals(1, store.pendingEvents().size)
+    }
+
+    @Test
+    fun activeProfileSelectionIsStoredAsOutboxEvent() {
+        val store = ClimateProfileSyncStore(context)
+        assertTrue(store.saveActiveProfileIdWithSync("device-1", "profile-1", "wfrac:shared-device"))
+        val event = store.pendingEvents().single()
+        assertEquals("selection", event.optString("type"))
+        assertEquals("profile-1", event.optJSONObject("profile")?.optString("activeProfileId"))
+    }
+
+    @Test
+    fun rekeyPreservesInitializedDeviceMarker() {
+        val store = ClimateProfileSyncStore(context)
+        assertTrue(store.enqueueInitialProfiles(listOf(profile("initial")), "wfrac:old"))
+        val before = store.pendingEvents().size
+        assertTrue(store.rekeyPendingEvents("wfrac:old", "wfrac:new"))
+        assertTrue(store.enqueueInitialProfiles(listOf(profile("initial")), "wfrac:new"))
+        assertEquals(before, store.pendingEvents().size)
+    }
+
+    @Test
     fun repeatedJournalFlushIsIdempotent() {
         val repository = ClimateProfileRepository(context)
         val store = ClimateProfileSyncStore(context)
