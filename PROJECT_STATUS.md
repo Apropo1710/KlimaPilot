@@ -1,44 +1,32 @@
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
-**Zuletzt abgeglichen:** 17.11.2026, ca. 21:00 Uhr MEZ  
+**Zuletzt abgeglichen:** 17.11.2026, 12:19 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`  
 **Produktionsversion:** **0.4.63 / versionCode 93**
 
 ## Aktueller GitHub-, Build- und Release-Stand
 
-- `main`-HEAD vor dieser Statuspflege: `cd26cc24659c103e0ce1f2cccc8467a06050b9b9` (Dokumentationscommit).
-- Letzter App-Code-Commit: `42472a3af147`; die vorherige Funktionsänderung `f670b9a8c252` erhält und synchronisiert individuelle Klimaeinstellungen.
-- APK-Build-Quellcommit: `c7a1c6a458f0c44533d08672db5592a20748bfc6` (Dokumentationscommit; der App-Code-Baum entspricht dem oben genannten App-Code-Stand).
-- Version aus `app/build.gradle.kts`: **0.4.63 / 93**. Application-ID `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
-- GitHub Actions [Build #222](https://github.com/Apropo1710/KlimaPilot/actions/runs/43957989783): **completed / success**, exakt für den APK-Build-Quellcommit.
-- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `756488225`, 11.370.139 Bytes; aktualisiert 16.11.2026, 21:19:22 UTC.
-- APK-SHA-256: `48e876e988186d3021d79364bd3405400c5a98a7168332b5d4c0d221f474f52f`; Signaturprüfung laut Produktionsworkflow erfolgreich.
-- Git-Tag `latest` zeigt auf `c7a1c6a458f0c44533d08672db5592a20748bfc6`; `main` enthält danach nur weitere Dokumentationscommits.
+- Maßgeblicher `main`-Stand vor dieser Dokumentationsaktualisierung: `154a0e01d2f88fe9791a7665388a18028e16f5ac`.
+- PR #3 „Absicherung der Klimaprofil-Synchronisation durch dauerhaftes Änderungsjournal“ wurde am 17.11.2026 um 12:14:49 Uhr MEZ gemergt.
+- Merge-Commit: `ee65841387824bca7d2b07ca80f71501540af157`; der Merge-Commit ist von GitHub kryptografisch als gültig verifiziert.
+- GitHub Actions [Produktionsbuild #225](https://github.com/Apropo1710/KlimaPilot/actions/runs/44072272599): **completed / success** für den Merge-Commit. Signierter Release-Build, Keystore-Prüfung, APK-Manifestprüfung und Signaturprüfung erfolgreich.
+- Produktionsversion aus `app/build.gradle.kts`: **0.4.63 / versionCode 93**. Application-ID `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
+- Build-Zeit: 17.11.2026, 12:18:01 Uhr MEZ (11:18:01 UTC).
+- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `758753537`, 11.370.139 Bytes; aktualisiert 17.11.2026, 12:18:08 UTC.
+- APK-SHA-256: `95b683e70327c5302645ad0b23e8f554ca780c49e8b2e386f367d13f952da8c3`; Signaturprüfung im Produktionsworkflow erfolgreich.
+- Git-Tag `latest` zeigt auf den Merge-Commit `ee65841387824bca7d2b07ca80f71501540af157`.
 - APK: https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
 
-## Offener Synchronisations-PR
+## Abgeschlossene Profil-Synchronisations-PR
 
-- [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – ist offen und Draft. Der Branch `fix/durable-profile-change-journal` wurde mit dem aktuellen `main`-Stand `7dcab2477619` abgeglichen; die sechs zuvor fehlenden Commits betrafen ausschließlich Status-/Projektdokumentation.
-- Claude hat den Code-Stand `ac80a09` am 17.11.2026 statisch erneut geprüft und aus Code-Sicht als mergefähig bewertet. Der aktuelle PR-Head `d812f87732a8aa40b9db7caf23dbb63d87f73c14` wurde zusätzlich durch den vorhandenen Workflow `KlimaPilot WLAN Branch Validation`, Lauf #47, erfolgreich mit Unit-Tests und Debug-Kompilierung geprüft. Der PR ist weiterhin offen und Draft, nicht gemergt und nicht Teil des Releases 0.4.63. Der PR-Workflow erstellt keine signierte Release-APK und veröffentlicht nichts.
-
-
-<!-- AUTO-PRODUCTION-STATUS:START -->
-## Automatisch gepflegter Produktionsstatus
-
-- Quellcommit des APK-Builds: ee65841387824bca7d2b07ca80f71501540af157
-- App-Version / versionCode: **0.4.63 / 93**
-- Build-Zeit: 2026-11-17 11:18:01 UTC
-- APK-Dateiname: **KlimaPilot.apk**
-- APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
-- Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 95b683e70327c5302645ad0b23e8f554ca780c49e8b2e386f367d13f952da8c3
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
-- Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
-- Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
-          - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
-
-<!-- AUTO-PRODUCTION-STATUS:END -->
+- [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – **geschlossen und gemergt** am 17.11.2026, 12:14:49 Uhr MEZ.
+- Gemergter PR-Head: `c111d1376b14801ec83c0eddbbc42de3dbb35ff0`; Merge-Commit auf `main`: `ee65841387824bca7d2b07ca80f71501540af157`.
+- Der aktuelle PR-Head wurde durch [WLAN Branch Validation #48](https://github.com/Apropo1710/KlimaPilot/actions/runs/44071591137) mit erfolgreichen Unit-Tests und Debug-Kompilierung geprüft.
+- Anschließend hat Produktionsbuild #225 die signierte Release-APK für den Merge-Commit erstellt und veröffentlicht.
+- Die in der unabhängigen Claude-Prüfung genannten niedrigen Restrisiken (Fehlerbehandlung bei Upload-Stufen, Recovery eines beschädigten Journals und theoretischer Logical-Clock-Überlauf) wurden nicht zusätzlich behoben und bleiben als mögliche spätere Härtungspunkte bestehen.
+- Robolectric-Tests ersetzen keine realen Prozess-Kill- oder Zwei-Smartphone-Tests. Ein Hardware-/Mehrgeräte-Praxistest ist damit nicht bestätigt.
+- Updater, Berechtigungen, Installationsablauf und direkter WF-RAC-Steuerweg wurden durch PR #3 nicht verändert.
 
 ## Branches außerhalb des Produktionsstands
 
