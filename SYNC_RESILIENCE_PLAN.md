@@ -188,3 +188,28 @@ Dieses Vorhaben ist ausdrücklich **zeitnah** einzuplanen und nicht nur eine unv
 Die Umsetzung erfolgt schrittweise auf dem produktiven Branch `main`. Vor jeder Codeänderung werden der aktuelle GitHub-Stand und alle betroffenen Dateien geprüft. Bestehende funktionierende Synchronisations- und Steuerungsfunktionen bleiben erhalten. Jede Phase wird gebaut und gezielt getestet, bevor die nächste größere Änderung erfolgt.
 
 **Wichtig:** Eine Cloud oder direkte Geräteverbindung ist noch nicht ausgewählt oder implementiert. Festgelegt ist zunächst das Ziel: lokale Nutzbarkeit, dauerhafte Speicherung, zuverlässige Nachlieferung und Austauschbarkeit der Synchronisationsanbieter.
+
+## 9. Verbindliche Entscheidung: Synchronisation ohne Cloud- und Dienstbindung (17.11.2026)
+
+Die Zielarchitektur wird ausdrücklich auf Kostenkontrolle, lokale Nutzbarkeit und Unabhängigkeit von externen Anbietern ausgerichtet.
+
+### Festgelegte Leitlinien
+
+1. **Kein Cloud-Dienst und kein zusätzlicher Vermittlungsserver:** KlimaPilot soll für die Smartphone-Synchronisation keinen kostenpflichtigen oder fremdbetriebenen Cloud-/Relay-Dienst voraussetzen. Es entstehen dadurch keine zusätzlichen laufenden Dienstkosten und keine Bindung an einen externen Synchronisationsanbieter.
+2. **ioBroker bleibt zunächst der vorhandene zentrale Austauschpunkt:** Der bereits genutzte ioBroker-Weg wird weiterverwendet. Es wird kein zusätzlicher Server nur für KlimaPilot-Synchronisation eingerichtet.
+3. **Local-first bleibt maßgeblich:** Jedes Smartphone hält seine benötigten Profile und Einstellungen lokal vor. Die App muss diese Daten ohne ioBroker-Verbindung anzeigen und lokal verwenden können. Die lokale Klimaanlagensteuerung bleibt davon vollständig unabhängig.
+4. **Offline-Outbox und spätere Nachlieferung:** Änderungen werden zuerst dauerhaft lokal gespeichert. Ist ioBroker nicht erreichbar, bleiben sie in der lokalen Outbox und werden übertragen, sobald der bestehende Austauschweg wieder verfügbar ist.
+5. **Direkte Geräte-Synchronisation nur optional im selben lokalen Netzwerk:** Eine direkte Smartphone-zu-Smartphone-Verbindung, beispielsweise im selben WLAN, kann später als zusätzliche Möglichkeit geprüft werden. Sie ist keine Voraussetzung für die Grundfunktion und wird erst nach separater technischer Bewertung umgesetzt.
+6. **Keine garantierte Sofortsynchronisation über getrennte Netze:** Sind beide Smartphones unterwegs, in unterschiedlichen WLANs oder nur über Mobilfunk erreichbar und ist ioBroker von dort nicht erreichbar, können sie ohne Vermittlungsdienst nicht zuverlässig sofort miteinander synchronisieren. Änderungen bleiben lokal vorgemerkt und werden beim nächsten erreichbaren gemeinsamen Austauschweg nachgeliefert. Das ist ein bewusster Kompromiss zugunsten von Kosten- und Dienstunabhängigkeit.
+7. **Keine Einschränkung der Klimasteuerung:** Der direkte WF-RAC-Steuerungsweg bleibt unabhängig von ioBroker und jeder Synchronisationsverbindung.
+
+### Daraus folgende Umsetzungsreihenfolge
+
+- Zuerst Local-first-Datenhaltung, dauerhafte Outbox, Wiederanlauf und Konfliktbehandlung zuverlässig absichern.
+- ioBroker als einzigen zunächst vorgesehenen geräteübergreifenden Austauschpunkt beibehalten.
+- Danach optional prüfen, ob eine direkte Synchronisation im selben WLAN einen echten Mehrwert bietet und ohne zusätzliche Infrastruktur zuverlässig umgesetzt werden kann.
+- Cloud-, Relay- oder sonstige externe Vermittlungsdienste sind nicht Bestandteil der aktuellen Planung. Eine spätere Änderung dieser Grundentscheidung erfordert eine ausdrückliche neue Entscheidung; sie wird nicht stillschweigend vorausgesetzt.
+
+### Bewusste Einschränkung
+
+Ohne erreichbaren gemeinsamen Austauschpunkt gibt es keine sofortige Synchronisation zwischen räumlich getrennten Smartphones. KlimaPilot bleibt auf beiden Geräten lokal nutzbar; die Synchronisation wird nachgeholt, sobald ioBroker oder ein später ausdrücklich freigegebener direkter lokaler Weg verfügbar ist.
