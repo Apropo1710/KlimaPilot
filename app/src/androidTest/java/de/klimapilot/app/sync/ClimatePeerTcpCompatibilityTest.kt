@@ -1,8 +1,11 @@
 package de.klimapilot.app.sync
 
+import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -14,19 +17,28 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class ClimatePeerTcpCompatibilityTest {
+    private val context: Context
+        get() = InstrumentationRegistry.getInstrumentation().targetContext
+
     @Test
     fun mutuallyTrustedPeersAuthenticateBeforeApplicationData() {
-        val identityStore = ClimatePeerIdentityStore()
-        val identity = identityStore.getOrCreateIdentity()
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val trusted = ClimateTrustedPeerStore(context)
-        trusted.trustPeer(identity.publicKeyBase64, "TCP compatibility test")
+        val clientIdentityStore = ClimatePeerIdentityStore("klimapilot.test.client.identity")
+        val serverIdentityStore = ClimatePeerIdentityStore("klimapilot.test.server.identity")
+        val clientIdentity = clientIdentityStore.getOrCreateIdentity()
+        val serverIdentity = serverIdentityStore.getOrCreateIdentity()
+        assertNotEquals(clientIdentity.peerId, serverIdentity.peerId)
+
+        val clientTrust = freshTrustStore("tcp_success_client")
+        val serverTrust = freshTrustStore("tcp_success_server")
+        clientTrust.trustPeer(serverIdentity.publicKeyBase64, "Testserver")
+        serverTrust.trustPeer(clientIdentity.publicKeyBase64, "Testclient")
+
         val server = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
         val executor = Executors.newSingleThreadExecutor()
         try {
             val serverResult = executor.submit<Boolean> {
                 server.accept().use { socket ->
-                    ClimatePeerTcp.authenticateAsServer(socket, identityStore, trusted)
+                    ClimatePeerTcp.authenticateAsServer(socket, serverIdentityStore, serverTrust)
                     assertEquals(REQUEST_BYTE, socket.getInputStream().read())
                     socket.getOutputStream().write(RESPONSE_BYTE)
                     socket.getOutputStream().flush()
@@ -34,7 +46,7 @@ class ClimatePeerTcpCompatibilityTest {
                 }
             }
             Socket(InetAddress.getByName("127.0.0.1"), server.localPort).use { socket ->
-                ClimatePeerTcp.authenticateAsClient(socket, identityStore, trusted)
+                ClimatePeerTcp.authenticateAsClient(socket, clientIdentityStore, clientTrust)
                 socket.getOutputStream().write(REQUEST_BYTE)
                 socket.getOutputStream().flush()
                 assertEquals(RESPONSE_BYTE, socket.getInputStream().read())
@@ -43,40 +55,52 @@ class ClimatePeerTcpCompatibilityTest {
         } finally {
             server.close()
             executor.shutdownNow()
-            trusted.revokePeer(identity.peerId)
+            clientTrust.revokePeer(serverIdentity.peerId)
+            serverTrust.revokePeer(clientIdentity.peerId)
         }
     }
 
     @Test
     fun serverRejectsPeerMissingFromItsLocalTrustList() {
-        val identityStore = ClimatePeerIdentityStore()
-        val identity = identityStore.getOrCreateIdentity()
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val clientTrust = ClimateTrustedPeerStore(context)
-        clientTrust.trustPeer(identity.publicKeyBase64, "TCP rejection test")
-        val emptyServerTrust = ClimateTrustedPeerStore(
-            context.createDeviceProtectedStorageContext()
-        )
+        val clientIdentityStore = ClimatePeerIdentityStore("klimapilot.test.reject.client.identity")
+        val serverIdentityStore = ClimatePeerIdentityStore("klimapilot.test.reject.server.identity")
+        val clientIdentity = clientIdentityStore.getOrCreateIdentity()
+        val serverIdentity = serverIdentityStore.getOrCreateIdentity()
+        assertNotEquals(clientIdentity.peerId, serverIdentity.peerId)
+
+        val clientTrust = freshTrustStore("tcp_reject_client")
+        val emptyServerTrust = freshTrustStore("tcp_reject_server")
+        clientTrust.trustPeer(serverIdentity.publicKeyBase64, "Testserver")
+        assertFalse(emptyServerTrust.isTrusted(clientIdentity.peerId, clientIdentity.publicKeyBase64))
+
         val server = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
         val executor = Executors.newSingleThreadExecutor()
         try {
             val serverResult = executor.submit<Boolean> {
                 server.accept().use { socket ->
-                    runCatching { ClimatePeerTcp.authenticateAsServer(socket, identityStore, emptyServerTrust) }.isSuccess
+                    runCatching {
+                        ClimatePeerTcp.authenticateAsServer(socket, serverIdentityStore, emptyServerTrust)
+                    }.isSuccess
                 }
             }
             val clientAccepted = runCatching {
                 Socket(InetAddress.getByName("127.0.0.1"), server.localPort).use { socket ->
-                    ClimatePeerTcp.authenticateAsClient(socket, identityStore, clientTrust)
+                    ClimatePeerTcp.authenticateAsClient(socket, clientIdentityStore, clientTrust)
                 }
             }.isSuccess
-            assertTrue("Client must receive the server rejection", !clientAccepted)
-            assertTrue("Server must reject an untrusted peer", !serverResult.get(20, TimeUnit.SECONDS))
+
+            assertFalse("Client must receive the server rejection", clientAccepted)
+            assertFalse("Server must reject an untrusted peer", serverResult.get(20, TimeUnit.SECONDS))
         } finally {
             server.close()
             executor.shutdownNow()
-            clientTrust.revokePeer(identity.peerId)
+            clientTrust.revokePeer(serverIdentity.peerId)
         }
+    }
+
+    private fun freshTrustStore(name: String): ClimateTrustedPeerStore {
+        context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()
+        return ClimateTrustedPeerStore(context, name)
     }
 
     private companion object {
