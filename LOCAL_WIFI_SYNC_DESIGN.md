@@ -164,3 +164,17 @@ Automatisierte Tests sollen insbesondere Service-TXT-Parsing, Versions-/Instanzv
 
 **Freigabegrenze:** Erst nach erfolgreicher Discovery-only-Prüfung wird das separate Pairing-Paket begonnen. Die kryptografische Geräteidentität, Erstkopplung, TLS-/Keystore-Ausgestaltung, Widerruf und Replay-Schutz bleiben zwingende Sicherheits-Gates vor jedem Profil-Datenaustausch.
 
+## 10. Präzisierung nach Prüfung der Android-NSD-API (17.11.2026)
+
+Die aktuelle Android-Referenz bestätigt, dass NSD-Aufrufe asynchron über Listener/Callbacks arbeiten und Registrierung sowie Discovery ausdrücklich beendet werden müssen.
+
+- Die ältere API `registerService(NsdServiceInfo, PROTOCOL_DNS_SD, RegistrationListener)` ist ab API 16 verfügbar und damit mit minSdk 26 kompatibel.
+- Die neueren Executor-basierten NSD-Methoden sind ab API 33 verfügbar. Die kombinierte `registerServiceInfoCallback(DiscoveryRequest, Executor, ServiceInfoCallback)`-Variante ist laut Android-Referenz auf Geräten mit Android 14+ und Extension-Version 22 verfügbar; die Geräte-/Extension-Unterstützung muss zur Laufzeit geprüft werden.
+- `resolveService(NsdServiceInfo, ResolveListener)` ist seit API 34 deprecated. Für ältere Plattformstände bleibt es der kompatible Fallback, sofern die klassische Discovery-API verwendet wird. Auf unterstützten neueren Plattformständen ist die Service-Info-Callback-API vorzuziehen.
+- TXT-Attribute sind laut Referenz erst bei einem aufgelösten Service zuverlässig über `getAttributes()` verfügbar. Parsing und Validierung müssen deshalb nach der Auflösung erfolgen; gefundene, aber nicht aufgelöste Dienste bleiben reine unbestätigte Kandidaten.
+- Die vorhandene klassische Registrierung ist ausreichend für den ersten Implementierungsschritt; neuere APIs dürfen nicht ohne Laufzeitprüfung aufgerufen werden.
+- Registrierung, Discovery und ggf. Service-Info-Callbacks benötigen getrennte Referenzen und müssen beim Stoppen exakt deregistriert werden. Callbacks aus einer vorherigen Startgeneration dürfen keine UI oder Peer-Liste mehr verändern.
+
+**Implementierungsfolge:** Zuerst eine isolierte, testbare Discovery-Komponente mit klarer Startgeneration und vollständigem Stop/Rollback. Danach gezielte Tests für TXT-Validierung, Versions-/Instanzprüfung und Lifecycle. Erst wenn CI und unabhängiges Claude-Review bestanden sind, folgt der manuelle Zwei-Smartphone-Test. Die API-Prüfung ändert nichts an der Freigabegrenze: In Phase 1 findet kein Profil- oder Kontodatenaustausch statt.
+
+**Referenz:** Android Developers, `NsdManager` und `NsdServiceInfo`: https://developer.android.com/reference/android/net/nsd/NsdManager und https://developer.android.com/reference/android/net/nsd/NsdServiceInfo
