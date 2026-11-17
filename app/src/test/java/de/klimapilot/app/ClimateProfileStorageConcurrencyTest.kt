@@ -9,7 +9,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.json.JSONObject
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -82,10 +81,14 @@ class ClimateProfileStorageConcurrencyTest {
                     repositories[index % repositories.size].saveWithPendingSync(
                         profile("race-$index"), "wfrac:shared-device"
                     )
+                    Unit
                 }
             }
             val flushes = (0 until 12).map {
-                Callable { repositories[it % repositories.size].flushPendingSyncJournal(store) }
+                Callable {
+                    repositories[it % repositories.size].flushPendingSyncJournal(store)
+                    Unit
+                }
             }
             executor.invokeAll(saves + flushes).forEach { it.get(10, TimeUnit.SECONDS) }
             repositories.first().flushPendingSyncJournal(store)
