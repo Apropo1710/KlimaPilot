@@ -102,7 +102,7 @@ class ClimatePeerTlsCompatibilityTest {
                     .use { it.apply { enabledProtocols = arrayOf("TLSv1.2"); startHandshake() } }
             }.exceptionOrNull()
             assertTrue("TLS connection unexpectedly accepted an unpaired server key", failure != null)
-            serverFuture.get(20, TimeUnit.SECONDS)
+            runCatching { serverFuture.get(20, TimeUnit.SECONDS) }
         } finally {
             server.close()
             executor.shutdownNow()
