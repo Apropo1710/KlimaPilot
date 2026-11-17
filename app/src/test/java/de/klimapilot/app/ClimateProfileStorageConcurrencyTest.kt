@@ -411,14 +411,13 @@ class ClimateProfileStorageConcurrencyTest {
         repository.saveWithPendingSync(profile("uploaded-before-recovery"), "wfrac:shared-device")
         val repositoryPrefs = context.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
         val journalEntry = org.json.JSONArray(repositoryPrefs.getString("pending_sync_journal_v1", "[]")).getJSONObject(0)
-        assertEquals(1, repository.flushPendingSyncJournal(store))
+        // Simulate a crash after outbox + import marker committed, then an upload
+        // and acknowledgement before the still-pending repository journal is replayed.
+        assertTrue(store.enqueueJournalEvent(journalEntry))
         val uploadedSnapshot = store.pendingEvents()
         assertEquals(1, uploadedSnapshot.size)
         assertTrue(store.acknowledgeUploaded(uploadedSnapshot))
         assertTrue(store.pendingEvents().isEmpty())
-        assertTrue(repositoryPrefs.edit().putString(
-            "pending_sync_journal_v1", org.json.JSONArray().put(journalEntry).toString()
-        ).commit())
         assertEquals(1, ClimateProfileRepository(context).flushPendingSyncJournal(ClimateProfileSyncStore(context)))
         assertTrue(ClimateProfileSyncStore(context).pendingEvents().isEmpty())
     }
