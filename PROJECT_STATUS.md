@@ -225,3 +225,15 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Commits: TLS-Trigger `70d24014bbe708a2ece1d0cac05192c54fec5a7c`; WLAN-Trigger `a802795ff9089f8e75facadecf704ea49e0b1f39`; TLS-Shell-Korrektur `7ddd1535884cbca106e525981d622da8d22d1bc2`.
 - Änderungen ausschließlich im Feature-Branch `feature/local-wifi-pairing`. `main`, Produktionsversion 0.4.64 / versionCode 94, Updater, ioBroker-Sync und WF-RAC bleiben unverändert. Kein Produktionsbuild und kein Release.
 - **Nächster Schritt:** Die durch die PR-Änderungen automatisch ausgelösten Einzelprüfungen kontrollieren. Erst wenn das Emulator-Skript sauber startet und die Logs vollständig sind, TLS-Ergebnis beurteilen. PR #5 bleibt Draft und nicht zum Merge freigegeben.
+
+
+## WLAN-Pairing – Entwicklungsstand auf `test` (17.11.2026, 21:40 MEZ)
+
+- Produktionsstand bleibt `main` mit dem zuletzt dokumentierten Release 0.4.64 / versionCode 94; dieser Abschnitt dokumentiert ausschließlich den nicht freigegebenen Test-Branch.
+- `test`-HEAD: `6748bffe9e6f2d000e5729d2dbede3e5f957e1f7`; PR #6 ist offen und Draft, Base `main` `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`.
+- WLAN-Validierung ist auf PR-Trigger nach `main` plus manuellen Start umgestellt; zusätzlicher Push-Trigger auf `test` wurde entfernt, damit derselbe Commit nicht doppelt validiert wird.
+- mTLS-Clientzertifikatsauthentifizierung wird nicht weiterverfolgt. Neuer Ansatz: Standard-TLS 1.2, Serverzertifikat aus Android Keystore, Client-Pinning gegen den gespeicherten Peer-Public-Key und Clientauthentifizierung per frischer 32-Byte-Challenge plus ECDSA-Signatur. Der Server prüft zusätzlich die lokale Trusted-Peer-Liste.
+- Implementiert auf `test`: `ClimatePeerTls.kt`, neuer API-26/API-35-Instrumentierungstest, aktualisierte Pairing-Entscheidungsdokumentation.
+- Aktueller CI-Lauf: [Pinned TLS Peer Authentication #?](https://github.com/Apropo1710/KlimaPilot/actions); Run für Head `6748bffe` ist noch nicht abgeschlossen. Keine Testergebnisse vorwegnehmen.
+- Noch kein produktiver Peer-Transport, kein Profiltransfer und kein Zwei-Smartphone-Praxistest. Discovery-Socket bleibt reject-only.
+- Updater, `main`, Produktionsversion, Manifest/Berechtigungen, ioBroker-Sync und WF-RAC-Steuerpfad wurden in diesem Arbeitsschritt nicht geändert.
