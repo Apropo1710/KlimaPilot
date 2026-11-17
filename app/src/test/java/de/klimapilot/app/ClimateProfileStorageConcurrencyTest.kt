@@ -152,6 +152,53 @@ class ClimateProfileStorageConcurrencyTest {
     }
 
     @Test
+    fun rekeyCarriesAcknowledgedProfileVersionsToNewDeviceKey() {
+        val store = ClimateProfileSyncStore(context)
+        assertTrue(store.enqueueInitialProfiles(listOf(profile("profile-p")), "wfrac:old"))
+        val initialUpload = store.pendingEvents()
+        assertEquals(1, initialUpload.size)
+        assertTrue(store.acknowledgeUploaded(initialUpload))
+
+        val acknowledgedOldVersion = org.json.JSONObject()
+            .put("eventId", "old-install:45")
+            .put("type", "upsert")
+            .put("deviceKey", "wfrac:old")
+            .put("profileId", "profile-p")
+            .put("installationId", "old-install")
+            .put("sequence", 45L)
+            .put("logicalClock", 45L)
+        val existingNewVersion = org.json.JSONObject(acknowledgedOldVersion.toString())
+            .put("eventId", "new-install:40")
+            .put("deviceKey", "wfrac:new")
+            .put("installationId", "new-install")
+            .put("sequence", 40L)
+            .put("logicalClock", 40L)
+        assertTrue(store.recordRemoteEvent(acknowledgedOldVersion))
+        assertTrue(store.recordRemoteEvent(existingNewVersion))
+
+        assertTrue(store.rekeyPendingEvents("wfrac:old", "wfrac:new"))
+
+        val olderThanOldVersion = org.json.JSONObject(existingNewVersion.toString())
+            .put("eventId", "remote-install:42")
+            .put("installationId", "remote-install")
+            .put("sequence", 42L)
+            .put("logicalClock", 42L)
+        assertTrue("The acknowledged old-key version must be carried to the new key.",
+            !store.isRemoteEventNewer(olderThanOldVersion))
+
+        val newerThanMergedVersion = org.json.JSONObject(existingNewVersion.toString())
+            .put("eventId", "remote-install:46")
+            .put("installationId", "remote-install")
+            .put("sequence", 46L)
+            .put("logicalClock", 46L)
+        assertTrue(store.isRemoteEventNewer(newerThanMergedVersion))
+
+        assertTrue(store.enqueueInitialProfiles(listOf(profile("profile-p")), "wfrac:new"))
+        assertTrue("The migrated initialization marker must still prevent duplicate initial uploads.",
+            store.pendingEvents().isEmpty())
+    }
+
+    @Test
     fun rekeyPreservesInitializedDeviceMarker() {
         val store = ClimateProfileSyncStore(context)
         assertTrue(store.enqueueInitialProfiles(listOf(profile("initial")), "wfrac:old"))
