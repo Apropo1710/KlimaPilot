@@ -50,9 +50,18 @@ internal class ClimateTrustedPeerStore(context: Context) {
         val peer = peerFromPublicKey(publicKeyBase64, normalizedName)
         val current = readArray()
         val updated = JSONArray()
+        var existingPeer = false
         for (index in 0 until current.length()) {
             val item = current.optJSONObject(index) ?: continue
-            if (item.optString("peerId") != peer.peerId) updated.put(item)
+            val existing = parsePeer(item) ?: continue
+            if (existing.peerId == peer.peerId) {
+                existingPeer = true
+                continue
+            }
+            updated.put(existing.toJson())
+        }
+        require(existingPeer || updated.length() < MAX_TRUSTED_PEERS) {
+            "Es können höchstens " + MAX_TRUSTED_PEERS + " Geräte gekoppelt werden."
         }
         updated.put(peer.toJson())
         check(prefs.edit().putString(KEY_PEERS, updated.toString()).commit()) {
@@ -101,7 +110,8 @@ internal class ClimateTrustedPeerStore(context: Context) {
 
     private fun parsePeer(item: JSONObject): TrustedPeer? = runCatching {
         val publicKey = item.getString("publicKey")
-        val name = item.getString("displayName")
+        val name = item.getString("displayName").trim()
+        require(name.isNotEmpty() && name.length <= MAX_NAME_LENGTH)
         val peer = peerFromPublicKey(publicKey, name)
         require(peer.peerId == item.getString("peerId"))
         peer
@@ -120,6 +130,7 @@ internal class ClimateTrustedPeerStore(context: Context) {
         private const val PREFS_NAME = "klimapilot_trusted_peers_v1"
         private const val KEY_PEERS = "trusted_peers"
         private const val MAX_NAME_LENGTH = 48
+        private const val MAX_TRUSTED_PEERS = 20
         private const val MAX_PUBLIC_KEY_BYTES = 1024
         private const val MAX_PUBLIC_KEY_BASE64_LENGTH = 2048
     }
