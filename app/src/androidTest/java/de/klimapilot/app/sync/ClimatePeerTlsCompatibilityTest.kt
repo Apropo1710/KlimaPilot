@@ -7,7 +7,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.net.InetAddress
 import java.security.KeyStore
-import java.security.KeyStore.PrivateKeyEntry
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
@@ -69,30 +68,50 @@ class ClimatePeerTlsCompatibilityTest {
         val executor = Executors.newSingleThreadExecutor()
         try {
             val serverResult = executor.submit<String> {
-                server.accept().use { accepted ->
-                    val socket = accepted as SSLSocket
-                    socket.enabledProtocols = arrayOf("TLSv1.2")
-                    socket.startHandshake()
-                    val received = socket.inputStream.read()
-                    check(received == REQUEST_BYTE) { "Unexpected client test payload: $received" }
-                    socket.outputStream.write(RESPONSE_BYTE)
-                    "server verified client certificate and completed TLS 1.2"
+                try {
+                    server.accept().use { accepted ->
+                        val socket = accepted as SSLSocket
+                        socket.enabledProtocols = arrayOf("TLSv1.2")
+                        socket.startHandshake()
+                        val received = socket.inputStream.read()
+                        check(received == REQUEST_BYTE) {
+                            "Unexpected client test payload: $received"
+                        }
+                        socket.outputStream.write(RESPONSE_BYTE)
+                        "server verified client certificate and completed TLS 1.2"
+                    }
+                } catch (failure: Throwable) {
+                    throw AssertionError(
+                        "TLS server side failed: ${failure.javaClass.name}: ${failure.message}",
+                        failure
+                    )
                 }
             }
 
-            val client = sslContext.socketFactory
-                .createSocket(InetAddress.getByName("127.0.0.1"), server.localPort) as SSLSocket
-            client.use { socket ->
-                socket.enabledProtocols = arrayOf("TLSv1.2")
-                socket.startHandshake()
-                socket.outputStream.write(REQUEST_BYTE)
-                assertEquals(RESPONSE_BYTE, socket.inputStream.read())
-                assertEquals("TLSv1.2", socket.session.protocol)
-            }
+            val clientFailure = runCatching {
+                val client = sslContext.socketFactory
+                    .createSocket(InetAddress.getByName("127.0.0.1"), server.localPort) as SSLSocket
+                client.use { socket ->
+                    socket.enabledProtocols = arrayOf("TLSv1.2")
+                    socket.soTimeout = SOCKET_TIMEOUT_MS
+                    socket.startHandshake()
+                    socket.outputStream.write(REQUEST_BYTE)
+                    assertEquals(RESPONSE_BYTE, socket.inputStream.read())
+                    assertEquals("TLSv1.2", socket.session.protocol)
+                }
+            }.exceptionOrNull()
 
+            val serverOutcome = runCatching { serverResult.get(20, TimeUnit.SECONDS) }
+            if (clientFailure != null) {
+                serverOutcome.exceptionOrNull()?.let(clientFailure::addSuppressed)
+                throw AssertionError(
+                    "TLS client side failed; any server-side cause is attached as suppressed exception",
+                    clientFailure
+                )
+            }
             assertEquals(
                 "server verified client certificate and completed TLS 1.2",
-                serverResult.get(20, TimeUnit.SECONDS)
+                serverOutcome.getOrThrow()
             )
         } finally {
             server.close()
@@ -119,5 +138,6 @@ class ClimatePeerTlsCompatibilityTest {
         const val KEY_ALIAS = "de.klimapilot.peer.identity.v1"
         const val REQUEST_BYTE = 0x4b
         const val RESPONSE_BYTE = 0x50
+        const val SOCKET_TIMEOUT_MS = 15_000
     }
 }
