@@ -1440,7 +1440,8 @@ private fun SettingsScreen(
                         } else {
                             discoveredPeers.clear()
                             peerScanMessage = "Suche im lokalen WLAN …"
-                            peerScanning = peerDiscovery.start(
+                            peerScanning = true
+                            val started = peerDiscovery.start(
                                 onPeerFound = { peer ->
                                     discoveredPeers[peer.instanceName] = "${peer.instanceName} · ${peer.hostAddress}:${peer.port}"
                                     peerScanMessage = "Unbestätigte Dienstankündigung gefunden."
@@ -1453,7 +1454,10 @@ private fun SettingsScreen(
                                     peerScanMessage = message
                                 }
                             )
-                            if (!peerScanning) peerScanMessage = "WLAN-Suche konnte nicht gestartet werden."
+                            if (!started && peerScanning) {
+                                peerScanning = false
+                                peerScanMessage = "WLAN-Suche konnte nicht gestartet werden."
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
