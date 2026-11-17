@@ -49,14 +49,15 @@ internal object ClimatePeerAnnouncement {
     ): UnverifiedClimatePeer? {
         if (!instanceName.matches(Regex("KlimaPilot-[a-f0-9]{8}"))) return null
         if (instanceName in ownInstanceNames) return null
-        if (!isAllowedLocalAddress(hostAddress)) return null
+        val resolvedHost = hostAddress ?: return null
+        if (!isAllowedLocalAddress(resolvedHost)) return null
         if (port !in 1..65535) return null
         val version = attributes[TXT_PROTOCOL_VERSION]?.toString(Charsets.UTF_8) ?: return null
         if (version != PEER_PROTOCOL_MAJOR) return null
         val discoveryId = attributes[TXT_DISCOVERY_ID]?.toString(Charsets.UTF_8) ?: return null
         if (!discoveryId.matches(Regex("[a-f0-9]{32}")) || discoveryId == ownDiscoveryId) return null
         if (attributes.keys != setOf(TXT_PROTOCOL_VERSION, TXT_DISCOVERY_ID)) return null
-        return UnverifiedClimatePeer(instanceName, hostAddress, port, version.toInt(), discoveryId)
+        return UnverifiedClimatePeer(instanceName, resolvedHost, port, version.toInt(), discoveryId)
     }
 
     private fun isAllowedLocalAddress(value: String?): Boolean {
