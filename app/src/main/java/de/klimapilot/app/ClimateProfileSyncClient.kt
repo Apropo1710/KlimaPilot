@@ -31,8 +31,8 @@ internal class ClimateProfileSyncClient {
         fun finish(message: String) {
             if (!completed.compareAndSet(false, true)) return
             try {
-                socket.off()
-                socket.disconnect()
+                runCatching { socket.off() }
+                runCatching { socket.disconnect() }
             } finally {
                 ClimateProfileSyncCoordinator.release()
                 main.post { callback(message) }
