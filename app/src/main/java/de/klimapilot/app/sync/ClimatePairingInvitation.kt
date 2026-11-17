@@ -38,6 +38,18 @@ internal class ClimatePairingInvitation(
             .put("nonce", nonceBase64)
             .put("signature", signatureBase64)
             .toString()
+
+        fun signingBytes(): ByteArray = listOf(
+            DOMAIN,
+            PROTOCOL_VERSION.toString(),
+            sessionId,
+            createdAtMillis.toString(),
+            expiresAtMillis.toString(),
+            peerId,
+            publicKeyBase64,
+            fingerprint,
+            nonceBase64
+        ).joinToString("\n").toByteArray(StandardCharsets.UTF_8)
     }
 
     fun create(nowMillis: Long = System.currentTimeMillis()): Invitation {
@@ -116,18 +128,6 @@ internal class ClimatePairingInvitation(
             }.getOrNull()
         }
 
-        private fun Invitation.signingBytes(): ByteArray =
-            listOf(
-                DOMAIN,
-                PROTOCOL_VERSION.toString(),
-                sessionId,
-                createdAtMillis.toString(),
-                expiresAtMillis.toString(),
-                peerId,
-                publicKeyBase64,
-                fingerprint,
-                nonceBase64
-            ).joinToString("\n").toByteArray(StandardCharsets.UTF_8)
     }
 }
 
