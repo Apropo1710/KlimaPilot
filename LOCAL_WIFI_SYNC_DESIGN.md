@@ -120,3 +120,47 @@ Der konkrete Schlüsselaustausch, die TLS-Implementierung und die Recovery bei G
 - Verhalten bei mehreren Geräten, die dieselbe Profil-Gerätekennung besitzen, und bei gleichzeitigen Updates über ioBroker und WLAN.
 - UI für Kopplung, vertrauenswürdige Geräte, Widerruf und Status.
 - Kompatibilitätsstrategie für unterschiedliche KlimaPilot-Protokollversionen.
+
+## 9. Festgelegter Umfang für Phase 1: Discovery-only
+
+Phase 1 ist ausdrücklich ein technischer Erreichbarkeitstest und noch keine Synchronisationsfunktion.
+
+### 9.1 Dienst und veröffentlichte Metadaten
+
+- Eigener DNS-SD-Diensttyp: `_klimapilot-sync._tcp.`; der WF-RAC-Dienst `_beaver._tcp.` bleibt vollständig getrennt.
+- Ein Gerät registriert den Dienst und sucht parallel nach gleichartigen Diensten. Die eigene Registrierung wird anhand der lokalen Dienstinstanz ignoriert.
+- Der Dienstname und eine zufällige, nur für die laufende Discovery gültige Instanzkennung enthalten keine Konten-, Personen-, Aircon- oder Gerätekennungen.
+- TXT-Daten werden auf eine Protokoll-Hauptversion und eine zufällige, kurzlebige Discovery-Kennung begrenzt. Keine IP-Adresse, Zugangsdaten, öffentlichen Schlüssel, Profilinformationen oder Namen werden dort veröffentlicht.
+- Die vom Betriebssystem aufgelöste IP-Adresse gilt ausschließlich als momentaner Netzwerk-Locator. Sie wird nicht als Identität gespeichert.
+- Da DNS-SD/TXT-Daten manipulierbar sind, werden gefundene Einträge nur als „nicht verifizierte KlimaPilot-Dienstankündigung“ behandelt.
+
+### 9.2 Netzwerk-Endpunkt ohne Datenaustausch
+
+- DNS-SD/TCP benötigt einen Port. Für Phase 1 darf deshalb ein eigener, kurzlebiger TCP-Endpunkt auf einem vom Betriebssystem zugewiesenen Port geöffnet und angekündigt werden.
+- Der Endpunkt nimmt in Phase 1 keine Nutzdaten an: eingehende Verbindungen werden entweder sofort geschlossen oder gar nicht erst angenommen. Es gibt keinen HTTP-, WebSocket- oder Profil-Endpunkt.
+- Es werden weder Profile noch Outbox-Ereignisse, Kontodaten, Schlüssel oder ioBroker-Daten übertragen.
+- Unbekannte Dienste lösen keine Verbindung mit Dateninhalt aus. Discovery-Ergebnisse werden nur lokal diagnostisch angezeigt.
+- Es gibt keine automatische Kopplung und keine dauerhafte Speicherung gefundener Peers.
+
+### 9.3 Lifecycle und Fehlerverhalten
+
+- Discovery und Advertising laufen ausschließlich bei aktivem App-Vordergrund und explizit gestarteter bzw. sichtbarer Diagnosefunktion. Kein Hintergrunddienst und keine dauerhafte Netzwerküberwachung.
+- Registrierung, Suche, Auflösung, Listener und eventuell erforderlicher Multicast-Lock besitzen einen eigenen Lifecycle. Beim Stoppen, Verlassen der Diagnoseansicht, Netzwerkwechsel oder Fehler werden alle Ressourcen bestmöglich freigegeben.
+- Wiederholte Start-/Stop-Aufrufe dürfen keine doppelten Listener oder Locks erzeugen. Ein fehlgeschlagener Teilstart muss bereits geöffnete Ressourcen zurückrollen.
+- Nach einem WLAN-/Netzwechsel werden alte Auflösungen verworfen und nur nach erneutem Start aktuelle Dienste gesucht.
+- Ergebnisse werden nach Dienstinstanz dedupliziert. Auflösung und Callback-Verarbeitung müssen gegen verspätete Rückrufe nach `stop()` abgesichert sein.
+- Die WF-RAC-Discovery bleibt unverändert und darf nicht als Hilfsinstanz verwendet werden.
+
+### 9.4 Abnahmekriterien für Phase 1
+
+1. Zwei Android-Geräte im selben WLAN können die KlimaPilot-Dienstankündigung gegenseitig finden.
+2. Ein einzelnes Gerät zeigt sich nicht selbst als Peer an.
+3. Ein fremder oder manipulierter mDNS-Eintrag wird niemals als vertrauenswürdig oder gekoppelt dargestellt.
+4. Während Phase 1 werden nachweislich keine Profil-, Konto-, Schlüssel- oder ioBroker-Daten übertragen.
+5. Start, Stop, Wiederstart, WLAN-Wechsel und Fehlerpfade hinterlassen keine laufenden Discovery-Listener oder gehaltenen Multicast-Locks.
+6. WF-RAC-Suche und lokale Klimasteuerung bleiben unverändert.
+
+Automatisierte Tests sollen insbesondere Service-TXT-Parsing, Versions-/Instanzvalidierung, Deduplizierung und Lifecycle-Zustände abdecken. Die tatsächliche mDNS-Erkennung und das Verhalten verschiedener Android-Versionen erfordern zusätzlich einen Test mit zwei realen Smartphones.
+
+**Freigabegrenze:** Erst nach erfolgreicher Discovery-only-Prüfung wird das separate Pairing-Paket begonnen. Die kryptografische Geräteidentität, Erstkopplung, TLS-/Keystore-Ausgestaltung, Widerruf und Replay-Schutz bleiben zwingende Sicherheits-Gates vor jedem Profil-Datenaustausch.
+
