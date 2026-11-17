@@ -87,7 +87,7 @@ internal class ClimateProfileRepository(context: Context) {
         val raw = prefs.getString(KEY_PROFILES, null) ?: return emptyList()
         val root = JSONObject(raw)
         val schemaVersion = root.optInt("schemaVersion", -1)
-        require(schemaVersion in 1..SCHEMA_VERSION) { "Unbekannte Version der Klimaprofile." }
+        check(schemaVersion in 1..SCHEMA_VERSION) { "Unbekannte Version der Klimaprofile." }
         val array = root.optJSONArray("profiles") ?: throw IllegalStateException("Die Klimaprofile sind beschädigt.")
         val profiles = (0 until array.length()).map { index ->
             val item = array.optJSONObject(index) ?: throw IllegalStateException("Ein Klimaprofil ist ungültig.")
@@ -98,15 +98,15 @@ internal class ClimateProfileRepository(context: Context) {
             val name = item.optString("name").trim().takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("Ein Klimaprofil hat keinen Namen.")
             val mode = if (item.isNull("mode")) null else item.optString("mode").also {
-                require(it in SUPPORTED_MODES) { "Ein Klimaprofil enthält einen unbekannten Betriebsmodus." }
+                check(it in SUPPORTED_MODES) { "Ein Klimaprofil enthält einen unbekannten Betriebsmodus." }
             }
             val temp = if (item.isNull("targetTemp")) null else item.optDouble("targetTemp").also {
-                require(it.isFinite() && it in 16.0..30.0 && abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001) {
+                check(it.isFinite() && it in 16.0..30.0 && abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001) {
                     "Ein Klimaprofil enthält eine ungültige Solltemperatur."
                 }
             }
             fun optionalIndex(key: String, max: Int): Int? =
-                if (item.isNull(key) || !item.has(key)) null else item.getInt(key).also { require(it in 0..max) { "Ein Klimaprofil enthält eine ungültige Einstellung." } }
+                if (item.isNull(key) || !item.has(key)) null else item.getInt(key).also { check(it in 0..max) { "Ein Klimaprofil enthält eine ungültige Einstellung." } }
             ClimateProfile(
                 id, deviceId, name,
                 if (item.isNull("power")) null else item.getBoolean("power"),
@@ -118,7 +118,7 @@ internal class ClimateProfileRepository(context: Context) {
                 item.optLong("updatedAt", 0L).coerceAtLeast(0L)
             )
         }
-        require(profiles.map { it.id }.distinct().size == profiles.size) { "Klimaprofil-IDs sind nicht eindeutig." }
+        check(profiles.map { it.id }.distinct().size == profiles.size) { "Klimaprofil-IDs sind nicht eindeutig." }
         return profiles
     
         }}
