@@ -43,8 +43,26 @@ class ClimatePeerAnnouncementTest {
     @Test
     fun rejectsInvalidAddressAndPort() {
         assertNull(parse(host = null))
+        assertNull(parse(host = "127.0.0.1"))
+        assertNull(parse(host = "8.8.8.8"))
+        assertNull(parse(host = "192.168.1.999"))
+        assertNull(parse(host = "printer.local"))
         assertNull(parse(port = 0))
         assertNull(parse(port = 65536))
+    }
+
+    @Test
+    fun acceptsPrivateIpv4AndLocalIpv6Addresses() {
+        assertEquals("10.0.0.5", parse(host = "10.0.0.5")?.hostAddress)
+        assertEquals("fe80::1", parse(host = "fe80::1")?.hostAddress)
+        assertEquals("fd12::5", parse(host = "fd12::5")?.hostAddress)
+    }
+
+    @Test
+    fun rejectsUnexpectedInstanceNames() {
+        assertNull(parse(instance = "KlimaPilot-peer1234\\n"))
+        assertNull(parse(instance = "OtherDevice"))
+        assertNull(parse(instance = "KlimaPilot-ABCDEF12"))
     }
 
     private fun parse(
