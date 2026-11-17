@@ -159,9 +159,9 @@ internal fun ClimatePairingSettingsCard() {
                 modifier = Modifier.fillMaxWidth()
             )
             if (pending != null) {
-                Text("Geräte-Fingerprint", color = TextMain, fontSize = 12.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-                Text(pending!!.fingerprint, color = TextMain, fontSize = 13.sp)
-                Text("Vergleiche diesen Fingerprint mit dem anderen Smartphone, bevor du bestätigst.", color = Muted, fontSize = 11.sp)
+                Text("Geräte-Fingerprint", color = colors.onSurface, fontSize = 12.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                Text(pending!!.fingerprint, color = colors.onSurface, fontSize = 13.sp)
+                Text("Vergleiche diesen Fingerprint mit dem anderen Smartphone, bevor du bestätigst.", color = colors.onSurfaceVariant, fontSize = 11.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
@@ -192,7 +192,7 @@ internal fun ClimatePairingSettingsCard() {
                     modifier = Modifier.size(240.dp).align(Alignment.CenterHorizontally),
                     contentScale = ContentScale.Fit
                 )
-                Text("Dieser QR-Code ist nur 120 Sekunden gültig.", color = Muted, fontSize = 11.sp)
+                Text("Dieser QR-Code ist nur 120 Sekunden gültig.", color = colors.onSurfaceVariant, fontSize = 11.sp)
                 OutlinedButton(onClick = { cancelSession("Pairing abgebrochen.") }, modifier = Modifier.fillMaxWidth()) {
                     Text("Pairing abbrechen")
                 }
@@ -215,11 +215,11 @@ internal fun ClimatePairingSettingsCard() {
                     ) { Text(if (busy) "Scanner öffnet …" else "QR-Code scannen") }
                 }
                 if (qrPayload != null) {
-                    Text("Einladung bereit.", color = TextMain, fontSize = 12.sp)
+                    Text("Einladung bereit.", color = colors.onSurface, fontSize = 12.sp)
                 }
             }
             Text(status, color = if (status.contains("ungültig") || status.contains("fehlgeschlagen")) MaterialTheme.colorScheme.error else Muted, fontSize = 11.sp)
-            Text("Gekoppelte Geräte: ${trustedStore.trustedPeers().size}", color = Muted, fontSize = 11.sp)
+            Text("Gekoppelte Geräte: ${trustedStore.trustedPeers().size}", color = colors.onSurfaceVariant, fontSize = 11.sp)
         }
     }
 }
