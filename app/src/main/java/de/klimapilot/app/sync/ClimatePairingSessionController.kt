@@ -21,6 +21,7 @@ internal class ClimatePairingSessionController(
 
     private var outgoingInvitation: ClimatePairingInvitation.Invitation? = null
     private var outgoingConfirmation: PendingConfirmation? = null
+    private var pendingResponsePeer: ClimatePairingResponse.Response? = null
     private var incomingInvitation: ClimatePairingInvitation.Invitation? = null
     private var incomingConfirmation: PendingConfirmation? = null
     private val consumedIncomingSessions = mutableMapOf<String, Long>()
@@ -33,13 +34,11 @@ internal class ClimatePairingSessionController(
         val invitation = createInvitation(nowMillis)
         outgoingInvitation = invitation
         outgoingConfirmation = null
+        pendingResponsePeer = null
         return invitation.toQrPayload()
     }
 
-    /**
-     * Validates an invitation and returns the fingerprint for the local confirmation
-     * screen. No peer is trusted at this stage.
-     */
+    /** Validates an invitation and exposes its fingerprint without trusting the peer. */
     @Synchronized
     fun prepareIncomingInvitation(
         payload: String,
@@ -62,8 +61,8 @@ internal class ClimatePairingSessionController(
     }
 
     /**
-     * Completes the responder side after the user has confirmed the inviter.
-     * The response is created first; trust is persisted only if that succeeds.
+     * Completes the responder side after local user confirmation. The response is
+     * created first; trust is persisted only if response creation also succeeds.
      */
     @Synchronized
     fun confirmIncomingInvitation(
@@ -84,10 +83,7 @@ internal class ClimatePairingSessionController(
         return response.toPayload()
     }
 
-    /**
-     * Validates the response to the locally displayed invitation and exposes the
-     * responder fingerprint. Trust is not stored until confirmOutgoingResponse().
-     */
+    /** Validates the response and exposes the responder fingerprint without trusting it. */
     @Synchronized
     fun prepareOutgoingResponse(
         payload: String,
@@ -98,6 +94,7 @@ internal class ClimatePairingSessionController(
         val response = ClimatePairingResponse.parseAndVerify(payload, invitation, nowMillis) ?: return null
         if (response.responderPeerId == localPeerId) return null
 
+        pendingResponsePeer = response
         return PendingConfirmation(
             peerId = response.responderPeerId,
             fingerprint = response.responderFingerprint,
@@ -116,19 +113,15 @@ internal class ClimatePairingSessionController(
             ?: throw IllegalStateException("Keine aktive ausgehende Pairing-Sitzung.")
         check(outgoingConfirmation === confirmation) { "Die Bestätigung gehört nicht zur aktiven Sitzung." }
         check(nowMillis <= invitation.expiresAtMillis) { "Die Pairing-Einladung ist abgelaufen." }
-
-        // Re-parse is unnecessary: the confirmation can only be created by this
-        // controller after signature and session/nonce validation.
-        val responsePeer = pendingResponsePeer
+        val response = pendingResponsePeer
             ?: throw IllegalStateException("Die geprüfte Geräteidentität fehlt.")
-        val trusted = trustedPeerStore.trustPeer(responsePeer.publicKeyBase64, displayName)
+
+        val trusted = trustedPeerStore.trustPeer(response.responderPublicKeyBase64, displayName)
         outgoingInvitation = null
         outgoingConfirmation = null
         pendingResponsePeer = null
         return trusted
     }
-
-    private var pendingResponsePeer: ClimatePairingResponse.Response? = null
 
     /** Cancels the current local pairing attempt without changing existing trust. */
     @Synchronized
