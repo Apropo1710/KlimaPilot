@@ -237,3 +237,15 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Aktueller CI-Lauf: [Pinned TLS Peer Authentication #?](https://github.com/Apropo1710/KlimaPilot/actions); Run für Head `6748bffe` ist noch nicht abgeschlossen. Keine Testergebnisse vorwegnehmen.
 - Noch kein produktiver Peer-Transport, kein Profiltransfer und kein Zwei-Smartphone-Praxistest. Discovery-Socket bleibt reject-only.
 - Updater, `main`, Produktionsversion, Manifest/Berechtigungen, ioBroker-Sync und WF-RAC-Steuerpfad wurden in diesem Arbeitsschritt nicht geändert.
+
+
+## 17. Lokaler Peer-Transport ohne TLS (17.11.2026, abends)
+
+- Nach ausdrücklicher Nutzerentscheidung wird TLS/mTLS nicht weiterverfolgt. Der lokale Peer-Transport soll unverschlüsseltes TCP mit gegenseitiger ECDSA-Geräteauthentifizierung verwenden.
+- Neue Klasse `ClimatePeerTcp.kt`: zwei frische 32-Byte-Nonces pro Verbindung, Rollenbindung in den signierten Transkripten, lokale Trusted-Peer-Prüfung auf beiden Seiten, explizite Serverannahme/-ablehnung, begrenzte Handshake-Felder und Socket-Timeout.
+- Keystore-Konfiguration auf SHA-256withECDSA zurückgesetzt; TLS-spezifisches DIGEST_NONE entfernt.
+- TLS-Hilfsklasse und TLS-Instrumentierungstest entfernt. Neuer API-26/API-35-Instrumentierungstest deckt erfolgreiche gegenseitige Authentifizierung und Ablehnung eines nicht vertrauten Clients ab.
+- CI-Workflow auf lokalen TCP-Peer-Test umgestellt; Prüfung erfolgt nur über PR #6 oder manuellen Start, nicht zusätzlich bei jedem Push.
+- **Noch nicht umgesetzt:** TCP-Handshake ist noch nicht an den Discovery-Socket angebunden; es gibt noch keine Peer-Profilübertragung und keinen Zwei-Smartphone-Praxistest. Nutzdaten bleiben bis dahin gesperrt.
+- Sicherheitsgrenze: TCP ist nicht verschlüsselt. Teilnehmer desselben WLANs können Datenverkehr passiv mitlesen; die Peer-Authentifizierung schützt vor nicht gekoppelten Geräten, nicht vor passivem Mithören.
+- PR #6 bleibt Draft. main, Produktionsversion 0.4.64 / versionCode 94, Updater, WF-RAC-Steuerung und ioBroker-Sync bleiben unangetastet. Keine Produktions-APK erstellt oder veröffentlicht.
