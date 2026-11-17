@@ -267,6 +267,21 @@ internal class ClimateProfileSyncStore(context: Context) {
         }
     }
 
+    /** Removes import markers only after the repository journal no longer contains those IDs. */
+    @Synchronized
+    fun retainImportedJournalIds(pendingJournalIds: Set<String>): Boolean {
+        val root = readRoot()
+        val current = root.optJSONArray(KEY_IMPORTED_JOURNAL_IDS) ?: return true
+        val retained = JSONArray()
+        for (index in 0 until current.length()) {
+            val eventId = current.optString(index)
+            if (eventId.isNotBlank() && eventId in pendingJournalIds) retained.put(eventId)
+        }
+        if (retained.length() == current.length()) return true
+        root.put(KEY_IMPORTED_JOURNAL_IDS, retained)
+        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+    }
+
     @Synchronized
     fun enqueueJournalEvent(journalEvent: JSONObject): Boolean {
         val eventId = journalEvent.optString("eventId").takeIf { it.isNotBlank() }
