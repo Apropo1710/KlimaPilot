@@ -299,3 +299,12 @@ Der bestehende ioBroker-Weg bleibt erhalten und läuft parallel als zusätzliche
 - Eine gültige Einladung beweist nur Besitz des privaten Schlüssels zum angegebenen öffentlichen Schlüssel. Sie ist ausdrücklich noch keine gegenseitige Authentifizierung, keine beidseitige Nutzerbestätigung und keine Vertrauensfreigabe.
 - Noch kein QR-Renderer/-Scanner, keine Antwort-Challenge, kein gegenseitiger Handshake, keine Speicherung eines Peers aufgrund einer Einladung und kein Nutzdatentransfer.
 - Aktuelle Validation muss den neuen Head prüfen, bevor weitere Pairing-Schritte darauf aufbauen.
+
+## 18. Umsetzungsschritt – signierte Antwort auf QR-Einladung (17.11.2026)
+
+- Neue `ClimatePairingResponse` erzeugt nach dem Scannen einer gültigen Einladung eine signierte Antwort mit eigener Peer-ID, eigenem öffentlichen Schlüssel/Fingerprint und frischer 256-Bit-Nonce.
+- Die Signatur bindet die Antwort an Sitzungs-ID, Peer-ID und Nonce des Einladenden sowie die Identität/Nonce des Antwortenden und den Zeitstempel. Antworten aus anderen Sitzungen oder mit geänderter Nonce werden abgelehnt.
+- Parser validiert Payloadgröße, Protokollversion, Sitzungsbezug, Nonce-Längen, Schlüssel-/Fingerprint-Konsistenz, Signatur und Zeitfenster inklusive begrenzter Uhrabweichung.
+- Tests prüfen gültige Antwort, manipulierte Sitzungs-ID/Nonce und abgelaufene Einladung.
+- Der Baustein beweist kryptografisch den Besitz beider privaten Schlüssel, wenn Einladung und Antwort gegenseitig verifiziert werden. Er ersetzt nicht die explizite Fingerprint-Bestätigung beider Nutzer und führt noch keine Vertrauensspeicherung aus.
+- Noch keine QR-Kamera/-Anzeige, kein Transport, keine Replay-Sitzungsdatenbank, keine Peer-Freigabe und kein Profiltransfer. Vor produktiver Verwendung muss ein Pairing-Session-Controller Einladungen als einmalig konsumiert markieren und parallele/abgelaufene Sitzungen sperren.
