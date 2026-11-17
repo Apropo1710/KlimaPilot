@@ -20,7 +20,7 @@
 ## Offener Synchronisations-PR
 
 - [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – ist offen und Draft. Der Branch `fix/durable-profile-change-journal` wurde mit dem aktuellen `main`-Stand `7dcab2477619` abgeglichen; die sechs zuvor fehlenden Commits betrafen ausschließlich Status-/Projektdokumentation.
-- Claude hat den vorherigen Code-Head `ac80a09` am 17.11.2026 statisch erneut geprüft und aus Code-Sicht als mergefähig bewertet. Für den nachfolgenden Merge-Commit ist ein frischer CI-Lauf (Unit-Tests und Debug-Kompilierung) noch abzuwarten. Der PR ist nicht gemergt und nicht Teil des Releases 0.4.63.
+- Claude hat den vorherigen Code-Head `ac80a09` am 17.11.2026 statisch erneut geprüft und aus Code-Sicht als mergefähig bewertet. Für PR #3 existiert derzeit jedoch kein PR-spezifischer Validierungsworkflow; `android.yml` baut ausschließlich `main`. Für den abgeglichenen PR-Stand liegt deshalb kein CI-Nachweis vor. Vor dem Merge ist ein separater Unit-Test-/Debug-Build-Lauf erforderlich. Der PR ist nicht gemergt und nicht Teil des Releases 0.4.63.
 
 
 <!-- AUTO-PRODUCTION-STATUS:START -->
