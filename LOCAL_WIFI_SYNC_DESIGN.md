@@ -1,0 +1,122 @@
+# KlimaPilot – Design lokale Smartphone-Synchronisation
+
+**Branch:** `feature/local-wifi-profile-sync`  
+**Stand:** 17.11.2026  
+**Status:** technische Bestandsaufnahme und Architekturvorschlag; noch keine Implementierung oder endgültige Freigabe des Sicherheitsprotokolls.
+
+## 1. Ziel und Grenzen
+
+Zwei oder mehr KlimaPilot-Installationen sollen Profiländerungen direkt austauschen können, wenn sie gleichzeitig im selben lokalen WLAN erreichbar sind. Der lokale Datenbestand und die lokale Klimaanlagensteuerung bleiben unabhängig davon nutzbar.
+
+- ioBroker bleibt der bestehende Austauschweg zwischen unterschiedlichen Netzen.
+- Direkter Peer-Austausch ist ein zusätzlicher Weg, kein Ersatz für die vorhandene Outbox.
+- Kein Cloud-Dienst, Relay oder zusätzlicher Vermittlungsserver.
+- Keine Änderungen am WF-RAC-Steuerungsprotokoll oder Updater.
+- Synchronisiert werden ausschließlich bereits definierte KlimaPilot-Profilereignisse und -Snapshots. Keine Zugangsdaten oder WF-RAC-Steuerbefehle.
+
+## 2. Verifizierter Ist-Zustand
+
+### 2.1 Profil- und Ereignisspeicherung
+
+- `ClimateProfileRepository` befindet sich in `app/src/main/java/de/klimapilot/app/ClimateProfiles.kt`.
+- Profil-Upserts und Löschungen werden mit gemeinsamer Gerätekennung als lokaler Profilbestand plus dauerhaftes Journal gespeichert.
+- `ClimateProfileSyncStore` hält die dauerhafte Outbox, Installation-ID, Sequenz, Logical Clock, Versionsmarker, aktive Auswahl und individuelle Profile.
+- Journal-Übernahme ist über stabile Event-IDs idempotent. Bestätigte Outbox-Ereignisse werden erst nach erfolgreicher Übertragung entfernt.
+- `ClimateProfileStorageLock.monitor` serialisiert Repository- und Store-Zugriffe innerhalb des Prozesses. Netzwerk-I/O darf nicht unter dieser Sperre stattfinden.
+- Remote-Ereignisse werden über `ClimateProfileSyncClient.applyRemoteEvents` und `applyRemoteEventIfNewer` validiert, versionsgeprüft und angewendet. Diese Logik soll der lokale Transport wiederverwenden.
+
+### 2.2 Bestehender ioBroker-Weg
+
+- `ClimateProfileSyncClient.syncNow` öffnet eine eigene ioBroker-WebSocket-Verbindung.
+- Vor dem Austausch werden ioBroker-Authentifizierung und `system.adapter.admin.0.alive` geprüft.
+- Outbox-Ereignisse werden unter `0_userdata.0.KlimaPilot.profileSync.devices.*` übertragen; anschließend werden Remote-Ereignisse gelesen und angewendet.
+- Der Profilbereich stößt den Austausch nach Änderungen und zusätzlich ungefähr minütlich an. Der direkte WLAN-Weg muss in denselben Auslöser-/Koordinationspfad integriert werden, darf aber keine parallelen konkurrierenden Läufe desselben Stores verursachen.
+
+### 2.3 Geräteidentität ist keine Peer-Authentifizierung
+
+- `UserDevice.syncDeviceKey` wird aus der Aircon-ID des gekoppelten WF-RAC-Moduls als `wfrac:<Aircon-ID>` gebildet.
+- Die bestehende UI erklärt ausdrücklich, dass diese Kennung die Profile der physischen Klimaanlage zuordnet und **kein Zugangsschlüssel** ist.
+- Die Kennung ist deshalb ausschließlich ein fachlicher Zuordnungsschlüssel für Ereignisse. Sie darf niemals als Passwort, Token oder Nachweis eines vertrauenswürdigen Smartphones verwendet werden.
+- Das WF-RAC-mDNS-Verfahren in `wfrac/WfRacDiscovery.kt` sucht ausschließlich den Diensttyp `_beaver._tcp.` und erwartet den WF-RAC-Port. Es darf nicht für KlimaPilot-Peers umfunktioniert werden.
+
+### 2.4 Android-Netzwerkbestand
+
+- minSdk 26, targetSdk 35, Java 17.
+- Manifest enthält bereits `INTERNET`, `ACCESS_NETWORK_STATE` und `CHANGE_WIFI_MULTICAST_STATE`.
+- NSD/mDNS wird bereits über `NsdManager` verwendet; der WF-RAC-Scanner hält einen eigenen Multicast-Lock und beendet Listener/Lock über `stop()`.
+- Neue Peer-Discovery benötigt einen separaten Diensttyp, Listener-Lifecycle und eigene Tests. Keine gemeinsame globale Listener- oder Multicast-Lock-Instanz mit dem WF-RAC-Scanner.
+
+## 3. Vorgeschlagene Architektur
+
+### 3.1 Trennung von Discovery, Transport und Sync-Engine
+
+1. **Peer Discovery:** eigener NSD-Diensttyp, beispielsweise `_klimapilot-sync._tcp.`. Veröffentlicht nur Protokollversion, zufällige Peer-ID und Port. Keine Aircon-ID, Kontonamen oder sonstige persönlichen Daten in mDNS-TXT-Records.
+2. **Peer Listener/Transport:** ein lokaler TCP-Endpunkt mit begrenzter Laufzeit und klarer Lifecycle-Steuerung. Er wird nur aktiv, solange die App im Vordergrund und der lokale Sync aktiviert ist. WLAN-Wechsel und Netzwerkverlust beenden/verwerfen alte Endpunkte und lösen eine neue Discovery aus.
+3. **Peer Trust:** Discovery ist nicht Authentifizierung. Vor jedem Datenaustausch muss der Peer kryptografisch als zuvor ausdrücklich gekoppelt bestätigt sein.
+4. **Gemeinsame Sync-Engine:** Transportunabhängige Koordination der vorhandenen Outbox, Ereignisvalidierung, Versions-/Konfliktlogik, Remote-Anwendung und Bestätigung. ioBroker und lokaler Peer liefern/empfangen dieselben Event-Objekte. Keine zweite Konfliktlogik.
+5. **Koordinator:** verhindert überlappende Synchronisierungsläufe und Schleifen, wenn ioBroker und lokaler Peer gleichzeitig erreichbar sind.
+
+### 3.2 Ereignisaustausch
+
+- Beide Seiten stellen ihre noch offenen Outbox-Ereignisse bereit.
+- Empfangene Events durchlaufen dieselbe Validierung und Versionsprüfung wie ioBroker-Events.
+- Empfangene Ereignisse werden nicht erneut als lokale Änderung in die Outbox gespiegelt (kein Echo).
+- Sender bestätigt ein Event erst, wenn der Empfänger es dauerhaft und erfolgreich übernommen hat.
+- Verbindungsabbruch vor Bestätigung lässt das Ereignis in der Outbox; Wiederholung muss idempotent sein.
+- Nach einem erfolgreichen Austausch wird erneut geprüft, ob während des Netzwerkdialogs neue lokale Events entstanden sind. Der Lauf endet erst, wenn die übertragene Revision bestätigt oder der Lauf mit Retry-Grund beendet ist.
+- Die existierende Logical-Clock-/Last-Writer-Wins-Regel bleibt unverändert. Konfliktregeln werden nicht parallel im Peer-Protokoll neu implementiert.
+
+## 4. Sicherheitsentwurf – vor Implementierung zu finalisieren
+
+### 4.1 Nicht ausreichend
+
+- Gleiches WLAN, gleiche SSID oder bekannte IP-Adresse sind kein Vertrauensnachweis.
+- mDNS-Service-Name und TXT-Records sind frei manipulierbar und dürfen keine Authentifizierung ersetzen.
+- `syncDeviceKey` / Aircon-ID ist öffentlich ableitbar und ausdrücklich kein Geheimnis.
+- Keine ungeschützte HTTP-/WebSocket-Verbindung mit Profilinhalten und keiner stillen Annahme unbekannter Peers.
+
+### 4.2 Bevorzugter Kopplungsansatz zur Prüfung
+
+- Jede Installation erhält eine eigene kryptografische Peer-Identität (Schlüsselpaar; privater Schlüssel nicht exportierbar im Android Keystore, sofern die API-/Geräteunterstützung dies zulässt).
+- Erstkopplung erfolgt bewusst durch den Nutzer, z. B. über QR-Code mit kurzlebigem Einmal-Geheimnis und Geräte-Fingerprints oder über einen ausreichend starken, kurzlebigen Bestätigungscode.
+- Beide Seiten bestätigen die angezeigte Gegenstelle. Danach werden Peer-ID und verifizierter öffentlicher Schlüssel dauerhaft als vertrauenswürdig gespeichert.
+- Verbindungen verwenden verschlüsselte Kommunikation und gegenseitigen kryptografischen Identitätsnachweis (bevorzugt TLS mit gepinnten Peer-Zertifikaten oder ein gleichwertig überprüfbares Protokoll).
+- Jede Nachricht ist an die authentifizierte Sitzung gebunden; Replay-Schutz, Nonces, Protokollversion, Größenlimits, Zeitlimits und Rate-Limits sind vorzusehen.
+- Kopplung kann widerrufen werden. Unbekannte, widerrufene oder nicht korrekt authentifizierte Peers erhalten keinerlei Profil- oder Kontodaten.
+
+Der konkrete Schlüsselaustausch, die TLS-Implementierung und die Recovery bei Gerätewechsel müssen vor Codebeginn anhand der Android-API und einer etablierten Kryptobibliothek geprüft werden. Keine eigene Kryptografie erfinden.
+
+## 5. Android- und Netzwerkkompatibilität
+
+- NSD unterstützt Dienstsuche und Dienstregistrierung über mDNS/DNS-SD. Der API-Aufruf ist asynchron; Registrierung muss beim Ende des Dienstes wieder aufgehoben werden.
+- Für ältere Android-/Extension-Stände kann Multicast-Empfang einen Multicast-Lock erfordern. Im Vordergrund soll unnötiges dauerhaftes Halten vermieden werden.
+- IP-Adressen sind flüchtig. Nach WLAN-Wechsel oder Netzwerkwechsel muss der Dienst neu aufgelöst werden; gespeicherte IPs sind keine Geräteidentität.
+- Der aktuelle App-Target ist 35. Für Android 16/17 ist die lokale Netzwerkberechtigung strategisch zu beobachten: Android-Dokumentation beschreibt Änderungen für Apps, die auf API 37+ zielen. Die aktuelle Implementierung darf nicht vorschnell eine nicht benötigte Berechtigung einführen; vor einem späteren Target-SDK-Sprung ist Discovery/Picker- und Permission-Verhalten erneut zu prüfen.
+- Der NSD-System-Picker ist als mögliche datensparsame Variante für spätere Android-Versionen zu evaluieren; er ersetzt nicht die KlimaPilot-Kopplung/Authentifizierung.
+
+## 6. Geplante Umsetzung in kleinen Paketen
+
+1. **Protokoll-/Security-Review:** Peer-Identität, Pairing, TLS, Schlüsselwiderruf, Replay-Schutz, Datenumfang und Transport-Lifecycle festlegen.
+2. **Discovery-only:** Peer-Service registrieren/finden und im UI diagnostisch anzeigen. Noch keine Profilinhalte übertragen.
+3. **Pairing:** vertrauenswürdige Peers explizit koppeln/widerrufen; negative Tests für unbekannte und manipulierte Peers.
+4. **Transport:** authentifizierte verschlüsselte Verbindung, Limits, Timeout und WLAN-Wechselbehandlung.
+5. **Sync-Engine:** gemeinsame Outbox-/Event-Verarbeitung, idempotente Bestätigung, kein Echo, keine Parallel-Läufe.
+6. **Tests:** Unit-/Robolectric-Tests, simulierte Verbindungsabbrüche, Replay-/Manipulationsversuche, anschließend mindestens zwei reale Smartphones im selben WLAN.
+7. **Review und PR:** unabhängiges Review, CI und Praxistest; erst danach PR zur Freigabe. `main` bleibt bis dahin unverändert.
+
+## 7. Bewusste Nicht-Ziele
+
+- Keine automatische WF-RAC-Steuerung über den Peer-Kanal.
+- Keine Synchronisierung von Passwörtern, Konten-Geheimnissen oder ioBroker-Zugangsdaten.
+- Keine Synchronisierung beliebiger Dateien oder allgemeiner App-Backups.
+- Keine Internet-Peer-Verbindungen, NAT-Traversal, Cloud oder Relay.
+- Keine Änderungen am Updater.
+- Keine Änderungen an der bestehenden ioBroker-Eventstruktur, solange kein zwingender, getesteter Grund besteht.
+
+## 8. Offene technische Entscheidungen
+
+- Ob der Peer-Listener nur während aktiver App-Nutzung läuft oder später einen eng begrenzten Foreground-Service benötigt. Startpunkt: nur Vordergrund, kein permanenter Hintergrunddienst.
+- Konkrete TLS-/Keystore-Implementierung und sichere Erstkopplung.
+- Verhalten bei mehreren Geräten, die dieselbe Profil-Gerätekennung besitzen, und bei gleichzeitigen Updates über ioBroker und WLAN.
+- UI für Kopplung, vertrauenswürdige Geräte, Widerruf und Status.
+- Kompatibilitätsstrategie für unterschiedliche KlimaPilot-Protokollversionen.
