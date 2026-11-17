@@ -381,27 +381,58 @@ class ClimateProfileStorageConcurrencyTest {
         assertEquals(0, summary.skipped)
         assertEquals(1, summary.rejected)
         assertTrue(summary.firstRejectedReason?.contains("Betriebsmodus") == true)
+        assertTrue("Rejected events must not create a version marker.", store.isRemoteEventNewer(remote("poison", 2L, "INVALID")))
         assertEquals(setOf("first", "last"), repository.load().map { it.id }.toSet())
         assertTrue("Remote profile application must not echo changes into the local outbox.", store.pendingEvents().isEmpty())
     }
 
     @Test
-    fun journalFlushCommitFailureKeepsJournalForRetry() {
+    fun localProfileLoadFailureIsNotRejectedAsRemotePayload() {
+        val repositoryPrefs = context.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
+        repositoryPrefs.edit().putString(
+            "climate_profiles_v1",
+            org.json.JSONObject().put("schemaVersion", 999).put("profiles", org.json.JSONArray()).toString()
+        ).commit()
+        val store = ClimateProfileSyncStore(context)
+        val client = ClimateProfileSyncClient()
+        val remote = org.json.JSONObject().put("eventId", "remote-install:1").put("type", "upsert")
+            .put("deviceKey", "wfrac:shared-device").put("profileId", "remote-profile")
+            .put("installationId", "remote-install").put("sequence", 1L).put("logicalClock", 1L)
+            .put("profile", org.json.JSONObject().put("name", "Remote").put("power", true).put("mode", "COOL"))
+        try {
+            client.applyRemoteEvents(
+                listOf(remote), mapOf("wfrac:shared-device" to "device-1"), store, ClimateProfileRepository(context)
+            )
+            throw AssertionError("Expected the local schema error to abort remote application.")
+        } catch (expected: IllegalStateException) {
+            assertTrue(expected.message?.contains("Unbekannte Version") == true)
+        }
+        assertTrue("A local storage failure must not create a remote version marker.", store.isRemoteEventNewer(remote))
+    }
+
+    @Test
+    fun journalFlushStopsAtFirstFailedCommitWithMultipleEntries() {
         val repository = ClimateProfileRepository(context)
-        repository.saveWithPendingSync(profile("commit-failure"), "wfrac:shared-device")
+        repository.saveWithPendingSync(profile("commit-failure-1"), "wfrac:shared-device")
+        repository.saveWithPendingSync(profile("commit-failure-2"), "wfrac:shared-device")
         val repositoryPrefs = context.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
         val journalBefore = repositoryPrefs.getString("pending_sync_journal_v1", "[]")
-        val failingStore = ClimateProfileSyncStore(context) { false }
+        var commitAttempts = 0
+        val failingOnceStore = ClimateProfileSyncStore(context) {
+            commitAttempts++
+            commitAttempts > 1
+        }
         try {
-            repository.flushPendingSyncJournal(failingStore)
-            throw AssertionError("Expected the outbox commit failure to abort the flush.")
+            repository.flushPendingSyncJournal(failingOnceStore)
+            throw AssertionError("Expected the first outbox commit failure to abort the flush.")
         } catch (expected: IllegalStateException) {
             assertTrue(expected.message?.contains("dauerhaft") == true)
         }
+        assertEquals("Only the first journal entry may be attempted before failure.", 1, commitAttempts)
         assertEquals(journalBefore, repositoryPrefs.getString("pending_sync_journal_v1", "[]"))
         assertTrue(ClimateProfileSyncStore(context).pendingEvents().isEmpty())
-        assertEquals(1, repository.flushPendingSyncJournal(ClimateProfileSyncStore(context)))
-        assertEquals(1, ClimateProfileSyncStore(context).pendingEvents().size)
+        assertEquals(2, repository.flushPendingSyncJournal(ClimateProfileSyncStore(context)))
+        assertEquals(2, ClimateProfileSyncStore(context).pendingEvents().size)
     }
 
     @Test
