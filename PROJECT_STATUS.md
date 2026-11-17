@@ -161,3 +161,18 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Unit-Tests für die Metadatenvalidierung ergänzt. Build/Tests und realer Zwei-Smartphone-Test sind noch nicht bestätigt.
 - Nächster Gate: Branch-Validation, Korrektur aller Befunde und unabhängiges Claude-Review vor jeder Pairing-/Transportarbeit.
 - Produktionsbranch `main`, Version 0.4.64 / versionCode 94, Updater und WF-RAC-Steuerpfad bleiben unangetastet.
+
+
+## 11. Pairing-Controller – CI- und Reviewstand (17.11.2026)
+
+- PR [#4 – Discovery-only](https://github.com/Apropo1710/KlimaPilot/pull/4) ist weiterhin offen und Draft, nicht gemergt. Head: `bf01442b95b16b27a98efc2d095db3aa015f26b1`.
+- GitHub Actions [WLAN Branch Validation #98](https://github.com/Apropo1710/KlimaPilot/actions/runs/44120322400) für PR #4: **completed / success**. Unit-Tests und Debug-Kompilierung erfolgreich.
+- PR [#5 – Pairing: lokale Bestätigung und Sitzungssteuerung](https://github.com/Apropo1710/KlimaPilot/pull/5) ist offen und Draft, nicht gemergt. Head: `d1778aa35a4c5c773e8e2d48741cd8ab77bbf2e7`; Basis ist `feature/local-wifi-profile-sync`.
+- GitHub Actions [WLAN Branch Validation #100](https://github.com/Apropo1710/KlimaPilot/actions/runs/44120429391) für PR #5: **completed / success**. Unit-Tests und Debug-Kompilierung erfolgreich.
+- PR #5 ergänzt `ClimatePairingSessionController`, Tests und `PAIRING_PROTOCOL_DECISIONS.md`. Peers werden jeweils erst nach der lokalen Fingerprint-Bestätigung gespeichert. QR-Scanner/-Renderer, Netzwerktransport und Profilübertragung sind noch nicht implementiert.
+- Code-Review der Controller- und Protokollklassen wurde durchgeführt. Die Signatur-, Schlüssel- und Sitzungsprüfungen werden an die vorhandenen Invitation-, Response- und TrustedPeer-Klassen delegiert. Es wurde keine eigene Kryptografie ergänzt.
+- Testeinschränkung: Die Controller-Tests verwenden derzeit denselben `ClimateTrustedPeerStore` für beide simulierten Geräte. Damit wird der Bestätigungsablauf geprüft, aber die getrennte lokale Vertrauensspeicherung zweier realer Smartphones nicht vollständig modelliert. Bei der nächsten Testpflege berücksichtigen.
+- PR #5 liegt im Vergleich zu `feature/local-wifi-profile-sync` 11 Commits voraus und 1 Commit zurück (diverged). Der Rückstand ist der Workflow-Commit `bf01442...`; die Workflow-Datei ist in beiden Branches identisch. Vor einer späteren Merge-Freigabe muss die Branch-Basis sauber abgeglichen werden.
+- **Nächster Umsetzungsschritt:** QR-Anzeige und QR-Scan mit möglichst wenigen zusätzlichen Abhängigkeiten und Berechtigungen planen und implementieren. Danach folgt ein separater TLS-/Android-Keystore-Kompatibilitätstest auf API 26+.
+- Profilübertragung bleibt gesperrt, bis Pairing und gegenseitiges TLS auf realen Geräten erfolgreich geprüft wurden.
+- Produktionsbranch `main`, Produktionsversion **0.4.64 / versionCode 94**, Updater, bestehender ioBroker-Sync und WF-RAC-Steuerpfad wurden nicht verändert. Es wurde keine neue APK erstellt oder veröffentlicht.
