@@ -167,18 +167,17 @@ internal class ClimateProfileRepository(context: Context) {
             }
             return 0
         }
-        val remaining = JSONArray()
         var transferred = 0
         for (index in 0 until journal.length()) {
             val event = journal.optJSONObject(index)
                 ?: throw IllegalStateException("Das lokale Profiländerungsjournal enthält einen ungültigen Eintrag.")
-            if (store.enqueueJournalEvent(JSONObject(event.toString()))) transferred++ else remaining.put(event)
+            check(store.enqueueJournalEvent(JSONObject(event.toString()))) {
+                "Ein Profiländerungsereignis konnte nicht dauerhaft in die Synchronisierungswarteschlange übernommen werden."
+            }
+            transferred++
         }
-        check(prefs.edit().putString(KEY_PENDING_SYNC_JOURNAL, remaining.toString()).commit()) {
+        check(prefs.edit().putString(KEY_PENDING_SYNC_JOURNAL, JSONArray().toString()).commit()) {
             "Das Profiländerungsjournal konnte nach der Übernahme nicht bereinigt werden."
-        }
-        check(remaining.length() == 0) {
-            "Nicht alle Profiländerungen konnten in die Synchronisierungswarteschlange übernommen werden."
         }
         // The repository journal is now durably empty. Import markers are only needed
         // while a corresponding journal entry may still be replayed after a crash.
@@ -321,7 +320,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
 
     fun persistActiveProfile(profileId: String?, requestSync: Boolean = true): String? {
         val saved = runCatching {
-            if (syncDeviceKey.isBlank() || !requestSync) syncStore.saveActiveProfileId(deviceId, profileId)
+            if (syncDeviceKey.isBlank()) syncStore.saveActiveProfileId(deviceId, profileId)
             else syncStore.saveActiveProfileIdWithSync(deviceId, profileId, syncDeviceKey)
         }.getOrElse {
             return it.message ?: "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
