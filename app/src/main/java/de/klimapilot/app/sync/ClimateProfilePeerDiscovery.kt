@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
+import android.os.Handler
+import android.os.Looper
 import java.io.IOException
 import java.net.Inet6Address
 import java.net.InetAddress
@@ -17,6 +19,9 @@ const val KLIMAPILOT_PEER_SERVICE_TYPE = "_klimapilot-sync._tcp."
 private const val PEER_PROTOCOL_MAJOR = "1"
 private const val TXT_PROTOCOL_VERSION = "v"
 private const val TXT_DISCOVERY_ID = "id"
+private const val MAX_DISCOVERED_PEERS = 20
+private const val MAX_PENDING_RESOLVES = 20
+private const val MAX_RESOLVE_RETRIES = 2
 
 /** A discovered announcement only. It is deliberately not a trusted/paired device. */
 internal data class UnverifiedClimatePeer(
@@ -92,6 +97,8 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     private var onError: ((String) -> Unit)? = null
     private val pending = ArrayDeque<NsdServiceInfo>()
     private val seenNames = mutableSetOf<String>()
+    private val resolveRetries = mutableMapOf<String, Int>()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var resolving = false
 
     @Synchronized
@@ -111,6 +118,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         ownServiceName = "KlimaPilot-${ownDiscoveryId.take(8)}"
         pending.clear()
         seenNames.clear()
+        resolveRetries.clear()
         resolving = false
 
         try {
@@ -157,7 +165,8 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                         )) return
                     synchronized(this@ClimateProfilePeerDiscovery) {
                         if (!isCurrent(run) || serviceInfo.serviceName == ownServiceName) return
-                        if (seenNames.add(serviceInfo.serviceName)) {
+                        if (serviceInfo.serviceName !in seenNames && seenNames.size < MAX_DISCOVERED_PEERS && pending.size < MAX_PENDING_RESOLVES) {
+                            seenNames.add(serviceInfo.serviceName)
                             pending.addLast(serviceInfo)
                             resolveNext(run)
                         }
@@ -167,6 +176,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                     synchronized(this@ClimateProfilePeerDiscovery) {
                         if (isCurrent(run) && seenNames.remove(serviceInfo.serviceName)) {
                             pending.removeAll { it.serviceName == serviceInfo.serviceName }
+                            resolveRetries.remove(serviceInfo.serviceName)
                             onPeerLost?.invoke(serviceInfo.serviceName)
                         }
                     }
@@ -199,6 +209,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                     synchronized(this@ClimateProfilePeerDiscovery) {
                         if (!isCurrent(run)) return
                         resolving = false
+                        scheduleResolveRetry(run, serviceInfo)
                         resolveNext(run)
                     }
                 }
@@ -221,8 +232,31 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
             })
         } catch (_: Exception) {
             resolving = false
+            scheduleResolveRetry(run, candidate)
             resolveNext(run)
         }
+    }
+
+    private fun scheduleResolveRetry(run: Long, candidate: NsdServiceInfo) {
+        val name = candidate.serviceName
+        if (!isCurrent(run) || name !in seenNames) return
+        val retries = (resolveRetries[name] ?: 0) + 1
+        resolveRetries[name] = retries
+        if (retries > MAX_RESOLVE_RETRIES) {
+            seenNames.remove(name)
+            resolveRetries.remove(name)
+            onPeerLost?.invoke(name)
+            return
+        }
+        mainHandler.postDelayed({
+            synchronized(this@ClimateProfilePeerDiscovery) {
+                if (isCurrent(run) && name in seenNames && pending.none { it.serviceName == name }) {
+                    if (pending.size < MAX_PENDING_RESOLVES) pending.addLast(candidate)
+                    else seenNames.remove(name)
+                    resolveNext(run)
+                }
+            }
+        }, 750L * retries)
     }
 
     private fun startRejectOnlyAcceptLoop(socket: ServerSocket, run: Long) {
@@ -273,6 +307,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         acceptThread = null
         pending.clear()
         seenNames.clear()
+        resolveRetries.clear()
         resolving = false
         ownServiceName = null
         ownDiscoveryId = ""
