@@ -287,3 +287,15 @@ Der bestehende ioBroker-Weg bleibt erhalten und läuft parallel als zusätzliche
 - Robolectric-Test ergänzt: 20 Peers zulässig, 21. Peer abgelehnt, Ersetzen/Umbenennen eines vorhandenen Peers weiterhin möglich.
 - Das ist eine defensive Speichergrenze, kein Pairing-Protokoll. `trustPeer` bleibt ausschließlich für den späteren Aufruf nach gegenseitiger Authentifizierung und beidseitiger Nutzerbestätigung vorgesehen.
 - Kein Profiltransfer, kein Pairing-UI, keine Netzwerk-/Manifest-/Berechtigungs-/Updater-/WF-RAC-/ioBroker-Änderung. Produktionsbranch und Version bleiben unberührt.
+
+## 17. Umsetzungsschritt – signierte, kurzlebige QR-Einladung (17.11.2026)
+
+- Neue `ClimatePairingInvitation` erzeugt eine zufällige 128-Bit-Sitzungs-ID und eine 256-Bit-Nonce.
+- Die Einladung enthält Protokollversion, Erstellungs-/Ablaufzeit (120 Sekunden), Peer-ID, öffentlichen Schlüssel, Fingerprint, Nonce und ECDSA-Signatur.
+- Die Signatur bindet alle Felder mit Domain-Separation (`KlimaPilot-Pairing-Invitation-v1`) und kanonischer Feldreihenfolge; nachträgliche Feldänderungen werden erkannt.
+- Beim Einlesen werden Payloadgröße, exakte Feldanzahl, Version, Zeitfenster, Nonce-Länge, Schlüssellänge, Peer-ID/Fingerprint-Konsistenz und Signatur geprüft.
+- Die Einladung enthält keine Profilinhalte, Netzwerkadresse, MAC-Adresse oder Kontokennung.
+- Tests prüfen gültige Signatur, Ablauf, Manipulation und Payload-Größenlimit.
+- Eine gültige Einladung beweist nur Besitz des privaten Schlüssels zum angegebenen öffentlichen Schlüssel. Sie ist ausdrücklich noch keine gegenseitige Authentifizierung, keine beidseitige Nutzerbestätigung und keine Vertrauensfreigabe.
+- Noch kein QR-Renderer/-Scanner, keine Antwort-Challenge, kein gegenseitiger Handshake, keine Speicherung eines Peers aufgrund einer Einladung und kein Nutzdatentransfer.
+- Aktuelle Validation muss den neuen Head prüfen, bevor weitere Pairing-Schritte darauf aufbauen.
