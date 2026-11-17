@@ -7,7 +7,7 @@
 
 ## Aktueller GitHub-, Build- und Release-Stand
 
-- Aktueller `main`-HEAD: `cd26cc24659c103e0ce1f2cccc8467a06050b9b9` (Dokumentationscommit).
+- `main`-HEAD vor dieser Statuspflege: `cd26cc24659c103e0ce1f2cccc8467a06050b9b9` (Dokumentationscommit).
 - Letzter App-Code-Commit: `42472a3af147`; die vorherige Funktionsänderung `f670b9a8c252` erhält und synchronisiert individuelle Klimaeinstellungen.
 - APK-Build-Quellcommit: `c7a1c6a458f0c44533d08672db5592a20748bfc6` (Dokumentationscommit; der App-Code-Baum entspricht dem oben genannten App-Code-Stand).
 - Version aus `app/build.gradle.kts`: **0.4.63 / 93**. Application-ID `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
