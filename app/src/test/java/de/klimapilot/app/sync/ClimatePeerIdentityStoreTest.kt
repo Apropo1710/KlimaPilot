@@ -4,10 +4,15 @@ import android.util.Base64
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.security.KeyPairGenerator
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class ClimatePeerIdentityStoreTest {
     @Test
     fun verifiesSignatureOnlyForOriginalChallenge() {
