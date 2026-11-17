@@ -3,7 +3,7 @@ name: KlimaPilot Pairing TLS Compatibility
 on:
   pull_request:
     branches:
-      - feature/local-wifi-profile-sync
+      - test
   workflow_dispatch:
 
 permissions:
