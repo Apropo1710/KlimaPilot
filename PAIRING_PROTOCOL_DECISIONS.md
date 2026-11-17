@@ -40,18 +40,24 @@ Die beiden lokalen Bestätigungen sind unabhängig. Ein zusätzlicher finaler Be
 - Vor jedem Datenaustausch müssen beide Seiten den gegenseitigen Peer-Schlüssel lokal als vertrauenswürdig erkennen.
 - Widerruf entfernt den Peer aus der lokalen Vertrauensliste. Die Gegenseite kann dann keine neue Verbindung mehr erfolgreich authentifizieren.
 
-## 5. Verschlüsselter Transport – technische Freigabe vor Umsetzung
+## 5. Verschlüsselter Transport – vereinfachter TLS-Ansatz
 
-Bevor Profilereignisse über WLAN übertragen werden, wird ein kleiner Kompatibilitätstest für gegenseitiges TLS durchgeführt:
+Die ursprüngliche gegenseitige TLS-Client-Zertifikatsauthentifizierung (mTLS) wird nicht weiterverfolgt. Der Android-Emulatornachweis war auf API 26 erfolgreich, API 35 scheiterte wiederholt bereits vor Testausführung durch einen Emulator-/ADB-Absturz. Deshalb wird keine mTLS-Clientzertifikatsanforderung mehr verwendet.
 
-- Bevorzugter Weg: Android-JSSE/TLS mit den vorhandenen Android-Keystore-Schlüsseln und den dazugehörigen Zertifikaten.
-- Die Gegenstelle wird gegen den bereits gespeicherten öffentlichen Peer-Schlüssel geprüft (Pinning); ein beliebiges selbstsigniertes Zertifikat reicht nicht.
-- Der TLS-Handshake muss auf beiden Seiten die Identität nachweisen. Die Anwendung akzeptiert nur Peers, die lokal gekoppelt und nicht widerrufen sind.
-- Zielplattformen: mindestens API 26 und aktuelle Android-Versionen.
-- Zuerst prüfen, ob Androids KeyManager/TrustManager mit dem nicht exportierbaren Keystore-Schlüssel zuverlässig auf Client- und Serverseite funktioniert. Keine private Schlüssel-Exportlösung und kein eigener TLS-Ersatz.
-- Falls die JSSE-Integration auf minSdk 26 nicht stabil funktioniert, wird die konkrete Alternative vor Implementierung bewertet. Bis dahin bleibt Profiltransfer gesperrt.
+Neuer Ansatz:
 
-Es werden keine eigenen Verschlüsselungs-, Zertifikats- oder Signaturformate entwickelt und keine zusätzliche Kryptobibliothek ohne konkreten Bedarf eingebaut.
+- Normales TLS 1.2 verschlüsselt jede Verbindung. Der TLS-Server präsentiert das vorhandene Android-Keystore-Identitätszertifikat.
+- Der TLS-Client pinnt den Zertifikat-Public-Key gegen den beim QR-Pairing gespeicherten öffentlichen Schlüssel des erwarteten Peers. Es gibt keinen Trust-all-Modus.
+- Der TLS-Server fordert kein Clientzertifikat an. Stattdessen sendet er nach erfolgreichem TLS-Handshake eine frische zufällige 256-Bit-Challenge.
+- Der Client signiert diese Challenge mit seinem vorhandenen nicht exportierbaren Android-Keystore-Schlüssel und sendet Peer-ID, öffentlichen Schlüssel und Signatur.
+- Der Server akzeptiert den Client nur, wenn Peer-ID und öffentlicher Schlüssel in der lokalen Trusted-Peer-Liste exakt zusammenpassen und die Signatur gültig ist.
+- Die Challenge ist pro Verbindung neu und wird nicht wiederverwendet. Alle Handshake-Felder sind längenbegrenzt.
+- Beide Geräte benötigen weiterhin die gegenseitige lokale Freigabe aus dem bestehenden QR-Pairing. Unbekannte oder widerrufene Peers erhalten keine Profildaten.
+- Zielplattformen bleiben API 26 und aktuelle Android-Versionen.
+
+Damit authentifiziert der Client den Server über TLS-Zertifikat-Pinning; der Server authentifiziert den Client auf Anwendungsebene über eine frische Keystore-Signatur. Die TLS-Verschlüsselung bleibt Standard-JSSE/TLS; es wird kein eigener Verschlüsselungsalgorithmus eingeführt.
+
+Die neue Hilfsklasse `ClimatePeerTls` stellt TLS-Kontexte und den Challenge-Ablauf bereit. Sie ist noch nicht in einen produktiven Peer-Socket/Profiltransport eingebunden. Profilübertragung bleibt gesperrt, bis die API-26/API-35-Instrumentierung und anschließend der Zwei-Smartphone-Test erfolgreich sind.
 
 ## 6. Bewusste Begrenzung
 
@@ -90,3 +96,14 @@ Nicht Teil dieses Arbeitspakets sind:
 - Diese Anpassungen verbessern ausschließlich die Diagnose. Sie sind kein Nachweis, dass mTLS bereits funktioniert.
 - Nächster Schritt: neuen automatischen CI-Lauf vollständig auswerten und anhand der Server-Ausnahme bzw. Logcat gezielt korrigieren. Bis dahin bleiben Transport und Profilübertragung gesperrt.
 - Claude-Review wird nach Wiederverfügbarkeit des Nutzerlimits vor Beginn weiterer Transportarbeiten nachgeholt.
+
+
+## 10. Vereinfachte TLS-/Peer-Authentifizierung (17.11.2026)
+
+- Neue Klasse `ClimatePeerTls`: TLS-Serverkontext aus dem Android Keystore; TLS-Clientkontext mit Pinning des erwarteten secp256r1-Public-Keys.
+- Der TLS-Server verlangt kein Clientzertifikat. Nach TLS-Handshake sendet er eine frische 32-Byte-Challenge; der Client antwortet mit Peer-ID, Public Key und ECDSA-Signatur aus der bestehenden Installationidentität.
+- Serverseitig werden Peer-ID/Public-Key gegen `ClimateTrustedPeerStore.isTrusted` geprüft und die Signatur verifiziert. Längenfelder sind begrenzt.
+- Instrumentierungstest ersetzt den bisherigen mTLS-Test: TLS-Pinning plus signierte Client-Challenge und Ablehnung eines falschen Server-Pins.
+- API-26/API-35-CI muss den neuen Ansatz noch ausführen. Ein bestandener Unit-/Kompilierungslauf ist kein Nachweis des Android-Keystore-TLS-Verhaltens.
+- Noch kein produktiver Peer-Transport und keine Profilübertragung. Der Discovery-Socket bleibt weiterhin reject-only.
+- Kein Updater-, Manifest-, Berechtigungs-, ioBroker- oder WF-RAC-Eingriff.
