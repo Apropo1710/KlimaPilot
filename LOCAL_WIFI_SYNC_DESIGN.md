@@ -245,3 +245,14 @@ Der bestehende ioBroker-Weg bleibt erhalten und läuft parallel als zusätzliche
 
 **Nicht verhandelbar:** Vor Abschluss von Pairing und gegenseitiger Authentifizierung werden über den lokalen Peer-Kanal keinerlei Profilinhalte oder andere vertrauliche Daten übertragen.
 
+## 13. Umsetzungsschritt – gemeinsame Event-Anwendung (17.11.2026)
+
+- Neue `ClimateProfileSyncCoordinator` serialisiert Sync-Läufe pro App-Prozess. Der ioBroker-Client verwendet diese gemeinsame Sperre; künftige Peer-Transporte müssen dieselbe Sperre verwenden.
+- Neue `ClimateProfileSyncEngine` enthält jetzt die transportneutrale Remote-Event-Anwendung: Sortierung nach Logical Clock / Installation-ID / Sequenz, Gerätezuordnung, Validierungsisolation pro Event, Aufruf von `applyRemoteEventIfNewer`, dauerhafte Versionsaufzeichnung und Fehlerbehandlung.
+- `ClimateProfileSyncClient` delegiert die Event-Anwendung an diese Engine. Bestehende Methoden-Signaturen bleiben als dünne interne Delegates erhalten, damit vorhandene Regressionstests und Aufrufer unverändert bleiben.
+- Die ioBroker-spezifische Authentifizierung, Alive-Prüfung, State-/Object-Übertragung und das Lesen der States bleiben vorerst im ioBroker-Client. Kein ioBroker-Protokoll wurde verändert.
+- Bestehende Tests in `ClimateProfileStorageConcurrencyTest` prüfen weiterhin Remote-Anwendung, Versionskonflikte und Ablehnung ungültiger Events über die Client-Delegates.
+- Prozessweite Koordination verhindert konkurrierende Transporte innerhalb eines App-Prozesses. Sie ersetzt keine geräteübergreifende Idempotenz oder Serverbestätigung.
+- Peer-Transport existiert weiterhin nicht. Kein Profilinhalt wird lokal über WLAN übertragen. Kein Pairing und kein automatischer Peer-Betrieb ist bereits fertig.
+- Aktueller Code-Commit: `66802ce044fed2495e8be085177927451515ed69`. Branch-Validation #65 ist für diesen Head vorgemerkt/läuft noch; Ergebnis vor weiteren Integrationsschritten kontrollieren.
+
