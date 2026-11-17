@@ -178,3 +178,17 @@ Die aktuelle Android-Referenz bestätigt, dass NSD-Aufrufe asynchron über Liste
 **Implementierungsfolge:** Zuerst eine isolierte, testbare Discovery-Komponente mit klarer Startgeneration und vollständigem Stop/Rollback. Danach gezielte Tests für TXT-Validierung, Versions-/Instanzprüfung und Lifecycle. Erst wenn CI und unabhängiges Claude-Review bestanden sind, folgt der manuelle Zwei-Smartphone-Test. Die API-Prüfung ändert nichts an der Freigabegrenze: In Phase 1 findet kein Profil- oder Kontodatenaustausch statt.
 
 **Referenz:** Android Developers, `NsdManager` und `NsdServiceInfo`: https://developer.android.com/reference/android/net/nsd/NsdManager und https://developer.android.com/reference/android/net/nsd/NsdServiceInfo
+
+## 11. Discovery-only – erster Implementierungsstand
+
+- Neue isolierte Komponente: `app/src/main/java/de/klimapilot/app/sync/ClimateProfilePeerDiscovery.kt`.
+- Eigener DNS-SD-Diensttyp `_klimapilot-sync._tcp.`; keine Wiederverwendung der WF-RAC-Erkennung.
+- Eigene zufällige, kurzlebige Dienstinstanz und Discovery-ID; TXT-Daten sind strikt auf Protokoll-Hauptversion `v=1` und `id` begrenzt.
+- TXT-Parser verwirft unbekannte Felder, falsche Versionen, ungültige IDs, ungültige Ports/Adressen und die eigene Instanz/Discovery-ID. Ein Treffer bleibt ausdrücklich `UnverifiedClimatePeer` und ist kein Vertrauensnachweis.
+- Für die angekündigte TCP-Portnummer wird ein lokaler Socket geöffnet. Eingehende Verbindungen werden sofort geschlossen; es werden keine Bytes gelesen/geschrieben und kein Anwendungsprotokoll angeboten.
+- Discovery und Advertising sind nur über die sichtbare Einstellungsdiagnose startbar. Beim Verlassen der Einstellungsansicht wird über `DisposableEffect` gestoppt. Stop beendet Discovery, deregistriert den Dienst, schließt den Socket und gibt den eigenen Multicast-Lock frei.
+- Startgeneration schützt vor verspäteten NSD-Callbacks; gefundene Dienstinstanzen werden dedupliziert und bei Service-Lost wieder freigegeben.
+- Die klassische `resolveService`-API bleibt für minSdk 26 als Kompatibilitätsweg im Einsatz; sie ist auf neueren Android-Versionen deprecated. Vor einer späteren API-Modernisierung sind neue NSD-Callbacks gezielt zu testen.
+- Unit-Tests für strikte TXT-/Metadatenvalidierung liegen in `ClimatePeerAnnouncementTest.kt`.
+
+**Noch nicht nachgewiesen:** Build/Unit-Tests, tatsächliche mDNS-Erkennung auf zwei Smartphones, Android-Versionsmatrix, vollständige Netzwerkwechseltests und Claude-Review. Phase 1 überträgt weiterhin keinerlei Profil-, Konto-, Schlüssel- oder ioBroker-Daten. Pairing bleibt gesperrt.
