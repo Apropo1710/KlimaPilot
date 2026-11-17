@@ -118,7 +118,7 @@ internal class ClimateProfileSyncClient {
         if (events.isEmpty()) { done(0, null); return }
         var index = 0
         var uploaded = 0
-        val acknowledged = linkedSetOf<String>()
+        val acknowledged = mutableListOf<JSONObject>()
         fun next() {
             if (index >= events.size) {
                 if (!store.acknowledgeUploaded(acknowledged)) done(uploaded, "Übertragene Änderungen konnten lokal nicht bestätigt werden; sie bleiben zur sicheren Wiederholung vorgemerkt.")
@@ -139,7 +139,7 @@ internal class ClimateProfileSyncClient {
                 socket.emit("setState", id, JSONObject().put("val", event.toString()).put("ack", false), IoBrokerAck stateCallback@{ stateArgs ->
                     val stateError = stateArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL }
                     if (stateError != null) { done(uploaded, "Synchronisierungsereignis konnte nicht übertragen werden: $stateError"); return@stateCallback }
-                    acknowledged.add(event.optString("eventId"))
+                    acknowledged.add(JSONObject(event.toString()))
                     uploaded++
                     next()
                 })
