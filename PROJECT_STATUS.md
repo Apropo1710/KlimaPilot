@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 1a1d7834c22a2ac0726331fc9f49995cc253dc4a
+- Quellcommit des APK-Builds: 57882903554a11fa72d42f79b39626929e7b7212
 - App-Version / versionCode: **0.4.64 / 94**
-- Build-Zeit: 2026-11-17 11:23:51 UTC
+- Build-Zeit: 2026-11-17 11:26:45 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 945dd9bacebbb16482e7acf352ccd58d91649349ebc02360102e093ccc92f3c4
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: c439cd957c737f26c2fd0a0425c0675fd6c2f3e8bc3b8fdcfa6e12faae364743
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -129,4 +129,4 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - ioBroker bleibt zunächst als bestehender Synchronisationsanbieter erhalten. Eine unabhängige Cloud oder direkte Smartphone-Synchronisation kann später ergänzend hinzukommen.
 - Konfliktbehandlung, doppelte Events, Wiederanlauf und Löschungen müssen ausdrücklich berücksichtigt und mit mindestens zwei Smartphones getestet werden.
 - Ein absolut ausfallfreies System kann nicht garantiert werden. Ziel ist, dass der Ausfall eines Synchronisationsdienstes weder die lokale Bedienung noch gespeicherte Daten gefährdet.
-- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n\n\n\n\n\n
+- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n\n\n\n\n\n\n
