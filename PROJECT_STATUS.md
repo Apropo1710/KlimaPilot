@@ -132,3 +132,13 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.
 - Der separate Entwicklungsbranch `feature/local-wifi-profile-sync` wurde am 17.11.2026 frisch vom damaligen `main`-HEAD `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd` erstellt. Er enthält zunächst nur die aktualisierte Architektur-/Arbeitsdokumentation; App-Code wurde noch nicht geändert.
 - Die technische Bestandsaufnahme und der Sicherheits-/Architekturvorschlag stehen in `LOCAL_WIFI_SYNC_DESIGN.md`. Darin sind Discovery, Peer-Authentifizierung, gemeinsame Sync-Engine, Android-Kompatibilität und die noch offenen Protokollentscheidungen dokumentiert. Es wurde weiterhin kein App-Code geändert.\n\n\n\n\n\n\n\n\n
+
+### Ergänzung zur lokalen WLAN-Synchronisation (17.11.2026)
+
+- Das Discovery-only-Paket wurde fachlich eingegrenzt und in LOCAL_WIFI_SYNC_DESIGN.md, Abschnitt 9, dokumentiert.
+- Vorgesehener Diensttyp: _klimapilot-sync._tcp.; der WF-RAC-Dienst _beaver._tcp. bleibt unberührt.
+- Phase 1 darf ausschließlich eine kurzlebige Dienstankündigung und lokale Diagnoseinformationen austauschen. Keine Profile, Outbox-Events, Kontodaten, Schlüssel oder ioBroker-Daten.
+- mDNS-Ergebnisse gelten ausdrücklich als nicht verifiziert. Es gibt weder automatische Kopplung noch dauerhafte Speicherung entdeckter Geräte.
+- Discovery/Advertising sind auf den App-Vordergrund begrenzt und müssen beim Stoppen oder Netzwerkwechsel ihre Ressourcen freigeben.
+- Die konkrete kryptografische Peer-Identität und sichere Kopplung bleiben zwingende Voraussetzungen vor jedem späteren Profil-Datenaustausch.
+- Implementierungsstand: weiterhin ausschließlich Dokumentation/Architektur; noch keine App-Codeänderung, kein Versionssprung und kein Build. main und der Produktionsrelease bleiben unverändert.
