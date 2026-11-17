@@ -222,6 +222,17 @@ internal class ClimateProfileSyncStore(context: Context) {
             }
             updated.put(event)
         }
+        val initialized = root.optJSONArray(KEY_INITIALIZED) ?: JSONArray()
+        val wasInitialized = (0 until initialized.length()).any { initialized.optString(it) == oldDeviceKey }
+        if (wasInitialized) {
+            val nextInitialized = JSONArray()
+            for (index in 0 until initialized.length()) {
+                val key = initialized.optString(index)
+                if (key != oldDeviceKey && key != newDeviceKey) nextInitialized.put(key)
+            }
+            nextInitialized.put(newDeviceKey)
+            root.put(KEY_INITIALIZED, nextInitialized)
+        }
         root.put(KEY_OUTBOX, updated).put(KEY_PROFILE_VERSIONS, versions)
         return prefs.edit().putString(KEY_STATE, root.toString()).commit()
     
