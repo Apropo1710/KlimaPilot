@@ -19,7 +19,7 @@
 
 ## Offener Synchronisations-PR
 
-- [PR #3 – dauerhaftes Änderungsjournal](https://github.com/Apropo1710/KlimaPilot/pull/3) ist offen und Draft, Head `ad84fe8d3cc7`, mergeable/clean, noch nicht gemergt.
+- [PR #3 – dauerhaftes Änderungsjournal](https://github.com/Apropo1710/KlimaPilot/pull/3) ist offen und Draft, Head `ad84fe8d3cc7`, noch nicht gemergt. Die jüngste GitHub-Abfrage lieferte für die Mergeability `unknown` (eine frühere Abfrage meldete `clean`); daher derzeit keine abschließende Konfliktbewertung.
 - Der aktuelle PR-Head ergänzt das erneute Abarbeiten ausstehender Profiländerungen während der periodischen Synchronisation. Validierungslauf #15 / Run `43964905903`: **completed / success**.
 - Diese PR-Änderungen sind noch nicht Bestandteil des Produktions-Releases 0.4.63.
 
