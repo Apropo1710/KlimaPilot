@@ -11,7 +11,6 @@ internal class InvalidRemoteProfileEventException(message: String, cause: Throwa
 
 internal class ClimateProfileSyncClient {
     private val main = Handler(Looper.getMainLooper())
-    private val running = AtomicBoolean(false)
 
     fun syncNow(
         address: String,
@@ -20,10 +19,10 @@ internal class ClimateProfileSyncClient {
         repository: ClimateProfileRepository,
         callback: (String) -> Unit
     ) {
-        if (!running.compareAndSet(false, true)) { callback("Synchronisierung läuft bereits."); return }
+        if (!ClimateProfileSyncCoordinator.tryAcquire()) { callback("Synchronisierung läuft bereits."); return }
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
-            running.set(false)
+            ClimateProfileSyncCoordinator.release()
             callback("Keine gültige ioBroker-WebSocket-Adresse hinterlegt.")
             return
         }
@@ -33,7 +32,7 @@ internal class ClimateProfileSyncClient {
             if (!completed.compareAndSet(false, true)) return
             socket.off()
             socket.disconnect()
-            running.set(false)
+            ClimateProfileSyncCoordinator.release()
             main.post { callback(message) }
         }
         socket.on("connect") {
