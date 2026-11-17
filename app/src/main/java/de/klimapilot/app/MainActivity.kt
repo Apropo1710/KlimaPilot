@@ -1451,6 +1451,7 @@ private fun SettingsScreen(
                                 },
                                 onError = { message ->
                                     peerScanning = false
+                                    discoveredPeers.clear()
                                     peerScanMessage = message
                                 }
                             )
