@@ -1470,6 +1470,7 @@ private fun SettingsScreen(
                 }
             }
         }
+        ClimatePairingSettingsCard()
         GithubUpdateCard(appVersion)
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
             Text("Zurück zur Klimaübersicht")
