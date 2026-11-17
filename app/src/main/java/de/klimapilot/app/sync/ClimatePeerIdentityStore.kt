@@ -42,9 +42,9 @@ internal class ClimatePeerIdentityStore {
                     KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
                 )
                     .setAlgorithmParameterSpec(ECGenParameterSpec(EC_CURVE))
-                    // Conscrypt on API 26 uses NONEwithECDSA for TLS CertificateVerify.
-                    // Keep SHA-256 for application signatures and allow the raw TLS digest path.
-                    .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_NONE)
+                    // Application identity signatures use SHA-256withECDSA.
+                    // TLS server authentication uses the same standard Keystore key.
+                    .setDigests(KeyProperties.DIGEST_SHA256)
                     .setUserAuthenticationRequired(false)
                     .build()
             )
