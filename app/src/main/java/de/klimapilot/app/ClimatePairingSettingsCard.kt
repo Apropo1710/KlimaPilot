@@ -49,6 +49,7 @@ internal fun ClimatePairingSettingsCard() {
     val invitationFactory = remember(identityStore) { ClimatePairingInvitation(identityStore) }
     val responseFactory = remember(identityStore) { ClimatePairingResponse(identityStore) }
     var controller by remember { mutableStateOf<ClimatePairingSessionController?>(null) }
+    var localFingerprint by remember { mutableStateOf<String?>(null) }
     var displayName by remember { mutableStateOf("KlimaPilot-Gerät") }
     var qrPayload by remember { mutableStateOf<String?>(null) }
     var pending by remember { mutableStateOf<ClimatePairingSessionController.PendingConfirmation?>(null) }
@@ -59,6 +60,7 @@ internal fun ClimatePairingSettingsCard() {
     fun getController(): ClimatePairingSessionController {
         controller?.let { return it }
         val identity = identityStore.getOrCreateIdentity()
+        localFingerprint = identity.fingerprint
         return ClimatePairingSessionController(
             localPeerId = identity.peerId,
             trustedPeerStore = trustedStore,
@@ -151,6 +153,9 @@ internal fun ClimatePairingSettingsCard() {
         ) {
             Text("Geräte koppeln", color = colors.onSurface, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             Text("Einmalige Kopplung mit Fingerprint-Prüfung. Es werden dabei noch keine Klimaprofile übertragen.", color = colors.onSurfaceVariant, fontSize = 11.sp)
+            if (localFingerprint != null) {
+                Text("Fingerprint dieses Geräts: $localFingerprint", color = colors.onSurfaceVariant, fontSize = 10.sp)
+            }
             OutlinedTextField(
                 value = displayName,
                 onValueChange = { displayName = it.take(48) },
