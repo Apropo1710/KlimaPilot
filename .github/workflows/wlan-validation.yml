@@ -1,13 +1,11 @@
 name: KlimaPilot WLAN Branch Validation
 
 on:
-  push:
-    branches:
-      - test
+  # Validate the consolidated test branch through its PR into main.
+  # A push to test already updates that PR and must not start a duplicate run.
   pull_request:
     branches:
       - main
-      - test
   workflow_dispatch:
 
 permissions:
