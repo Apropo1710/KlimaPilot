@@ -65,8 +65,8 @@ Nicht Teil dieses Arbeitspakets sind:
 
 ## 7. Nächste Umsetzungsschritte
 
-1. Kleinen Pairing-Session-Controller für den beschriebenen Ablauf ergänzen und mit Tests für Ablauf, falsche Sitzung, Wiederverwendung und beidseitige lokale Freigabe absichern.
-2. QR-Anzeige/-Scan: umgesetzt mit ZXing Core für QR-Erzeugung und Google Code Scanner über Google Play Services für den Scan. CI-Unit-Test für QR-Payload-Roundtrip erfolgreich.
+1. Pairing-Session-Controller für den beschriebenen Ablauf ergänzen und mit Tests für Ablauf, falsche Sitzung, Wiederverwendung und beidseitige lokale Freigabe absichern: **implementiert**; Controller- und Session-Tests sind in CI erfolgreich.
+2. QR-Anzeige/-Scan: **implementiert** mit ZXing Core für QR-Erzeugung und Google Code Scanner über Google Play Services für den Scan. CI-Unit-Test für QR-Payload-Roundtrip erfolgreich.
 3. Separaten TLS-Kompatibilitätstest für Android Keystore / API 26+ durchführen.
 4. Erst nach erfolgreichem Pairing und gegenseitigem TLS die Peer-Transport- und Profil-Sync-Implementierung beginnen.
 
