@@ -230,7 +230,7 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 ## WLAN-Pairing – Entwicklungsstand auf `test` (17.11.2026, 21:40 MEZ)
 
 - Produktionsstand bleibt `main` mit dem zuletzt dokumentierten Release 0.4.64 / versionCode 94; dieser Abschnitt dokumentiert ausschließlich den nicht freigegebenen Test-Branch.
-- `test`-HEAD: `6748bffe9e6f2d000e5729d2dbede3e5f957e1f7`; PR #6 ist offen und Draft, Base `main` `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`.
+- `test`-HEAD nach Dokumentations-/Workflowpflege: `829b57ad34d081f1453c3856a951f43a9d0acab6`; TLS-Codeänderung: `6748bffe9e6f2d000e5729d2dbede3e5f957e1f7`. PR #6 ist offen und Draft, Base `main` `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`.
 - WLAN-Validierung ist auf PR-Trigger nach `main` plus manuellen Start umgestellt; zusätzlicher Push-Trigger auf `test` wurde entfernt, damit derselbe Commit nicht doppelt validiert wird.
 - mTLS-Clientzertifikatsauthentifizierung wird nicht weiterverfolgt. Neuer Ansatz: Standard-TLS 1.2, Serverzertifikat aus Android Keystore, Client-Pinning gegen den gespeicherten Peer-Public-Key und Clientauthentifizierung per frischer 32-Byte-Challenge plus ECDSA-Signatur. Der Server prüft zusätzlich die lokale Trusted-Peer-Liste.
 - Implementiert auf `test`: `ClimatePeerTls.kt`, neuer API-26/API-35-Instrumentierungstest, aktualisierte Pairing-Entscheidungsdokumentation.
