@@ -40,24 +40,21 @@ Die beiden lokalen Bestätigungen sind unabhängig. Ein zusätzlicher finaler Be
 - Vor jedem Datenaustausch müssen beide Seiten den gegenseitigen Peer-Schlüssel lokal als vertrauenswürdig erkennen.
 - Widerruf entfernt den Peer aus der lokalen Vertrauensliste. Die Gegenseite kann dann keine neue Verbindung mehr erfolgreich authentifizieren.
 
-## 5. Verschlüsselter Transport – vereinfachter TLS-Ansatz
+## 5. Lokaler TCP-Transport ohne Transportverschlüsselung
 
-Die ursprüngliche gegenseitige TLS-Client-Zertifikatsauthentifizierung (mTLS) wird nicht weiterverfolgt. Der Android-Emulatornachweis war auf API 26 erfolgreich, API 35 scheiterte wiederholt bereits vor Testausführung durch einen Emulator-/ADB-Absturz. Deshalb wird keine mTLS-Clientzertifikatsanforderung mehr verwendet.
+TLS und mTLS werden nicht weiterverfolgt. Die Emulatorläufe zeigten wiederholt Keystore-/Conscrypt-Probleme oder Emulatorabbrüche; für die lokale Profil-Synchronisation wird deshalb bewusst auf Transportverschlüsselung verzichtet. Das ist eine bewusste Abwägung zugunsten einer einfachen, kompatiblen WLAN-Verbindung und keine Hochsicherheitslösung.
 
-Neuer Ansatz:
+Verbindliche Schutzmaßnahmen auf Anwendungsebene:
 
-- Normales TLS 1.2 verschlüsselt jede Verbindung. Der TLS-Server präsentiert das vorhandene Android-Keystore-Identitätszertifikat.
-- Der TLS-Client pinnt den Zertifikat-Public-Key gegen den beim QR-Pairing gespeicherten öffentlichen Schlüssel des erwarteten Peers. Es gibt keinen Trust-all-Modus.
-- Der TLS-Server fordert kein Clientzertifikat an. Stattdessen sendet er nach erfolgreichem TLS-Handshake eine frische zufällige 256-Bit-Challenge.
-- Der Client signiert diese Challenge mit seinem vorhandenen nicht exportierbaren Android-Keystore-Schlüssel und sendet Peer-ID, öffentlichen Schlüssel und Signatur.
-- Der Server akzeptiert den Client nur, wenn Peer-ID und öffentlicher Schlüssel in der lokalen Trusted-Peer-Liste exakt zusammenpassen und die Signatur gültig ist.
-- Die Challenge ist pro Verbindung neu und wird nicht wiederverwendet. Alle Handshake-Felder sind längenbegrenzt.
-- Beide Geräte benötigen weiterhin die gegenseitige lokale Freigabe aus dem bestehenden QR-Pairing. Unbekannte oder widerrufene Peers erhalten keine Profildaten.
-- Zielplattformen bleiben API 26 und aktuelle Android-Versionen.
+- Der Transport verwendet einen normalen TCP-Socket im lokalen WLAN. Der Datenverkehr ist **nicht verschlüsselt** und kann von anderen Teilnehmern desselben Netzwerks mitgelesen werden.
+- Vor jeder späteren Nutzdatenübertragung müssen sich beide Geräte gegenseitig authentifizieren. Beide Seiten beweisen den Besitz ihres nicht exportierbaren Android-Keystore-Schlüssels mit ECDSA auf secp256r1.
+- Jede Verbindung verwendet zwei frische zufällige 32-Byte-Nonces. Die Signaturen binden Rolle und beide Nonces ein; aufgezeichnete Handshakes können nicht unverändert wiederverwendet werden.
+- Jede Seite prüft Peer-ID und Public Key gegen ihre eigene lokale Trusted-Peer-Liste. Eine einseitige Freigabe reicht nicht: Der Server bestätigt die Verbindung erst nach erfolgreicher Prüfung des Clients; der Client wartet auf diese Bestätigung.
+- Unbekannte, widerrufene oder nicht gegenseitig bestätigte Geräte erhalten keine Nutzdaten.
+- Handshake-Felder sind längenbegrenzt; der Socket-Handshake hat ein Zeitlimit.
+- Pairing/QR, Peer-ID, Fingerprint und bestehende Trusted-Peer-Speicherung bleiben unverändert.
 
-Damit authentifiziert der Client den Server über TLS-Zertifikat-Pinning; der Server authentifiziert den Client auf Anwendungsebene über eine frische Keystore-Signatur. Die TLS-Verschlüsselung bleibt Standard-JSSE/TLS; es wird kein eigener Verschlüsselungsalgorithmus eingeführt.
-
-Die neue Hilfsklasse `ClimatePeerTls` stellt TLS-Kontexte und den Challenge-Ablauf bereit. Sie ist noch nicht in einen produktiven Peer-Socket/Profiltransport eingebunden. Profilübertragung bleibt gesperrt, bis die API-26/API-35-Instrumentierung und anschließend der Zwei-Smartphone-Test erfolgreich sind.
+Implementiert ist zunächst die eigenständige Klasse ClimatePeerTcp mit Instrumentierungstests für erfolgreiche gegenseitige Authentifizierung und Ablehnung eines nicht vertrauten Peers. Sie ist noch nicht in den Discovery-Socket oder einen Profil-Datentransfer eingebunden. **Es werden derzeit noch keine Profile über TCP übertragen.**
 
 ## 6. Bewusste Begrenzung
 
@@ -73,10 +70,10 @@ Nicht Teil dieses Arbeitspakets sind:
 
 1. Pairing-Session-Controller für den beschriebenen Ablauf ergänzen und mit Tests für Ablauf, falsche Sitzung, Wiederverwendung und beidseitige lokale Freigabe absichern: **implementiert**; Controller- und Session-Tests sind in CI erfolgreich.
 2. QR-Anzeige/-Scan: **implementiert** mit ZXing Core für QR-Erzeugung und Google Code Scanner über Google Play Services für den Scan. CI-Unit-Test für QR-Payload-Roundtrip erfolgreich.
-3. Separaten TLS-Kompatibilitätstest für Android Keystore / API 26+ durchführen.
-4. Erst nach erfolgreichem Pairing und gegenseitigem TLS die Peer-Transport- und Profil-Sync-Implementierung beginnen.
+3. TCP-Handshake auf API 26 und 35 in CI prüfen und anschließend mit zwei realen Smartphones testen.
+4. Erst nach erfolgreichem gegenseitigem Pairing und TCP-Handshake den Discovery-Socket anbinden; Profilübertragung bleibt bis zum Praxistest gesperrt.
 
-**Freigabegrenze:** Bis Pairing und gegenseitiges TLS auf realen Geräten erfolgreich geprüft sind, werden über den Peer-Kanal keine Profilinhalte übertragen.
+**Freigabegrenze:** Bis Pairing und gegenseitige TCP-Authentifizierung auf zwei realen Geräten erfolgreich geprüft sind, werden über den Peer-Kanal keine Profilinhalte übertragen.
 
 
 ## 8. Implementierungsstand QR-Integration (17.11.2026)
@@ -107,3 +104,15 @@ Nicht Teil dieses Arbeitspakets sind:
 - API-26/API-35-CI muss den neuen Ansatz noch ausführen. Ein bestandener Unit-/Kompilierungslauf ist kein Nachweis des Android-Keystore-TLS-Verhaltens.
 - Noch kein produktiver Peer-Transport und keine Profilübertragung. Der Discovery-Socket bleibt weiterhin reject-only.
 - Kein Updater-, Manifest-, Berechtigungs-, ioBroker- oder WF-RAC-Eingriff.
+
+
+## 11. Wechsel auf TCP ohne Transportverschlüsselung (17.11.2026)
+
+- Entscheidung nach ausdrücklicher Nutzerfreigabe: TLS/mTLS vollständig verwerfen; lokaler TCP-Transport ohne Transportverschlüsselung.
+- ClimatePeerTls.kt und der TLS-Instrumentierungstest wurden entfernt. Die Keystore-Identität benötigt nur noch SHA-256 für Anwendungssignaturen; die TLS-spezifische Freigabe von DIGEST_NONE ist zurückgenommen.
+- Neue Klasse ClimatePeerTcp.kt implementiert beidseitige Challenge-Response-Authentifizierung mit zwei frischen 32-Byte-Nonces, Rollenbindung, ECDSA-Signaturen, lokalen Trusted-Peer-Prüfungen, begrenzten Feldern und Socket-Timeout.
+- Der Server sendet eine explizite Annahme/Ablehnung zurück. Der Client gilt erst nach positiver Bestätigung als authentifiziert.
+- Neuer API-26/API-35-Instrumentierungstest prüft gegenseitig vertraute Peers sowie die Ablehnung eines nicht vertrauten Clients.
+- Noch nicht umgesetzt: Anbindung des Handshakes an den Discovery-Server/Client und Profilübertragung. Bis zum Zwei-Smartphone-Test bleibt Nutzdatentransfer gesperrt.
+- Sicherheitsgrenze: TCP-Daten sind unverschlüsselt und im lokalen Netz mitlesbar. Authentifizierung verhindert nicht das passive Mitlesen durch andere WLAN-Teilnehmer.
+- main, Updater, WF-RAC-Steuerung und bestehender ioBroker-Sync bleiben unangetastet.
