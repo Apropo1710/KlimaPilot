@@ -194,3 +194,14 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Diese Änderungen sind reine Test-/CI-Diagnostik. Es wurden weder produktiver Netzwerktransport noch Profilübertragung implementiert.
 - **Claude-Review:** derzeit nicht verfügbar (Nutzerlimit; voraussichtlich wieder ab 23:00 Uhr). Der Review bleibt vor dem nächsten größeren Umsetzungsschritt vorgesehen; bis dahin wird nur die Fehlerdiagnose fortgesetzt.
 - PR #5 bleibt offen und Draft. `main`, Produktionsversion **0.4.64 / versionCode 94**, Updater, ioBroker-Sync und WF-RAC-Steuerpfad bleiben unverändert. Keine Produktions-APK erstellt oder veröffentlicht.
+
+
+## 13. TLS-CI-Diagnose – zweiter Emulatorlauf und robuste Artefaktsicherung (17.11.2026)
+
+- GitHub Actions [Pairing TLS Compatibility #10](https://github.com/Apropo1710/KlimaPilot/actions/runs/44134151909) für PR-Head `e6b61401753f0b473cb42bbb1d6d823f3f6056ec`: **completed / failure** auf API 26 und API 35. Der parallele WLAN-Branch-Validation-Lauf #142 war erfolgreich.
+- API 26: Der Emulator-/ADB-Schritt scheiterte bereits während der Vorbereitung mit wiederholten ADB-Exitcodes 1; der Gradle-Instrumentierungstest wurde nicht gestartet. Es liegt daher kein TLS-Handshake-Ergebnis für diesen Lauf vor.
+- API 35: App und Android-Testpaket wurden erfolgreich kompiliert und installiert. Gradle meldete anschließend `Starting 0 tests` und `Instrumentation run failed due to Process crashed`. Das ist ein Fehler beim Start bzw. Betrieb der Instrumentierung; ein TLS-Test wurde nicht nachweislich ausgeführt.
+- Trotz des bisherigen Logcat-Schritts wurden keine Diagnoseartefakte erzeugt. Im Job-Log endete der Emulator-Schritt vor der vorgesehenen Logcat-Sicherung; die separate Upload-Stufe fand deshalb keine Dateien.
+- Gezielte CI-Korrektur auf dem Feature-Branch, Commit `3d5179d554c8de30f5eb548825f22bd81c9d0eb8`: Logcat-Sicherung per EXIT-Trap im Emulator-Skript, explizites Warten auf das ADB-Gerät, zusätzliche Host-/ADB-/AVD-Diagnose in einem separaten `if: always()`-Schritt und gemeinsamer Upload von Diagnose- und Android-Testberichten mit sieben Tagen Aufbewahrung.
+- Die Änderung betrifft ausschließlich den TLS-Testworkflow. Keine Änderung an TLS-/Pairing-Produktivlogik, Updater, ioBroker-Sync, WF-RAC-Steuerweg oder `main`; keine Versionsanhebung und kein Produktionsbuild.
+- **Nächster Schritt:** Den automatisch durch den neuen Branch-Commit ausgelösten TLS-Lauf auswerten. Erst wenn die Instrumentierung tatsächlich startet und Logcat/Testberichte vorliegen, lässt sich ein möglicher TLS-Fehler beurteilen. PR #5 bleibt Draft und nicht zum Merge freigegeben.
