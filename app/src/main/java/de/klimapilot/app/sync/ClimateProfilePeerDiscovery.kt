@@ -5,6 +5,8 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
 import java.io.IOException
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.util.ArrayDeque
 import java.util.Locale
@@ -35,9 +37,9 @@ internal object ClimatePeerAnnouncement {
         ownInstanceNames: Set<String>,
         ownDiscoveryId: String,
     ): UnverifiedClimatePeer? {
-        if (instanceName.isBlank() || instanceName.length > 63) return null
+        if (!instanceName.matches(Regex("KlimaPilot-[a-f0-9]{8}"))) return null
         if (instanceName in ownInstanceNames) return null
-        if (hostAddress.isNullOrBlank() || hostAddress.length > 64) return null
+        if (!isAllowedLocalAddress(hostAddress)) return null
         if (port !in 1..65535) return null
         val version = attributes[TXT_PROTOCOL_VERSION]?.toString(Charsets.UTF_8) ?: return null
         if (version != PEER_PROTOCOL_MAJOR) return null
@@ -45,6 +47,24 @@ internal object ClimatePeerAnnouncement {
         if (!discoveryId.matches(Regex("[a-f0-9]{32}")) || discoveryId == ownDiscoveryId) return null
         if (attributes.keys != setOf(TXT_PROTOCOL_VERSION, TXT_DISCOVERY_ID)) return null
         return UnverifiedClimatePeer(instanceName, hostAddress, port, version.toInt(), discoveryId)
+    }
+
+    private fun isAllowedLocalAddress(value: String?): Boolean {
+        if (value.isNullOrBlank() || value.length > 64 || value.any { it.isWhitespace() }) return false
+        if (value.matches(Regex("[0-9.]+"))) {
+            val octets = value.split('.').mapNotNull { it.toIntOrNull() }
+            if (octets.size != 4 || octets.any { it !in 0..255 }) return false
+            val (a, b) = octets
+            return a == 10 || a == 192 && b == 168 || a == 172 && b in 16..31 || a == 169 && b == 254
+        }
+        if (!value.contains(':')) return false
+        val addressPart = value.substringBefore('%')
+        if (addressPart.isBlank() || value.count { it == '%' } > 1) return false
+        val address = runCatching { InetAddress.getByName(addressPart) }.getOrNull() as? Inet6Address ?: return false
+        val bytes = address.address
+        val uniqueLocal = (bytes[0].toInt() and 0xfe) == 0xfc
+        return !address.isAnyLocalAddress && !address.isLoopbackAddress && !address.isMulticastAddress &&
+            (address.isLinkLocalAddress || address.isSiteLocalAddress || uniqueLocal)
     }
 }
 
