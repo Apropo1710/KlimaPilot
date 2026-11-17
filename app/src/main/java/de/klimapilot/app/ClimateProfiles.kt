@@ -264,7 +264,9 @@ internal class ClimateProfileRepository(context: Context) {
                     ?: throw IllegalArgumentException("Synchronisierungsereignis enthält kein Profil.")
                 val name = item.optString("name").trim().takeIf { it.isNotBlank() }
                     ?: throw IllegalArgumentException("Synchronisiertes Profil hat keinen Namen.")
-                val mode = if (item.isNull("mode")) null else item.optString("mode")
+                val mode = if (item.isNull("mode")) null else item.optString("mode").also {
+                    require(it in SUPPORTED_MODES) { "Synchronisiertes Profil enthält einen unbekannten Betriebsmodus." }
+                }
                 val targetTemp = if (item.isNull("targetTemp")) null else item.optDouble("targetTemp")
                 val profile = ClimateProfile(
                     id = profileId,
