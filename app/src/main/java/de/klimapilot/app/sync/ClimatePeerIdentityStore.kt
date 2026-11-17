@@ -114,7 +114,7 @@ internal class ClimatePeerIdentityStore {
     }
 }
 
-private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+private fun ByteArray.toHex(): String = joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
 
 private fun ByteArray.toHexGrouped(): String =
     toHex().chunked(4).joinToString(":")
