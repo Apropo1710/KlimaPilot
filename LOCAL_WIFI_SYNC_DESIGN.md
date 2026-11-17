@@ -278,3 +278,12 @@ Der bestehende ioBroker-Weg bleibt erhalten und läuft parallel als zusätzliche
 - Wichtige Grenze: Die Klasse führt selbst kein Pairing aus. `trustPeer` darf erst nach erfolgreichem gegenseitigem QR-/Challenge-Handshake und expliziter Fingerprint-Bestätigung auf beiden Geräten aufgerufen werden. UI/Handshake existieren noch nicht.
 - SharedPreferences speichern öffentliche Schlüssel, keine privaten Schlüssel oder Geheimnisse. Der private Schlüssel verbleibt im Android Keystore.
 - Noch kein Netzwerktransport, keine automatische Synchronisierung, keine Änderung an Manifest, Berechtigungen, ioBroker-Protokoll, Updater, WF-RAC oder Produktionsversion.
+
+## 16. Umsetzungsschritt – Begrenzung der vertrauenswürdigen Peer-Liste (17.11.2026)
+
+- `ClimateTrustedPeerStore` begrenzt die Anzahl gespeicherter gekoppelter Geräte auf 20.
+- Ein bereits gekoppelter Peer kann mit demselben kryptografischen Schlüssel umbenannt/aktualisiert werden, ohne einen zusätzlichen Listenplatz zu belegen.
+- Persistierte Einträge werden beim Einlesen erneut geprüft; ungültige Schlüssel, inkonsistente Peer-IDs und ungültige Anzeigenamen werden nicht als vertrauenswürdige Peers zurückgegeben.
+- Robolectric-Test ergänzt: 20 Peers zulässig, 21. Peer abgelehnt, Ersetzen/Umbenennen eines vorhandenen Peers weiterhin möglich.
+- Das ist eine defensive Speichergrenze, kein Pairing-Protokoll. `trustPeer` bleibt ausschließlich für den späteren Aufruf nach gegenseitiger Authentifizierung und beidseitiger Nutzerbestätigung vorgesehen.
+- Kein Profiltransfer, kein Pairing-UI, keine Netzwerk-/Manifest-/Berechtigungs-/Updater-/WF-RAC-/ioBroker-Änderung. Produktionsbranch und Version bleiben unberührt.
