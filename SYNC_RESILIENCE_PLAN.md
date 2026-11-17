@@ -43,25 +43,9 @@ Nachteile und Grenzen:
 
 Direkte Smartphone-zu-Smartphone-Synchronisation ist daher eine mögliche Ergänzung, aber nicht automatisch die beste alleinige Lösung.
 
-### 3.2 Cloud-Synchronisation
+### 3.2 Cloud-Synchronisation – nicht Bestandteil der aktuellen Planung
 
-Ein unabhängiger Cloud-Dienst kann als alternativer Synchronisationsweg dienen.
-
-Mögliche Daten:
-- Klimaprofile
-- Aktuell ausgewähltes Profil
-- Individuelle Einstellungen
-- Benutzereinstellungen
-- Später gegebenenfalls weitere App-Einstellungen
-
-Beide Smartphones greifen auf denselben synchronisierten Datenbestand zu.
-
-Vorteil:
-- Synchronisation bleibt auch dann möglich, wenn der ioBroker-Server ausgeschaltet oder defekt ist.
-
-Nachteile:
-- Es wird ein Cloud-Anbieter oder ein eigener, unabhängig betriebener Server benötigt.
-- Datenschutz, Authentifizierung, Kosten, Verfügbarkeit und Betrieb müssen vor der Auswahl geklärt werden.
+Ein Cloud-Dienst, Relay oder zusätzlicher Vermittlungsserver wird ausdrücklich nicht eingesetzt. Es soll weder eine externe Anbieterbindung noch laufende Dienstkosten geben. Der bestehende ioBroker-Austauschweg bleibt erhalten; als zusätzlicher Fallback wird ausschließlich die direkte Verbindung zwischen Smartphones im selben lokalen WLAN verfolgt.
 
 ### 3.3 Lokale Speicherung und spätere Synchronisation (Offline-Synchronisation)
 
@@ -84,8 +68,8 @@ Die Synchronisation wird von der eigentlichen Klimasteuerung und von der lokalen
 **Synchronisationsschicht**
 - Einheitliche Schnittstelle zwischen App und Synchronisationsdiensten.
 - ioBroker bleibt zunächst als bestehender Synchronisationsanbieter erhalten.
-- Ein weiterer Anbieter, beispielsweise eine Cloud, kann später ergänzt werden.
-- Direkte Geräte-Synchronisation kann bei Bedarf als weiterer Weg hinzukommen.
+- Direkte Geräte-Synchronisation wird als zusätzlicher lokaler Austauschweg im selben WLAN ergänzt.
+- Ein Cloud-, Relay- oder Vermittlungsdienst ist nicht vorgesehen.
 
 **Lokaler Datenspeicher**
 - Änderungen werden zuerst lokal gespeichert.
@@ -153,8 +137,8 @@ und arbeitet auch ohne Synchronisationsverbindung weiter.
 
 ### Phase 5 – Alternative ergänzen
 - Cloud-Anbieter oder eigenen unabhängigen Dienst anhand Kosten, Datenschutz, Sicherheit und Verfügbarkeit bewerten.
-- Alternative als zusätzlichen Anbieter implementieren.
-- Direkte Smartphone-Synchronisation als optionale Ergänzung bewerten.
+- Direkte Smartphone-Synchronisation als zusätzlichen lokalen Weg im selben WLAN implementieren.
+- Keine Cloud- oder Relay-Alternative einführen.
 - Anbieterwechsel und Wiederherstellung ohne Datenverlust ermöglichen.
 
 ### Phase 6 – Ausfall- und Wiederherstellungstests
@@ -185,14 +169,14 @@ Das Vorhaben gilt erst dann als erfolgreich umgesetzt, wenn:
 
 Dieses Vorhaben ist ausdrücklich **zeitnah** einzuplanen und nicht nur eine unverbindliche Zukunftsidee. Es soll nach Abschluss beziehungsweise sinnvoller Absicherung der unmittelbar laufenden Arbeiten in einem gebündelten Entwicklungspaket begonnen werden.
 
-Die Umsetzung erfolgt schrittweise auf dem produktiven Branch `main`. Vor jeder Codeänderung werden der aktuelle GitHub-Stand und alle betroffenen Dateien geprüft. Bestehende funktionierende Synchronisations- und Steuerungsfunktionen bleiben erhalten. Jede Phase wird gebaut und gezielt getestet, bevor die nächste größere Änderung erfolgt.
+Die Umsetzung erfolgt schrittweise ausschließlich auf separaten Entwicklungsbranches, die frisch von `main` abzweigen. `main` bleibt der Produktionsbranch. Vor jeder Codeänderung werden der aktuelle GitHub-Stand und alle betroffenen Dateien geprüft. Bestehende funktionierende Synchronisations- und Steuerungsfunktionen bleiben erhalten. Jede Phase wird gebaut und gezielt getestet, bevor die nächste größere Änderung erfolgt.
 
 **Wichtig:** Eine Cloud oder direkte Geräteverbindung ist noch nicht ausgewählt oder implementiert. Festgelegt ist zunächst das Ziel: lokale Nutzbarkeit, dauerhafte Speicherung, zuverlässige Nachlieferung und Austauschbarkeit der Synchronisationsanbieter.
 
 
 ## 9. Umsetzungsstand – dauerhafte Profiländerungen (Arbeitsbranch)
 
-**Stand: 17.11.2026 – in Arbeit, noch nicht für Produktion freigegeben.**
+**Status: abgeschlossen und am 17.11.2026 über PR #3 in `main` gemergt.**
 
 Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Teil der Offline-Absicherung umgesetzt:
 
@@ -240,7 +224,7 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 - Die Replay-Tests simulieren die jeweiligen dauerhaft gespeicherten Zwischenzustände mit SharedPreferences und neuen Repository-Instanzen. Sie sind gezielte Wiederanlauf-/Idempotenztests, aber kein echter Betriebssystem-Prozessabsturztest.
 - Der PR-Workflow prüft Unit-Tests und Debug-Kompilierung. Release-Keystore, signierter Release-Build, APK-Signaturprüfung und Produktionsartefakt-Upload sind nicht Bestandteil dieses PR-Workflows.
 
-**Noch offen vor Freigabe:**
+**Historische Review-Punkte vor dem Merge (nicht als aktuelle offene Freigabeaufgaben verstehen):**
 - Unabhängiges Re-Review des aktuellen Heads `c8c08bf`, insbesondere Rekey-Versionsübernahme, JSON-Key-Iteration und Replay-/Clock-Tests.
 - Den PR-Branch kontrolliert mit dem aktuellen `main` abgleichen; der Branch ist gegenüber `main` divergent, die acht Rückstände betreffen nach dem zuletzt geprüften Compare Status-/Projektdokumentation.
 - Die Konfliktregeln für bereits geflushte lokale Änderungen (Last-Writer-Wins nach Logical Clock) und lokale Bearbeitung gegen Remote-Löschung sind bewusste Verhaltensentscheidungen und sollten vor Freigabe dokumentiert beziehungsweise bestätigt werden.
@@ -248,7 +232,7 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 - Die getrennten SharedPreferences-Commits sind nicht übergreifend crash-atomar. Die gemeinsame Prozesssperre verhindert konkurrierende Zugriffe innerhalb des Prozesses, ersetzt aber keine Transaktion über mehrere Speicherbereiche.
 - Hauptthread-Performance bleibt ein separater Beobachtungspunkt. Ungültige Remote-Ereignisse und der UI-nahe Auswahl-Speicherpfad werden jetzt gezielt regressionsgetestet.
 
-Der PR ist weiterhin nicht für Produktion freigegeben. Produktionsversion bleibt `0.4.63` / versionCode `93`. Es wurde kein Produktionsbuild oder Release erstellt.
+Diese Statusaussage beschreibt ausschließlich den Stand vor dem Merge am 17.11.2026 und ist überholt. PR #3 wurde gemergt; die aktuelle Produktionsversion ist 0.4.64 / versionCode 94. Die Release- und Build-Details stehen in `PROJECT_STATUS.md`.
 
 Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
 
@@ -288,3 +272,31 @@ Die Zielarchitektur wird ausdrücklich auf Kostenkontrolle, lokale Nutzbarkeit u
 ### Bewusste Einschränkung
 
 Ohne erreichbaren gemeinsamen Austauschpunkt gibt es keine sofortige Synchronisation zwischen räumlich getrennten Smartphones. KlimaPilot bleibt auf beiden Geräten lokal nutzbar. Sobald beide Smartphones wieder gleichzeitig im selben WLAN sind, soll der direkte lokale Weg die während der Trennung gespeicherten Änderungen automatisch nachträglich in beide Richtungen abgleichen. Sind die Geräte in unterschiedlichen WLANs oder nur über Mobilfunk erreichbar und ioBroker ist nicht verfügbar, bleiben Änderungen bis zum nächsten gemeinsamen Austauschweg lokal vorgemerkt.
+
+
+## 12. Start des lokalen WLAN-Synchronisationspakets (17.11.2026)
+
+**Entwicklungsbranch:** `feature/local-wifi-profile-sync`  
+**Basis:** aktueller Produktionsstand `main`, Commit `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`.  
+**Status:** Branch angelegt; Bestandsaufnahme begonnen. Noch keine App-Codeänderung und kein Build.
+
+### Verifizierte technische Ausgangslage
+
+- `ClimateProfileRepository` liegt in `app/src/main/java/de/klimapilot/app/ClimateProfiles.kt`. Profile werden lokal in SharedPreferences gehalten; Profiländerungen und Löschungen mit Synchronisationskennung werden zusammen mit einem dauerhaften Journal gespeichert.
+- `ClimateProfileSyncStore` verwaltet eine dauerhafte Outbox, Ereignis-IDs, Sequenzen, Logical Clocks, Bestätigungen, aktive Profilauswahl und individuelle Profile.
+- `ClimateProfileSyncClient` verwendet eine eigene ioBroker-WebSocket-Verbindung. Nach Authentifizierung und erfolgreicher Alive-Prüfung werden Outbox-Ereignisse übertragen und Remote-Ereignisse über die vorhandene Konflikt-/Versionslogik verarbeitet.
+- Repository und Store verwenden `ClimateProfileStorageLock.monitor` als gemeinsame prozessweite Sperre. Netzwerk-I/O bleibt außerhalb dieser Sperre.
+- Die Geräteprofile enthalten bereits eine gemeinsame `syncDeviceKey`; die Zuordnung muss für den direkten Austausch eindeutig und geräteübergreifend geprüft werden.
+- `AndroidManifest.xml` enthält derzeit `INTERNET`, `ACCESS_NETWORK_STATE` und `CHANGE_WIFI_MULTICAST_STATE`. Daraus folgt noch keine vorhandene Smartphone-Discovery oder sichere Peer-Authentifizierung.
+- `app/build.gradle.kts` verwendet minSdk 26, targetSdk 35 und Java 17. Zusätzliche Netzwerkbibliotheken sind derzeit nicht erforderlich eingebunden.
+- Der bestehende WF-RAC-mDNS-Dienst ist eine Klimaanlagen-/Modulsuche und darf nicht mit dem neuen Smartphone-Peer-Dienst verwechselt oder ungeprüft wiederverwendet werden.
+
+### Nächste Arbeitsschritte
+
+1. Datenmodell, Gerätezuordnung, Outbox-API, Remote-Validierung und vorhandene Synchronisationsaufrufe vollständig prüfen.
+2. Android-NSD/mDNS-Discovery für einen eigenen KlimaPilot-Peer-Dienst untersuchen; Dienstidentität, Lifecycle, WLAN-Wechsel, Multicast-Lock und Android-15/Target-35-Verhalten berücksichtigen.
+3. Ein Sicherheits- und Kopplungskonzept festlegen. Ein Gerät im selben WLAN gilt nicht automatisch als vertrauenswürdig. Unbekannte Peers dürfen keine Datenänderungen einspielen.
+4. Erst nach dokumentiertem Protokoll-/Sicherheitsdesign die minimale Peer-Verbindung implementieren und ausschließlich vorhandene Outbox-/Event-Verarbeitung wiederverwenden.
+5. Bidirektionalen Nachholabgleich, Duplikate, Konflikte, Löschungen, Abbrüche und Wiederverbindung mit automatisierten Tests sowie anschließend zwei realen Smartphones prüfen.
+
+**Schutzgrenzen:** Keine Änderungen am Updater, an der lokalen WF-RAC-Steuerung oder am bestehenden ioBroker-Protokoll ohne nachgewiesene Notwendigkeit. Keine Cloud, kein Relay und kein zusätzlicher Vermittlungsserver. `main` bleibt bis zu einem separat geprüften und freigegebenen PR unverändert.
