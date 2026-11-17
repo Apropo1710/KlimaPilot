@@ -140,16 +140,17 @@ internal fun ClimatePairingSettingsCard() {
         }
     }
 
+    val colors = MaterialTheme.colorScheme
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = PanelRaised)
+        colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant)
     ) {
         Column(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Geräte koppeln", color = TextMain, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            Text("Einmalige Kopplung mit Fingerprint-Prüfung. Es werden dabei noch keine Klimaprofile übertragen.", color = Muted, fontSize = 11.sp)
+            Text("Geräte koppeln", color = colors.onSurface, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Text("Einmalige Kopplung mit Fingerprint-Prüfung. Es werden dabei noch keine Klimaprofile übertragen.", color = colors.onSurfaceVariant, fontSize = 11.sp)
             OutlinedTextField(
                 value = displayName,
                 onValueChange = { displayName = it.take(48) },
