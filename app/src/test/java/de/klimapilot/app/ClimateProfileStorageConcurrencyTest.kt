@@ -123,6 +123,66 @@ class ClimateProfileStorageConcurrencyTest {
         assertEquals(1, store.pendingEvents().size)
     }
 
+    @Test
+    fun remoteEventReplayBeforeVersionMarkerIsIdempotent() {
+        val repository = ClimateProfileRepository(context)
+        val store = ClimateProfileSyncStore(context)
+        val upsert = org.json.JSONObject()
+            .put("eventId", "remote-install:1")
+            .put("type", "upsert")
+            .put("deviceKey", "wfrac:shared-device")
+            .put("profileId", "remote-profile")
+            .put("installationId", "remote-install")
+            .put("sequence", 1L)
+            .put("logicalClock", 1L)
+            .put("profile", org.json.JSONObject()
+                .put("name", "Remote")
+                .put("power", true)
+                .put("mode", "COOL")
+                .put("targetTemp", 23.0)
+                .put("fanSpeed", 2)
+                .put("verticalSwing", 1)
+                .put("updatedAt", 123L))
+
+        // Simulate process death after applying local data but before committing its version marker.
+        repository.applyRemoteEvent(upsert, "local-device")
+        assertTrue(store.isRemoteEventNewer(upsert))
+        repository.applyRemoteEvent(upsert, "local-device")
+        assertEquals(1, repository.load().count { it.id == "remote-profile" })
+        assertTrue(store.recordRemoteEvent(upsert))
+        assertTrue(!store.isRemoteEventNewer(upsert))
+
+        // A committed marker prevents an already completed event from being applied again.
+        if (store.isRemoteEventNewer(upsert)) repository.applyRemoteEvent(upsert, "local-device")
+        assertEquals(1, repository.load().count { it.id == "remote-profile" })
+    }
+
+    @Test
+    fun remoteDeleteReplayAndSelectionReplayAreIdempotent() {
+        val repository = ClimateProfileRepository(context)
+        val store = ClimateProfileSyncStore(context)
+        repository.save(profile("to-delete"))
+        val delete = org.json.JSONObject()
+            .put("eventId", "remote-install:2")
+            .put("type", "delete")
+            .put("deviceKey", "wfrac:shared-device")
+            .put("profileId", "to-delete")
+            .put("installationId", "remote-install")
+            .put("sequence", 2L)
+            .put("logicalClock", 2L)
+
+        repository.applyRemoteEvent(delete, "local-device")
+        repository.applyRemoteEvent(delete, "local-device")
+        assertTrue(repository.load().none { it.id == "to-delete" })
+        assertTrue(store.recordRemoteEvent(delete))
+        assertTrue(!store.isRemoteEventNewer(delete))
+
+        // Selection is an overwrite operation; replay must leave the same selected ID.
+        store.saveActiveProfileId("local-device", "remote-profile")
+        store.saveActiveProfileId("local-device", "remote-profile")
+        assertEquals("remote-profile", store.activeProfileId("local-device"))
+    }
+
     private fun profile(id: String) = ClimateProfile(
         id = id,
         deviceId = "device-1",
