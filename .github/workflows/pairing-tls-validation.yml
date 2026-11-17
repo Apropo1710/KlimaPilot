@@ -1,0 +1,91 @@
+name: KlimaPilot Pairing TLS Compatibility
+
+on:
+  pull_request:
+    branches:
+      - feature/local-wifi-profile-sync
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: klimapilot-pairing-tls-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  keystore-mutual-tls:
+    name: Android Keystore mTLS (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 35]
+    steps:
+      - name: Quellcode auschecken
+        uses: actions/checkout@v4
+
+      - name: Java 17 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK einrichten
+        uses: android-actions/setup-android@v4
+
+      - name: Android SDK Pakete installieren
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle 8.9 einrichten
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Android Emulator und Keystore-TLS-Test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: >-
+            mkdir -p build-logs; LOG_FILE="build-logs/logcat-api-${{ matrix.api-level }}.txt"; echo "=== API ${{ matrix.api-level }} guest diagnostics ===" > "$LOG_FILE"; date -u >> "$LOG_FILE" 2>&1; adb devices -l >> "$LOG_FILE" 2>&1; timeout 45s adb -s emulator-5554 wait-for-device && gradle --no-daemon connectedDebugAndroidTest; test_status=$?; echo "--- final adb devices ---" >> "$LOG_FILE"; adb devices -l >> "$LOG_FILE" 2>&1 || true; echo "--- emulator properties ---" >> "$LOG_FILE"; adb -s emulator-5554 shell getprop >> "$LOG_FILE" 2>&1 || true; echo "--- complete logcat ---" >> "$LOG_FILE"; adb -s emulator-5554 logcat -b all -d -v threadtime >> "$LOG_FILE" 2>&1 || true; exit "$test_status"
+
+      - name: Host- und Emulator-Diagnose sichern
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p build-logs
+          {
+            echo "=== Host diagnostics API ${{ matrix.api-level }} ==="
+            date -u
+            echo "--- adb devices ---"
+            adb devices -l || true
+            echo "--- emulator process ---"
+            pgrep -af 'emulator|qemu' || true
+            echo "--- AVD files ---"
+            for dir in "${ANDROID_AVD_HOME:-}" "$HOME/.android/avd"; do
+              if [ -n "$dir" ] && [ -d "$dir" ]; then
+                find "$dir" -maxdepth 4 -type f \( -name '*.log' -o -name 'emu*.ini' \) -print
+              fi
+            done
+          } > "build-logs/host-diagnostics-api-${{ matrix.api-level }}.txt" 2>&1
+          mkdir -p "build-logs/avd-api-${{ matrix.api-level }}"
+          for dir in "${ANDROID_AVD_HOME:-}" "$HOME/.android/avd"; do
+            if [ -n "$dir" ] && [ -d "$dir" ]; then
+              find "$dir" -maxdepth 4 -type f -name '*.log' -exec cp --parents {} "build-logs/avd-api-${{ matrix.api-level }}" \; 2>/dev/null || true
+            fi
+          done
+
+      - name: TLS-Testberichte und Diagnoseartefakte hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pairing-tls-diagnostics-api-${{ matrix.api-level }}
+          path: |
+            build-logs/
+            app/build/reports/androidTests/connected/
+            app/build/outputs/androidTest-results/connected/
+          if-no-files-found: warn
+          retention-days: 7
