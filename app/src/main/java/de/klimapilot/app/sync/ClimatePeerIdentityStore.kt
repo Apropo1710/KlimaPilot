@@ -9,6 +9,9 @@ import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
+import java.security.spec.ECParameterSpec
+import java.security.AlgorithmParameters
+import java.security.interfaces.ECPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.security.KeyFactory
 
@@ -100,6 +103,7 @@ internal class ClimatePeerIdentityStore {
                 require(encoded.isNotEmpty() && encoded.size <= MAX_PUBLIC_KEY_BYTES)
                 val publicKey = KeyFactory.getInstance("EC")
                     .generatePublic(X509EncodedKeySpec(encoded))
+                require(isSupportedPublicKey(publicKey))
                 Signature.getInstance(SIGNATURE_ALGORITHM).run {
                     initVerify(publicKey)
                     update(challenge)
@@ -107,6 +111,21 @@ internal class ClimatePeerIdentityStore {
                 }
             }.getOrDefault(false)
         }
+
+        internal fun isSupportedPublicKey(publicKey: java.security.PublicKey): Boolean = runCatching {
+            val ecKey = publicKey as? ECPublicKey ?: return false
+            val parameters = AlgorithmParameters.getInstance("EC").apply {
+                init(ECGenParameterSpec(EC_CURVE))
+            }.getParameterSpec(ECParameterSpec::class.java)
+            val actual = ecKey.params
+            actual.curve.field.fieldSize == parameters.curve.field.fieldSize &&
+                actual.curve.a == parameters.curve.a &&
+                actual.curve.b == parameters.curve.b &&
+                actual.generator.affineX == parameters.generator.affineX &&
+                actual.generator.affineY == parameters.generator.affineY &&
+                actual.order == parameters.order &&
+                actual.cofactor == parameters.cofactor
+        }.getOrDefault(false)
 
         private const val MAX_PUBLIC_KEY_BASE64_CHARS = 2048
         private const val MAX_PUBLIC_KEY_BYTES = 1024
