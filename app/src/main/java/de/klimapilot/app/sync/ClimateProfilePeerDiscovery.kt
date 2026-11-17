@@ -3,6 +3,10 @@ package de.klimapilot.app.sync
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.wifi.WifiManager
 import android.os.Handler
 import android.os.Looper
@@ -82,12 +86,15 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     private val appContext = context.applicationContext
     private val nsd = appContext.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val wifi = appContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    private val connectivity = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     @Volatile private var generation = 0L
     @Volatile private var active = false
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var multicastLock: WifiManager.MulticastLock? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var activeWifiNetwork: Network? = null
     private var serverSocket: ServerSocket? = null
     private var acceptThread: Thread? = null
     private var ownServiceName: String? = null
@@ -129,6 +136,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
             val socket = ServerSocket(0).apply { soTimeout = 1000 }
             serverSocket = socket
             startRejectOnlyAcceptLoop(socket, run)
+            registerWifiNetworkCallback(run)
 
             val service = NsdServiceInfo().apply {
                 serviceName = ownServiceName
@@ -197,6 +205,39 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         }
     }
 
+    private fun registerWifiNetworkCallback(run: Long) {
+        val current = connectivity.activeNetwork
+        activeWifiNetwork = current?.takeIf {
+            connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                synchronized(this@ClimateProfilePeerDiscovery) {
+                    if (!isCurrent(run)) return
+                    val previous = activeWifiNetwork
+                    if (previous == null) {
+                        activeWifiNetwork = network
+                    } else if (previous != network) {
+                        fail(run, "Das WLAN-Netzwerk hat gewechselt. Bitte die Suche erneut starten.")
+                    }
+                }
+            }
+
+            override fun onLost(network: Network) {
+                synchronized(this@ClimateProfilePeerDiscovery) {
+                    if (isCurrent(run) && network == activeWifiNetwork) {
+                        fail(run, "Die WLAN-Verbindung wurde unterbrochen. Bitte nach Wiederherstellung erneut suchen.")
+                    }
+                }
+            }
+        }
+        networkCallback = callback
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .build()
+        connectivity.registerNetworkCallback(request, callback, mainHandler)
+    }
+
     @Synchronized
     private fun resolveNext(run: Long) {
         if (!isCurrent(run) || resolving || pending.isEmpty()) return
@@ -217,6 +258,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                     synchronized(this@ClimateProfilePeerDiscovery) {
                         if (!isCurrent(run)) return
                         resolving = false
+                        resolveRetries.remove(serviceInfo.serviceName)
                         val peer = ClimatePeerAnnouncement.parse(
                             instanceName = serviceInfo.serviceName,
                             hostAddress = serviceInfo.host?.hostAddress,
@@ -296,6 +338,10 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
 
     private fun cleanupLocked() {
         active = false
+        val callback = networkCallback
+        networkCallback = null
+        if (callback != null) runCatching { connectivity.unregisterNetworkCallback(callback) }
+        activeWifiNetwork = null
         val discovery = discoveryListener
         discoveryListener = null
         if (discovery != null) runCatching { nsd.stopServiceDiscovery(discovery) }
