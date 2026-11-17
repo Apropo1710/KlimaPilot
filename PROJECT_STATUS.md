@@ -1,6 +1,6 @@
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
-**Zuletzt abgeglichen:** 17.11.2026, 02:56 Uhr MEZ  
+**Zuletzt abgeglichen:** 17.11.2026, ca. 21:00 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`  
 **Produktionsversion:** **0.4.63 / versionCode 93**
@@ -19,8 +19,9 @@
 
 ## Offener Synchronisations-PR
 
-- [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – ist offen und Draft; Head `ad84fe8d3cc7`. Die jüngste GitHub-Abfrage lieferte für die Mergeability `unknown` (eine frühere Abfrage meldete `clean`); daher derzeit keine abschließende Konfliktbewertung.
-- Die PR-Validierung #15 / Run `43964905903` war **completed / success**. Der PR-Stand ist noch nicht gemergt und nicht Teil des Releases 0.4.63.
+- [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – ist offen und Draft. Der Branch `fix/durable-profile-change-journal` wurde mit dem aktuellen `main`-Stand `7dcab2477619` abgeglichen; die sechs zuvor fehlenden Commits betrafen ausschließlich Status-/Projektdokumentation.
+- Claude hat den Code-Stand `ac80a09` am 17.11.2026 statisch erneut geprüft und aus Code-Sicht als mergefähig bewertet. Der aktuelle PR-Head `d812f87732a8aa40b9db7caf23dbb63d87f73c14` wurde zusätzlich durch den vorhandenen Workflow `KlimaPilot WLAN Branch Validation`, Lauf #47, erfolgreich mit Unit-Tests und Debug-Kompilierung geprüft. Der PR ist weiterhin offen und Draft, nicht gemergt und nicht Teil des Releases 0.4.63. Der PR-Workflow erstellt keine signierte Release-APK und veröffentlicht nichts.
+
 
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus

@@ -37,6 +37,7 @@ internal fun DeviceSettingsDialog(
     val scope = rememberCoroutineScope()
     val repository = remember(context) { WfRacControlRepository(context) }
     val syncStore = remember(context) { ClimateProfileSyncStore(context) }
+    val profileRepository = remember(context) { ClimateProfileRepository(context) }
     val discovery = remember(context) { WfRacDiscovery(context) }
     var syncKeyError by remember(device.id) { mutableStateOf("") }
     var scanning by remember { mutableStateOf(false) }
@@ -187,7 +188,14 @@ internal fun DeviceSettingsDialog(
                             syncKeyError = "Die bisherige Gerätekennung ist mehreren Geräten zugeordnet. Bitte erst die doppelte Zuordnung beheben; die Synchronisierung wird nicht umgestellt."
                             return@TextButton
                         }
-                        val migrated = runCatching { syncStore.rekeyPendingEvents(oldKey, newKey) }
+                        val migrated = runCatching {
+                            // Move durable repository-journal entries into the outbox first,
+                            // so the existing outbox migration also covers not-yet-flushed edits.
+                            synchronized(ClimateProfileStorageLock.monitor) {
+                                profileRepository.flushPendingSyncJournal(syncStore)
+                                syncStore.rekeyPendingEvents(oldKey, newKey)
+                            }
+                        }
                         if (migrated.isFailure || migrated.getOrDefault(false).not()) {
                             syncKeyError = migrated.exceptionOrNull()?.message
                                 ?: "Noch ausstehende Profiländerungen konnten nicht sicher auf die neue Gerätekennung umgestellt werden."

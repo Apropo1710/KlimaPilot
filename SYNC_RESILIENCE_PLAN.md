@@ -189,7 +189,82 @@ Die Umsetzung erfolgt schrittweise auf dem produktiven Branch `main`. Vor jeder 
 
 **Wichtig:** Eine Cloud oder direkte Geräteverbindung ist noch nicht ausgewählt oder implementiert. Festgelegt ist zunächst das Ziel: lokale Nutzbarkeit, dauerhafte Speicherung, zuverlässige Nachlieferung und Austauschbarkeit der Synchronisationsanbieter.
 
-## 9. Verbindliche Entscheidung: Synchronisation ohne Cloud- und Dienstbindung (17.11.2026)
+
+## 9. Umsetzungsstand – dauerhafte Profiländerungen (Arbeitsbranch)
+
+**Stand: 17.11.2026 – in Arbeit, noch nicht für Produktion freigegeben.**
+
+Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Teil der Offline-Absicherung umgesetzt:
+
+- Profil-Upserts und Profil-Löschungen werden im selben synchronen SharedPreferences-Commit wie der lokale Profilbestand in ein dauerhaftes Journal geschrieben.
+- Jedes Journal-Ereignis erhält bereits beim lokalen Commit eine stabile UUID-basierte Ereignis-ID.
+- Die Übernahme in die vorhandene Outbox ist idempotent. Eine dauerhaft gespeicherte Import-ID verhindert auch dann eine erneute Einreihung, wenn die Outbox das Ereignis zwischenzeitlich bereits übertragen und bestätigt hat.
+- Journal-Einträge werden erst nach erfolgreicher Übernahme in die Outbox entfernt. Scheitert die Bereinigung, kann der nächste Lauf denselben Eintrag erneut sicher übernehmen.
+- Die Profil-UI verwendet für Änderungen und Löschungen mit gemeinsamer Gerätekennung diesen atomaren Speicherweg. Ohne Gerätekennung bleibt das bisherige rein lokale Speichern erhalten.
+- Das Journal wird beim nächsten Profil-Synchronisationslauf vor dem Upload in die Outbox überführt.
+- Vor einer Änderung der automatisch erzeugten WF-RAC-Gerätekennung werden noch offene Journal-Einträge zunächst vollständig in die Outbox übernommen. Erst danach werden die ausstehenden Ereignisse gemeinsam auf die neue Kennung umgestellt; bei unvollständiger Übernahme wird die Kennungsänderung abgebrochen.
+- Aktive Profilauswahl und individuelle Einstellungen werden bei aktivierter Synchronisierung nun jeweils zusammen mit ihrem Outbox-Ereignis in einem einzigen synchronen SharedPreferences-Commit gespeichert. Ohne gemeinsame Gerätekennung bleibt der lokale Speicherweg erhalten.
+
+**Remote-Wiederanlauf:** Bei eingehenden Remote-Ereignissen werden lokale Nutzdaten zunächst gespeichert und der zugehörige Versionsmarker anschließend in einem separaten Commit festgehalten. Ein Absturz dazwischen kann zur erneuten Verarbeitung führen. Die derzeitigen Operationen (Profil-Upsert/Löschung, Auswahl setzen/zurücksetzen und Snapshot überschreiben) sind auf denselben Zielzustand ausgelegt und damit wiederholbar; eine gemeinsame Transaktion über beide Speicherbereiche besteht jedoch nicht. Dieser Wiederanlaufpfad bleibt vor Freigabe gezielt zu prüfen.
+
+**Importmarker-Bereinigung:** Die dauerhaften Journal-Import-IDs werden jetzt entfernt, sobald der Repository-Journal-Commit die entsprechenden Einträge erfolgreich gelöscht hat. Die Reihenfolge ist bewusst: erst Outbox + Importmarker committen, dann Repository-Journal bereinigen, danach Importmarker bereinigen. Ein Absturz vor der Journal-Bereinigung lässt den Marker bestehen und verhindert eine doppelte Einreihung; ein Absturz nach der Journal-Bereinigung kann höchstens einen verwaisten Marker hinterlassen, der beim nächsten Lauf entfernt wird. Damit wächst die Liste im Normalbetrieb nicht mehr dauerhaft mit allen jemals synchronisierten Profiländerungen.
+
+**Gemeinsame Prozesssperre – umgesetzt auf dem Arbeitsbranch:**
+- Repository- und Store-Zugriffe verwenden jetzt dasselbe prozessweite, reentrante Monitor-Objekt statt instanzlokaler `@Synchronized`-Sperren. Damit werden auch getrennt erzeugte Repository-/Store-Instanzen serialisiert.
+- Journal-Flush und Outbox-Übernahme laufen unter derselben Sperre. Die Gerätekennungs-Migration umfasst Journal-Flush und anschließendes Outbox-Rekey in einer gemeinsamen kritischen Sektion.
+- Die Prüfung eines Remote-Ereignisses, seine lokale Anwendung einschließlich einer gegebenenfalls nötigen Auswahlbereinigung sowie das Speichern des Versionsmarkers sind gemeinsam geschützt.
+- Netzwerk-I/O bleibt außerhalb der Sperre. Eine während des Uploads umgeschlüsselte Outbox-Änderung wird bei der Bestätigung nicht versehentlich entfernt: Bestätigt wird nur noch exakt die hochgeladene Ereignisrevision (Event-ID, Gerätekennung, Installation und Sequenz). Eine zwischenzeitlich umgeschlüsselte Revision bleibt zur erneuten Übertragung erhalten.
+
+**Automatisierte Tests – ergänzt; CI-Lauf #31 für den damaligen Head `8650e6e` erfolgreich:**
+- Robolectric-Testbasis für echte Android-SharedPreferences.
+- Parallelzugriffe über mehrere Repository-Instanzen: Profile und Journal-Ereignisse dürfen nicht verloren gehen.
+- Parallelzugriffe über mehrere Store-Instanzen: alle Outbox-Ereignisse und eindeutige Sequenzen bleiben erhalten.
+- Journal-Flush parallel zu Profiländerungen.
+- Outbox-Rekey während eines laufenden Uploads mit anschließender Bestätigung der alten Revision.
+- Wiederholter Journal-Flush muss idempotent bleiben.
+- Zusätzlich einfacher Test der Reentranz und gegenseitigen Ausschließung des gemeinsamen Monitors.
+
+**Review und Nachbesserung – 17.11.2026:**
+- Das unabhängige Claude-Review fand einen Konflikt zwischen ungeflushter lokaler Journaländerung und eingehendem Remote-Ereignis. Vor jeder Remote-Versionsprüfung wird das lokale Journal jetzt innerhalb derselben gemeinsamen Sperre geflusht.
+- Die aktive Profilauswahl wird auch bei `requestSync = false` als Outbox-Ereignis vorgemerkt; das Flag steuert nur die Erhöhung von `syncRevision`.
+- Ein fehlgeschlagener Journal-Flush bricht ab, ohne das Repository-Journal zu leeren.
+- Beim Rekey werden offene Ereignisse, der Initialisierungsmarker und jetzt auch sämtliche bekannten Profilversionen vom alten auf den neuen Geräteschlüssel übertragen. Bei bereits vorhandener Zielversion bleibt jeweils die neuere Version erhalten. Damit bleiben auch bestätigte Ereignisse berücksichtigt, die nicht mehr in der Outbox liegen.
+- Der Versionsübernahme-Fix ist durch einen gezielten Regressionstest für einen bestätigten alten Versionsstand (Clock 45) gegenüber einer vorhandenen Zielversion (Clock 40) abgedeckt.
+- Die Übernahme der Versionsschlüssel sammelt zunächst alle zu migrierenden Schlüssel in einer separaten Liste, bevor neue JSON-Properties geschrieben werden. Damit wird eine Änderung des `JSONObject.keys()`-Iterators während der Iteration vermieden (Head `c8c08bf`).
+
+**Automatisierte Tests und CI:**
+- GitHub-Actions-Lauf #35 für Head `eb7ce131`: erfolgreich (Unit-Tests und Debug-Kompilierung).
+- GitHub-Actions-Lauf #37 für Head `0caed4c`: erfolgreich (Unit-Tests und Debug-Kompilierung einschließlich Rekey-Versionsübernahme).
+- GitHub-Actions-Lauf #38 für Head `0bdd4a5`: erfolgreich (Unit-Tests und Debug-Kompilierung; einschließlich Journal-Recovery- und Remote-Clock-Regressionstests).
+- GitHub-Actions-Lauf #40 für den aktuellen Head `c8c08bf`: erfolgreich (Unit-Tests und Debug-Kompilierung einschließlich der Absicherung der JSON-Key-Iteration).
+- Die Replay-Tests simulieren die jeweiligen dauerhaft gespeicherten Zwischenzustände mit SharedPreferences und neuen Repository-Instanzen. Sie sind gezielte Wiederanlauf-/Idempotenztests, aber kein echter Betriebssystem-Prozessabsturztest.
+- Der PR-Workflow prüft Unit-Tests und Debug-Kompilierung. Release-Keystore, signierter Release-Build, APK-Signaturprüfung und Produktionsartefakt-Upload sind nicht Bestandteil dieses PR-Workflows.
+
+**Noch offen vor Freigabe:**
+- Unabhängiges Re-Review des aktuellen Heads `c8c08bf`, insbesondere Rekey-Versionsübernahme, JSON-Key-Iteration und Replay-/Clock-Tests.
+- Den PR-Branch kontrolliert mit dem aktuellen `main` abgleichen; der Branch ist gegenüber `main` divergent, die acht Rückstände betreffen nach dem zuletzt geprüften Compare Status-/Projektdokumentation.
+- Die Konfliktregeln für bereits geflushte lokale Änderungen (Last-Writer-Wins nach Logical Clock) und lokale Bearbeitung gegen Remote-Löschung sind bewusste Verhaltensentscheidungen und sollten vor Freigabe dokumentiert beziehungsweise bestätigt werden.
+- Ein gezielter Commit-Fehler im Outbox-Flush wird jetzt per injizierbarem Commit-Ergebnis getestet; ein echter OS-Prozessabsturz bleibt davon getrennt.
+- Die getrennten SharedPreferences-Commits sind nicht übergreifend crash-atomar. Die gemeinsame Prozesssperre verhindert konkurrierende Zugriffe innerhalb des Prozesses, ersetzt aber keine Transaktion über mehrere Speicherbereiche.
+- Hauptthread-Performance bleibt ein separater Beobachtungspunkt. Ungültige Remote-Ereignisse und der UI-nahe Auswahl-Speicherpfad werden jetzt gezielt regressionsgetestet.
+
+Der PR ist weiterhin nicht für Produktion freigegeben. Produktionsversion bleibt `0.4.63` / versionCode `93`. Es wurde kein Produktionsbuild oder Release erstellt.
+
+Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
+
+
+## 10. Review-Nacharbeit – Fehlerisolation und bekannte Grenzen (17.11.2026)
+
+- Ungültige Remote-Ereignisse werden einzeln abgelehnt. Die Verarbeitung fährt mit späteren Ereignissen fort; Anzahl und erster Validierungsgrund erscheinen im Synchronisierungsstatus. Nur `IllegalArgumentException` aus der Ereignisvalidierung wird isoliert. Speicher-/Persistenzfehler (insbesondere `IllegalStateException`) brechen den Lauf weiterhin ab.
+- Ein abgelehntes Remote-Ereignis wird nicht auf dem ioBroker verändert oder gelöscht. Es kann daher bei späteren Synchronisierungsläufen erneut als ungültig gemeldet werden; gültige Ereignisse dahinter werden trotzdem verarbeitet.
+- **Rekey-Grenze (M2):** Beim Wechsel der Gerätekennung werden bestätigte Profilversionen mit übertragen, damit ein bereits bestätigter Stand nicht durch die Initialisierungsmarkierung unsichtbar wird. Hat das Zielgerät bereits eine neuere Version, bleibt diese maßgeblich. Ein bereits bestätigter Quellstand wird nicht künstlich erneut hochgeladen: ein Upload mit neuer Clock könnte einen tatsächlich neueren Zielstand überschreiben. Deshalb kann ein anderer Teilnehmer einen älteren Stand behalten, bis eine spätere echte Profiländerung erfolgt.
+- **Konfliktregel (N2):** Bei unterschiedlichen Logical Clocks gewinnt die höhere Clock. Ungeflushte lokale Journaländerungen werden vor der Remote-Versionsprüfung in die Outbox übernommen und erhalten dadurch eine Clock oberhalb der zuvor beobachteten Remote-Clock. Eine bereits geflushte lokale Änderung kann dagegen von einem späteren Remote-Ereignis mit höherer Clock überholt werden. Eine lokale Bearbeitung gegen eine Remote-Löschung gewinnt nur dann, wenn ihre lokale Version nach dieser Regel neuer ist; andernfalls gilt die Remote-Löschung.
+- **Rekey-Key-Iteration:** Der Code erstellt vor dem Schreiben eine Momentaufnahme der zu migrierenden JSON-Schlüssel. Der vorhandene Versionsvergleichstest prüft die Zusammenführung alter/neuer Versionen, nicht isoliert die Iterator-Invalidierung; die frühere Aussage, CI-Lauf #40 sichere genau diesen Iteratorfehler regressionsseitig ab, war zu weitgehend.
+- **Wiederherstellungstests:** Commit-Fehler im Outbox-Flush, Replay nach Upload-Bestätigung, Rekey ohne Zielversion und der aus der UI verwendete Auswahl-Speicherpfad werden separat geprüft. Robolectric bleibt eine Simulation mit SharedPreferences und ersetzt keine echten Prozess-Kill- oder Zwei-Smartphone-Tests.
+- **Rekey ohne initialisierten Quellschlüssel:** War der alte Geräteschlüssel noch nicht als initialisiert markiert, wird dieser Marker beim Rekey nicht übertragen. Der neue Schlüssel kann deshalb beim nächsten Initialisierungslauf einen vollständigen Initial-Upload auslösen. Dabei besteht das dokumentierte Risiko, dass lokal vorhandene ältere Profile neuere Remote-Stände überschreiben können; dieser Sonderfall ist vor einer späteren Erweiterung der Rekey-Logik gezielt zu bewerten.
+- **Remote-Clock abgelehnter Ereignisse:** `syncNow` beobachtet derzeit die höchste Clock aller eingelesenen Remote-Ereignisse, bevor die Einzelvalidierung und Anwendung beginnt. Dadurch kann auch ein später abgelehntes Ereignis die lokale Logical Clock erhöhen. Ein sehr hoher, aber syntaktisch lesbarer Clock-Wert kann den lokalen Zähler entsprechend weit anheben; die Ereignisvalidierung begrenzt diesen Wert derzeit nicht.
+
+## 11. Verbindliche Entscheidung: Synchronisation ohne Cloud- und Dienstbindung (17.11.2026)
 
 Die Zielarchitektur wird ausdrücklich auf Kostenkontrolle, lokale Nutzbarkeit und Unabhängigkeit von externen Anbietern ausgerichtet.
 

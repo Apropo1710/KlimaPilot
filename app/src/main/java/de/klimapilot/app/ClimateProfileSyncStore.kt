@@ -7,83 +7,133 @@ import java.util.UUID
 import kotlin.math.roundToInt
 
 /** Durable local outbox. Events are retained until an explicit upload acknowledgement. */
-internal class ClimateProfileSyncStore(context: Context) {
+internal class ClimateProfileSyncStore(
+    context: Context,
+    private val stateCommit: ((String) -> Boolean)? = null
+) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    @Synchronized
+    
     fun installationId(): String {
+        synchronized(ClimateProfileStorageLock.monitor) {
         val root = readRoot()
         root.optString(KEY_INSTALLATION_ID).takeIf { it.isNotBlank() }?.let { return it }
         val created = UUID.randomUUID().toString()
         root.put(KEY_INSTALLATION_ID, created)
         check(prefs.edit().putString(KEY_STATE, root.toString()).commit()) { "Installationskennung konnte nicht gespeichert werden." }
         return created
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun enqueueUpsert(profile: ClimateProfile, deviceKey: String): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
         return appendEvent("upsert", profile.id, deviceKey, profile.toSyncJson())
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun enqueueDelete(profileId: String, deviceKey: String): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(profileId.isNotBlank())
         require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
         return appendEvent("delete", profileId, deviceKey, null)
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun activeProfileId(deviceId: String): String? {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(deviceId.isNotBlank())
         return readRoot().optJSONObject(KEY_ACTIVE_PROFILES)?.optString(deviceId)?.takeIf { it.isNotBlank() }
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun saveActiveProfileId(deviceId: String, profileId: String?): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(deviceId.isNotBlank())
         val root = readRoot()
         val active = root.optJSONObject(KEY_ACTIVE_PROFILES) ?: JSONObject()
         active.put(deviceId, profileId ?: "")
         root.put(KEY_ACTIVE_PROFILES, active)
         return prefs.edit().putString(KEY_STATE, root.toString()).commit()
-    }
+    
+        }}
 
-    @Synchronized
+    
+    fun saveActiveProfileIdWithSync(deviceId: String, profileId: String?, deviceKey: String): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
+        require(deviceId.isNotBlank() && deviceKey.isNotBlank())
+        val root = readRoot()
+        val active = root.optJSONObject(KEY_ACTIVE_PROFILES) ?: JSONObject()
+        active.put(deviceId, profileId ?: "")
+        root.put(KEY_ACTIVE_PROFILES, active)
+        val payload = JSONObject().put("activeProfileId", profileId ?: JSONObject.NULL)
+        appendEventToRoot(root, "selection", ACTIVE_SELECTION_EVENT_ID, deviceKey, payload)
+        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+    
+        }}
+
+    
     fun enqueueActiveProfileSelection(profileId: String?, deviceKey: String): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
         val payload = JSONObject().put("activeProfileId", profileId ?: JSONObject.NULL)
         return appendEvent("selection", ACTIVE_SELECTION_EVENT_ID, deviceKey, payload)
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun individualProfile(deviceId: String): ClimateProfile? {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(deviceId.isNotBlank())
         val item = readRoot().optJSONObject(KEY_INDIVIDUAL_PROFILES)?.optJSONObject(deviceId) ?: return null
         return profileFromJson(deviceId, item)
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun saveIndividualProfile(deviceId: String, profile: ClimateProfile): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(deviceId.isNotBlank() && profile.deviceId == deviceId)
         val root = readRoot()
         val snapshots = root.optJSONObject(KEY_INDIVIDUAL_PROFILES) ?: JSONObject()
         snapshots.put(deviceId, profile.toSyncJson())
         root.put(KEY_INDIVIDUAL_PROFILES, snapshots)
         return prefs.edit().putString(KEY_STATE, root.toString()).commit()
-    }
+    
+        }}
 
-    @Synchronized
+    
+    fun saveIndividualProfileWithSync(deviceId: String, profile: ClimateProfile, deviceKey: String): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
+        require(deviceId.isNotBlank() && profile.deviceId == deviceId && deviceKey.isNotBlank())
+        val root = readRoot()
+        val snapshots = root.optJSONObject(KEY_INDIVIDUAL_PROFILES) ?: JSONObject()
+        snapshots.put(deviceId, profile.toSyncJson())
+        root.put(KEY_INDIVIDUAL_PROFILES, snapshots)
+        appendEventToRoot(root, "individual", INDIVIDUAL_PROFILE_EVENT_ID, deviceKey, profile.toSyncJson())
+        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+    
+        }}
+
+    
     fun enqueueIndividualProfile(profile: ClimateProfile, deviceKey: String): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
         return appendEvent("individual", INDIVIDUAL_PROFILE_EVENT_ID, deviceKey, profile.toSyncJson())
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun applyRemoteIndividualProfile(deviceId: String, payload: JSONObject): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         val profile = profileFromJson(deviceId, payload)
         return saveIndividualProfile(deviceId, profile)
-    }
+    
+        }}
 
     private fun profileFromJson(deviceId: String, item: JSONObject): ClimateProfile {
         val mode = if (item.isNull("mode")) null else item.optString("mode").also {
@@ -113,8 +163,9 @@ internal class ClimateProfileSyncStore(context: Context) {
         )
     }
 
-    @Synchronized
+    
     fun enqueueInitialProfiles(profiles: List<ClimateProfile>, deviceKey: String): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         if (deviceKey.isBlank()) return false
         val root = readRoot()
         if (root.optJSONArray(KEY_INITIALIZED)?.let { array -> (0 until array.length()).any { array.optString(it) == deviceKey } } == true) return true
@@ -144,19 +195,43 @@ internal class ClimateProfileSyncStore(context: Context) {
             .put(KEY_INITIALIZED, initialized).put(KEY_PROFILE_VERSIONS, versions)
         check(prefs.edit().putString(KEY_STATE, root.toString()).commit()) { "Initialprofile konnten nicht zur Synchronisierung vorgemerkt werden." }
         return true
-    }
+    
+        }}
 
     /**
      * Reassigns still-pending local events when an automatically generated WF-RAC key changes.
      * Already acknowledged events stay associated with their original physical module.
      */
-    @Synchronized
+    
     fun rekeyPendingEvents(oldDeviceKey: String, newDeviceKey: String): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(oldDeviceKey.isNotBlank() && newDeviceKey.isNotBlank() && oldDeviceKey != newDeviceKey)
         val root = readRoot()
         val current = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
         val updated = JSONArray()
         val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
+
+        // Carry forward every known profile version, including already acknowledged events
+        // that no longer exist in the outbox. Otherwise the migrated initialization marker
+        // could suppress the initial upload while the new key has no comparable version.
+        val oldVersionPrefix = "$oldDeviceKey|"
+        // Snapshot keys before adding target entries; mutating JSONObject while iterating
+        // its live key iterator can invalidate the iterator.
+        val oldVersionKeys = mutableListOf<String>()
+        val versionKeys = versions.keys()
+        while (versionKeys.hasNext()) oldVersionKeys.add(versionKeys.next())
+        for (oldVersionKey in oldVersionKeys) {
+            if (!oldVersionKey.startsWith(oldVersionPrefix)) continue
+            val profileId = oldVersionKey.removePrefix(oldVersionPrefix)
+            if (profileId.isBlank()) continue
+            val oldVersion = versions.optJSONObject(oldVersionKey) ?: continue
+            val newVersionKey = versionKey(newDeviceKey, profileId)
+            val newVersion = versions.optJSONObject(newVersionKey)
+            if (newVersion == null || compareVersion(oldVersion, newVersion) > 0) {
+                versions.put(newVersionKey, JSONObject(oldVersion.toString()))
+            }
+        }
+
         for (index in 0 until current.length()) {
             val event = current.optJSONObject(index) ?: continue
             if (event.optString("deviceKey") == oldDeviceKey) {
@@ -172,39 +247,64 @@ internal class ClimateProfileSyncStore(context: Context) {
             }
             updated.put(event)
         }
+        val initialized = root.optJSONArray(KEY_INITIALIZED) ?: JSONArray()
+        val wasInitialized = (0 until initialized.length()).any { initialized.optString(it) == oldDeviceKey }
+        if (wasInitialized) {
+            val nextInitialized = JSONArray()
+            for (index in 0 until initialized.length()) {
+                val key = initialized.optString(index)
+                if (key != oldDeviceKey && key != newDeviceKey) nextInitialized.put(key)
+            }
+            nextInitialized.put(newDeviceKey)
+            root.put(KEY_INITIALIZED, nextInitialized)
+        }
         root.put(KEY_OUTBOX, updated).put(KEY_PROFILE_VERSIONS, versions)
         return prefs.edit().putString(KEY_STATE, root.toString()).commit()
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun pendingEvents(): List<JSONObject> {
+        synchronized(ClimateProfileStorageLock.monitor) {
         val outbox = readRoot().optJSONArray(KEY_OUTBOX) ?: return emptyList()
         return (0 until outbox.length()).mapNotNull { outbox.optJSONObject(it)?.let { event -> JSONObject(event.toString()) } }
-    }
+    
+        }}
 
-    @Synchronized
-    fun acknowledgeUploaded(eventIds: Set<String>): Boolean {
-        if (eventIds.isEmpty()) return true
-        val root = readRoot()
-        val current = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
-        val remaining = JSONArray()
-        for (index in 0 until current.length()) {
-            val event = current.optJSONObject(index) ?: continue
-            if (event.optString("eventId") !in eventIds) remaining.put(event)
+    
+    fun acknowledgeUploaded(uploadedEvents: List<JSONObject>): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
+            if (uploadedEvents.isEmpty()) return true
+            val uploadedById = uploadedEvents.associateBy { it.optString("eventId") }
+            val root = readRoot()
+            val current = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
+            val remaining = JSONArray()
+            for (index in 0 until current.length()) {
+                val event = current.optJSONObject(index) ?: continue
+                val uploaded = uploadedById[event.optString("eventId")]
+                val sameRevision = uploaded != null &&
+                    uploaded.optString("deviceKey") == event.optString("deviceKey") &&
+                    uploaded.optString("installationId") == event.optString("installationId") &&
+                    uploaded.optLong("sequence", -1L) == event.optLong("sequence", -1L)
+                if (!sameRevision) remaining.put(event)
+            }
+            root.put(KEY_OUTBOX, remaining)
+            return prefs.edit().putString(KEY_STATE, root.toString()).commit()
         }
-        root.put(KEY_OUTBOX, remaining)
-        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
     }
 
-    @Synchronized
+    
     fun isRemoteEventNewer(event: JSONObject): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         val key = versionKey(event.optString("deviceKey"), event.optString("profileId"))
         val current = readRoot().optJSONObject(KEY_PROFILE_VERSIONS)?.optJSONObject(key) ?: return true
         return compareVersion(event, current) > 0
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun recordRemoteEvent(event: JSONObject): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
         val key = versionKey(event.optString("deviceKey"), event.optString("profileId"))
         val root = readRoot()
         val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
@@ -215,7 +315,8 @@ internal class ClimateProfileSyncStore(context: Context) {
         val clock = event.optLong("logicalClock", 0L)
         if (clock > root.optLong(KEY_LOGICAL_CLOCK, 0L)) root.put(KEY_LOGICAL_CLOCK, clock)
         return prefs.edit().putString(KEY_STATE, root.toString()).commit()
-    }
+    
+        }}
 
     private fun compareVersion(left: JSONObject, right: JSONObject): Int {
         val clock = left.optLong("logicalClock", 0L).compareTo(right.optLong("logicalClock", 0L))
@@ -233,8 +334,9 @@ internal class ClimateProfileSyncStore(context: Context) {
     private fun versionKey(deviceKey: String, profileId: String): String =
         deviceKey + "|" + profileId
 
-    @Synchronized
+    
     fun observeRemoteClock(remoteClock: Long) {
+        synchronized(ClimateProfileStorageLock.monitor) {
         if (remoteClock <= 0L) return
         val root = readRoot()
         val current = root.optLong(KEY_LOGICAL_CLOCK, 0L).coerceAtLeast(0L)
@@ -242,25 +344,87 @@ internal class ClimateProfileSyncStore(context: Context) {
             root.put(KEY_LOGICAL_CLOCK, remoteClock)
             check(prefs.edit().putString(KEY_STATE, root.toString()).commit()) { "Synchronisierungszähler konnte nicht gespeichert werden." }
         }
+    
+        }}
+
+    /** Removes import markers only after the repository journal no longer contains those IDs. */
+    
+    fun retainImportedJournalIds(pendingJournalIds: Set<String>): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
+        val root = readRoot()
+        val current = root.optJSONArray(KEY_IMPORTED_JOURNAL_IDS) ?: return true
+        val retained = JSONArray()
+        for (index in 0 until current.length()) {
+            val eventId = current.optString(index)
+            if (eventId.isNotBlank() && eventId in pendingJournalIds) retained.put(eventId)
+        }
+        if (retained.length() == current.length()) return true
+        root.put(KEY_IMPORTED_JOURNAL_IDS, retained)
+        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+    
+        }}
+
+    
+    fun enqueueJournalEvent(journalEvent: JSONObject): Boolean {
+        synchronized(ClimateProfileStorageLock.monitor) {
+        val eventId = journalEvent.optString("eventId").takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Journal-Ereignis ohne stabile ID.")
+        val type = journalEvent.optString("type")
+        require(type == "upsert" || type == "delete") { "Unbekannter Journal-Ereignistyp." }
+        val profileId = journalEvent.optString("profileId").takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Journal-Ereignis ohne Profil-ID.")
+        val deviceKey = journalEvent.optString("deviceKey").takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Journal-Ereignis ohne Gerätekennung.")
+        val profile = journalEvent.optJSONObject("profile")?.let { JSONObject(it.toString()) }
+        if (type == "upsert" && profile == null) throw IllegalArgumentException("Journal-Upsert ohne Profilinhalt.")
+        return appendEvent(type, profileId, deviceKey, profile, eventId)
+    
+        }}
+
+    private fun appendEvent(type: String, profileId: String, deviceKey: String, profile: JSONObject?, stableEventId: String? = null): Boolean {
+        val root = readRoot()
+        if (!appendEventToRoot(root, type, profileId, deviceKey, profile, stableEventId)) return true
+        return commitState(root)
     }
 
-    private fun appendEvent(type: String, profileId: String, deviceKey: String, profile: JSONObject?): Boolean {
-        val root = readRoot()
+    private fun commitState(root: JSONObject): Boolean =
+        stateCommit?.invoke(root.toString())
+            ?: prefs.edit().putString(KEY_STATE, root.toString()).commit()
+
+    /** Adds an event to an already-mutated root so local data and its outbox entry commit together. */
+    private fun appendEventToRoot(
+        root: JSONObject,
+        type: String,
+        profileId: String,
+        deviceKey: String,
+        profile: JSONObject?,
+        stableEventId: String? = null
+    ): Boolean {
+        val outbox = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
+        if (stableEventId != null) {
+            val imported = root.optJSONArray(KEY_IMPORTED_JOURNAL_IDS) ?: JSONArray()
+            if ((0 until imported.length()).any { imported.optString(it) == stableEventId } ||
+                (0 until outbox.length()).any { outbox.optJSONObject(it)?.optString("eventId") == stableEventId }) return false
+        }
         val installation = root.optString(KEY_INSTALLATION_ID).takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
         val sequence = root.optLong(KEY_SEQUENCE, 0L).coerceAtLeast(0L) + 1L
         val logicalClock = root.optLong(KEY_LOGICAL_CLOCK, 0L).coerceAtLeast(0L) + 1L
-        val outbox = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
-        val event = JSONObject().put("eventId", "$installation:$sequence").put("installationId", installation)
+        val event = JSONObject().put("eventId", stableEventId ?: "$installation:$sequence").put("installationId", installation)
             .put("sequence", sequence).put("logicalClock", logicalClock).put("type", type)
             .put("deviceKey", deviceKey).put("profileId", profileId).put("createdAt", System.currentTimeMillis())
         if (profile != null) event.put("profile", profile)
         outbox.put(event)
         root.put(KEY_INSTALLATION_ID, installation).put(KEY_SEQUENCE, sequence)
             .put(KEY_LOGICAL_CLOCK, logicalClock).put(KEY_OUTBOX, outbox)
+        if (stableEventId != null) {
+            val imported = root.optJSONArray(KEY_IMPORTED_JOURNAL_IDS) ?: JSONArray()
+            imported.put(stableEventId)
+            root.put(KEY_IMPORTED_JOURNAL_IDS, imported)
+        }
         val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
         versions.put(versionKey(deviceKey, profileId), versionOf(event))
         root.put(KEY_PROFILE_VERSIONS, versions)
-        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+        return true
     }
 
     private fun readRoot(): JSONObject {
@@ -284,6 +448,7 @@ internal class ClimateProfileSyncStore(context: Context) {
         private const val KEY_SEQUENCE = "sequence"
         private const val KEY_LOGICAL_CLOCK = "logicalClock"
         private const val KEY_OUTBOX = "outbox"
+        private const val KEY_IMPORTED_JOURNAL_IDS = "importedJournalEventIds"
         private const val KEY_INITIALIZED = "initializedDeviceKeys"
         private const val KEY_PROFILE_VERSIONS = "profileVersions"
         private const val KEY_ACTIVE_PROFILES = "activeProfiles"

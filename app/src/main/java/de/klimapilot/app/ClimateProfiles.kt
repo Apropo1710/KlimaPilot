@@ -57,16 +57,37 @@ internal data class ClimateProfile(
     }.joinToString(" · ")
 }
 
+/**
+ * Shared persistence path used by the profile UI when changing the active profile.
+ * Returns a user-facing error, or null after the local selection/outbox commit succeeds.
+ */
+internal fun persistActiveProfileSelection(
+    store: ClimateProfileSyncStore,
+    deviceId: String,
+    syncDeviceKey: String,
+    profileId: String?
+): String? {
+    val saved = runCatching {
+        if (syncDeviceKey.isBlank()) store.saveActiveProfileId(deviceId, profileId)
+        else store.saveActiveProfileIdWithSync(deviceId, profileId, syncDeviceKey)
+    }.getOrElse {
+        return it.message ?: "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
+    }
+    return if (saved) null else
+        "Die aktive Profilauswahl konnte nicht zusammen mit ihrer Synchronisierungsvormerkung gespeichert werden."
+}
+
 /** Local-first storage. This class never connects to ioBroker or the climate module. */
 internal class ClimateProfileRepository(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
 
-    @Synchronized
+    
     fun load(): List<ClimateProfile> {
+        synchronized(ClimateProfileStorageLock.monitor) {
         val raw = prefs.getString(KEY_PROFILES, null) ?: return emptyList()
         val root = JSONObject(raw)
         val schemaVersion = root.optInt("schemaVersion", -1)
-        require(schemaVersion in 1..SCHEMA_VERSION) { "Unbekannte Version der Klimaprofile." }
+        check(schemaVersion in 1..SCHEMA_VERSION) { "Unbekannte Version der Klimaprofile." }
         val array = root.optJSONArray("profiles") ?: throw IllegalStateException("Die Klimaprofile sind beschädigt.")
         val profiles = (0 until array.length()).map { index ->
             val item = array.optJSONObject(index) ?: throw IllegalStateException("Ein Klimaprofil ist ungültig.")
@@ -77,15 +98,15 @@ internal class ClimateProfileRepository(context: Context) {
             val name = item.optString("name").trim().takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("Ein Klimaprofil hat keinen Namen.")
             val mode = if (item.isNull("mode")) null else item.optString("mode").also {
-                require(it in SUPPORTED_MODES) { "Ein Klimaprofil enthält einen unbekannten Betriebsmodus." }
+                check(it in SUPPORTED_MODES) { "Ein Klimaprofil enthält einen unbekannten Betriebsmodus." }
             }
             val temp = if (item.isNull("targetTemp")) null else item.optDouble("targetTemp").also {
-                require(it.isFinite() && it in 16.0..30.0 && abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001) {
+                check(it.isFinite() && it in 16.0..30.0 && abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001) {
                     "Ein Klimaprofil enthält eine ungültige Solltemperatur."
                 }
             }
             fun optionalIndex(key: String, max: Int): Int? =
-                if (item.isNull(key) || !item.has(key)) null else item.getInt(key).also { require(it in 0..max) { "Ein Klimaprofil enthält eine ungültige Einstellung." } }
+                if (item.isNull(key) || !item.has(key)) null else item.getInt(key).also { check(it in 0..max) { "Ein Klimaprofil enthält eine ungültige Einstellung." } }
             ClimateProfile(
                 id, deviceId, name,
                 if (item.isNull("power")) null else item.getBoolean("power"),
@@ -97,12 +118,14 @@ internal class ClimateProfileRepository(context: Context) {
                 item.optLong("updatedAt", 0L).coerceAtLeast(0L)
             )
         }
-        require(profiles.map { it.id }.distinct().size == profiles.size) { "Klimaprofil-IDs sind nicht eindeutig." }
+        check(profiles.map { it.id }.distinct().size == profiles.size) { "Klimaprofil-IDs sind nicht eindeutig." }
         return profiles
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun save(profile: ClimateProfile) {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(profile.id.isNotBlank() && profile.deviceId.isNotBlank() && profile.name.isNotBlank())
         require(profile.mode == null || profile.mode in SUPPORTED_MODES)
         profile.targetTemp?.let {
@@ -118,16 +141,119 @@ internal class ClimateProfileRepository(context: Context) {
         }
         val next = load().filterNot { it.id == profile.id } + profile.copy(name = profile.name.trim())
         write(next)
+    
+        }}
+
+    
+    fun saveWithPendingSync(profile: ClimateProfile, deviceKey: String): ClimateProfile {
+        synchronized(ClimateProfileStorageLock.monitor) {
+        require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
+        validateProfile(profile)
+        val normalized = profile.copy(name = profile.name.trim())
+        val next = load().filterNot { it.id == normalized.id } + normalized
+        val journal = readJournal()
+        journal.put(newJournalEvent("upsert", normalized.id, deviceKey, profileToJson(normalized)))
+        writeProfilesAndJournal(next, journal)
+        return normalized
+    
+        }}
+
+    
+    fun delete(profileId: String) {
+        synchronized(ClimateProfileStorageLock.monitor) {
+        write(load().filterNot { it.id == profileId })
+    
+        }}
+
+    
+    fun deleteWithPendingSync(profileId: String, deviceKey: String) {
+        synchronized(ClimateProfileStorageLock.monitor) {
+        require(profileId.isNotBlank() && deviceKey.isNotBlank())
+        val next = load().filterNot { it.id == profileId }
+        val journal = readJournal()
+        journal.put(newJournalEvent("delete", profileId, deviceKey, null))
+        writeProfilesAndJournal(next, journal)
+    
+        }}
+
+    /** Moves durable repository journal entries into the outbox; stable IDs make retries idempotent. */
+    
+    fun flushPendingSyncJournal(store: ClimateProfileSyncStore): Int {
+        synchronized(ClimateProfileStorageLock.monitor) {
+        val journal = readJournal()
+        if (journal.length() == 0) {
+            check(store.retainImportedJournalIds(emptySet())) {
+                "Abgeschlossene Journal-Importmarkierungen konnten nicht bereinigt werden."
+            }
+            return 0
+        }
+        var transferred = 0
+        for (index in 0 until journal.length()) {
+            val event = journal.optJSONObject(index)
+                ?: throw IllegalStateException("Das lokale Profiländerungsjournal enthält einen ungültigen Eintrag.")
+            check(store.enqueueJournalEvent(JSONObject(event.toString()))) {
+                "Ein Profiländerungsereignis konnte nicht dauerhaft in die Synchronisierungswarteschlange übernommen werden."
+            }
+            transferred++
+        }
+        check(prefs.edit().putString(KEY_PENDING_SYNC_JOURNAL, JSONArray().toString()).commit()) {
+            "Das Profiländerungsjournal konnte nach der Übernahme nicht bereinigt werden."
+        }
+        // The repository journal is now durably empty. Import markers are only needed
+        // while a corresponding journal entry may still be replayed after a crash.
+        check(store.retainImportedJournalIds(emptySet())) {
+            "Abgeschlossene Journal-Importmarkierungen konnten nicht bereinigt werden."
+        }
+        return transferred
+    
+        }}
+
+    private fun readJournal(): JSONArray {
+        val raw = prefs.getString(KEY_PENDING_SYNC_JOURNAL, null) ?: return JSONArray()
+        return try { JSONArray(raw) } catch (_: Exception) {
+            throw IllegalStateException("Das lokale Profiländerungsjournal ist beschädigt und wurde nicht überschrieben.")
+        }
     }
 
-    @Synchronized
-    fun delete(profileId: String) {
-        write(load().filterNot { it.id == profileId })
+    private fun newJournalEvent(type: String, profileId: String, deviceKey: String, profile: JSONObject?): JSONObject {
+        val event = JSONObject().put("eventId", "journal:" + UUID.randomUUID().toString())
+            .put("type", type).put("profileId", profileId).put("deviceKey", deviceKey)
+            .put("createdAt", System.currentTimeMillis())
+        if (profile != null) event.put("profile", profile)
+        return event
     }
+
+    private fun writeProfilesAndJournal(profiles: List<ClimateProfile>, journal: JSONArray) {
+        val json = profilesJson(profiles)
+        check(prefs.edit().putString(KEY_PROFILES, json).putString(KEY_PENDING_SYNC_JOURNAL, journal.toString()).commit()) {
+            "Klimaprofil und Synchronisierungsvormerkung konnten nicht gemeinsam gespeichert werden."
+        }
+    }
+
+    private fun validateProfile(profile: ClimateProfile) {
+        require(profile.id.isNotBlank() && profile.deviceId.isNotBlank() && profile.name.isNotBlank())
+        require(profile.mode == null || profile.mode in SUPPORTED_MODES)
+        profile.targetTemp?.let { require(it.isFinite() && it in 16.0..30.0 && abs(it * 2.0 - (it * 2.0).roundToInt()) < 0.001) }
+        require(profile.fanSpeed == null || profile.fanSpeed in 0..4)
+        require(profile.verticalSwing == null || profile.verticalSwing in 0..4)
+        require(profile.horizontalSwing == null || profile.horizontalSwing in 0..7)
+        require(profile.power != null || profile.mode != null || profile.targetTemp != null ||
+            profile.fanSpeed != null || profile.verticalSwing != null || profile.horizontalSwing != null || profile.threeDAuto != null) {
+            "Bitte mindestens eine Einstellung für das Profil auswählen."
+        }
+    }
+
+    private fun profileToJson(item: ClimateProfile): JSONObject = JSONObject()
+        .put("id", item.id).put("name", item.name).put("power", item.power ?: JSONObject.NULL)
+        .put("mode", item.mode ?: JSONObject.NULL).put("targetTemp", item.targetTemp ?: JSONObject.NULL)
+        .put("fanSpeed", item.fanSpeed ?: JSONObject.NULL).put("verticalSwing", item.verticalSwing ?: JSONObject.NULL)
+        .put("horizontalSwing", item.horizontalSwing ?: JSONObject.NULL).put("threeDAuto", item.threeDAuto ?: JSONObject.NULL)
+        .put("updatedAt", item.updatedAt)
 
     /** Applies a remote event locally without creating a new outbound event. */
-    @Synchronized
+    
     fun applyRemoteEvent(event: JSONObject, localDeviceId: String) {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(localDeviceId.isNotBlank())
         val profileId = event.optString("profileId").takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("Synchronisierungsereignis ohne Profil-ID.")
@@ -138,7 +264,9 @@ internal class ClimateProfileRepository(context: Context) {
                     ?: throw IllegalArgumentException("Synchronisierungsereignis enthält kein Profil.")
                 val name = item.optString("name").trim().takeIf { it.isNotBlank() }
                     ?: throw IllegalArgumentException("Synchronisiertes Profil hat keinen Namen.")
-                val mode = if (item.isNull("mode")) null else item.optString("mode")
+                val mode = if (item.isNull("mode")) null else item.optString("mode").also {
+                    require(it in SUPPORTED_MODES) { "Synchronisiertes Profil enthält einen unbekannten Betriebsmodus." }
+                }
                 val targetTemp = if (item.isNull("targetTemp")) null else item.optDouble("targetTemp")
                 val profile = ClimateProfile(
                     id = profileId,
@@ -157,10 +285,17 @@ internal class ClimateProfileRepository(context: Context) {
             }
             else -> throw IllegalArgumentException("Unbekannter Synchronisierungstyp.")
         }
-    }
+    
+        }}
 
     private fun write(profiles: List<ClimateProfile>) {
-        val json = JSONObject().put("schemaVersion", SCHEMA_VERSION).put("profiles", JSONArray().apply {
+        check(prefs.edit().putString(KEY_PROFILES, profilesJson(profiles)).commit()) {
+            "Klimaprofile konnten nicht lokal gespeichert werden."
+        }
+    }
+
+    private fun profilesJson(profiles: List<ClimateProfile>): String =
+        JSONObject().put("schemaVersion", SCHEMA_VERSION).put("profiles", JSONArray().apply {
             profiles.forEach { item ->
                 put(JSONObject()
                     .put("id", item.id).put("deviceId", item.deviceId).put("name", item.name)
@@ -173,14 +308,11 @@ internal class ClimateProfileRepository(context: Context) {
                     .put("threeDAuto", item.threeDAuto ?: JSONObject.NULL)
                     .put("updatedAt", item.updatedAt))
             }
-        })
-        check(prefs.edit().putString(KEY_PROFILES, json.toString()).commit()) {
-            "Klimaprofile konnten nicht lokal gespeichert werden."
-        }
-    }
+        }).toString()
 
     companion object {
         private const val KEY_PROFILES = "climate_profiles_v1"
+        private const val KEY_PENDING_SYNC_JOURNAL = "pending_sync_journal_v1"
         private const val SCHEMA_VERSION = 2
         private val SUPPORTED_MODES = setOf("AUTO", "COOL", "HEAT", "DRY", "FAN")
     }
@@ -209,19 +341,10 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var profileMenuExpanded by remember { mutableStateOf(false) }
 
     fun persistActiveProfile(profileId: String?, requestSync: Boolean = true): String? {
+        val error = persistActiveProfileSelection(syncStore, deviceId, syncDeviceKey, profileId)
+        if (error != null) return error
         selectedProfileId = profileId
-        if (!syncStore.saveActiveProfileId(deviceId, profileId)) {
-            return "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
-        }
-        if (syncDeviceKey.isNotBlank()) {
-            val queued = runCatching {
-                syncStore.enqueueActiveProfileSelection(profileId, syncDeviceKey)
-            }.getOrElse {
-                return it.message ?: "Die aktive Profilauswahl konnte nicht zur Synchronisierung vorgemerkt werden."
-            }
-            if (!queued) return "Die aktive Profilauswahl konnte nicht zur Synchronisierung vorgemerkt werden."
-            if (requestSync) syncRevision++
-        }
+        if (syncDeviceKey.isNotBlank() && requestSync) syncRevision++
         return null
     }
 
@@ -242,15 +365,14 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             threeDAuto = state.entrust.takeIf { supportsVaneLR },
             updatedAt = System.currentTimeMillis()
         )
-        if (!syncStore.saveIndividualProfile(deviceId, snapshot)) {
-            return "Die individuellen Einstellungen konnten nicht lokal gesichert werden. Der Profilwechsel wurde abgebrochen."
+        val saved = runCatching {
+            if (syncDeviceKey.isBlank()) syncStore.saveIndividualProfile(deviceId, snapshot)
+            else syncStore.saveIndividualProfileWithSync(deviceId, snapshot, syncDeviceKey)
+        }.getOrElse {
+            return it.message ?: "Die individuellen Einstellungen konnten nicht lokal gesichert werden. Der Profilwechsel wurde abgebrochen."
         }
-        if (syncDeviceKey.isNotBlank()) {
-            val queued = runCatching { syncStore.enqueueIndividualProfile(snapshot, syncDeviceKey) }
-                .getOrElse { return it.message ?: "Die individuellen Einstellungen konnten nicht zur Synchronisierung vorgemerkt werden." }
-            if (!queued) return "Die individuellen Einstellungen konnten nicht zur Synchronisierung vorgemerkt werden."
-            syncRevision++
-        }
+        if (!saved) return "Die individuellen Einstellungen konnten nicht zusammen mit ihrer Synchronisierungsvormerkung gespeichert werden."
+        if (syncDeviceKey.isNotBlank()) syncRevision++
         return null
     }
     LaunchedEffect(repository) {
@@ -274,6 +396,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
         if (!loaded || !loadSucceeded) return@LaunchedEffect
+        runCatching { repository.flushPendingSyncJournal(syncStore) }
+            .onFailure { status = it.message ?: "Profiländerungsjournal konnte nicht übernommen werden." }
         devices.filter { it.syncDeviceKey.isNotBlank() }.forEach { device ->
             runCatching { syncStore.enqueueInitialProfiles(profiles.filter { it.deviceId == device.id }, device.syncDeviceKey) }
                 .onFailure { status = it.message ?: "Vorhandene Profile konnten nicht zur Synchronisierung vorgemerkt werden." }
@@ -290,6 +414,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         if (!loaded || !loadSucceeded || devices.none { it.syncDeviceKey.isNotBlank() }) return@LaunchedEffect
         while (true) {
             kotlinx.coroutines.delay(60_000L)
+            runCatching { repository.flushPendingSyncJournal(syncStore) }
+                .onFailure { status = it.message ?: "Profiländerungsjournal konnte nicht übernommen werden." }
             val address = settingsPrefs.getString("iobroker_server", null).orEmpty()
             if (address.isNotBlank()) syncClient.syncNow(address, devices, syncStore, repository) { message ->
                 status = message
@@ -394,15 +520,17 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             modelSupportsVaneLR = modelSupportsVaneLR,
             onDismiss = { editing = null },
             onSave = { profile ->
-                runCatching { repository.save(profile) }
+                runCatching {
+                    if (syncDeviceKey.isBlank()) repository.save(profile)
+                    else repository.saveWithPendingSync(profile, syncDeviceKey)
+                }
                     .onSuccess {
                         val index = profiles.indexOfFirst { it.id == profile.id }
                         if (index >= 0) profiles[index] = profile else profiles.add(profile)
                         status = if (syncDeviceKey.isBlank()) {
                             "Lokal gespeichert. Für die Synchronisierung auf anderen Smartphones fehlt noch die gemeinsame Gerätekennung."
                         } else {
-                            runCatching { syncStore.enqueueUpsert(profile, syncDeviceKey) }
-                                .fold({ "" }, { it.message ?: "Profil lokal gespeichert; Synchronisierung konnte nicht vorgemerkt werden." })
+                            "Profil lokal gespeichert und dauerhaft zur Synchronisierung vorgemerkt."
                         }
                         syncRevision++
                         editing = null
@@ -439,11 +567,14 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                     threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
                                     updatedAt = System.currentTimeMillis()
                                 )
-                                runCatching { repository.save(updated) }.onSuccess {
+                                runCatching {
+                                    if (syncDeviceKey.isBlank()) repository.save(updated)
+                                    else repository.saveWithPendingSync(updated, syncDeviceKey)
+                                }.onSuccess {
                                     val index = profiles.indexOfFirst { it.id == updated.id }
                                     if (index >= 0) profiles[index] = updated
                                     status = if (syncDeviceKey.isBlank()) "Profil aktualisiert." else
-                                        runCatching { syncStore.enqueueUpsert(updated, syncDeviceKey) }.fold({ "" }, { it.message ?: "Lokal aktualisiert; Synchronisierung fehlgeschlagen." })
+                                        "Profil aktualisiert und dauerhaft zur Synchronisierung vorgemerkt."
                                     syncRevision++
                                 }.onFailure { status = it.message ?: "Profil konnte nicht aktualisiert werden." }
                                 saveChoiceDialog = false
@@ -498,13 +629,14 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
                         updatedAt = System.currentTimeMillis()
                     )
-                    runCatching { repository.save(created) }.onSuccess {
+                    runCatching {
+                        if (syncDeviceKey.isBlank()) repository.save(created)
+                        else repository.saveWithPendingSync(created, syncDeviceKey)
+                    }.onSuccess {
                         profiles.add(created)
                         val selectionError = persistActiveProfile(created.id, requestSync = false)
-                        val profileSyncError = if (syncDeviceKey.isBlank()) null else
-                            runCatching { check(syncStore.enqueueUpsert(created, syncDeviceKey)) { "Profil konnte nicht zur Synchronisierung vorgemerkt werden." } }
-                                .exceptionOrNull()?.message
-                        status = selectionError ?: profileSyncError.orEmpty()
+                        status = selectionError ?: if (syncDeviceKey.isBlank()) "" else
+                            "Profil lokal gespeichert und dauerhaft zur Synchronisierung vorgemerkt."
                         syncRevision++
                         saveNameDialog = false
                     }.onFailure { status = it.message ?: "Profil konnte nicht gespeichert werden." }
@@ -521,23 +653,17 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             text = { Text("„${profile.name}“ wird von diesem Smartphone gelöscht.") },
             confirmButton = {
                 TextButton(onClick = {
-                    runCatching { repository.delete(profile.id) }
+                    runCatching {
+                        if (syncDeviceKey.isBlank()) repository.delete(profile.id)
+                        else repository.deleteWithPendingSync(profile.id, syncDeviceKey)
+                    }
                         .onSuccess {
                             profiles.removeAll { it.id == profile.id }
                             val selectionError = if (selectedProfileId == profile.id) persistActiveProfile(null, requestSync = false) else null
                             syncRevision++
-                            status = selectionError ?: when {
-                                syncDeviceKey.isBlank() ->
-                                    "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
-                                else -> runCatching {
-                                    check(syncStore.enqueueDelete(profile.id, syncDeviceKey)) {
-                                        "Löschung konnte nicht zur Synchronisierung vorgemerkt werden."
-                                    }
-                                }.fold(
-                                    { "" },
-                                    { "Lokal gelöscht, aber die Synchronisierung konnte nicht vorgemerkt werden: ${it.message ?: "Unbekannter Fehler"}" }
-                                )
-                            }
+                            status = selectionError ?: if (syncDeviceKey.isBlank())
+                                "Lokal gelöscht. Ohne gemeinsame Gerätekennung kann die Löschung nicht auf andere Smartphones übertragen werden."
+                            else "Profil gelöscht und Löschung dauerhaft zur Synchronisierung vorgemerkt."
                         }
                         .onFailure { status = it.message ?: "Profil konnte nicht gelöscht werden." }
                     deleting = null
