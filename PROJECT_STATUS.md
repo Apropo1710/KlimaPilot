@@ -142,3 +142,12 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Discovery/Advertising sind auf den App-Vordergrund begrenzt und müssen beim Stoppen oder Netzwerkwechsel ihre Ressourcen freigeben.
 - Die konkrete kryptografische Peer-Identität und sichere Kopplung bleiben zwingende Voraussetzungen vor jedem späteren Profil-Datenaustausch.
 - Implementierungsstand: weiterhin ausschließlich Dokumentation/Architektur; noch keine App-Codeänderung, kein Versionssprung und kein Build. main und der Produktionsrelease bleiben unverändert.
+
+## 9. Lokale Smartphone-Synchronisation – Arbeitsstand 17.11.2026
+
+- Separater Entwicklungsbranch: `feature/local-wifi-profile-sync`; der Branch liegt weiterhin auf dem damaligen `main`-Stand und enthält keine App-Codeänderungen.
+- Discovery-only ist als erste technische Phase festgelegt. Profilübertragung, Pairing und Änderungen an Updater/WF-RAC-Steuerung sind ausdrücklich ausgeschlossen.
+- Die Android-NSD-API wurde geprüft. Klassische Service-Registrierung ist ab API 16 verfügbar; neuere Executor-/Service-Info-Callbacks sind abhängig von API-/Extension-Stand. `resolveService()` ist seit API 34 deprecated und darf nur als kompatibler Fallback betrachtet werden.
+- Die technischen API-Erkenntnisse und die geplante Kompatibilitätsstrategie sind in `LOCAL_WIFI_SYNC_DESIGN.md`, Abschnitt 10, dokumentiert.
+- **Aktueller Fortschritt:** Bestandsaufnahme und API-Präzisierung abgeschlossen; Discovery-Implementierung, automatisierte Tests, Claude-Review und Zwei-Smartphone-Test stehen noch aus.
+- `main`, Produktionsversion 0.4.64 / versionCode 94, Updater und WF-RAC-Steuerpfad wurden durch diese Dokumentationsänderung nicht verändert.
