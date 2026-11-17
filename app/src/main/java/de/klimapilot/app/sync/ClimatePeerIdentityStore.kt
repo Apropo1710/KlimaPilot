@@ -3,25 +3,28 @@ package de.klimapilot.app.sync
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import java.security.KeyPair
-import java.security.KeyPairGenerator
+import java.security.AlgorithmParameters
+import java.security.KeyFactory
 import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.Signature
+import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.ECParameterSpec
-import java.security.AlgorithmParameters
-import java.security.interfaces.ECPublicKey
 import java.security.spec.X509EncodedKeySpec
-import java.security.KeyFactory
 
 /**
  * Stable installation identity backed by a non-exportable Android Keystore private key.
  *
  * The peer ID is derived from the public key, not from a network address, MAC address,
  * account name, or mutable device label. This class does not pair with or trust any peer.
+ *
+ * The optional alias exists to let instrumentation tests model two independent devices.
+ * Production callers use the stable default alias.
  */
-internal class ClimatePeerIdentityStore {
+internal class ClimatePeerIdentityStore(
+    private val keyAlias: String = KEY_ALIAS
+) {
     data class Identity(
         val peerId: String,
         val publicKeyBase64: String,
@@ -31,20 +34,17 @@ internal class ClimatePeerIdentityStore {
     @Synchronized
     fun getOrCreateIdentity(): Identity {
         val keyStore = loadKeyStore()
-        if (!keyStore.containsAlias(KEY_ALIAS)) {
-            val generator = KeyPairGenerator.getInstance(
+        if (!keyStore.containsAlias(keyAlias)) {
+            val generator = java.security.KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC,
                 ANDROID_KEY_STORE
             )
             generator.initialize(
                 KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
+                    keyAlias,
                     KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
                 )
                     .setAlgorithmParameterSpec(ECGenParameterSpec(EC_CURVE))
-                    // Application identity signatures use SHA-256withECDSA.
-                    // Conscrypt also needs the raw NONEwithECDSA operation when this
-                    // Keystore key signs the TLS server CertificateVerify message.
                     .setDigests(KeyProperties.DIGEST_SHA256)
                     .setUserAuthenticationRequired(false)
                     .build()
@@ -52,14 +52,12 @@ internal class ClimatePeerIdentityStore {
             generator.generateKeyPair()
         }
 
-        val certificate = keyStore.getCertificate(KEY_ALIAS)
+        val certificate = keyStore.getCertificate(keyAlias)
             ?: throw IllegalStateException("Geräteschlüssel besitzt kein Zertifikat.")
-        val publicKey = certificate.publicKey
-        val encoded = publicKey.encoded
+        val encoded = certificate.publicKey.encoded
         val fingerprintBytes = MessageDigest.getInstance("SHA-256").digest(encoded)
-        val peerId = fingerprintBytes.toHex()
         return Identity(
-            peerId = peerId,
+            peerId = fingerprintBytes.toHex(),
             publicKeyBase64 = Base64.encodeToString(encoded, Base64.NO_WRAP),
             fingerprint = fingerprintBytes.toHexGrouped()
         )
@@ -71,8 +69,7 @@ internal class ClimatePeerIdentityStore {
             "Ungültige Länge der Geräte-Challenge."
         }
         getOrCreateIdentity()
-        val keyStore = loadKeyStore()
-        val privateKey = keyStore.getKey(KEY_ALIAS, null)
+        val privateKey = loadKeyStore().getKey(keyAlias, null)
             ?: throw IllegalStateException("Privater Geräteschlüssel fehlt.")
         return Signature.getInstance(SIGNATURE_ALGORITHM).run {
             initSign(privateKey as java.security.PrivateKey)
@@ -136,7 +133,8 @@ internal class ClimatePeerIdentityStore {
     }
 }
 
-private fun ByteArray.toHex(): String = joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+private fun ByteArray.toHex(): String =
+    joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
 
 private fun ByteArray.toHexGrouped(): String =
     toHex().chunked(4).joinToString(":")
