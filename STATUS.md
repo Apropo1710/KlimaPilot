@@ -41,6 +41,13 @@
 - `mhi-wfrac` noch nicht eingerichtet und für direkten lokalen Steuerweg nicht erforderlich.
 - SENEC/`energyfluss` wird nicht eingeplant.
 
+## Branchstatus und nicht abgeschlossene Nebenstände
+
+- `feature/direct-wf-rac-wlan`: PR #1 wurde am 15.11.2026 gemergt. Der Branch lief danach weiter und liegt aktuell **23 Commits voraus / 235 zurück** gegenüber `main`; es gibt keinen offenen PR. Der Diff enthält nachgelagerte WLAN-Diagnostik, einen separaten Test-Updatekanal sowie Änderungen an Build-/App-Dateien. Diese 23 Commits sind nicht automatisch Bestandteil von `main`; vor Wiederverwendung, Cherry-pick oder Löschung einzeln prüfen.
+- `docs/status-refresh-2026-11-16`: PR #2 wurde geschlossen, nicht gemergt. Der Branch liegt **1 Commit voraus / 61 zurück** und enthält eine abweichende `STATUS.md`; kein offener PR. Nicht ungeprüft übernehmen.
+- `docs/status-reconcile-2026-11-15`: **0 Commits voraus / 235 zurück**, kein eigener Dateidiff; historischer Restbranch ohne offenen PR.
+- `main` bleibt der alleinige maßgebliche Produktionsbranch. Keine dieser Nebenbranches wurde im Rahmen dieser Statuspflege gemergt oder gelöscht.
+
 ## Offene Prüfungen
 
 - Konten-Registry mit absichtlich beschädigten Daten (Schutz aus 0.4.50).
