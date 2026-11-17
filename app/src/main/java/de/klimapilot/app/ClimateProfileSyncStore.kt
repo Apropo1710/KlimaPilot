@@ -236,20 +236,26 @@ internal class ClimateProfileSyncStore(context: Context) {
         }}
 
     
-    fun acknowledgeUploaded(eventIds: Set<String>): Boolean {
+    fun acknowledgeUploaded(uploadedEvents: List<JSONObject>): Boolean {
         synchronized(ClimateProfileStorageLock.monitor) {
-        if (eventIds.isEmpty()) return true
-        val root = readRoot()
-        val current = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
-        val remaining = JSONArray()
-        for (index in 0 until current.length()) {
-            val event = current.optJSONObject(index) ?: continue
-            if (event.optString("eventId") !in eventIds) remaining.put(event)
+            if (uploadedEvents.isEmpty()) return true
+            val uploadedById = uploadedEvents.associateBy { it.optString("eventId") }
+            val root = readRoot()
+            val current = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
+            val remaining = JSONArray()
+            for (index in 0 until current.length()) {
+                val event = current.optJSONObject(index) ?: continue
+                val uploaded = uploadedById[event.optString("eventId")]
+                val sameRevision = uploaded != null &&
+                    uploaded.optString("deviceKey") == event.optString("deviceKey") &&
+                    uploaded.optString("installationId") == event.optString("installationId") &&
+                    uploaded.optLong("sequence", -1L) == event.optLong("sequence", -1L)
+                if (!sameRevision) remaining.put(event)
+            }
+            root.put(KEY_OUTBOX, remaining)
+            return prefs.edit().putString(KEY_STATE, root.toString()).commit()
         }
-        root.put(KEY_OUTBOX, remaining)
-        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
-    
-        }}
+    }
 
     
     fun isRemoteEventNewer(event: JSONObject): Boolean {
