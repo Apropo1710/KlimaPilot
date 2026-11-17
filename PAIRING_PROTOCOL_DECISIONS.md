@@ -3,7 +3,7 @@
 **Branch:** `feature/local-wifi-pairing`  
 **Basis:** `3b0c4a8969c36dbf46de8369f9f87add3ad87b27`  
 **Stand:** 17.11.2026  
-**Status:** pragmatische Umsetzungsentscheidung; noch keine Pairing- oder Transportimplementierung.
+**Status:** Pairing-Controller und QR-Anzeige/-Scan implementiert; CI erfolgreich. Kein Netzwerktransport und keine Profilübertragung.
 
 ## 1. Ziel
 
@@ -66,8 +66,18 @@ Nicht Teil dieses Arbeitspakets sind:
 ## 7. Nächste Umsetzungsschritte
 
 1. Kleinen Pairing-Session-Controller für den beschriebenen Ablauf ergänzen und mit Tests für Ablauf, falsche Sitzung, Wiederverwendung und beidseitige lokale Freigabe absichern.
-2. QR-Anzeige/-Scan mit einer passenden Android-Lösung integrieren; Abhängigkeiten und Berechtigungen minimal halten.
-3. Separaten TLS-Kompatibilitätstest für Android Keystore / API 26 durchführen.
+2. QR-Anzeige/-Scan: umgesetzt mit ZXing Core für QR-Erzeugung und Google Code Scanner über Google Play Services für den Scan. CI-Unit-Test für QR-Payload-Roundtrip erfolgreich.
+3. Separaten TLS-Kompatibilitätstest für Android Keystore / API 26+ durchführen.
 4. Erst nach erfolgreichem Pairing und gegenseitigem TLS die Peer-Transport- und Profil-Sync-Implementierung beginnen.
 
 **Freigabegrenze:** Bis Pairing und gegenseitiges TLS auf realen Geräten erfolgreich geprüft sind, werden über den Peer-Kanal keine Profilinhalte übertragen.
+
+
+## 8. Implementierungsstand QR-Integration (17.11.2026)
+
+- `ClimatePairingQrCode` erzeugt QR-Matrizen aus den bereits signierten Pairing-Payloads; ZXing Core 3.5.4 wird verwendet.
+- `ClimatePairingSettingsCard` stellt Einladung/Antwort dar, startet den QR-Scan und zeigt vor der lokalen Bestätigung den vollständigen Fingerprint der Gegenstelle an.
+- Der Scan läuft über Google Code Scanner / Google Play Services 16.1.0; keine eigene Kamera-Berechtigung wird durch diese Integration angefordert.
+- `ClimatePairingQrCodeTest` dekodiert einen erzeugten QR-Code wieder und vergleicht den UTF-8-Payload exakt.
+- GitHub Actions #122 (Push) und #123 (PR) für Head `2657dbb99e65cbaff107737ecd040edcf401bbd4`: beide erfolgreich; Unit-Tests und Debug-Kompilierung bestanden.
+- Noch kein Zwei-Smartphone-Praxistest, kein TLS, kein Netzwerktransport und keine Profilübertragung. Pairing-UI/QR-Codes allein geben keine Synchronisierung frei.
