@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - main
+      - feature/local-wifi-profile-sync
   workflow_dispatch:
 
 permissions:
