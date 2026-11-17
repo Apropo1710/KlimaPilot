@@ -17,22 +17,22 @@
 
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
-**Zuletzt abgeglichen:** 17.11.2026, 12:19 Uhr MEZ  
+**Zuletzt abgeglichen:** 17.11.2026, 12:25 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`  
-**Produktionsversion:** **0.4.63 / versionCode 93**
+**Produktionsversion:** **0.4.64 / versionCode 94**
 
 ## Aktueller GitHub-, Build- und Release-Stand
 
-- Maßgeblicher `main`-Stand vor dieser Dokumentationsaktualisierung: `154a0e01d2f88fe9791a7665388a18028e16f5ac`.
+- Maßgeblicher `main`-Stand vor der Versionsanhebung: `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`; anschließende Statuspflege erfolgte auf `main`.
 - PR #3 „Absicherung der Klimaprofil-Synchronisation durch dauerhaftes Änderungsjournal“ wurde am 17.11.2026 um 12:14:49 Uhr MEZ gemergt.
 - Merge-Commit: `ee65841387824bca7d2b07ca80f71501540af157`; der Merge-Commit ist von GitHub kryptografisch als gültig verifiziert.
-- GitHub Actions [Produktionsbuild #225](https://github.com/Apropo1710/KlimaPilot/actions/runs/44072272599): **completed / success** für den Merge-Commit. Signierter Release-Build, Keystore-Prüfung, APK-Manifestprüfung und Signaturprüfung erfolgreich.
-- Produktionsversion aus `app/build.gradle.kts`: **0.4.63 / versionCode 93**. Application-ID `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
-- Build-Zeit: 17.11.2026, 12:18:01 Uhr MEZ (11:18:01 UTC).
-- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `758753537`, 11.370.139 Bytes; aktualisiert 17.11.2026, 12:18:08 UTC.
-- APK-SHA-256: `95b683e70327c5302645ad0b23e8f554ca780c49e8b2e386f367d13f952da8c3`; Signaturprüfung im Produktionsworkflow erfolgreich.
-- Git-Tag `latest` zeigt auf den Merge-Commit `ee65841387824bca7d2b07ca80f71501540af157`.
+- GitHub Actions [Produktionsbuild #227](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073072643): **completed / success** für den Versionscommit `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`. Signierter Release-Build, Keystore-Prüfung, APK-Manifestprüfung und Signaturprüfung erfolgreich.
+- Produktionsversion aus `app/build.gradle.kts`: **0.4.64 / versionCode 94**. Application-ID `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
+- Build-Zeit: 17.11.2026, 12:23:51 Uhr MEZ (11:23:51 UTC).
+- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `758773122`, 11.370.135 Bytes; aktualisiert 17.11.2026, 11:23:58 UTC.
+- APK-SHA-256: `945dd9bacebbb16482e7acf352ccd58d91649349ebc02360102e093ccc92f3c4`; Signaturprüfung im Produktionsworkflow erfolgreich.
+- Git-Tag `latest` zeigt auf den Versionscommit `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`.
 - APK: https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
 
 ## Abgeschlossene Profil-Synchronisations-PR
@@ -40,7 +40,7 @@
 - [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – **geschlossen und gemergt** am 17.11.2026, 12:14:49 Uhr MEZ.
 - Gemergter PR-Head: `c111d1376b14801ec83c0eddbbc42de3dbb35ff0`; Merge-Commit auf `main`: `ee65841387824bca7d2b07ca80f71501540af157`.
 - Der aktuelle PR-Head wurde durch [WLAN Branch Validation #48](https://github.com/Apropo1710/KlimaPilot/actions/runs/44071591137) mit erfolgreichen Unit-Tests und Debug-Kompilierung geprüft.
-- Anschließend hat Produktionsbuild #225 die signierte Release-APK für den Merge-Commit erstellt und veröffentlicht.
+- Anschließend hat Produktionsbuild #225 zunächst den Merge-Stand veröffentlicht; nach der korrekten Versionsanhebung auf 0.4.64 / 94 hat Produktionsbuild #227 die endgültige signierte Release-APK erstellt und veröffentlicht.
 - Die in der unabhängigen Claude-Prüfung genannten niedrigen Restrisiken (Fehlerbehandlung bei Upload-Stufen, Recovery eines beschädigten Journals und theoretischer Logical-Clock-Überlauf) wurden nicht zusätzlich behoben und bleiben als mögliche spätere Härtungspunkte bestehen.
 - Robolectric-Tests ersetzen keine realen Prozess-Kill- oder Zwei-Smartphone-Tests. Ein Hardware-/Mehrgeräte-Praxistest ist damit nicht bestätigt.
 - Updater, Berechtigungen, Installationsablauf und direkter WF-RAC-Steuerweg wurden durch PR #3 nicht verändert.
