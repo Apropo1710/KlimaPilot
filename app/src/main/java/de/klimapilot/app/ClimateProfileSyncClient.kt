@@ -60,37 +60,42 @@ internal class ClimateProfileSyncClient {
                             for (event in sorted) {
                                 val key = event.optString("deviceKey")
                                 val deviceId = deviceMap[key]
-                                if (deviceId == null || !store.isRemoteEventNewer(event)) { skipped++; continue }
+                                if (deviceId == null) { skipped++; continue }
                                 try {
-                                    when (event.optString("type")) {
-                                        "selection" -> {
-                                            val payload = event.optJSONObject("profile")
-                                                ?: throw IllegalArgumentException("Aktive Profilauswahl enthält keine Daten.")
-                                            val activeId = if (payload.isNull("activeProfileId")) null
-                                                else payload.optString("activeProfileId").takeIf { it.isNotBlank() }
-                                            check(store.saveActiveProfileId(deviceId, activeId)) {
-                                                "Aktive Profilauswahl konnte lokal nicht gespeichert werden."
-                                            }
-                                        }
-                                        "individual" -> {
-                                            val payload = event.optJSONObject("profile")
-                                                ?: throw IllegalArgumentException("Individuelle Einstellungen enthalten keine Daten.")
-                                            check(store.applyRemoteIndividualProfile(deviceId, payload)) {
-                                                "Individuelle Einstellungen konnten lokal nicht gespeichert werden."
-                                            }
-                                        }
-                                        else -> {
-                                            repository.applyRemoteEvent(event, deviceId)
-                                            if (event.optString("type") == "delete" &&
-                                                store.activeProfileId(deviceId) == event.optString("profileId")) {
-                                                check(store.saveActiveProfileId(deviceId, null)) {
-                                                    "Gelöschte aktive Profilauswahl konnte nicht zurückgesetzt werden."
+                                    val wasApplied = synchronized(ClimateProfileStorageLock.monitor) {
+                                        if (!store.isRemoteEventNewer(event)) false else {
+                                            when (event.optString("type")) {
+                                                "selection" -> {
+                                                    val payload = event.optJSONObject("profile")
+                                                        ?: throw IllegalArgumentException("Aktive Profilauswahl enthält keine Daten.")
+                                                    val activeId = if (payload.isNull("activeProfileId")) null
+                                                        else payload.optString("activeProfileId").takeIf { it.isNotBlank() }
+                                                    check(store.saveActiveProfileId(deviceId, activeId)) {
+                                                        "Aktive Profilauswahl konnte nicht lokal gespeichert werden."
+                                                    }
+                                                }
+                                                "individual" -> {
+                                                    val payload = event.optJSONObject("profile")
+                                                        ?: throw IllegalArgumentException("Individuelle Einstellungen enthalten keine Daten.")
+                                                    check(store.applyRemoteIndividualProfile(deviceId, payload)) {
+                                                        "Individuelle Einstellungen konnten nicht lokal gespeichert werden."
+                                                    }
+                                                }
+                                                else -> {
+                                                    repository.applyRemoteEvent(event, deviceId)
+                                                    if (event.optString("type") == "delete" &&
+                                                        store.activeProfileId(deviceId) == event.optString("profileId")) {
+                                                        check(store.saveActiveProfileId(deviceId, null)) {
+                                                            "Gelöschte aktive Profilauswahl konnte nicht zurückgesetzt werden."
+                                                        }
+                                                    }
                                                 }
                                             }
+                                            check(store.recordRemoteEvent(event)) { "Versionsstand konnte nicht lokal gespeichert werden." }
+                                            true
                                         }
                                     }
-                                    check(store.recordRemoteEvent(event)) { "Versionsstand konnte nicht lokal gespeichert werden." }
-                                    applied++
+                                    if (wasApplied) applied++ else skipped++
                                 } catch (error: Exception) {
                                     finish("Ein empfangenes Profil konnte nicht sicher übernommen werden: ${error.message ?: "Ungültige Daten"}.")
                                     return@readRemoteEvents
