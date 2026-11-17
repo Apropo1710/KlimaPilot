@@ -126,7 +126,8 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Grundprinzip: Local-first. Jedes Smartphone speichert Profile und Einstellungen dauerhaft lokal und kann sie ohne Synchronisationsserver verwenden.
 - Eine Offline-Outbox hält Änderungen bei Verbindungsverlust vor und liefert sie nach Wiederherstellung zuverlässig nach.
 - Die Synchronisation wird über eine austauschbare Schicht von der Klimasteuerung und lokalen Datenhaltung getrennt.
-- ioBroker bleibt zunächst als bestehender Synchronisationsanbieter erhalten. Eine unabhängige Cloud oder direkte Smartphone-Synchronisation kann später ergänzend hinzukommen.
+- ioBroker bleibt zunächst als bestehender Synchronisationsanbieter erhalten. Eine direkte Smartphone-zu-Smartphone-Synchronisation im selben lokalen WLAN wird als zusätzlicher Fallback umgesetzt. Cloud-, Relay- und Vermittlungsdienste sind ausdrücklich ausgeschlossen.
 - Konfliktbehandlung, doppelte Events, Wiederanlauf und Löschungen müssen ausdrücklich berücksichtigt und mit mindestens zwei Smartphones getestet werden.
 - Ein absolut ausfallfreies System kann nicht garantiert werden. Ziel ist, dass der Ausfall eines Synchronisationsdienstes weder die lokale Bedienung noch gespeicherte Daten gefährdet.
-- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n\n\n\n\n\n\n\n
+- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.
+- Der separate Entwicklungsbranch `feature/local-wifi-profile-sync` wurde am 17.11.2026 frisch vom damaligen `main`-HEAD `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd` erstellt. Er enthält zunächst nur die aktualisierte Architektur-/Arbeitsdokumentation; App-Code wurde noch nicht geändert.\n\n\n\n\n\n\n\n\n
