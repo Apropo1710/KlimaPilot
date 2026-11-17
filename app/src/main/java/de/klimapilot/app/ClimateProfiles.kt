@@ -150,7 +150,12 @@ internal class ClimateProfileRepository(context: Context) {
     @Synchronized
     fun flushPendingSyncJournal(store: ClimateProfileSyncStore): Int {
         val journal = readJournal()
-        if (journal.length() == 0) return 0
+        if (journal.length() == 0) {
+            check(store.retainImportedJournalIds(emptySet())) {
+                "Abgeschlossene Journal-Importmarkierungen konnten nicht bereinigt werden."
+            }
+            return 0
+        }
         val remaining = JSONArray()
         var transferred = 0
         for (index in 0 until journal.length()) {
@@ -163,6 +168,11 @@ internal class ClimateProfileRepository(context: Context) {
         }
         check(remaining.length() == 0) {
             "Nicht alle Profiländerungen konnten in die Synchronisierungswarteschlange übernommen werden."
+        }
+        // The repository journal is now durably empty. Import markers are only needed
+        // while a corresponding journal entry may still be replayed after a crash.
+        check(store.retainImportedJournalIds(emptySet())) {
+            "Abgeschlossene Journal-Importmarkierungen konnten nicht bereinigt werden."
         }
         return transferred
     }
