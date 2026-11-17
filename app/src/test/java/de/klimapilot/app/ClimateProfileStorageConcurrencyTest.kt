@@ -382,7 +382,7 @@ class ClimateProfileStorageConcurrencyTest {
         assertEquals(1, summary.rejected)
         assertTrue(summary.firstRejectedReason?.contains("Betriebsmodus") == true)
         assertEquals(setOf("first", "last"), repository.load().map { it.id }.toSet())
-        assertEquals(2, store.pendingEvents().size)
+        assertTrue("Remote profile application must not echo changes into the local outbox.", store.pendingEvents().isEmpty())
     }
 
     @Test
