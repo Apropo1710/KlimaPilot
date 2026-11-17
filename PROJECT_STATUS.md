@@ -205,3 +205,13 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Gezielte CI-Korrektur auf dem Feature-Branch, Commit `3d5179d554c8de30f5eb548825f22bd81c9d0eb8`: Logcat-Sicherung per EXIT-Trap im Emulator-Skript, explizites Warten auf das ADB-Gerät, zusätzliche Host-/ADB-/AVD-Diagnose in einem separaten `if: always()`-Schritt und gemeinsamer Upload von Diagnose- und Android-Testberichten mit sieben Tagen Aufbewahrung.
 - Die Änderung betrifft ausschließlich den TLS-Testworkflow. Keine Änderung an TLS-/Pairing-Produktivlogik, Updater, ioBroker-Sync, WF-RAC-Steuerweg oder `main`; keine Versionsanhebung und kein Produktionsbuild.
 - **Nächster Schritt:** Den automatisch durch den neuen Branch-Commit ausgelösten TLS-Lauf auswerten. Erst wenn die Instrumentierung tatsächlich startet und Logcat/Testberichte vorliegen, lässt sich ein möglicher TLS-Fehler beurteilen. PR #5 bleibt Draft und nicht zum Merge freigegeben.
+
+
+## 14. Korrektur des Emulator-Skripts nach TLS-CI-Lauf #12 (17.11.2026)
+
+- GitHub Actions [Pairing TLS Compatibility #12](https://github.com/Apropo1710/KlimaPilot/actions/runs/44141259784) für Commit `3d5179d554c8de30f5eb548825f22bd81c9d0eb8`: beide Matrix-Jobs scheiterten bereits im Emulator-Schritt, bevor Gradle oder der TLS-Instrumentierungstest ausgeführt wurden.
+- Konkrete Ursache: `/usr/bin/sh: Syntax error: end of file unexpected (expecting "}")` beim Einlesen der mehrzeiligen Shell-Funktionsdefinition `capture_guest_diagnostics()`. Der Emulator-Runner führte die Script-Zeilen einzeln über `sh -c` aus; die Funktion konnte so nicht definiert werden.
+- Die beiden Diagnoseartefakte wurden trotzdem hochgeladen, enthielten aber nur die Host-Diagnose. Darin war `emulator-5554` bei API 26 und API 35 jeweils als `offline` aufgeführt. Es gab in diesem Lauf keine auswertbaren Guest-Logcat-Daten.
+- Korrektur auf dem Feature-Branch, Commit `1e28779d5c67f0a4746f2735b16c4fb928bc9a5a`: Emulator-Skript auf einen gefalteten Shell-Einzeiler ohne Funktionsdefinition umgestellt. ADB-Wartezeit ist auf 45 Sekunden begrenzt; bei erfolgreichem Geräte-Start wird der Test ausgeführt und danach Logcat/Emulatorstatus unabhängig vom Testergebnis in die Datei geschrieben. Bei ADB-Timeout wird der Grund ebenfalls protokolliert.
+- Diese Änderung betrifft ausschließlich die CI-Diagnose. Keine TLS-/Pairing-Produktivlogik, kein Updater, keine ioBroker-/WF-RAC-Änderung, keine Änderung an `main`, keine Versionserhöhung und kein Produktionsbuild.
+- **Nächster Schritt:** Den automatisch ausgelösten Lauf nach Commit `1e28779...` prüfen. Erst danach lässt sich entscheiden, ob API 26/35 tatsächlich den Instrumentierungstest ausführen und ob ein TLS-Fehler vorliegt.
