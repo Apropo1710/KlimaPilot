@@ -256,3 +256,13 @@ Der bestehende ioBroker-Weg bleibt erhalten und läuft parallel als zusätzliche
 - Peer-Transport existiert weiterhin nicht. Kein Profilinhalt wird lokal über WLAN übertragen. Kein Pairing und kein automatischer Peer-Betrieb ist bereits fertig.
 - Aktueller Code-Commit: `66802ce044fed2495e8be085177927451515ed69`. Branch-Validation #65 ist für diesen Head vorgemerkt/läuft noch; Ergebnis vor weiteren Integrationsschritten kontrollieren.
 
+## 14. Umsetzungsschritt – kryptografische Installationsidentität (17.11.2026)
+
+- Neue `ClimatePeerIdentityStore`-Grundlage: pro Installation wird ein ECDSA-Schlüsselpaar auf Kurve `secp256r1` im Android Keystore erzeugt.
+- Der private Schlüssel bleibt nicht exportierbar; die Klasse stellt nur die Signierfunktion für begrenzte Challenges bereit.
+- Die Peer-ID wird deterministisch als SHA-256-Fingerprint des DER-kodierten öffentlichen Schlüssels gebildet; zusätzlich wird ein gruppierter Fingerprint zur manuellen Vergleichsanzeige geliefert.
+- Öffentlicher Schlüssel wird als Base64-X.509-DER ausgegeben. Signaturprüfung akzeptiert nur begrenzte Schlüssel-, Challenge- und Signaturgrößen und schlägt bei ungültigen Daten geschlossen fehl.
+- Tests prüfen Signaturgültigkeit, Challenge-Bindung und Ablehnung fehlerhafter/übergroßer Eingaben.
+- Dies ist nur die lokale Identitätsgrundlage. Es gibt noch keine Peer-Persistenz, kein QR-Pairing, keine Vertrauensentscheidung, keinen Widerruf und keinen Netzwerk-Handshake. Die Discovery-Daten bleiben untrusted.
+- Keine Manifest-, Berechtigungs-, Abhängigkeits-, Updater-, WF-RAC-, ioBroker-Protokoll- oder Produktionsversionsänderung.
+- Die Android Keystore-Generierung und Hardware-/Software-Key-Backends müssen auf realen Geräten separat getestet werden; CI-Unit-Tests beweisen diese Geräteintegration nicht.
