@@ -7,7 +7,7 @@
 
 ## Verifizierter Produktionsstand
 
-- Aktueller `main`-HEAD: `cd26cc24659c103e0ce1f2cccc8467a06050b9b9` (Dokumentationscommit).
+- `main`-HEAD vor dieser Statuspflege: `cd26cc24659c103e0ce1f2cccc8467a06050b9b9` (Dokumentationscommit).
 - Letzter App-Code-Commit: `42472a3af147` – Importkorrektur für die Rundungs-/Snapshot-Validierung; davor wurde mit `f670b9a8c252` das Erhalten und Synchronisieren individueller Klimaeinstellungen umgesetzt.
 - APK-Build-Quellcommit: `c7a1c6a458f0c44533d08672db5592a20748bfc6` (Dokumentationscommit auf demselben App-Code-Baum).
 - GitHub Actions [#222](https://github.com/Apropo1710/KlimaPilot/actions/runs/43957989783): **completed / success**, exakt für den APK-Build-Quellcommit.
