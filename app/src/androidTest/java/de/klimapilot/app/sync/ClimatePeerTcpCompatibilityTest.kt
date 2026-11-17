@@ -98,6 +98,41 @@ class ClimatePeerTcpCompatibilityTest {
         }
     }
 
+    @Test
+    fun clientRejectsServerMissingFromItsLocalTrustList() {
+        val clientIdentityStore = ClimatePeerIdentityStore("klimapilot.test.client.reject.server.identity")
+        val serverIdentityStore = ClimatePeerIdentityStore("klimapilot.test.server.reject.client.identity")
+        val clientIdentity = clientIdentityStore.getOrCreateIdentity()
+        val serverIdentity = serverIdentityStore.getOrCreateIdentity()
+        val emptyClientTrust = freshTrustStore("tcp_reject_server_client")
+        val serverTrust = freshTrustStore("tcp_reject_server_server")
+        serverTrust.trustPeer(clientIdentity.publicKeyBase64, "Testclient")
+        assertFalse(emptyClientTrust.isTrusted(serverIdentity.peerId, serverIdentity.publicKeyBase64))
+
+        val server = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val serverResult = executor.submit<Boolean> {
+                server.accept().use { socket ->
+                    runCatching {
+                        ClimatePeerTcp.authenticateAsServer(socket, serverIdentityStore, serverTrust)
+                    }.isSuccess
+                }
+            }
+            val clientAccepted = runCatching {
+                Socket(InetAddress.getByName("127.0.0.1"), server.localPort).use { socket ->
+                    ClimatePeerTcp.authenticateAsClient(socket, clientIdentityStore, emptyClientTrust)
+                }
+            }.isSuccess
+            assertFalse("Client must reject an untrusted server", clientAccepted)
+            assertFalse("Server must not complete when client closes after rejection", serverResult.get(20, TimeUnit.SECONDS))
+        } finally {
+            server.close()
+            executor.shutdownNow()
+            serverTrust.revokePeer(clientIdentity.peerId)
+        }
+    }
+
     private fun freshTrustStore(name: String): ClimateTrustedPeerStore {
         context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()
         return ClimateTrustedPeerStore(context, name)
