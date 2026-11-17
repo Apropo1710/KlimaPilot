@@ -296,19 +296,15 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var profileMenuExpanded by remember { mutableStateOf(false) }
 
     fun persistActiveProfile(profileId: String?, requestSync: Boolean = true): String? {
+        val saved = runCatching {
+            if (syncDeviceKey.isBlank()) syncStore.saveActiveProfileId(deviceId, profileId)
+            else syncStore.saveActiveProfileIdWithSync(deviceId, profileId, syncDeviceKey)
+        }.getOrElse {
+            return it.message ?: "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
+        }
+        if (!saved) return "Die aktive Profilauswahl konnte nicht zusammen mit ihrer Synchronisierungsvormerkung gespeichert werden."
         selectedProfileId = profileId
-        if (!syncStore.saveActiveProfileId(deviceId, profileId)) {
-            return "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
-        }
-        if (syncDeviceKey.isNotBlank()) {
-            val queued = runCatching {
-                syncStore.enqueueActiveProfileSelection(profileId, syncDeviceKey)
-            }.getOrElse {
-                return it.message ?: "Die aktive Profilauswahl konnte nicht zur Synchronisierung vorgemerkt werden."
-            }
-            if (!queued) return "Die aktive Profilauswahl konnte nicht zur Synchronisierung vorgemerkt werden."
-            if (requestSync) syncRevision++
-        }
+        if (syncDeviceKey.isNotBlank() && requestSync) syncRevision++
         return null
     }
 
@@ -329,15 +325,14 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             threeDAuto = state.entrust.takeIf { supportsVaneLR },
             updatedAt = System.currentTimeMillis()
         )
-        if (!syncStore.saveIndividualProfile(deviceId, snapshot)) {
-            return "Die individuellen Einstellungen konnten nicht lokal gesichert werden. Der Profilwechsel wurde abgebrochen."
+        val saved = runCatching {
+            if (syncDeviceKey.isBlank()) syncStore.saveIndividualProfile(deviceId, snapshot)
+            else syncStore.saveIndividualProfileWithSync(deviceId, snapshot, syncDeviceKey)
+        }.getOrElse {
+            return it.message ?: "Die individuellen Einstellungen konnten nicht lokal gesichert werden. Der Profilwechsel wurde abgebrochen."
         }
-        if (syncDeviceKey.isNotBlank()) {
-            val queued = runCatching { syncStore.enqueueIndividualProfile(snapshot, syncDeviceKey) }
-                .getOrElse { return it.message ?: "Die individuellen Einstellungen konnten nicht zur Synchronisierung vorgemerkt werden." }
-            if (!queued) return "Die individuellen Einstellungen konnten nicht zur Synchronisierung vorgemerkt werden."
-            syncRevision++
-        }
+        if (!saved) return "Die individuellen Einstellungen konnten nicht zusammen mit ihrer Synchronisierungsvormerkung gespeichert werden."
+        if (syncDeviceKey.isNotBlank()) syncRevision++
         return null
     }
     LaunchedEffect(repository) {
