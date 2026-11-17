@@ -86,6 +86,7 @@ class ClimatePairingSessionControllerTest {
         val first = controllerA.createOutgoingInvitation(now)
         val pending = controllerB.prepareIncomingInvitation(first, now)!!
         controllerB.cancel()
+        controllerA.cancel()
 
         val second = controllerA.createOutgoingInvitation(now + 10)
         val otherPending = controllerB.prepareIncomingInvitation(second, now + 10)!!
