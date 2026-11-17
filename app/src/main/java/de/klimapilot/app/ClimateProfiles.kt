@@ -321,7 +321,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
 
     fun persistActiveProfile(profileId: String?, requestSync: Boolean = true): String? {
         val saved = runCatching {
-            if (syncDeviceKey.isBlank()) syncStore.saveActiveProfileId(deviceId, profileId)
+            if (syncDeviceKey.isBlank() || !requestSync) syncStore.saveActiveProfileId(deviceId, profileId)
             else syncStore.saveActiveProfileIdWithSync(deviceId, profileId, syncDeviceKey)
         }.getOrElse {
             return it.message ?: "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
