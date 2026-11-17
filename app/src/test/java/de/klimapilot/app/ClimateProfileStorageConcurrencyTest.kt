@@ -209,6 +209,87 @@ class ClimateProfileStorageConcurrencyTest {
     }
 
     @Test
+    fun journalReplayAfterOutboxCommitBeforeJournalClearDoesNotDuplicateEvent() {
+        val repository = ClimateProfileRepository(context)
+        val store = ClimateProfileSyncStore(context)
+        repository.saveWithPendingSync(profile("crash-after-outbox"), "wfrac:shared-device")
+
+        // Simulate process death after the outbox/import-marker commit but before
+        // the repository journal is cleared.
+        val repositoryPrefs = context.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
+        val journalBeforeCrash = org.json.JSONArray(
+            repositoryPrefs.getString("pending_sync_journal_v1", "[]")
+        )
+        assertEquals(1, journalBeforeCrash.length())
+        assertTrue(store.enqueueJournalEvent(journalBeforeCrash.getJSONObject(0)))
+        assertEquals(1, store.pendingEvents().size)
+
+        // A new repository instance represents the next process/recovery attempt.
+        val recoveredRepository = ClimateProfileRepository(context)
+        assertEquals(1, recoveredRepository.flushPendingSyncJournal(store))
+        assertEquals(1, store.pendingEvents().size)
+        assertEquals(0, org.json.JSONArray(
+            repositoryPrefs.getString("pending_sync_journal_v1", "[]")
+        ).length())
+    }
+
+    @Test
+    fun emptyJournalRecoveryClearsOrphanedImportMarkersAfterJournalCommit() {
+        val repository = ClimateProfileRepository(context)
+        val store = ClimateProfileSyncStore(context)
+        repository.saveWithPendingSync(profile("crash-after-journal-clear"), "wfrac:shared-device")
+
+        // Simulate the state after the repository journal commit succeeded but the
+        // subsequent import-marker cleanup did not run.
+        val repositoryPrefs = context.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
+        val journal = org.json.JSONArray(repositoryPrefs.getString("pending_sync_journal_v1", "[]"))
+        assertEquals(1, journal.length())
+        assertTrue(store.enqueueJournalEvent(journal.getJSONObject(0)))
+        assertTrue(repositoryPrefs.edit().putString("pending_sync_journal_v1", "[]").commit())
+
+        val syncPrefs = context.getSharedPreferences("klimapilot_profile_sync", Context.MODE_PRIVATE)
+        val stateBeforeRecovery = org.json.JSONObject(syncPrefs.getString("sync_state_v1", "{}"))
+        assertEquals(1, stateBeforeRecovery.optJSONArray("importedJournalEventIds")?.length() ?: 0)
+
+        val recoveredRepository = ClimateProfileRepository(context)
+        assertEquals(0, recoveredRepository.flushPendingSyncJournal(store))
+        val stateAfterRecovery = org.json.JSONObject(syncPrefs.getString("sync_state_v1", "{}"))
+        assertEquals(0, stateAfterRecovery.optJSONArray("importedJournalEventIds")?.length() ?: 0)
+        assertEquals(1, store.pendingEvents().size)
+    }
+
+    @Test
+    fun observedRemoteClockMakesPendingLocalEditNewerThanRemoteSnapshot() {
+        val repository = ClimateProfileRepository(context)
+        val store = ClimateProfileSyncStore(context)
+        val client = ClimateProfileSyncClient()
+        store.observeRemoteClock(100L)
+        repository.saveWithPendingSync(profile("clock-conflict"), "wfrac:shared-device")
+
+        val remote = org.json.JSONObject()
+            .put("eventId", "remote-install:100")
+            .put("type", "upsert")
+            .put("deviceKey", "wfrac:shared-device")
+            .put("profileId", "clock-conflict")
+            .put("installationId", "remote-install")
+            .put("sequence", 100L)
+            .put("logicalClock", 100L)
+            .put("profile", org.json.JSONObject()
+                .put("name", "Older remote snapshot")
+                .put("power", false)
+                .put("mode", "HEAT")
+                .put("targetTemp", 25.0)
+                .put("fanSpeed", 1)
+                .put("verticalSwing", 2)
+                .put("updatedAt", 1L))
+
+        assertTrue(!client.applyRemoteEventIfNewer(remote, "device-1", store, repository))
+        assertEquals("clock-conflict", repository.load().single().name)
+        assertEquals(1, store.pendingEvents().size)
+        assertTrue(store.pendingEvents().single().optLong("logicalClock") > 100L)
+    }
+
+    @Test
     fun repeatedJournalFlushIsIdempotent() {
         val repository = ClimateProfileRepository(context)
         val store = ClimateProfileSyncStore(context)
