@@ -191,8 +191,10 @@ internal fun DeviceSettingsDialog(
                         val migrated = runCatching {
                             // Move durable repository-journal entries into the outbox first,
                             // so the existing outbox migration also covers not-yet-flushed edits.
-                            profileRepository.flushPendingSyncJournal(syncStore)
-                            syncStore.rekeyPendingEvents(oldKey, newKey)
+                            synchronized(ClimateProfileStorageLock.monitor) {
+                                profileRepository.flushPendingSyncJournal(syncStore)
+                                syncStore.rekeyPendingEvents(oldKey, newKey)
+                            }
                         }
                         if (migrated.isFailure || migrated.getOrDefault(false).not()) {
                             syncKeyError = migrated.exceptionOrNull()?.message
