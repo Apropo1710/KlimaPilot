@@ -224,8 +224,29 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 - Wiederholter Journal-Flush muss idempotent bleiben.
 - Zusätzlich einfacher Test der Reentranz und gegenseitigen Ausschließung des gemeinsamen Monitors.
 
-**Review und Nachbesserung – 17.11.2026:** Das unabhängige Claude-Review identifizierte einen Konflikt zwischen ungeflushter lokaler Journaländerung und eingehendem Remote-Ereignis sowie eine fehlende Synchronisierung der aktiven Profilauswahl bei `requestSync = false`. Zusätzlich wurden das Abbruchverhalten beim Journal-Flush und der Initialisierungsmarker beim Gerätekennungs-Rekey nachgebessert. Der Remote-Konflikt wird nun unmittelbar vor jeder Remote-Versionsprüfung innerhalb derselben gemeinsamen Sperre behandelt; ein einmaliger Flush zu Beginn des Sync-Laufs wäre nicht ausreichend. Der neue Test ruft denselben zentralen Anwendungspfad auf wie der Sync-Client.\n\n**Noch offen vor Freigabe:** Die neuen Nachbesserungen und Regressionstests müssen durch einen neuen GitHub-Actions-Lauf erfolgreich validiert werden. Zusätzlich bleiben echte Prozessneustart-/Crash-Injektionstests für die getrennten SharedPreferences-Commits sowie die Prüfung der Marker-Bereinigung offen. Die gemeinsame Sperre ersetzt keine crash-atomare Transaktion über mehrere Speicherbereiche. Das unabhängige Claude-Review ist erfolgt; die gefundenen Punkte wurden in diesem Arbeitsbranch adressiert, müssen aber durch CI und erneute Review bestätigt werden. Die SharedPreferences-Nutzdaten und Versionsmarker liegen weiterhin in getrennten Commits; die Sperre schützt vor konkurrierenden Prozesszugriffen, ersetzt aber keine crash-atomare Transaktion über beide Dateien.
+**Review und Nachbesserung – 17.11.2026:**
+- Das unabhängige Claude-Review fand einen Konflikt zwischen ungeflushter lokaler Journaländerung und eingehendem Remote-Ereignis. Vor jeder Remote-Versionsprüfung wird das lokale Journal jetzt innerhalb derselben gemeinsamen Sperre geflusht.
+- Die aktive Profilauswahl wird auch bei `requestSync = false` als Outbox-Ereignis vorgemerkt; das Flag steuert nur die Erhöhung von `syncRevision`.
+- Ein fehlgeschlagener Journal-Flush bricht ab, ohne das Repository-Journal zu leeren.
+- Beim Rekey werden offene Ereignisse, der Initialisierungsmarker und jetzt auch sämtliche bekannten Profilversionen vom alten auf den neuen Geräteschlüssel übertragen. Bei bereits vorhandener Zielversion bleibt jeweils die neuere Version erhalten. Damit bleiben auch bestätigte Ereignisse berücksichtigt, die nicht mehr in der Outbox liegen.
+- Der Versionsübernahme-Fix ist durch einen gezielten Regressionstest für einen bestätigten alten Versionsstand (Clock 45) gegenüber einer vorhandenen Zielversion (Clock 40) abgedeckt.
 
-Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
+**Automatisierte Tests und CI:**
+- GitHub-Actions-Lauf #35 für Head `eb7ce131`: erfolgreich (Unit-Tests und Debug-Kompilierung).
+- GitHub-Actions-Lauf #37 für Head `0caed4c`: erfolgreich (Unit-Tests und Debug-Kompilierung einschließlich Rekey-Versionsübernahme).
+- Für den danach ergänzten Head `0bdd4a5` wurden zwei gezielte Journal-Wiederanlaufszenarien und ein Test zum Zusammenspiel von `observeRemoteClock` und ungeflushter lokaler Änderung ergänzt. Der zugehörige CI-Lauf ist noch abzuwarten.
+- Die Replay-Tests simulieren die jeweiligen dauerhaft gespeicherten Zwischenzustände mit SharedPreferences und neuen Repository-Instanzen. Sie sind gezielte Wiederanlauf-/Idempotenztests, aber kein echter Betriebssystem-Prozessabsturztest.
+- Der PR-Workflow prüft Unit-Tests und Debug-Kompilierung. Release-Keystore, signierter Release-Build, APK-Signaturprüfung und Produktionsartefakt-Upload sind nicht Bestandteil dieses PR-Workflows.
+
+**Noch offen vor Freigabe:**
+- CI für den aktuellen Head `0bdd4a5` abwarten und Ergebnis kontrollieren.
+- Unabhängiges Re-Review der Rekey-Versionsübernahme und der neuen Replay-/Clock-Tests.
+- Den PR-Branch kontrolliert mit dem aktuellen `main` abgleichen; der Branch ist gegenüber `main` divergent, die acht Rückstände betreffen nach dem zuletzt geprüften Compare Status-/Projektdokumentation.
+- Die Konfliktregeln für bereits geflushte lokale Änderungen (Last-Writer-Wins nach Logical Clock) und lokale Bearbeitung gegen Remote-Löschung sind bewusste Verhaltensentscheidungen und sollten vor Freigabe dokumentiert beziehungsweise bestätigt werden.
+- Ein Commit-Fehler mitten im Journal-Flush ist noch nicht gezielt durch Fehlerinjektion getestet.
+- Die getrennten SharedPreferences-Commits sind nicht übergreifend crash-atomar. Die gemeinsame Prozesssperre verhindert konkurrierende Zugriffe innerhalb des Prozesses, ersetzt aber keine Transaktion über mehrere Speicherbereiche.
+- Hauptthread-Performance, ungültige/vergiftete Remote-Ereignisse und eine UI-nahe Prüfung von `persistActiveProfile` bleiben zusätzliche Review-Punkte.
+
+Der PR ist weiterhin nicht für Produktion freigegeben. Produktionsversion bleibt `0.4.63` / versionCode `93`. Es wurde kein Produktionsbuild oder Release erstellt.
 
 Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
