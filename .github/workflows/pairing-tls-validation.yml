@@ -20,8 +20,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # API 26 passed both TCP tests. Isolate API 35 to capture its
-        # instrumentation crash without spending another emulator run on API 26.
+        # API 26 passed both TCP tests. Keep API 35 isolated while changing
+        # only its emulator image/configuration to the lightweight test image.
         api-level: [35]
     steps:
       - name: Quellcode auschecken
@@ -45,9 +45,15 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
+          target: aosp_atd
           arch: x86_64
           profile: pixel_2
+          cores: 4
+          ram-size: 4096M
+          heap-size: 512M
           disable-animations: true
+          disable-spellchecker: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           script: >-
             gradle --no-daemon connectedDebugAndroidTest;
             result=$?;
