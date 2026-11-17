@@ -60,13 +60,13 @@ class ClimatePeerAnnouncementTest {
 
     @Test
     fun rejectsUnexpectedInstanceNames() {
-        assertNull(parse(instance = "KlimaPilot-peer1234\\n"))
+        assertNull(parse(instance = "KlimaPilot-a1b2c3d4\\n"))
         assertNull(parse(instance = "OtherDevice"))
         assertNull(parse(instance = "KlimaPilot-ABCDEF12"))
     }
 
     private fun parse(
-        instance: String = "KlimaPilot-peer1234",
+        instance: String = "KlimaPilot-a1b2c3d4",
         host: String? = "192.168.1.20",
         port: Int = 49152,
         attributes: Map<String, ByteArray> = validAttributes,
