@@ -151,3 +151,13 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Die technischen API-Erkenntnisse und die geplante Kompatibilitätsstrategie sind in `LOCAL_WIFI_SYNC_DESIGN.md`, Abschnitt 10, dokumentiert.
 - **Aktueller Fortschritt:** Bestandsaufnahme und API-Präzisierung abgeschlossen; Discovery-Implementierung, automatisierte Tests, Claude-Review und Zwei-Smartphone-Test stehen noch aus.
 - `main`, Produktionsversion 0.4.64 / versionCode 94, Updater und WF-RAC-Steuerpfad wurden durch diese Dokumentationsänderung nicht verändert.
+
+## 10. Lokale WLAN-Peer-Discovery – Implementierungsstand
+
+- Discovery-Komponente und Diagnoseoberfläche in den Einstellungen auf `feature/local-wifi-profile-sync` hinzugefügt.
+- Ausschließlich unbestätigte DNS-SD-Ankündigungen; keine Kopplung, kein Profil-/Konto-/Schlüsselaustausch und keine ioBroker-Datenübertragung.
+- TXT-Metadaten werden strikt validiert; fremde Zusatzfelder und unbekannte Protokollversionen werden verworfen.
+- TCP-Port dient nur der DNS-SD-Ankündigung. Verbindungen werden sofort geschlossen, ohne Nutzdaten zu lesen oder zu senden.
+- Unit-Tests für die Metadatenvalidierung ergänzt. Build/Tests und realer Zwei-Smartphone-Test sind noch nicht bestätigt.
+- Nächster Gate: Branch-Validation, Korrektur aller Befunde und unabhängiges Claude-Review vor jeder Pairing-/Transportarbeit.
+- Produktionsbranch `main`, Version 0.4.64 / versionCode 94, Updater und WF-RAC-Steuerpfad bleiben unangetastet.
