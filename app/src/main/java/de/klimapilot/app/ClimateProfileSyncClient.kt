@@ -30,10 +30,13 @@ internal class ClimateProfileSyncClient {
         val completed = AtomicBoolean(false)
         fun finish(message: String) {
             if (!completed.compareAndSet(false, true)) return
-            socket.off()
-            socket.disconnect()
-            ClimateProfileSyncCoordinator.release()
-            main.post { callback(message) }
+            try {
+                socket.off()
+                socket.disconnect()
+            } finally {
+                ClimateProfileSyncCoordinator.release()
+                main.post { callback(message) }
+            }
         }
         socket.on("connect") {
             socket.emit("authenticate", IoBrokerAck authCallback@{ authArgs ->
