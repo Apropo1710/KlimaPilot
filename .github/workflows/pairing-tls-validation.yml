@@ -52,41 +52,28 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: |
-            set +e
-            mkdir -p build-logs
-            LOG_FILE="build-logs/logcat-api-${{ matrix.api-level }}.txt"
-
-            capture_guest_diagnostics() {
-              {
-                echo "=== API ${{ matrix.api-level }} guest diagnostics ==="
-                date -u
-                echo "--- adb devices ---"
-                adb devices -l
-                echo "--- emulator properties ---"
-                adb -s emulator-5554 shell getprop
-                echo "--- complete logcat ---"
-                adb -s emulator-5554 logcat -b all -d -v threadtime
-              } >> "$LOG_FILE" 2>&1
-            }
-
-            # Trap sichert Logcat auch dann, wenn Gradle/Testprozess fehlschlägt.
-            trap 'capture_guest_diagnostics' EXIT
-
-            {
-              echo "=== API ${{ matrix.api-level }} test start ==="
-              date -u
-              echo "--- adb devices before test ---"
-              adb devices -l
-            } > "$LOG_FILE" 2>&1
-
-            adb -s emulator-5554 wait-for-device
-            adb -s emulator-5554 logcat -c
-            gradle --no-daemon connectedDebugAndroidTest
-            test_status=$?
-
-            capture_guest_diagnostics
-            trap - EXIT
+          script: >-
+            mkdir -p build-logs;
+            LOG_FILE="build-logs/logcat-api-${{ matrix.api-level }}.txt";
+            echo "=== API ${{ matrix.api-level }} guest diagnostics ===" > "$LOG_FILE";
+            date -u >> "$LOG_FILE" 2>&1;
+            adb devices -l >> "$LOG_FILE" 2>&1;
+            timeout 45s adb -s emulator-5554 wait-for-device;
+            wait_status=$?;
+            if [ "$wait_status" -eq 0 ]; then
+              adb -s emulator-5554 logcat -c;
+              gradle --no-daemon connectedDebugAndroidTest;
+              test_status=$?;
+            else
+              test_status=$wait_status;
+              echo "ADB wait-for-device failed with exit code $wait_status" >> "$LOG_FILE";
+            fi;
+            echo "--- final adb devices ---" >> "$LOG_FILE";
+            adb devices -l >> "$LOG_FILE" 2>&1;
+            echo "--- emulator properties ---" >> "$LOG_FILE";
+            adb -s emulator-5554 shell getprop >> "$LOG_FILE" 2>&1;
+            echo "--- complete logcat ---" >> "$LOG_FILE";
+            adb -s emulator-5554 logcat -b all -d -v threadtime >> "$LOG_FILE" 2>&1;
             exit "$test_status"
 
       - name: Host- und Emulator-Diagnose sichern
