@@ -24,7 +24,7 @@ Die beiden lokalen Bestätigungen sind unabhängig. Ein zusätzlicher finaler Be
 
 - Es gibt jeweils nur eine aktive Pairing-Sitzung pro Gerät.
 - Einladungen bleiben 120 Sekunden gültig.
-- Eine Einladung wird nach erfolgreicher Antwortannahme bzw. Abbruch lokal als verbraucht behandelt.
+- Eine Einladung wird nach lokaler Bestätigung oder bewusstem Abbruch für die laufende App-Sitzung als verbraucht behandelt.
 - Der aktive Sitzungszustand bleibt nur im Arbeitsspeicher. Nach Prozessende muss eine neue Einladung erstellt werden; die kurze Gültigkeit macht eine persistente Replay-Datenbank unnötig.
 - Eine Antwort ist an Sitzungs-ID und Einladungs-Nonce gebunden. Eine Antwort aus einer anderen oder bereits verbrauchten Sitzung wird abgelehnt.
 - Keine dauerhafte Speicherung von QR-Payloads, Nonces oder temporären Sitzungsgeheimnissen.
