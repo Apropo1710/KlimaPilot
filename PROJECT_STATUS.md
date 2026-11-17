@@ -100,12 +100,12 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 
 | Run | Version | Ergebnis |
 |---|---:|---|
-| #211 | 0.4.59 / 89 | **success** – aktueller Release |
+| [#227](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073072643) | **0.4.64 / 94** | **success** – aktueller Produktionsrelease |
+| [#226](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073032166) | 0.4.63 / 93 | **success** – Zwischenrelease vor Versionsanhebung |
+| [#225](https://github.com/Apropo1710/KlimaPilot/actions/runs/44072272599) | 0.4.63 / 93 | **success** – Merge-Stand |
+| #211 | 0.4.59 / 89 | **success** |
 | #210 | 0.4.58 / 88 | **success** |
-| #209 | 0.4.57 / 87 | **success** – fehlender Color-Import korrigiert |
-| #208 | 0.4.57 Zwischenstand | failure – fehlender Color-Import |
-| #207 | 0.4.57 Zwischenstand | failure – Zwischenstand |
-| #206 | 0.4.56 / 86 | **success** |
+| #209 | 0.4.57 / 87 | **success** |
 
 ## 7. Verbindliche Arbeitsregeln
 
