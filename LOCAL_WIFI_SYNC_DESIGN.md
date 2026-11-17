@@ -266,3 +266,15 @@ Der bestehende ioBroker-Weg bleibt erhalten und läuft parallel als zusätzliche
 - Dies ist nur die lokale Identitätsgrundlage. Es gibt noch keine Peer-Persistenz, kein QR-Pairing, keine Vertrauensentscheidung, keinen Widerruf und keinen Netzwerk-Handshake. Die Discovery-Daten bleiben untrusted.
 - Keine Manifest-, Berechtigungs-, Abhängigkeits-, Updater-, WF-RAC-, ioBroker-Protokoll- oder Produktionsversionsänderung.
 - Die Android Keystore-Generierung und Hardware-/Software-Key-Backends müssen auf realen Geräten separat getestet werden; CI-Unit-Tests beweisen diese Geräteintegration nicht.
+
+## 15. Umsetzungsschritt – persistente Liste vertrauenswürdiger Peers (17.11.2026)
+
+- Neue `ClimateTrustedPeerStore` speichert ausschließlich explizit als vertrauenswürdig übergebene Peer-Schlüssel in privaten App-SharedPreferences.
+- Vor Speicherung wird der EC/X.509-Public-Key dekodiert und validiert; Peer-ID und Fingerprint werden selbst aus SHA-256 des kanonischen öffentlichen Schlüssels berechnet. Übergebene IDs werden nicht blind übernommen.
+- Anzeigenamen sind auf 1–48 Zeichen begrenzt.
+- `isTrusted` verlangt übereinstimmende Peer-ID und denselben kanonischen öffentlichen Schlüssel; bloße Discovery-Metadaten reichen nicht.
+- `revokePeer` entfernt den gespeicherten Schlüssel; unbekannte/ungültige IDs werden abgelehnt.
+- Robolectric-Tests decken Persistenz über Store-Neuinstanz, Key-Mismatch, ungültige Schlüssel/Namen und Widerruf ab.
+- Wichtige Grenze: Die Klasse führt selbst kein Pairing aus. `trustPeer` darf erst nach erfolgreichem gegenseitigem QR-/Challenge-Handshake und expliziter Fingerprint-Bestätigung auf beiden Geräten aufgerufen werden. UI/Handshake existieren noch nicht.
+- SharedPreferences speichern öffentliche Schlüssel, keine privaten Schlüssel oder Geheimnisse. Der private Schlüssel verbleibt im Android Keystore.
+- Noch kein Netzwerktransport, keine automatische Synchronisierung, keine Änderung an Manifest, Berechtigungen, ioBroker-Protokoll, Updater, WF-RAC oder Produktionsversion.
