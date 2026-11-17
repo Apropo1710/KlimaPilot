@@ -94,3 +94,13 @@ Verbindliche Leitlinien:
 6. Direkte lokale Klimasteuerung und funktionierenden Updater nicht unnötig verändern.
 
 Ein absolut ausfallfreies System ist nicht garantierbar. Ziel ist, dass der Ausfall eines Synchronisationsdienstes weder die lokale Bedienung noch gespeicherte Daten gefährdet.
+
+## WLAN-Pairing – aktueller Testzweig (17.11.2026)
+
+- Nicht freigegebener Entwicklungsstand: PR #6 gegen `main`, offen/Draft. Produktionsbranch und Release bleiben unverändert.
+- WLAN- und TLS-Validierung laufen nur noch automatisch über den PR nach `main`; zusätzliche Push-Trigger auf `test` wurden entfernt. Manueller Workflow-Start bleibt verfügbar.
+- mTLS-Clientzertifikate werden durch Standard-TLS 1.2 mit gepinntem Android-Keystore-Serverzertifikat und signierter Anwendungschallenge des Clients ersetzt. Der Server prüft Peer-ID/Public-Key zusätzlich gegen die lokale Trusted-Peer-Liste.
+- Implementierung: `ClimatePeerTls.kt`; Instrumentierungstest für erfolgreichen TLS-/Challenge-Ablauf und falschen Server-Pin.
+- Code-Commit: `6748bffe9e6f2d000e5729d2dbede3e5f957e1f7`. Der CI-Nachweis für diesen neuen Ansatz ist noch ausstehend; Folgecommits enthalten Workflow- und Dokumentationspflege.
+- Kein produktiver Peer-Transport, kein Profiltransfer und kein bestätigter Zwei-Smartphone-Test. Discovery bleibt reject-only.
+- Updater und `main` unangetastet.
