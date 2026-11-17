@@ -20,7 +20,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [26, 35]
+        # API 26 passed both TCP tests. Isolate API 35 to capture its
+        # instrumentation crash without spending another emulator run on API 26.
+        api-level: [35]
     steps:
       - name: Quellcode auschecken
         uses: actions/checkout@v4
@@ -38,6 +40,8 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Android Emulator und TCP-Peer-Test
+        id: android-tests
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
@@ -45,4 +49,23 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: >-
-            gradle --no-daemon connectedDebugAndroidTest
+            gradle --no-daemon connectedDebugAndroidTest;
+            result=$?;
+            adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/tcp-api35-logcat.txt";
+            adb shell dumpsys activity > "$GITHUB_WORKSPACE/tcp-api35-activity.txt" 2>&1;
+            adb shell dumpsys package de.klimapilot.app.debug > "$GITHUB_WORKSPACE/tcp-api35-package.txt" 2>&1;
+            exit $result
+      - name: API-35-Diagnose sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcp-api35-diagnostics
+          path: |
+            tcp-api35-logcat.txt
+            tcp-api35-activity.txt
+            tcp-api35-package.txt
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Testergebnis übernehmen
+        if: steps.android-tests.outcome == 'failure'
+        run: exit 1
