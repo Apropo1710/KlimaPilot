@@ -215,7 +215,7 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 - Die Prüfung eines Remote-Ereignisses, seine lokale Anwendung einschließlich einer gegebenenfalls nötigen Auswahlbereinigung sowie das Speichern des Versionsmarkers sind gemeinsam geschützt.
 - Netzwerk-I/O bleibt außerhalb der Sperre. Eine während des Uploads umgeschlüsselte Outbox-Änderung wird bei der Bestätigung nicht versehentlich entfernt: Bestätigt wird nur noch exakt die hochgeladene Ereignisrevision (Event-ID, Gerätekennung, Installation und Sequenz). Eine zwischenzeitlich umgeschlüsselte Revision bleibt zur erneuten Übertragung erhalten.
 
-**Automatisierte Tests – ergänzt, Lauf noch ausstehend:**
+**Automatisierte Tests – ergänzt; CI-Lauf #31 für den damaligen Head `8650e6e` erfolgreich:**
 - Robolectric-Testbasis für echte Android-SharedPreferences.
 - Parallelzugriffe über mehrere Repository-Instanzen: Profile und Journal-Ereignisse dürfen nicht verloren gehen.
 - Parallelzugriffe über mehrere Store-Instanzen: alle Outbox-Ereignisse und eindeutige Sequenzen bleiben erhalten.
@@ -224,7 +224,7 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 - Wiederholter Journal-Flush muss idempotent bleiben.
 - Zusätzlich einfacher Test der Reentranz und gegenseitigen Ausschließung des gemeinsamen Monitors.
 
-**Noch offen vor Freigabe:** Die neuen Tests und der Debug-Build müssen in GitHub Actions erfolgreich laufen. Zusätzliche Crash-/Replay-Fälle für Remote-Ereignisse und Marker sowie unabhängiges Claude-Code-Review bleiben Teil der Freigabeprüfung. Die SharedPreferences-Nutzdaten und Versionsmarker liegen weiterhin in getrennten Commits; die Sperre schützt vor konkurrierenden Prozesszugriffen, ersetzt aber keine crash-atomare Transaktion über beide Dateien.
+**Review und Nachbesserung – 17.11.2026:** Das unabhängige Claude-Review identifizierte einen Konflikt zwischen ungeflushter lokaler Journaländerung und eingehendem Remote-Ereignis sowie eine fehlende Synchronisierung der aktiven Profilauswahl bei `requestSync = false`. Zusätzlich wurden das Abbruchverhalten beim Journal-Flush und der Initialisierungsmarker beim Gerätekennungs-Rekey nachgebessert. Der Remote-Konflikt wird nun unmittelbar vor jeder Remote-Versionsprüfung innerhalb derselben gemeinsamen Sperre behandelt; ein einmaliger Flush zu Beginn des Sync-Laufs wäre nicht ausreichend. Der neue Test ruft denselben zentralen Anwendungspfad auf wie der Sync-Client.\n\n**Noch offen vor Freigabe:** Die neuen Nachbesserungen und Regressionstests müssen durch einen neuen GitHub-Actions-Lauf erfolgreich validiert werden. Zusätzlich bleiben echte Prozessneustart-/Crash-Injektionstests für die getrennten SharedPreferences-Commits sowie die Prüfung der Marker-Bereinigung offen. Die gemeinsame Sperre ersetzt keine crash-atomare Transaktion über mehrere Speicherbereiche. Das unabhängige Claude-Review ist erfolgt; die gefundenen Punkte wurden in diesem Arbeitsbranch adressiert, müssen aber durch CI und erneute Review bestätigt werden. Die SharedPreferences-Nutzdaten und Versionsmarker liegen weiterhin in getrennten Commits; die Sperre schützt vor konkurrierenden Prozesszugriffen, ersetzt aber keine crash-atomare Transaktion über beide Dateien.
 
 Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
 
