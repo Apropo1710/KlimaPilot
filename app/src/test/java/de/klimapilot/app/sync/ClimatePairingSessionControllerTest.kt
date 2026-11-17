@@ -75,8 +75,11 @@ class ClimatePairingSessionControllerTest {
         assertNotNull(pending)
         controllerB.cancel()
         assertTrue(store.trustedPeers().isEmpty())
+        assertNull(controllerB.prepareIncomingInvitation(invitationPayload, now + 2))
 
-        assertNull(controllerB.prepareIncomingInvitation(invitationPayload, now + 120_001))
+        controllerA.cancel()
+        val expiringInvitation = controllerA.createOutgoingInvitation(now + 10)
+        assertNull(controllerB.prepareIncomingInvitation(expiringInvitation, now + 130_011))
         assertFalse(store.isTrusted(peerId(pairA), publicKey(pairA)))
     }
 
@@ -109,7 +112,7 @@ class ClimatePairingSessionControllerTest {
         val key = publicKey(pair)
         val id = peerId(pair)
         val unsigned = ClimatePairingInvitation.Invitation(
-            sessionId = if (label == "A") "a1".repeat(16) else "b2".repeat(16),
+            sessionId = now.toString().padStart(32, '0'),
             createdAtMillis = now,
             expiresAtMillis = now + 120_000L,
             peerId = id,
