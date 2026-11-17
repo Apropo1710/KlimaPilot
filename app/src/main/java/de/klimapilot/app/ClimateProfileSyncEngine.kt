@@ -10,13 +10,6 @@ import org.json.JSONObject
  * stay identical.
  */
 internal class ClimateProfileSyncEngine {
-    internal data class RemoteApplySummary(
-        val applied: Int,
-        val skipped: Int,
-        val rejected: Int,
-        val firstRejectedReason: String?
-    )
-
     /**
      * Validation failures are isolated to their individual event. Storage and persistence
      * failures deliberately escape so the sync round stops without pretending it succeeded.
@@ -26,7 +19,7 @@ internal class ClimateProfileSyncEngine {
         deviceMap: Map<String, String>,
         store: ClimateProfileSyncStore,
         repository: ClimateProfileRepository
-    ): RemoteApplySummary {
+    ): ClimateProfileSyncClient.RemoteApplySummary {
         var applied = 0
         var skipped = 0
         var rejected = 0
@@ -46,7 +39,7 @@ internal class ClimateProfileSyncEngine {
                 if (firstRejectedReason == null) firstRejectedReason = error.message ?: "Ungültige Remote-Daten."
             }
         }
-        return RemoteApplySummary(applied, skipped, rejected, firstRejectedReason)
+        return ClimateProfileSyncClient.RemoteApplySummary(applied, skipped, rejected, firstRejectedReason)
     }
 
     /** Applies one remote event only after local journal entries have received comparable versions. */
