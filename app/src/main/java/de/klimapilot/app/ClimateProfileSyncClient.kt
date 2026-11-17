@@ -63,6 +63,9 @@ internal class ClimateProfileSyncClient {
                                 if (deviceId == null) { skipped++; continue }
                                 try {
                                     val wasApplied = synchronized(ClimateProfileStorageLock.monitor) {
+                                        // Include every locally committed but not yet versioned change
+                                        // before deciding whether this remote revision may overwrite it.
+                                        repository.flushPendingSyncJournal(store)
                                         if (!store.isRemoteEventNewer(event)) false else {
                                             when (event.optString("type")) {
                                                 "selection" -> {
