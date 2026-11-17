@@ -1,12 +1,9 @@
 name: KlimaPilot Pinned TLS Peer Authentication
 
 on:
-  push:
-    branches:
-      - test
   pull_request:
     branches:
-      - test
+      - main
   workflow_dispatch:
 
 permissions:
