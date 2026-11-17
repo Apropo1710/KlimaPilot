@@ -207,6 +207,25 @@ internal class ClimateProfileSyncStore(context: Context) {
         val current = root.optJSONArray(KEY_OUTBOX) ?: JSONArray()
         val updated = JSONArray()
         val versions = root.optJSONObject(KEY_PROFILE_VERSIONS) ?: JSONObject()
+
+        // Carry forward every known profile version, including already acknowledged events
+        // that no longer exist in the outbox. Otherwise the migrated initialization marker
+        // could suppress the initial upload while the new key has no comparable version.
+        val oldVersionPrefix = "$oldDeviceKey|"
+        val versionKeys = versions.keys()
+        while (versionKeys.hasNext()) {
+            val oldVersionKey = versionKeys.next()
+            if (!oldVersionKey.startsWith(oldVersionPrefix)) continue
+            val profileId = oldVersionKey.removePrefix(oldVersionPrefix)
+            if (profileId.isBlank()) continue
+            val oldVersion = versions.optJSONObject(oldVersionKey) ?: continue
+            val newVersionKey = versionKey(newDeviceKey, profileId)
+            val newVersion = versions.optJSONObject(newVersionKey)
+            if (newVersion == null || compareVersion(oldVersion, newVersion) > 0) {
+                versions.put(newVersionKey, JSONObject(oldVersion.toString()))
+            }
+        }
+
         for (index in 0 until current.length()) {
             val event = current.optJSONObject(index) ?: continue
             if (event.optString("deviceKey") == oldDeviceKey) {
