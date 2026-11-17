@@ -158,8 +158,9 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Ausschließlich unbestätigte DNS-SD-Ankündigungen; keine Kopplung, kein Profil-/Konto-/Schlüsselaustausch und keine ioBroker-Datenübertragung.
 - TXT-Metadaten werden strikt validiert; fremde Zusatzfelder und unbekannte Protokollversionen werden verworfen.
 - TCP-Port dient nur der DNS-SD-Ankündigung. Verbindungen werden sofort geschlossen, ohne Nutzdaten zu lesen oder zu senden.
-- Unit-Tests für die Metadatenvalidierung ergänzt. Build/Tests und realer Zwei-Smartphone-Test sind noch nicht bestätigt.
-- Nächster Gate: Branch-Validation, Korrektur aller Befunde und unabhängiges Claude-Review vor jeder Pairing-/Transportarbeit.
+- Unit-Tests für die Metadatenvalidierung ergänzt. GitHub Actions [WLAN Branch Validation #98](https://github.com/Apropo1710/KlimaPilot/actions/runs/44120322400) auf dem Discovery-Branch: **completed / success**; Unit-Tests und Debug-Kompilierung erfolgreich.
+- Ein realer Zwei-Smartphone-Test ist weiterhin nicht durchgeführt/bestätigt.
+- Discovery-Branch-Validation ist abgeschlossen. Pairing wird separat in Abschnitt 11 geführt; vor späterem Merge bleiben Code-Review und die dokumentierten Integrationsprüfungen erforderlich.
 - Produktionsbranch `main`, Version 0.4.64 / versionCode 94, Updater und WF-RAC-Steuerpfad bleiben unangetastet.
 
 
@@ -167,8 +168,10 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 
 - PR [#4 – Discovery-only](https://github.com/Apropo1710/KlimaPilot/pull/4) ist weiterhin offen und Draft, nicht gemergt. Head: `bf01442b95b16b27a98efc2d095db3aa015f26b1`.
 - GitHub Actions [WLAN Branch Validation #98](https://github.com/Apropo1710/KlimaPilot/actions/runs/44120322400) für PR #4: **completed / success**. Unit-Tests und Debug-Kompilierung erfolgreich.
-- PR [#5 – Pairing: lokale Bestätigung und Sitzungssteuerung](https://github.com/Apropo1710/KlimaPilot/pull/5) ist offen und Draft, nicht gemergt. Head: `d1778aa35a4c5c773e8e2d48741cd8ab77bbf2e7`; Basis ist `feature/local-wifi-profile-sync`.
-- GitHub Actions [WLAN Branch Validation #100](https://github.com/Apropo1710/KlimaPilot/actions/runs/44120429391) für PR #5: **completed / success**. Unit-Tests und Debug-Kompilierung erfolgreich.
+- PR [#5 – Pairing: lokale Bestätigung und Sitzungssteuerung](https://github.com/Apropo1710/KlimaPilot/pull/5) ist offen und Draft, nicht gemergt. Aktueller Head einschließlich Statusdokumentation: `092d048aa9d9ff27121fcf370c472a004e0e0773`; Pairing-Code-Stand: `d1778aa35a4c5c773e8e2d48741cd8ab77bbf2e7`. Basis ist `feature/local-wifi-profile-sync`.
+- GitHub Actions [WLAN Branch Validation #100](https://github.com/Apropo1710/KlimaPilot/actions/runs/44120429391) für den Pairing-Code-Stand: **completed / success**. Unit-Tests und Debug-Kompilierung erfolgreich.
+- Nach Ergänzung dieser Statusdokumentation schlug der Push-Workflow [#101](https://github.com/Apropo1710/KlimaPilot/actions/runs/44122355863) beim Laden von JUnit/Robolectric von Maven Central mit HTTP 429 (Too Many Requests) fehl; es gab keinen Kotlin-/Testfehler.
+- Der PR-Workflow [#102](https://github.com/Apropo1710/KlimaPilot/actions/runs/44122367236) prüfte anschließend denselben vollständigen Commit `092d048aa9d9ff27121fcf370c472a004e0e0773` einschließlich `PROJECT_STATUS.md` erfolgreich: **completed / success**, Unit-Tests und Debug-Kompilierung bestanden. Damit ist auch der Dokumentations-Commit CI-validiert.
 - PR #5 ergänzt `ClimatePairingSessionController`, Tests und `PAIRING_PROTOCOL_DECISIONS.md`. Peers werden jeweils erst nach der lokalen Fingerprint-Bestätigung gespeichert. QR-Scanner/-Renderer, Netzwerktransport und Profilübertragung sind noch nicht implementiert.
 - Code-Review der Controller- und Protokollklassen wurde durchgeführt. Die Signatur-, Schlüssel- und Sitzungsprüfungen werden an die vorhandenen Invitation-, Response- und TrustedPeer-Klassen delegiert. Es wurde keine eigene Kryptografie ergänzt.
 - Testeinschränkung: Die Controller-Tests verwenden derzeit denselben `ClimateTrustedPeerStore` für beide simulierten Geräte. Damit wird der Bestätigungsablauf geprüft, aber die getrennte lokale Vertrauensspeicherung zweier realer Smartphones nicht vollständig modelliert. Bei der nächsten Testpflege berücksichtigen.
