@@ -218,7 +218,7 @@ internal fun ClimatePairingSettingsCard() {
                     Text("Einladung bereit.", color = colors.onSurface, fontSize = 12.sp)
                 }
             }
-            Text(status, color = if (status.contains("ungültig") || status.contains("fehlgeschlagen")) MaterialTheme.colorScheme.error else Muted, fontSize = 11.sp)
+            Text(status, color = if (status.contains("ungültig") || status.contains("fehlgeschlagen")) MaterialTheme.colorScheme.error else colors.onSurfaceVariant, fontSize = 11.sp)
             Text("Gekoppelte Geräte: ${trustedStore.trustedPeers().size}", color = colors.onSurfaceVariant, fontSize = 11.sp)
         }
     }
