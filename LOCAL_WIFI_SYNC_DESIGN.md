@@ -192,3 +192,56 @@ Die aktuelle Android-Referenz bestätigt, dass NSD-Aufrufe asynchron über Liste
 - Unit-Tests für strikte TXT-/Metadatenvalidierung liegen in `ClimatePeerAnnouncementTest.kt`.
 
 **Noch nicht nachgewiesen:** Build/Unit-Tests, tatsächliche mDNS-Erkennung auf zwei Smartphones, Android-Versionsmatrix, vollständige Netzwerkwechseltests und Claude-Review. Phase 1 überträgt weiterhin keinerlei Profil-, Konto-, Schlüssel- oder ioBroker-Daten. Pairing bleibt gesperrt.
+
+## 12. Zielarchitektur nach Produktentscheidung (17.11.2026)
+
+Die manuelle Discovery-Diagnose aus Phase 1 ist **nicht** das spätere Bedienkonzept. Der Nutzer hat verbindlich festgelegt, dass die lokale Synchronisierung nach einmaliger Kopplung vollautomatisch arbeiten muss. Ein Suchbutton darf keine Voraussetzung für den Datenaustausch sein.
+
+### 12.1 Geräteidentität und Kopplung
+
+- Keine MAC-Adresse als dauerhafte Identität oder Vertrauensanker: Android kann WLAN-MAC-Adressen randomisieren bzw. Apps können sie nicht zuverlässig auslesen; außerdem ist eine MAC-Adresse kein kryptografischer Identitätsnachweis.
+- Jede KlimaPilot-Installation erhält eine eigene zufällige, dauerhafte Peer-ID und ein eigenes asymmetrisches Schlüsselpaar.
+- Der private Schlüssel bleibt nicht exportierbar im Android Keystore; der öffentliche Schlüssel wird beim Pairing gegenseitig verifiziert und dauerhaft als vertrauenswürdiger Peer gespeichert.
+- Erstkopplung erfolgt bewusst durch den Nutzer, bevorzugt durch QR-Code mit kurzlebigem Pairing-Geheimnis und beidseitiger Anzeige/Bestätigung der Geräte-Fingerprints.
+- Ein Gerätewechsel bedeutet eine neue Installation/Peer-Identität und erfordert einmaliges erneutes Pairing. Alte Peer-Schlüssel können widerrufen werden.
+- Peer-ID und öffentlicher Schlüssel sind unabhängig von IP-Adresse, SSID, Router und physischer Klimaanlagenkennung.
+- Die vorhandene `syncDeviceKey` / Aircon-ID bleibt ausschließlich fachliche Zuordnung für Klimaprofile und darf nicht als Smartphone-Identität oder Geheimnis verwendet werden.
+
+### 12.2 Automatisches Wiederfinden statt manuelle Suche
+
+- Nach Aktivierung der lokalen Synchronisierung startet KlimaPilot im normalen App-Vordergrund automatisch Dienstankündigung und Peer-Auflösung; es gibt keinen verpflichtenden Suchbutton.
+- mDNS/DNS-SD wird als Netzwerk-Locator verwendet, nicht als Authentifizierung. Gespeicherte Peer-Identitäten begrenzen, mit welchen gefundenen Endpunkten überhaupt ein Handshake versucht wird.
+- Eine IP-Adresse wird nur flüchtig verwendet und nach WLAN-Wechsel neu aufgelöst. IP-/MAC-Adressen werden nicht als dauerhafte Identität gespeichert.
+- Beim Zurückkehren in die App wird die automatische Erkennung/Wiederverbindung fortgesetzt. Ein manueller Diagnose-Start ist allenfalls für Support/Fehlersuche vorgesehen.
+- Kein permanenter Hintergrunddienst als Startannahme. Android beendet/limitiert Netzwerkaktivität im Hintergrund; zunächst wird automatische Synchronisierung bei aktiver App und bei Wiederaufnahme umgesetzt. Falls später echte Hintergrundzustellung verlangt wird, ist ein separater Foreground-Service-Entscheid mit sichtbarer Benachrichtigung und Akku-Auswirkungen nötig.
+- Keine dauerhafte Suche im Sinn eines ständig laufenden aktiven Scans: Dienstankündigung und gezielte Auflösung bekannter Peers dienen dem Wiederfinden; die Verbindung wird nur für den Abgleich benötigt.
+
+### 12.3 Eine Synchronisierungs-Engine für ioBroker und Peer
+
+Der bestehende ioBroker-Weg bleibt erhalten und läuft parallel als zusätzlicher Transport. Beide Transportwege verwenden dieselben Ereignisse, Outbox, Versionsmarker, Validierung, Remote-Anwendung und Bestätigungsregeln.
+
+- Die fachliche Synchronisierungslogik wird von der ioBroker-WebSocket-Transportimplementierung getrennt.
+- Gemeinsame Engine: Outbox-Journal flushen, offene Events lesen, Remote-Events validieren/sortieren, `applyRemoteEventIfNewer` wiederverwenden, Versionsstände und Logical Clock fortschreiben, Bestätigungen erst nach dauerhafter Übernahme erteilen.
+- ioBroker-Transport kapselt weiterhin Authentifizierung, `system.adapter.admin.0.alive`, Objekt-/State-Upload und Remote-State-Lesen.
+- Peer-Transport kapselt ausschließlich die authentifizierte, verschlüsselte direkte Verbindung und den Austausch derselben Event-Objekte.
+- Ein prozessweiter Sync-Koordinator serialisiert alle Läufe für denselben Store. ioBroker- und Peer-Läufe dürfen nicht konkurrierend denselben Outbox-Stand bestätigen oder Remote-Events gleichzeitig anwenden.
+- Kein Echo: Ein empfangenes Event wird lokal angewendet und als Version erfasst, aber nicht als neue lokale Änderung in die Outbox gespiegelt.
+- Ein Event wird erst vom jeweiligen Transport bestätigt, wenn die Gegenseite es dauerhaft übernommen hat. Abbruch vor Bestätigung lässt es in der Outbox; Wiederholung bleibt idempotent.
+- Nach jedem Austausch werden neue lokale Revisionen erneut berücksichtigt; während eines Laufs entstandene Änderungen dürfen nicht verloren gehen.
+- Kein grundsätzlicher Vorrang von Smartphone oder ioBroker. Alle Replikate konvergieren anhand der bestehenden Ereignisversionen (Logical Clock, Installation-ID, Sequenz). Bei konkurrierenden Änderungen desselben Profils bleibt die vorhandene deterministische Versions-/Last-Writer-Wins-Regel maßgeblich; unterschiedliche Ereignisse bleiben erhalten, sofern sie nicht dieselbe Profilversion überschreiben.
+- Die bisherige periodische ioBroker-Synchronisierung bleibt bestehen. Direkte Peer-Synchronisierung wird zusätzlich bei neuem lokalem Event, neu erreichbarem gekoppeltem Peer und App-Wiederaufnahme angestoßen; zusätzlich wird ein gemeinsamer Koordinator gegen Parallel-Läufe eingesetzt.
+
+### 12.4 Umsetzungsreihenfolge und Freigabegates
+
+1. Architektur-/Review-Paket: aktuelle SyncClient- und SyncStore-Verträge dokumentieren; gemeinsame Transport-Schnittstelle und prozessweiten Koordinator festlegen. Noch keine Nutzdatenübertragung.
+2. Peer Identity & Pairing: Keystore-Schlüssel, QR-Handshake, beidseitige Bestätigung, persistente Peer-Liste und Widerruf; negative Tests für unbekannte/manipulierte Schlüssel.
+3. Secure Transport: etablierte TLS-/Krypto-Bibliothek, gegenseitige Peer-Authentifizierung, Replay-Schutz, Nonces, Protokollversion, Größen-/Zeit-/Rate-Limits.
+4. Sync Engine: Transport-neutraler Event-Abgleich mit identischer Anwendung und Versionierung wie ioBroker; ioBroker-Verhalten durch Regressionstests schützen.
+5. Automatic lifecycle: automatischer Start im App-Vordergrund, Wiederaufnahme, WLAN-Wechsel, Reconnect und keine manuelle Suchabhängigkeit.
+6. Tests: Unit-/Robolectric-Tests, Verbindungsabbrüche/Replay/Unbekannte Peers, parallele Trigger beider Transportwege, mindestens zwei reale Smartphones und bestehender ioBroker-Praxistest.
+7. Unabhängiges Review und CI; erst danach Freigabe/Merge. Kein Release-Build allein für Feature-Branch-Arbeit.
+
+**Priorität:** ioBroker und Smartphone-zu-Smartphone sind gleichberechtigte Transportwege. Es gibt keine Quelle, die pauschal gewinnt. Die vorhandene Event-Versionierung entscheidet nur bei tatsächlichen Konflikten.
+
+**Nicht verhandelbar:** Vor Abschluss von Pairing und gegenseitiger Authentifizierung werden über den lokalen Peer-Kanal keinerlei Profilinhalte oder andere vertrauliche Daten übertragen.
+
