@@ -244,10 +244,20 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 - Unabhängiges Re-Review des aktuellen Heads `c8c08bf`, insbesondere Rekey-Versionsübernahme, JSON-Key-Iteration und Replay-/Clock-Tests.
 - Den PR-Branch kontrolliert mit dem aktuellen `main` abgleichen; der Branch ist gegenüber `main` divergent, die acht Rückstände betreffen nach dem zuletzt geprüften Compare Status-/Projektdokumentation.
 - Die Konfliktregeln für bereits geflushte lokale Änderungen (Last-Writer-Wins nach Logical Clock) und lokale Bearbeitung gegen Remote-Löschung sind bewusste Verhaltensentscheidungen und sollten vor Freigabe dokumentiert beziehungsweise bestätigt werden.
-- Ein Commit-Fehler mitten im Journal-Flush ist noch nicht gezielt durch Fehlerinjektion getestet.
+- Ein gezielter Commit-Fehler im Outbox-Flush wird jetzt per injizierbarem Commit-Ergebnis getestet; ein echter OS-Prozessabsturz bleibt davon getrennt.
 - Die getrennten SharedPreferences-Commits sind nicht übergreifend crash-atomar. Die gemeinsame Prozesssperre verhindert konkurrierende Zugriffe innerhalb des Prozesses, ersetzt aber keine Transaktion über mehrere Speicherbereiche.
-- Hauptthread-Performance, ungültige/vergiftete Remote-Ereignisse und eine UI-nahe Prüfung von `persistActiveProfile` bleiben zusätzliche Review-Punkte.
+- Hauptthread-Performance bleibt ein separater Beobachtungspunkt. Ungültige Remote-Ereignisse und der UI-nahe Auswahl-Speicherpfad werden jetzt gezielt regressionsgetestet.
 
 Der PR ist weiterhin nicht für Produktion freigegeben. Produktionsversion bleibt `0.4.63` / versionCode `93`. Es wurde kein Produktionsbuild oder Release erstellt.
 
 Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
+
+
+## 10. Review-Nacharbeit – Fehlerisolation und bekannte Grenzen (17.11.2026)
+
+- Ungültige Remote-Ereignisse werden einzeln abgelehnt. Die Verarbeitung fährt mit späteren Ereignissen fort; Anzahl und erster Validierungsgrund erscheinen im Synchronisierungsstatus. Nur `IllegalArgumentException` aus der Ereignisvalidierung wird isoliert. Speicher-/Persistenzfehler (insbesondere `IllegalStateException`) brechen den Lauf weiterhin ab.
+- Ein abgelehntes Remote-Ereignis wird nicht auf dem ioBroker verändert oder gelöscht. Es kann daher bei späteren Synchronisierungsläufen erneut als ungültig gemeldet werden; gültige Ereignisse dahinter werden trotzdem verarbeitet.
+- **Rekey-Grenze (M2):** Beim Wechsel der Gerätekennung werden bestätigte Profilversionen mit übertragen, damit ein bereits bestätigter Stand nicht durch die Initialisierungsmarkierung unsichtbar wird. Hat das Zielgerät bereits eine neuere Version, bleibt diese maßgeblich. Ein bereits bestätigter Quellstand wird nicht künstlich erneut hochgeladen: ein Upload mit neuer Clock könnte einen tatsächlich neueren Zielstand überschreiben. Deshalb kann ein anderer Teilnehmer einen älteren Stand behalten, bis eine spätere echte Profiländerung erfolgt.
+- **Konfliktregel (N2):** Bei unterschiedlichen Logical Clocks gewinnt die höhere Clock. Ungeflushte lokale Journaländerungen werden vor der Remote-Versionsprüfung in die Outbox übernommen und erhalten dadurch eine Clock oberhalb der zuvor beobachteten Remote-Clock. Eine bereits geflushte lokale Änderung kann dagegen von einem späteren Remote-Ereignis mit höherer Clock überholt werden. Eine lokale Bearbeitung gegen eine Remote-Löschung gewinnt nur dann, wenn ihre lokale Version nach dieser Regel neuer ist; andernfalls gilt die Remote-Löschung.
+- **Rekey-Key-Iteration:** Der Code erstellt vor dem Schreiben eine Momentaufnahme der zu migrierenden JSON-Schlüssel. Der vorhandene Versionsvergleichstest prüft die Zusammenführung alter/neuer Versionen, nicht isoliert die Iterator-Invalidierung; die frühere Aussage, CI-Lauf #40 sichere genau diesen Iteratorfehler regressionsseitig ab, war zu weitgehend.
+- **Wiederherstellungstests:** Commit-Fehler im Outbox-Flush, Replay nach Upload-Bestätigung, Rekey ohne Zielversion und der aus der UI verwendete Auswahl-Speicherpfad werden separat geprüft. Robolectric bleibt eine Simulation mit SharedPreferences und ersetzt keine echten Prozess-Kill- oder Zwei-Smartphone-Tests.

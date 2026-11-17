@@ -1,23 +1,31 @@
 # KlimaPilot – aktueller Projektstatus
 
-**Abgleich:** 16.11.2026, 15:24 Uhr MEZ  
+**Abgleich:** 17.11.2026, 02:56 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Branch:** `main`  
-**App-Version:** **0.4.59 / versionCode 89**
+**App-Version:** **0.4.63 / versionCode 93**
 
 ## Verifizierter Produktionsstand
 
-- `main`-HEAD bei der technischen Vorprüfung vor dem Dokumentationsabgleich: `3291d3786a5c0574b737c04329a98c8600a88b4c`; danach folgten ausschließlich Dokumentationscommits.
-- APK-Quellcommit: `058c3cc456beecccaab8b102e6af3d1e6a42017f`.
-- GitHub Actions [#211](https://github.com/Apropo1710/KlimaPilot/actions/runs/43866655609): **completed / success**, 16.11.2026, 13:29:31 Uhr MEZ.
-- APK-Paket-/Versionsprüfung und `apksigner verify --print-certs`: erfolgreich.
-- Release `latest`: `KlimaPilot.apk` aktualisiert 16.11.2026, 13:29:15 Uhr MEZ; Asset-ID `754773422`, 11.370.135 Bytes.
-- APK-SHA-256: `18ad8cbaf473a88e7a8ae1da7c28ff95e0fcbfa90b5cf005d40c12d3485116b3`.
-- Git-Tag `latest` zeigt auf APK-Quellcommit `058c3cc456beecccaab8b102e6af3d1e6a42017f`; `main` enthält danach einen Dokumentationscommit.
+- `main`-HEAD vor dieser Statuspflege: `cd26cc24659c103e0ce1f2cccc8467a06050b9b9` (Dokumentationscommit).
+- Letzter App-Code-Commit: `42472a3af147` – Importkorrektur für die Rundungs-/Snapshot-Validierung; davor wurde mit `f670b9a8c252` das Erhalten und Synchronisieren individueller Klimaeinstellungen umgesetzt.
+- APK-Build-Quellcommit: `c7a1c6a458f0c44533d08672db5592a20748bfc6` (Dokumentationscommit auf demselben App-Code-Baum).
+- GitHub Actions [#222](https://github.com/Apropo1710/KlimaPilot/actions/runs/43957989783): **completed / success**, exakt für den APK-Build-Quellcommit.
+- Version aus `app/build.gradle.kts`: **0.4.63 / versionCode 93**. APK-Paket-/Versionsprüfung und Signaturprüfung laut Produktionsnachweis erfolgreich.
+- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `756488225`, 11.370.139 Bytes; aktualisiert 16.11.2026, 21:19:22 UTC.
+- APK-SHA-256: `48e876e988186d3021d79364bd3405400c5a98a7168332b5d4c0d221f474f52f`.
+- Git-Tag `latest` zeigt auf den APK-Build-Quellcommit `c7a1c6a458f0c44533d08672db5592a20748bfc6`.
 - APK: https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
+
+## Offener Synchronisations-PR
+
+- [PR #3 – dauerhaftes Änderungsjournal](https://github.com/Apropo1710/KlimaPilot/pull/3) ist offen und Draft, Head `ad84fe8d3cc7`, noch nicht gemergt. Die jüngste GitHub-Abfrage lieferte für die Mergeability `unknown` (eine frühere Abfrage meldete `clean`); daher derzeit keine abschließende Konfliktbewertung.
+- Der aktuelle PR-Head ergänzt das erneute Abarbeiten ausstehender Profiländerungen während der periodischen Synchronisation. Validierungslauf #15 / Run `43964905903`: **completed / success**.
+- Diese PR-Änderungen sind noch nicht Bestandteil des Produktions-Releases 0.4.63.
 
 ## Zuletzt umgesetzt
 
+- 0.4.63: individuelle Klimaeinstellungen bleiben erhalten und werden synchronisiert; Snapshot-Rundungsvalidierung korrigiert.
 - 0.4.59: Cloud-Symbol 12 dp weiter vom Zahnrad abgesetzt; bei Verbindung grün, offline gedimmt.
 - 0.4.58: Cloud-Symbol rechts neben Zahnrad; abgeschnittenen Status-Text entfernt.
 - 0.4.57: Kopfzeile bleibt beim Scrollen sichtbar; einheitliches Hellblau; Raum-Wischgeste erhalten.
@@ -33,6 +41,13 @@
 - `mhi-wfrac` noch nicht eingerichtet und für direkten lokalen Steuerweg nicht erforderlich.
 - SENEC/`energyfluss` wird nicht eingeplant.
 
+## Branchstatus und nicht abgeschlossene Nebenstände
+
+- `feature/direct-wf-rac-wlan`: PR #1 wurde am 15.11.2026 gemergt. Der Branch lief danach weiter und liegt aktuell **23 Commits voraus / 235 zurück** gegenüber `main`; es gibt keinen offenen PR. Der Diff enthält nachgelagerte WLAN-Diagnostik, einen separaten Test-Updatekanal sowie Änderungen an Build-/App-Dateien. Diese 23 Commits sind nicht automatisch Bestandteil von `main`; vor Wiederverwendung, Cherry-pick oder Löschung einzeln prüfen.
+- `docs/status-refresh-2026-11-16`: PR #2 wurde geschlossen, nicht gemergt. Der Branch liegt **1 Commit voraus / 61 zurück** und enthält eine abweichende `STATUS.md`; kein offener PR. Nicht ungeprüft übernehmen.
+- `docs/status-reconcile-2026-11-15`: **0 Commits voraus / 235 zurück**, kein eigener Dateidiff; historischer Restbranch ohne offenen PR.
+- `main` bleibt der alleinige maßgebliche Produktionsbranch. Keine dieser Nebenbranches wurde im Rahmen dieser Statuspflege gemergt oder gelöscht.
+
 ## Offene Prüfungen
 
 - Konten-Registry mit absichtlich beschädigten Daten (Schutz aus 0.4.50).
@@ -40,7 +55,7 @@
 - Modellabhängige Luftführung/3D-Automatik und Profilanwendung am echten Gerät (0.4.53 M3/M4).
 - Profil-Synchronisierung mit zwei Smartphones und realem ioBroker (0.4.53 M5).
 - Hardwaretests nach Installation der Klimaanlage.
-- Nutzer-Endtest der installierten 0.4.59 noch nicht bestätigt.
+- Nutzer-Endtest der installierten 0.4.63 noch nicht bestätigt.
 
 ## Updater – abgeschlossen
 
@@ -50,7 +65,8 @@ Der Updater funktioniert und wurde vom Nutzer erfolgreich getestet. Keine offene
 
 | Run | Version | Ergebnis |
 |---|---|---|
-| #211 | 0.4.59 / 89 | success – aktueller Release |
+| #222 | 0.4.63 / 93 | success – aktueller Release |
+| #211 | 0.4.59 / 89 | success – historischer Release |
 | #210 | 0.4.58 / 88 | success |
 | #209 | 0.4.57 / 87 | success – Color-Import korrigiert |
 | #208 | 0.4.57 Zwischenstand | failure |

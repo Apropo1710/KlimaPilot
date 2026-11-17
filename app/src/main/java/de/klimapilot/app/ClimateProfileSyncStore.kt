@@ -7,7 +7,10 @@ import java.util.UUID
 import kotlin.math.roundToInt
 
 /** Durable local outbox. Events are retained until an explicit upload acknowledgement. */
-internal class ClimateProfileSyncStore(context: Context) {
+internal class ClimateProfileSyncStore(
+    context: Context,
+    private val stateCommit: ((String) -> Boolean)? = null
+) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     
@@ -381,8 +384,12 @@ internal class ClimateProfileSyncStore(context: Context) {
     private fun appendEvent(type: String, profileId: String, deviceKey: String, profile: JSONObject?, stableEventId: String? = null): Boolean {
         val root = readRoot()
         if (!appendEventToRoot(root, type, profileId, deviceKey, profile, stableEventId)) return true
-        return prefs.edit().putString(KEY_STATE, root.toString()).commit()
+        return commitState(root)
     }
+
+    private fun commitState(root: JSONObject): Boolean =
+        stateCommit?.invoke(root.toString())
+            ?: prefs.edit().putString(KEY_STATE, root.toString()).commit()
 
     /** Adds an event to an already-mutated root so local data and its outbox entry commit together. */
     private fun appendEventToRoot(

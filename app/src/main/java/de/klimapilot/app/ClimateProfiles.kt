@@ -57,6 +57,26 @@ internal data class ClimateProfile(
     }.joinToString(" · ")
 }
 
+/**
+ * Shared persistence path used by the profile UI when changing the active profile.
+ * Returns a user-facing error, or null after the local selection/outbox commit succeeds.
+ */
+internal fun persistActiveProfileSelection(
+    store: ClimateProfileSyncStore,
+    deviceId: String,
+    syncDeviceKey: String,
+    profileId: String?
+): String? {
+    val saved = runCatching {
+        if (syncDeviceKey.isBlank()) store.saveActiveProfileId(deviceId, profileId)
+        else store.saveActiveProfileIdWithSync(deviceId, profileId, syncDeviceKey)
+    }.getOrElse {
+        return it.message ?: "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
+    }
+    return if (saved) null else
+        "Die aktive Profilauswahl konnte nicht zusammen mit ihrer Synchronisierungsvormerkung gespeichert werden."
+}
+
 /** Local-first storage. This class never connects to ioBroker or the climate module. */
 internal class ClimateProfileRepository(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
@@ -319,13 +339,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var profileMenuExpanded by remember { mutableStateOf(false) }
 
     fun persistActiveProfile(profileId: String?, requestSync: Boolean = true): String? {
-        val saved = runCatching {
-            if (syncDeviceKey.isBlank()) syncStore.saveActiveProfileId(deviceId, profileId)
-            else syncStore.saveActiveProfileIdWithSync(deviceId, profileId, syncDeviceKey)
-        }.getOrElse {
-            return it.message ?: "Die aktive Profilauswahl konnte nicht lokal gespeichert werden."
-        }
-        if (!saved) return "Die aktive Profilauswahl konnte nicht zusammen mit ihrer Synchronisierungsvormerkung gespeichert werden."
+        val error = persistActiveProfileSelection(syncStore, deviceId, syncDeviceKey, profileId)
+        if (error != null) return error
         selectedProfileId = profileId
         if (syncDeviceKey.isNotBlank() && requestSync) syncRevision++
         return null

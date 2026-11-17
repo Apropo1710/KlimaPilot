@@ -1,27 +1,26 @@
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
-**Zuletzt abgeglichen:** 16.11.2026, 15:24 Uhr MEZ  
+**Zuletzt abgeglichen:** 17.11.2026, 02:56 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`  
-**Produktionsversion:** **0.4.59 / versionCode 89**
+**Produktionsversion:** **0.4.63 / versionCode 93**
 
-> Dieser Kopfbereich ist der aktuelle, live geprüfte Stand. Ausführliche historische Projektakten liegen in der ChatGPT-Library-Datei `KlimaPilot_Projektstand_aktualisiert.md`. Alte Versionsstände sind keine aktuellen Produktionsangaben.
+## Aktueller GitHub-, Build- und Release-Stand
 
-## 1. Aktueller GitHub-, Build- und Release-Stand
-
-- Repository: `Apropo1710/KlimaPilot`; produktive Arbeit ausschließlich auf `main`.
-- `main`-HEAD bei der technischen Vorprüfung vor dem Dokumentationsabgleich: `3291d3786a5c0574b737c04329a98c8600a88b4c`. Die nachfolgenden Commits dieses Abgleichs ändern ausschließlich Status-/README-Dokumentation, keinen App-Code.
-- App-Code-/APK-Quellcommit: `058c3cc456beecccaab8b102e6af3d1e6a42017f`.
-- App-Version aus `app/build.gradle.kts`: **0.4.59**, `versionCode = 89`.
-- Application-ID: `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
-- GitHub Actions **Build #211**, Run-ID `43866655609`: `completed / success`, exakt für den APK-Quellcommit. Abschluss 16.11.2026, 13:29:31 Uhr MEZ.
-- Java 17, Android SDK, Gradle 8.9, Keystore-Bereitstellung/-Prüfung, Release-APK-Build, APK-Benennung, Paket-/Versionsprüfung und `apksigner verify --print-certs` waren erfolgreich.
-- APK-SHA-256: `18ad8cbaf473a88e7a8ae1da7c28ff95e0fcbfa90b5cf005d40c12d3485116b3`.
-- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `754773422`, 11.370.135 Bytes, aktualisiert 16.11.2026, 13:29:15 Uhr MEZ.
-- Git-Tag `latest` zeigt auf den APK-Quellcommit `058c3cc456beecccaab8b102e6af3d1e6a42017f`. `main` enthält danach einen Dokumentationscommit; das ist beabsichtigt.
+- `main`-HEAD vor dieser Statuspflege: `cd26cc24659c103e0ce1f2cccc8467a06050b9b9` (Dokumentationscommit).
+- Letzter App-Code-Commit: `42472a3af147`; die vorherige Funktionsänderung `f670b9a8c252` erhält und synchronisiert individuelle Klimaeinstellungen.
+- APK-Build-Quellcommit: `c7a1c6a458f0c44533d08672db5592a20748bfc6` (Dokumentationscommit; der App-Code-Baum entspricht dem oben genannten App-Code-Stand).
+- Version aus `app/build.gradle.kts`: **0.4.63 / 93**. Application-ID `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
+- GitHub Actions [Build #222](https://github.com/Apropo1710/KlimaPilot/actions/runs/43957989783): **completed / success**, exakt für den APK-Build-Quellcommit.
+- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `756488225`, 11.370.139 Bytes; aktualisiert 16.11.2026, 21:19:22 UTC.
+- APK-SHA-256: `48e876e988186d3021d79364bd3405400c5a98a7168332b5d4c0d221f474f52f`; Signaturprüfung laut Produktionsworkflow erfolgreich.
+- Git-Tag `latest` zeigt auf `c7a1c6a458f0c44533d08672db5592a20748bfc6`; `main` enthält danach nur weitere Dokumentationscommits.
 - APK: https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
-- Actions: https://github.com/Apropo1710/KlimaPilot/actions
-- Builds #209 (0.4.57) und #210 (0.4.58) waren ebenfalls erfolgreich. Die Zwischenläufe #207/#208 schlugen fehl; #208 wegen eines fehlenden `Color`-Imports, der vor #209 ergänzt wurde.
+
+## Offener Synchronisations-PR
+
+- [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – ist offen und Draft; Head `ad84fe8d3cc7`. Die jüngste GitHub-Abfrage lieferte für die Mergeability `unknown` (eine frühere Abfrage meldete `clean`); daher derzeit keine abschließende Konfliktbewertung.
+- Die PR-Validierung #15 / Run `43964905903` war **completed / success**. Der PR-Stand ist noch nicht gemergt und nicht Teil des Releases 0.4.63.
 
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
@@ -39,6 +38,13 @@
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
+
+## Branches außerhalb des Produktionsstands
+
+- `feature/direct-wf-rac-wlan`: Der ursprüngliche PR #1 wurde am 15.11.2026 gemergt; danach folgten weitere 23 Commits. Der Branch liegt **23 ahead / 235 behind** gegenüber `main`, ohne offenen PR. Sein aktueller Diff umfasst u. a. WLAN-Diagnostik, separaten Test-Updatekanal, Workflow-/Build- und App-Dateien. Diese Nachfolgeänderungen sind nicht automatisch in `main` enthalten; vor einer Wiederverwendung einzeln prüfen.
+- `docs/status-refresh-2026-11-16`: PR #2 geschlossen und nicht gemergt; **1 ahead / 61 behind**, eine abweichende `STATUS.md`, kein offener PR.
+- `docs/status-reconcile-2026-11-15`: **0 ahead / 235 behind**, kein eigener Dateidiff.
+- Keine dieser Branches wird automatisch gemergt oder gelöscht. `main` bleibt der Produktionsbranch.
 
 ## 2. Letzter Funktionsumfang / UI-Änderungen
 

@@ -360,6 +360,111 @@ class ClimateProfileStorageConcurrencyTest {
         assertEquals("remote-profile", store.activeProfileId("local-device"))
     }
 
+
+    @Test
+    fun invalidRemoteEventDoesNotBlockLaterValidEvents() {
+        val repository = ClimateProfileRepository(context)
+        val store = ClimateProfileSyncStore(context)
+        val client = ClimateProfileSyncClient()
+        fun remote(id: String, clock: Long, mode: String) = org.json.JSONObject()
+            .put("eventId", "remote-install:$clock").put("type", "upsert")
+            .put("deviceKey", "wfrac:shared-device").put("profileId", id)
+            .put("installationId", "remote-install").put("sequence", clock).put("logicalClock", clock)
+            .put("profile", org.json.JSONObject().put("name", id).put("power", true).put("mode", mode)
+                .put("targetTemp", 22.0).put("fanSpeed", 2).put("verticalSwing", 1))
+
+        val summary = client.applyRemoteEvents(
+            listOf(remote("first", 1L, "COOL"), remote("poison", 2L, "INVALID"), remote("last", 3L, "HEAT")),
+            mapOf("wfrac:shared-device" to "device-1"), store, repository
+        )
+        assertEquals(2, summary.applied)
+        assertEquals(0, summary.skipped)
+        assertEquals(1, summary.rejected)
+        assertTrue(summary.firstRejectedReason?.contains("Betriebsmodus") == true)
+        assertEquals(setOf("first", "last"), repository.load().map { it.id }.toSet())
+        assertEquals(2, store.pendingEvents().size)
+    }
+
+    @Test
+    fun journalFlushCommitFailureKeepsJournalForRetry() {
+        val repository = ClimateProfileRepository(context)
+        repository.saveWithPendingSync(profile("commit-failure"), "wfrac:shared-device")
+        val repositoryPrefs = context.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
+        val journalBefore = repositoryPrefs.getString("pending_sync_journal_v1", "[]")
+        val failingStore = ClimateProfileSyncStore(context) { false }
+        try {
+            repository.flushPendingSyncJournal(failingStore)
+            throw AssertionError("Expected the outbox commit failure to abort the flush.")
+        } catch (expected: IllegalStateException) {
+            assertTrue(expected.message?.contains("dauerhaft") == true)
+        }
+        assertEquals(journalBefore, repositoryPrefs.getString("pending_sync_journal_v1", "[]"))
+        assertTrue(ClimateProfileSyncStore(context).pendingEvents().isEmpty())
+        assertEquals(1, repository.flushPendingSyncJournal(ClimateProfileSyncStore(context)))
+        assertEquals(1, ClimateProfileSyncStore(context).pendingEvents().size)
+    }
+
+    @Test
+    fun replayAfterUploadAndAcknowledgementDoesNotRecreateOutboxEvent() {
+        val repository = ClimateProfileRepository(context)
+        val store = ClimateProfileSyncStore(context)
+        repository.saveWithPendingSync(profile("uploaded-before-recovery"), "wfrac:shared-device")
+        val repositoryPrefs = context.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
+        val journalEntry = org.json.JSONArray(repositoryPrefs.getString("pending_sync_journal_v1", "[]")).getJSONObject(0)
+        assertEquals(1, repository.flushPendingSyncJournal(store))
+        val uploadedSnapshot = store.pendingEvents()
+        assertEquals(1, uploadedSnapshot.size)
+        assertTrue(store.acknowledgeUploaded(uploadedSnapshot))
+        assertTrue(store.pendingEvents().isEmpty())
+        assertTrue(repositoryPrefs.edit().putString(
+            "pending_sync_journal_v1", org.json.JSONArray().put(journalEntry).toString()
+        ).commit())
+        assertEquals(1, ClimateProfileRepository(context).flushPendingSyncJournal(ClimateProfileSyncStore(context)))
+        assertTrue(ClimateProfileSyncStore(context).pendingEvents().isEmpty())
+    }
+
+    @Test
+    fun rekeyMigratesAcknowledgedVersionWhenDestinationKeyHasNoVersion() {
+        val store = ClimateProfileSyncStore(context)
+        val acknowledged = org.json.JSONObject().put("eventId", "old-install:45").put("type", "upsert")
+            .put("deviceKey", "wfrac:old").put("profileId", "profile-p")
+            .put("installationId", "old-install").put("sequence", 45L).put("logicalClock", 45L)
+        assertTrue(store.recordRemoteEvent(acknowledged))
+        assertTrue(store.rekeyPendingEvents("wfrac:old", "wfrac:new"))
+        val staleAtDestination = org.json.JSONObject(acknowledged.toString())
+            .put("eventId", "remote-install:44").put("deviceKey", "wfrac:new")
+            .put("installationId", "remote-install").put("sequence", 44L).put("logicalClock", 44L)
+        assertTrue(!store.isRemoteEventNewer(staleAtDestination))
+    }
+
+    @Test
+    fun rekeyKeepsNewerDestinationVersionWhenSourceIsOlder() {
+        val store = ClimateProfileSyncStore(context)
+        val source = org.json.JSONObject().put("eventId", "old-install:40").put("type", "upsert")
+            .put("deviceKey", "wfrac:old").put("profileId", "profile-p")
+            .put("installationId", "old-install").put("sequence", 40L).put("logicalClock", 40L)
+        val destination = org.json.JSONObject(source.toString()).put("eventId", "new-install:45")
+            .put("deviceKey", "wfrac:new").put("installationId", "new-install")
+            .put("sequence", 45L).put("logicalClock", 45L)
+        assertTrue(store.recordRemoteEvent(source))
+        assertTrue(store.recordRemoteEvent(destination))
+        assertTrue(store.rekeyPendingEvents("wfrac:old", "wfrac:new"))
+        val olderThanDestination = org.json.JSONObject(destination.toString())
+            .put("eventId", "remote-install:44").put("installationId", "remote-install")
+            .put("sequence", 44L).put("logicalClock", 44L)
+        assertTrue(!store.isRemoteEventNewer(olderThanDestination))
+    }
+
+    @Test
+    fun activeProfileUiPersistencePathCommitsSelectionAndOutboxTogether() {
+        val store = ClimateProfileSyncStore(context)
+        assertEquals(null, persistActiveProfileSelection(store, "device-1", "wfrac:shared-device", "profile-from-ui"))
+        assertEquals("profile-from-ui", store.activeProfileId("device-1"))
+        val event = store.pendingEvents().single()
+        assertEquals("selection", event.optString("type"))
+        assertEquals("profile-from-ui", event.optJSONObject("profile")?.optString("activeProfileId"))
+    }
+
     private fun profile(id: String) = ClimateProfile(
         id = id,
         deviceId = "device-1",

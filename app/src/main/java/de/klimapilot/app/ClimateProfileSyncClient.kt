@@ -53,24 +53,12 @@ internal class ClimateProfileSyncClient {
                             val deviceMap = devices.filter { it.syncDeviceKey.isNotBlank() }
                                 .groupBy { it.syncDeviceKey }.filterValues { it.size == 1 }
                                 .mapValues { it.value.single().id }
-                            var applied = 0
-                            var skipped = 0
-                            val sorted = events.sortedWith(compareBy<JSONObject> { it.optLong("logicalClock", 0L) }
-                                .thenBy { it.optString("installationId") }.thenBy { it.optLong("sequence", 0L) })
-                            for (event in sorted) {
-                                val key = event.optString("deviceKey")
-                                val deviceId = deviceMap[key]
-                                if (deviceId == null) { skipped++; continue }
-                                try {
-                                    val wasApplied = applyRemoteEventIfNewer(event, deviceId, store, repository)
-                                    if (wasApplied) applied++ else skipped++
-                                } catch (error: Exception) {
-                                    finish("Ein empfangenes Profil konnte nicht sicher übernommen werden: ${error.message ?: "Ungültige Daten"}.")
-                                    return@readRemoteEvents
-                                }
-                            }
-                            val suffix = if (skipped > 0) " $skipped Ereignisse waren bereits bekannt oder keinem eindeutig zugeordneten Gerät zuweisbar." else ""
-                            finish("Synchronisierung abgeschlossen: $uploaded Änderungen übertragen, $applied Änderungen übernommen.$suffix")
+                            val summary = applyRemoteEvents(events, deviceMap, store, repository)
+                            val suffix = buildList {
+                                if (summary.skipped > 0) add("${summary.skipped} Ereignisse waren bereits bekannt oder keinem eindeutig zugeordneten Gerät zuweisbar.")
+                                if (summary.rejected > 0) add("${summary.rejected} ungültige Remote-Ereignisse wurden einzeln abgelehnt; erstes Problem: ${summary.firstRejectedReason ?: "Validierungsfehler"}.")
+                            }.joinToString(" ")
+                            finish("Synchronisierung abgeschlossen: $uploaded Änderungen übertragen, ${summary.applied} Änderungen übernommen." + if (suffix.isBlank()) "" else " $suffix")
                         }
                     }
                 })
@@ -79,6 +67,45 @@ internal class ClimateProfileSyncClient {
         socket.on("connect_error") { args -> finish("ioBroker-Synchronisierung fehlgeschlagen: ${args.firstOrNull() ?: "Verbindung fehlgeschlagen"}") }
         socket.on("disconnect") { if (!completed.get()) finish("ioBroker-Verbindung während der Synchronisierung getrennt.") }
         socket.connect()
+    }
+
+    internal data class RemoteApplySummary(
+        val applied: Int,
+        val skipped: Int,
+        val rejected: Int,
+        val firstRejectedReason: String?
+    )
+
+    /**
+     * Validation failures are isolated to their individual event. Storage and persistence
+     * failures deliberately escape so the sync round stops without pretending it succeeded.
+     */
+    internal fun applyRemoteEvents(
+        events: List<JSONObject>,
+        deviceMap: Map<String, String>,
+        store: ClimateProfileSyncStore,
+        repository: ClimateProfileRepository
+    ): RemoteApplySummary {
+        var applied = 0
+        var skipped = 0
+        var rejected = 0
+        var firstRejectedReason: String? = null
+        val sorted = events.sortedWith(compareBy<JSONObject> { it.optLong("logicalClock", 0L) }
+            .thenBy { it.optString("installationId") }.thenBy { it.optLong("sequence", 0L) })
+        for (event in sorted) {
+            val deviceId = deviceMap[event.optString("deviceKey")]
+            if (deviceId == null) {
+                skipped++
+                continue
+            }
+            try {
+                if (applyRemoteEventIfNewer(event, deviceId, store, repository)) applied++ else skipped++
+            } catch (error: IllegalArgumentException) {
+                rejected++
+                if (firstRejectedReason == null) firstRejectedReason = error.message ?: "Ungültige Remote-Daten."
+            }
+        }
+        return RemoteApplySummary(applied, skipped, rejected, firstRejectedReason)
     }
 
     /** Applies one remote event only after local journal entries have received comparable versions. */
