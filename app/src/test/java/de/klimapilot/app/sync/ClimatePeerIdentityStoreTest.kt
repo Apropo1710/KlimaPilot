@@ -32,6 +32,22 @@ class ClimatePeerIdentityStoreTest {
     }
 
     @Test
+    fun rejectsEcKeysUsingAnotherCurve() {
+        val generator = KeyPairGenerator.getInstance("EC")
+        generator.initialize(ECGenParameterSpec("secp384r1"))
+        val pair = generator.generateKeyPair()
+        val challenge = byteArrayOf(1, 2, 3)
+        val signature = Signature.getInstance("SHA256withECDSA").run {
+            initSign(pair.private)
+            update(challenge)
+            sign()
+        }
+        val publicKey = Base64.encodeToString(pair.public.encoded, Base64.NO_WRAP)
+
+        assertFalse(ClimatePeerIdentityStore.verify(publicKey, challenge, signature))
+    }
+
+    @Test
     fun rejectsMalformedAndOversizedPeerKeyMaterial() {
         assertFalse(ClimatePeerIdentityStore.verify("not-a-key", byteArrayOf(1), byteArrayOf(1)))
         assertFalse(ClimatePeerIdentityStore.verify("A".repeat(3000), byteArrayOf(1), byteArrayOf(1)))
