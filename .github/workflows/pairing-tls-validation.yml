@@ -52,4 +52,20 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: gradle --no-daemon connectedDebugAndroidTest
+          script: |
+            adb logcat -c
+            set +e
+            gradle --no-daemon connectedDebugAndroidTest
+            test_status=$?
+            mkdir -p build-logs
+            adb logcat -d -v threadtime > "build-logs/logcat-api-${{ matrix.api-level }}.txt"
+            cat "build-logs/logcat-api-${{ matrix.api-level }}.txt"
+            exit "$test_status"
+
+      - name: Emulator-Logcat als Artefakt sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pairing-tls-logcat-api-${{ matrix.api-level }}
+          path: build-logs/logcat-api-${{ matrix.api-level }}.txt
+          if-no-files-found: ignore
