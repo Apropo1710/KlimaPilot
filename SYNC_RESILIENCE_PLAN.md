@@ -209,6 +209,23 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 
 **Importmarker-Bereinigung:** Die dauerhaften Journal-Import-IDs werden jetzt entfernt, sobald der Repository-Journal-Commit die entsprechenden Einträge erfolgreich gelöscht hat. Die Reihenfolge ist bewusst: erst Outbox + Importmarker committen, dann Repository-Journal bereinigen, danach Importmarker bereinigen. Ein Absturz vor der Journal-Bereinigung lässt den Marker bestehen und verhindert eine doppelte Einreihung; ein Absturz nach der Journal-Bereinigung kann höchstens einen verwaisten Marker hinterlassen, der beim nächsten Lauf entfernt wird. Damit wächst die Liste im Normalbetrieb nicht mehr dauerhaft mit allen jemals synchronisierten Profiländerungen.
 
-**Prüfstatus:** Noch kein Android-Build und keine automatisierten Laufzeittests für diesen Arbeitsbranch bestätigt. Im bisherigen Repository-Baum ist kein `app/src/test`-Testbestand vorhanden. Vor Freigabe sind mindestens Kotlin-/Gradle-Build, gezielte Tests der Journal-Wiederanläufe, Code-Review (einschließlich des vereinbarten unabhängigen Claude-Reviews) und eine erneute Prüfung des vollständigen Diffs erforderlich.
+**Gemeinsame Prozesssperre – umgesetzt auf dem Arbeitsbranch:**
+- Repository- und Store-Zugriffe verwenden jetzt dasselbe prozessweite, reentrante Monitor-Objekt statt instanzlokaler `@Synchronized`-Sperren. Damit werden auch getrennt erzeugte Repository-/Store-Instanzen serialisiert.
+- Journal-Flush und Outbox-Übernahme laufen unter derselben Sperre. Die Gerätekennungs-Migration umfasst Journal-Flush und anschließendes Outbox-Rekey in einer gemeinsamen kritischen Sektion.
+- Die Prüfung eines Remote-Ereignisses, seine lokale Anwendung einschließlich einer gegebenenfalls nötigen Auswahlbereinigung sowie das Speichern des Versionsmarkers sind gemeinsam geschützt.
+- Netzwerk-I/O bleibt außerhalb der Sperre. Eine während des Uploads umgeschlüsselte Outbox-Änderung wird bei der Bestätigung nicht versehentlich entfernt: Bestätigt wird nur noch exakt die hochgeladene Ereignisrevision (Event-ID, Gerätekennung, Installation und Sequenz). Eine zwischenzeitlich umgeschlüsselte Revision bleibt zur erneuten Übertragung erhalten.
+
+**Automatisierte Tests – ergänzt, Lauf noch ausstehend:**
+- Robolectric-Testbasis für echte Android-SharedPreferences.
+- Parallelzugriffe über mehrere Repository-Instanzen: Profile und Journal-Ereignisse dürfen nicht verloren gehen.
+- Parallelzugriffe über mehrere Store-Instanzen: alle Outbox-Ereignisse und eindeutige Sequenzen bleiben erhalten.
+- Journal-Flush parallel zu Profiländerungen.
+- Outbox-Rekey während eines laufenden Uploads mit anschließender Bestätigung der alten Revision.
+- Wiederholter Journal-Flush muss idempotent bleiben.
+- Zusätzlich einfacher Test der Reentranz und gegenseitigen Ausschließung des gemeinsamen Monitors.
+
+**Noch offen vor Freigabe:** Die neuen Tests und der Debug-Build müssen in GitHub Actions erfolgreich laufen. Zusätzliche Crash-/Replay-Fälle für Remote-Ereignisse und Marker sowie unabhängiges Claude-Code-Review bleiben Teil der Freigabeprüfung. Die SharedPreferences-Nutzdaten und Versionsmarker liegen weiterhin in getrennten Commits; die Sperre schützt vor konkurrierenden Prozesszugriffen, ersetzt aber keine crash-atomare Transaktion über beide Dateien.
+
+Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
 
 Der Updater, dessen Berechtigungen und Installationsablauf sowie der direkte WF-RAC-Steuerungsweg wurden in diesem Änderungspaket nicht bearbeitet.
