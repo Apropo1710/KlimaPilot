@@ -126,6 +126,7 @@ internal class ClimatePairingSessionController(
     /** Cancels the current local pairing attempt without changing existing trust. */
     @Synchronized
     fun cancel() {
+        incomingInvitation?.let { consumedIncomingSessions[it.sessionId] = it.expiresAtMillis }
         outgoingInvitation = null
         outgoingConfirmation = null
         pendingResponsePeer = null
