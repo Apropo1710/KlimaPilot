@@ -15,10 +15,7 @@ import java.security.spec.X509EncodedKeySpec
  * completing QR/challenge verification and showing the fingerprint confirmation on
  * both devices before calling trustPeer().
  */
-internal class ClimateTrustedPeerStore(
-    context: Context,
-    prefsName: String = PREFS_NAME,
-) {
+internal class ClimateTrustedPeerStore(context: Context) {
     data class TrustedPeer(
         val peerId: String,
         val publicKeyBase64: String,
@@ -26,7 +23,7 @@ internal class ClimateTrustedPeerStore(
         val displayName: String
     )
 
-    private val prefs = context.applicationContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+    private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     @Synchronized
     fun trustedPeers(): List<TrustedPeer> {
