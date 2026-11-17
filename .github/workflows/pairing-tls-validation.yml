@@ -53,19 +53,76 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            adb logcat -c
             set +e
+            mkdir -p build-logs
+            LOG_FILE="build-logs/logcat-api-${{ matrix.api-level }}.txt"
+
+            capture_guest_diagnostics() {
+              {
+                echo "=== API ${{ matrix.api-level }} guest diagnostics ==="
+                date -u
+                echo "--- adb devices ---"
+                adb devices -l
+                echo "--- emulator properties ---"
+                adb -s emulator-5554 shell getprop
+                echo "--- complete logcat ---"
+                adb -s emulator-5554 logcat -b all -d -v threadtime
+              } >> "$LOG_FILE" 2>&1
+            }
+
+            # Trap sichert Logcat auch dann, wenn Gradle/Testprozess fehlschlägt.
+            trap 'capture_guest_diagnostics' EXIT
+
+            {
+              echo "=== API ${{ matrix.api-level }} test start ==="
+              date -u
+              echo "--- adb devices before test ---"
+              adb devices -l
+            } > "$LOG_FILE" 2>&1
+
+            adb -s emulator-5554 wait-for-device
+            adb -s emulator-5554 logcat -c
             gradle --no-daemon connectedDebugAndroidTest
             test_status=$?
-            mkdir -p build-logs
-            adb logcat -d -v threadtime > "build-logs/logcat-api-${{ matrix.api-level }}.txt"
-            cat "build-logs/logcat-api-${{ matrix.api-level }}.txt"
+
+            capture_guest_diagnostics
+            trap - EXIT
             exit "$test_status"
 
-      - name: Emulator-Logcat als Artefakt sichern
+      - name: Host- und Emulator-Diagnose sichern
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p build-logs
+          {
+            echo "=== Host diagnostics API ${{ matrix.api-level }} ==="
+            date -u
+            echo "--- adb devices ---"
+            adb devices -l || true
+            echo "--- emulator process ---"
+            pgrep -af 'emulator|qemu' || true
+            echo "--- AVD files ---"
+            for dir in "${ANDROID_AVD_HOME:-}" "$HOME/.android/avd"; do
+              if [ -n "$dir" ] && [ -d "$dir" ]; then
+                find "$dir" -maxdepth 4 -type f \( -name '*.log' -o -name 'emu*.ini' \) -print
+              fi
+            done
+          } > "build-logs/host-diagnostics-api-${{ matrix.api-level }}.txt" 2>&1
+          mkdir -p "build-logs/avd-api-${{ matrix.api-level }}"
+          for dir in "${ANDROID_AVD_HOME:-}" "$HOME/.android/avd"; do
+            if [ -n "$dir" ] && [ -d "$dir" ]; then
+              find "$dir" -maxdepth 4 -type f -name '*.log' -exec cp --parents {} "build-logs/avd-api-${{ matrix.api-level }}" \; 2>/dev/null || true
+            fi
+          done
+
+      - name: TLS-Testberichte und Diagnoseartefakte hochladen
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pairing-tls-logcat-api-${{ matrix.api-level }}
-          path: build-logs/logcat-api-${{ matrix.api-level }}.txt
-          if-no-files-found: ignore
+          name: pairing-tls-diagnostics-api-${{ matrix.api-level }}
+          path: |
+            build-logs/
+            app/build/reports/androidTests/connected/
+            app/build/outputs/androidTest-results/connected/
+          if-no-files-found: warn
+          retention-days: 7
