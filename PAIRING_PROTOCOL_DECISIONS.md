@@ -48,13 +48,13 @@ Verbindliche Schutzmaßnahmen auf Anwendungsebene:
 
 - Der Transport verwendet einen normalen TCP-Socket im lokalen WLAN. Der Datenverkehr ist **nicht verschlüsselt** und kann von anderen Teilnehmern desselben Netzwerks mitgelesen werden.
 - Vor jeder späteren Nutzdatenübertragung müssen sich beide Geräte gegenseitig authentifizieren. Beide Seiten beweisen den Besitz ihres nicht exportierbaren Android-Keystore-Schlüssels mit ECDSA auf secp256r1.
-- Jede Verbindung verwendet zwei frische zufällige 32-Byte-Nonces. Die Signaturen binden Rolle und beide Nonces ein; aufgezeichnete Handshakes können nicht unverändert wiederverwendet werden.
+- Jede Verbindung verwendet zwei frische zufällige 32-Byte-Nonces. Die Signaturen binden eine Protokollkennung, die jeweilige Rolle, beide Nonces sowie Client- und Server-Peer-ID ein; aufgezeichnete Handshakes können nicht unverändert wiederverwendet werden.
 - Jede Seite prüft Peer-ID und Public Key gegen ihre eigene lokale Trusted-Peer-Liste. Eine einseitige Freigabe reicht nicht: Der Server bestätigt die Verbindung erst nach erfolgreicher Prüfung des Clients; der Client wartet auf diese Bestätigung.
 - Unbekannte, widerrufene oder nicht gegenseitig bestätigte Geräte erhalten keine Nutzdaten.
-- Handshake-Felder sind längenbegrenzt; der Socket-Handshake hat ein Zeitlimit.
+- Handshake-Felder sind längenbegrenzt. Der Client-Verbindungsaufbau hat ein Connect-Timeout von fünf Sekunden; der gesamte Handshake ist pro Verbindung auf zehn Sekunden begrenzt (nicht zehn Sekunden je Lesevorgang).
 - Pairing/QR, Peer-ID, Fingerprint und bestehende Trusted-Peer-Speicherung bleiben unverändert.
 
-Implementiert ist zunächst die eigenständige Klasse ClimatePeerTcp mit Instrumentierungstests für erfolgreiche gegenseitige Authentifizierung und Ablehnung eines nicht vertrauten Peers. Sie ist noch nicht in den Discovery-Socket oder einen Profil-Datentransfer eingebunden. **Es werden derzeit noch keine Profile über TCP übertragen.**
+Implementiert ist zunächst die eigenständige Klasse ClimatePeerTcp mit Instrumentierungstests für erfolgreiche gegenseitige Authentifizierung sowie Ablehnung eines nicht vertrauten Clients und Servers. Sie ist noch nicht in den Discovery-Socket oder einen Profil-Datentransfer eingebunden. **Es werden derzeit noch keine Profile über TCP übertragen.**
 
 ## 6. Bewusste Begrenzung
 
@@ -116,3 +116,17 @@ Nicht Teil dieses Arbeitspakets sind:
 - Noch nicht umgesetzt: Anbindung des Handshakes an den Discovery-Server/Client und Profilübertragung. Bis zum Zwei-Smartphone-Test bleibt Nutzdatentransfer gesperrt.
 - Sicherheitsgrenze: TCP-Daten sind unverschlüsselt und im lokalen Netz mitlesbar. Authentifizierung verhindert nicht das passive Mitlesen durch andere WLAN-Teilnehmer.
 - main, Updater, WF-RAC-Steuerung und bestehender ioBroker-Sync bleiben unangetastet.
+
+
+## 12. TCP-Härtung und CI-Ergebnis (17.11.2026, 23:xx MEZ)
+
+- Commit `cc42e9bd49e464a665557a005877eac93a13a72d` ergänzt eine feste Gesamtfrist von zehn Sekunden für den Handshake und einen Connect-Timeout von fünf Sekunden.
+- Das signierte Transkript bindet zusätzlich die Protokollkennung `KlimaPilot.LocalPeerAuth.v1` sowie Client- und Server-Peer-ID ein. Die Rollenbindung und beide frischen Nonces bleiben erhalten.
+- Ein zusätzlicher Instrumentierungstest prüft die Ablehnung eines Servers, der auf dem Client nicht in der lokalen Trusted-Peer-Liste steht.
+- [TCP-Peer-Authentifizierung #49](https://github.com/Apropo1710/KlimaPilot/actions/runs/44191379738): API 26 und API 35 Jobs melden grün. **Die Detailprotokolle zeigen jedoch unterschiedliche Ergebnisse:** API 26 startete drei Instrumentierungstests und schloss `connectedDebugAndroidTest` erfolgreich ab. API 35 meldete weiterhin `Starting 0 tests`; der Testschritt schlug fehl, wurde im damaligen Workflow aber durch `continue-on-error` und die optionale Job-Einstellung als grüner Job dargestellt.
+- [WLAN-Branch-Validierung #49](https://github.com/Apropo1710/KlimaPilot/actions/runs/44191379609): erfolgreich.
+- Daher gilt derzeit nur API 26 als tatsächlich bestandener Instrumentierungstest. API 35 ist nicht bestanden und wird im PR-Workflow bis zu einem Runner mit nutzbarem KVM nicht mehr als grüner Schein-Erfolg dargestellt; es kann manuell über `workflow_dispatch` geprüft werden.
+- Die API-26-Prüfung belegt den Emulator-/Keystore-Handshake auf dieser Android-Version, aber keinen Zwei-Smartphone-Praxistest.
+- Weiterhin nicht umgesetzt: Integration in Discovery und Profilübertragung. TCP-Nutzdaten bleiben bis zum realen Zwei-Geräte-Test gesperrt.
+- Sicherheitsgrenze: Die Authentifizierung verhindert nicht das aktive Einschleusen oder Verändern von TCP-Daten durch einen Angreifer, der den WLAN-Verkehr umleiten kann. Vor einer späteren Profilübertragung sind daher strikte Größen-, Schema- und Wertebereichsprüfungen auf Empfängerseite erforderlich. Die unverschlüsselte Übertragung bleibt zudem passiv mitlesbar.
+- Updater, WF-RAC-Steuerweg, ioBroker-Synchronisation und Produktionsbranch `main` wurden nicht verändert.

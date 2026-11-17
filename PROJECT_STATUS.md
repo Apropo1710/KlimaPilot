@@ -249,3 +249,15 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - **Noch nicht umgesetzt:** TCP-Handshake ist noch nicht an den Discovery-Socket angebunden; es gibt noch keine Peer-Profilübertragung und keinen Zwei-Smartphone-Praxistest. Nutzdaten bleiben bis dahin gesperrt.
 - Sicherheitsgrenze: TCP ist nicht verschlüsselt. Teilnehmer desselben WLANs können Datenverkehr passiv mitlesen; die Peer-Authentifizierung schützt vor nicht gekoppelten Geräten, nicht vor passivem Mithören.
 - PR #6 bleibt Draft. main, Produktionsversion 0.4.64 / versionCode 94, Updater, WF-RAC-Steuerung und ioBroker-Sync bleiben unangetastet. Keine Produktions-APK erstellt oder veröffentlicht.
+
+
+## WLAN-Pairing – aktualisierter Teststand (17.11.2026, abends)
+
+- Test-Branch-Commit: `cc42e9bd49e464a665557a005877eac93a13a72d`; Produktionsbranch `main` unverändert.
+- TCP-Handshake gehärtet: Gesamtfrist 10 Sekunden, Connect-Timeout 5 Sekunden, Transkript bindet Protokollkennung und beide Peer-IDs ein; zusätzlicher Negativtest für einen nicht vertrauten Server.
+- CI [TCP-Peer-Authentifizierung #49](https://github.com/Apropo1710/KlimaPilot/actions/runs/44191379738): API 26 hat drei Instrumentierungstests tatsächlich ausgeführt und erfolgreich abgeschlossen. API 35 hat null Tests gestartet und schlug im Testschritt fehl; der damalige Workflow hat den Fehler fälschlich als grünen optionalen Job dargestellt.
+- CI [WLAN-Branch-Validierung #49](https://github.com/Apropo1710/KlimaPilot/actions/runs/44191379609): erfolgreich.
+- API 26 ist die verpflichtende PR-Prüfung. API 35 wird nur noch manuell ausgeführt, bis ein Runner mit funktionierendem KVM verfügbar ist; Fehler werden dann sichtbar als Fehler ausgewiesen.
+- Der TCP-Handshake ist nicht in Discovery integriert; Profilübertragung und Zwei-Smartphone-Test stehen aus. Keine Nutzdaten über den Peer-Kanal freigegeben.
+- Bekannte Sicherheitsgrenze: Unverschlüsseltes TCP kann mitgelesen und bei aktiver Verkehrsmanipulation auch verändert werden. Vor einer Profilintegration sind strikte Empfänger-Validierungen für Größe, Schema und Wertebereiche zwingend.
+- Manifestvergleich: `REQUEST_INSTALL_PACKAGES` war bereits auf `main` vorhanden und wurde auf `test` nicht hinzugefügt. Das Manifest wird im Rahmen dieser Härtung nicht verändert. Updater-Code und Installationsablauf bleiben unangetastet.

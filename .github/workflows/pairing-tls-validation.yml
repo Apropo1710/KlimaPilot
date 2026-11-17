@@ -15,14 +15,14 @@ concurrency:
 
 jobs:
   peer-authentication:
+    if: matrix.api-level == 26 || github.event_name == 'workflow_dispatch'
     name: Android Keystore TCP Peer Auth (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.api-level == 35 }}
     strategy:
       fail-fast: false
       matrix:
-        # API 26 is the required compatibility baseline. API 35 is diagnostic
-        # only until a runner with usable KVM acceleration is available.
+        # API 26 is mandatory for every PR. API 35 is manual-only until the
+        # GitHub-hosted Linux runner provides usable KVM acceleration.
         api-level: [26, 35]
     steps:
       - name: Quellcode auschecken
@@ -46,15 +46,11 @@ jobs:
           if [ -e /dev/kvm ]; then ls -l /dev/kvm; else echo "/dev/kvm fehlt"; fi
           id
           grep '^kvm:' /etc/group || true
-          echo "=== ANR-Verzeichnis vor Emulatorstart ==="
-          echo "Noch kein Emulator gestartet."
       - name: Gradle 8.9 einrichten
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
       - name: Android Emulator und TCP-Peer-Test
-        id: android-tests
-        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
@@ -68,6 +64,7 @@ jobs:
           disable-spellchecker: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           script: |
+            set +e
             gradle --no-daemon connectedDebugAndroidTest
             result=$?
             adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/tcp-api${{ matrix.api-level }}-logcat.txt"
@@ -87,6 +84,3 @@ jobs:
             tcp-api${{ matrix.api-level }}-anr/
           if-no-files-found: warn
           retention-days: 7
-      - name: Testergebnis übernehmen
-        if: matrix.api-level == 26 && steps.android-tests.outcome == 'failure'
-        run: exit 1
