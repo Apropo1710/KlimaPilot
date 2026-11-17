@@ -50,17 +50,21 @@ internal class ClimateProfileSyncClient {
                     uploadPending(socket, store) { uploaded, uploadError ->
                         if (uploadError != null) { finish(uploadError); return@uploadPending }
                         readRemoteEvents(socket) { events, readError ->
-                            if (readError != null) { finish(readError); return@readRemoteEvents }
-                            store.observeRemoteClock(events.maxOfOrNull { it.optLong("logicalClock", 0L) } ?: 0L)
-                            val deviceMap = devices.filter { it.syncDeviceKey.isNotBlank() }
-                                .groupBy { it.syncDeviceKey }.filterValues { it.size == 1 }
-                                .mapValues { it.value.single().id }
-                            val summary = applyRemoteEvents(events, deviceMap, store, repository)
-                            val suffix = buildList {
-                                if (summary.skipped > 0) add("${summary.skipped} Ereignisse waren bereits bekannt oder keinem eindeutig zugeordneten Gerät zuweisbar.")
-                                if (summary.rejected > 0) add("${summary.rejected} ungültige Remote-Ereignisse wurden einzeln abgelehnt; erstes Problem: ${summary.firstRejectedReason ?: "Validierungsfehler"}.")
-                            }.joinToString(" ")
-                            finish("Synchronisierung abgeschlossen: $uploaded Änderungen übertragen, ${summary.applied} Änderungen übernommen." + if (suffix.isBlank()) "" else " $suffix")
+                            try {
+                                if (readError != null) { finish(readError); return@readRemoteEvents }
+                                store.observeRemoteClock(events.maxOfOrNull { it.optLong("logicalClock", 0L) } ?: 0L)
+                                val deviceMap = devices.filter { it.syncDeviceKey.isNotBlank() }
+                                    .groupBy { it.syncDeviceKey }.filterValues { it.size == 1 }
+                                    .mapValues { it.value.single().id }
+                                val summary = applyRemoteEvents(events, deviceMap, store, repository)
+                                val suffix = buildList {
+                                    if (summary.skipped > 0) add("${summary.skipped} Ereignisse waren bereits bekannt oder keinem eindeutig zugeordneten Gerät zuweisbar.")
+                                    if (summary.rejected > 0) add("${summary.rejected} ungültige Remote-Ereignisse wurden einzeln abgelehnt; erstes Problem: ${summary.firstRejectedReason ?: "Validierungsfehler"}.")
+                                }.joinToString(" ")
+                                finish("Synchronisierung abgeschlossen: $uploaded Änderungen übertragen, ${summary.applied} Änderungen übernommen." + if (suffix.isBlank()) "" else " $suffix")
+                            } catch (error: Exception) {
+                                finish("Synchronisierung abgebrochen: ${error.message ?: error.javaClass.simpleName}")
+                            }
                         }
                     }
                 })
