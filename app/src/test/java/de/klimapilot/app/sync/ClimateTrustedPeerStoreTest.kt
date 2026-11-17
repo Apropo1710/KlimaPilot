@@ -49,6 +49,17 @@ class ClimateTrustedPeerStoreTest {
     }
 
     @Test
+    fun limitsTrustedPeersAndAllowsReplacingExistingPeer() {
+        val keys = (1..21).map { newPublicKey() }
+        keys.take(20).forEachIndexed { index, key -> store.trustPeer(key, "Phone $index") }
+        assertEquals(20, store.trustedPeers().size)
+        assertFalse(runCatching { store.trustPeer(keys.last(), "Extra phone") }.isSuccess)
+        store.trustPeer(keys.first(), "Renamed phone")
+        assertEquals(20, store.trustedPeers().size)
+        assertEquals("Renamed phone", store.trustedPeers().first { it.publicKeyBase64 == keys.first() }.displayName)
+    }
+
+    @Test
     fun invalidKeyAndNameAreRejected() {
         assertFalse(runCatching { store.trustPeer("invalid", "Phone") }.isSuccess)
         assertFalse(runCatching { store.trustPeer(newPublicKey(), " ".repeat(3)) }.isSuccess)
