@@ -61,8 +61,9 @@ internal data class ClimateProfile(
 internal class ClimateProfileRepository(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("klimapilot_climate_profiles", Context.MODE_PRIVATE)
 
-    @Synchronized
+    
     fun load(): List<ClimateProfile> {
+        synchronized(ClimateProfileStorageLock.monitor) {
         val raw = prefs.getString(KEY_PROFILES, null) ?: return emptyList()
         val root = JSONObject(raw)
         val schemaVersion = root.optInt("schemaVersion", -1)
@@ -99,10 +100,12 @@ internal class ClimateProfileRepository(context: Context) {
         }
         require(profiles.map { it.id }.distinct().size == profiles.size) { "Klimaprofil-IDs sind nicht eindeutig." }
         return profiles
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun save(profile: ClimateProfile) {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(profile.id.isNotBlank() && profile.deviceId.isNotBlank() && profile.name.isNotBlank())
         require(profile.mode == null || profile.mode in SUPPORTED_MODES)
         profile.targetTemp?.let {
@@ -118,10 +121,12 @@ internal class ClimateProfileRepository(context: Context) {
         }
         val next = load().filterNot { it.id == profile.id } + profile.copy(name = profile.name.trim())
         write(next)
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun saveWithPendingSync(profile: ClimateProfile, deviceKey: String): ClimateProfile {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(deviceKey.isNotBlank()) { "Für die Synchronisierung fehlt die gemeinsame Gerätekennung." }
         validateProfile(profile)
         val normalized = profile.copy(name = profile.name.trim())
@@ -130,25 +135,31 @@ internal class ClimateProfileRepository(context: Context) {
         journal.put(newJournalEvent("upsert", normalized.id, deviceKey, profileToJson(normalized)))
         writeProfilesAndJournal(next, journal)
         return normalized
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun delete(profileId: String) {
+        synchronized(ClimateProfileStorageLock.monitor) {
         write(load().filterNot { it.id == profileId })
-    }
+    
+        }}
 
-    @Synchronized
+    
     fun deleteWithPendingSync(profileId: String, deviceKey: String) {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(profileId.isNotBlank() && deviceKey.isNotBlank())
         val next = load().filterNot { it.id == profileId }
         val journal = readJournal()
         journal.put(newJournalEvent("delete", profileId, deviceKey, null))
         writeProfilesAndJournal(next, journal)
-    }
+    
+        }}
 
     /** Moves durable repository journal entries into the outbox; stable IDs make retries idempotent. */
-    @Synchronized
+    
     fun flushPendingSyncJournal(store: ClimateProfileSyncStore): Int {
+        synchronized(ClimateProfileStorageLock.monitor) {
         val journal = readJournal()
         if (journal.length() == 0) {
             check(store.retainImportedJournalIds(emptySet())) {
@@ -175,7 +186,8 @@ internal class ClimateProfileRepository(context: Context) {
             "Abgeschlossene Journal-Importmarkierungen konnten nicht bereinigt werden."
         }
         return transferred
-    }
+    
+        }}
 
     private fun readJournal(): JSONArray {
         val raw = prefs.getString(KEY_PENDING_SYNC_JOURNAL, null) ?: return JSONArray()
@@ -220,8 +232,9 @@ internal class ClimateProfileRepository(context: Context) {
         .put("updatedAt", item.updatedAt)
 
     /** Applies a remote event locally without creating a new outbound event. */
-    @Synchronized
+    
     fun applyRemoteEvent(event: JSONObject, localDeviceId: String) {
+        synchronized(ClimateProfileStorageLock.monitor) {
         require(localDeviceId.isNotBlank())
         val profileId = event.optString("profileId").takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("Synchronisierungsereignis ohne Profil-ID.")
@@ -251,7 +264,8 @@ internal class ClimateProfileRepository(context: Context) {
             }
             else -> throw IllegalArgumentException("Unbekannter Synchronisierungstyp.")
         }
-    }
+    
+        }}
 
     private fun write(profiles: List<ClimateProfile>) {
         check(prefs.edit().putString(KEY_PROFILES, profilesJson(profiles)).commit()) {
