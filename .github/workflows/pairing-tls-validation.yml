@@ -1,6 +1,9 @@
 name: KlimaPilot Pairing TLS Compatibility
 
 on:
+  push:
+    branches:
+      - test
   pull_request:
     branches:
       - test
