@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - feature/direct-wf-rac-wlan
+      - feature/local-wifi-profile-sync
+      - feature/local-wifi-pairing
   pull_request:
     branches:
       - main
