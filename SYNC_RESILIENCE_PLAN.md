@@ -192,7 +192,7 @@ Die Umsetzung erfolgt schrittweise auf dem produktiven Branch `main`. Vor jeder 
 
 ## 9. Umsetzungsstand – dauerhafte Profiländerungen (Arbeitsbranch)
 
-**Stand: 16.11.2026 – in Arbeit, noch nicht für Produktion freigegeben.**
+**Stand: 17.11.2026 – in Arbeit, noch nicht für Produktion freigegeben.**
 
 Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Teil der Offline-Absicherung umgesetzt:
 
@@ -230,17 +230,18 @@ Auf dem separaten Branch `fix/durable-profile-change-journal` wurde der erste Te
 - Ein fehlgeschlagener Journal-Flush bricht ab, ohne das Repository-Journal zu leeren.
 - Beim Rekey werden offene Ereignisse, der Initialisierungsmarker und jetzt auch sämtliche bekannten Profilversionen vom alten auf den neuen Geräteschlüssel übertragen. Bei bereits vorhandener Zielversion bleibt jeweils die neuere Version erhalten. Damit bleiben auch bestätigte Ereignisse berücksichtigt, die nicht mehr in der Outbox liegen.
 - Der Versionsübernahme-Fix ist durch einen gezielten Regressionstest für einen bestätigten alten Versionsstand (Clock 45) gegenüber einer vorhandenen Zielversion (Clock 40) abgedeckt.
+- Die Übernahme der Versionsschlüssel sammelt zunächst alle zu migrierenden Schlüssel in einer separaten Liste, bevor neue JSON-Properties geschrieben werden. Damit wird eine Änderung des `JSONObject.keys()`-Iterators während der Iteration vermieden (Head `c8c08bf`).
 
 **Automatisierte Tests und CI:**
 - GitHub-Actions-Lauf #35 für Head `eb7ce131`: erfolgreich (Unit-Tests und Debug-Kompilierung).
 - GitHub-Actions-Lauf #37 für Head `0caed4c`: erfolgreich (Unit-Tests und Debug-Kompilierung einschließlich Rekey-Versionsübernahme).
-- Für den danach ergänzten Head `0bdd4a5` wurden zwei gezielte Journal-Wiederanlaufszenarien und ein Test zum Zusammenspiel von `observeRemoteClock` und ungeflushter lokaler Änderung ergänzt. Der zugehörige CI-Lauf ist noch abzuwarten.
+- GitHub-Actions-Lauf #38 für Head `0bdd4a5`: erfolgreich (Unit-Tests und Debug-Kompilierung; einschließlich Journal-Recovery- und Remote-Clock-Regressionstests).
+- GitHub-Actions-Lauf #40 für den aktuellen Head `c8c08bf`: erfolgreich (Unit-Tests und Debug-Kompilierung einschließlich der Absicherung der JSON-Key-Iteration).
 - Die Replay-Tests simulieren die jeweiligen dauerhaft gespeicherten Zwischenzustände mit SharedPreferences und neuen Repository-Instanzen. Sie sind gezielte Wiederanlauf-/Idempotenztests, aber kein echter Betriebssystem-Prozessabsturztest.
 - Der PR-Workflow prüft Unit-Tests und Debug-Kompilierung. Release-Keystore, signierter Release-Build, APK-Signaturprüfung und Produktionsartefakt-Upload sind nicht Bestandteil dieses PR-Workflows.
 
 **Noch offen vor Freigabe:**
-- CI für den aktuellen Head `0bdd4a5` abwarten und Ergebnis kontrollieren.
-- Unabhängiges Re-Review der Rekey-Versionsübernahme und der neuen Replay-/Clock-Tests.
+- Unabhängiges Re-Review des aktuellen Heads `c8c08bf`, insbesondere Rekey-Versionsübernahme, JSON-Key-Iteration und Replay-/Clock-Tests.
 - Den PR-Branch kontrolliert mit dem aktuellen `main` abgleichen; der Branch ist gegenüber `main` divergent, die acht Rückstände betreffen nach dem zuletzt geprüften Compare Status-/Projektdokumentation.
 - Die Konfliktregeln für bereits geflushte lokale Änderungen (Last-Writer-Wins nach Logical Clock) und lokale Bearbeitung gegen Remote-Löschung sind bewusste Verhaltensentscheidungen und sollten vor Freigabe dokumentiert beziehungsweise bestätigt werden.
 - Ein Commit-Fehler mitten im Journal-Flush ist noch nicht gezielt durch Fehlerinjektion getestet.
