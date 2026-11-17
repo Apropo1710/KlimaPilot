@@ -36,6 +36,9 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -1298,11 +1301,26 @@ private fun SettingsScreen(
     var ioBrokerExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val peerDiscovery = remember(context) { ClimateProfilePeerDiscovery(context) }
+    val lifecycleOwner = context as? LifecycleOwner
     var peerScanning by remember { mutableStateOf(false) }
     var peerScanMessage by remember { mutableStateOf("Noch keine lokale WLAN-Suche gestartet.") }
-    val discoveredPeers = remember { mutableStateListOf<String>() }
-    DisposableEffect(peerDiscovery) {
-        onDispose { peerDiscovery.stop() }
+    val discoveredPeers = remember { mutableStateMapOf<String, String>() }
+    DisposableEffect(peerDiscovery, lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                peerDiscovery.stop()
+                peerScanning = false
+                discoveredPeers.clear()
+                peerScanMessage = "WLAN-Suche wegen App-Hintergrund beendet."
+            }
+        }
+        lifecycleOwner?.lifecycle?.addObserver(observer)
+        onDispose {
+            lifecycleOwner?.lifecycle?.removeObserver(observer)
+            peerDiscovery.stop()
+            peerScanning = false
+            discoveredPeers.clear()
+        }
     }
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
@@ -1424,9 +1442,11 @@ private fun SettingsScreen(
                             peerScanMessage = "Suche im lokalen WLAN …"
                             peerScanning = peerDiscovery.start(
                                 onPeerFound = { peer ->
-                                    val entry = "${peer.instanceName} · ${peer.hostAddress}:${peer.port}"
-                                    if (entry !in discoveredPeers) discoveredPeers.add(entry)
+                                    discoveredPeers[peer.instanceName] = "${peer.instanceName} · ${peer.hostAddress}:${peer.port}"
                                     peerScanMessage = "Unbestätigte Dienstankündigung gefunden."
+                                },
+                                onPeerLost = { instanceName ->
+                                    discoveredPeers.remove(instanceName)
                                 },
                                 onError = { message ->
                                     peerScanning = false
@@ -1439,7 +1459,7 @@ private fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(if (peerScanning) "Suche beenden" else "KlimaPilot-Geräte suchen") }
                 Text(peerScanMessage, color = Muted, fontSize = 12.sp)
-                discoveredPeers.forEach { peer ->
+                discoveredPeers.values.forEach { peer ->
                     Text(peer, color = TextMain, fontSize = 12.sp)
                     Text("Nicht gekoppelt · keine Datenübertragung", color = Muted, fontSize = 10.sp)
                 }
