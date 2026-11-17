@@ -183,3 +183,14 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - **Nächster Umsetzungsschritt:** TLS-/Android-Keystore-Kompatibilität auf API 26+ separat prüfen. Erst danach dürfen Netzwerktransport und Profil-Sync umgesetzt werden.
 - Profilübertragung bleibt gesperrt, bis Pairing und gegenseitiges TLS auf realen Geräten erfolgreich geprüft wurden.
 - Produktionsbranch `main`, Produktionsversion **0.4.64 / versionCode 94**, Updater, bestehender ioBroker-Sync und WF-RAC-Steuerpfad wurden nicht verändert. Es wurde keine neue APK erstellt oder veröffentlicht.
+
+## 12. TLS-Kompatibilitätstest – Fehleranalyse und Diagnoseverbesserung (17.11.2026)
+
+- GitHub Actions [Pairing TLS Compatibility #2](https://github.com/Apropo1710/KlimaPilot/actions/runs/44131206603) für Head `f415548b047b5062db528801a7a5f2569d906e10`: **completed / failure**. Beide Matrix-Jobs schlugen fehl; daraus ist noch keine TLS-Kompatibilität bestätigt.
+- API 26: Der Instrumentierungstest wurde tatsächlich gestartet (1 Test) und meldete clientseitig `SSLHandshakeException: Connection closed by peer`. Der bisherige Test wartete anschließend auf das Server-Ergebnis, gab dessen eigentliche Ausnahme aber nicht aus. Die Ursache war deshalb im bisherigen Log nicht ausreichend sichtbar.
+- API 35: Die Emulatorverbindung war beim Start zeitweise `offline`; später meldete Gradle `Starting 0 tests` und einen abgestürzten Instrumentierungsprozess. Das ist bislang ein Emulator-/Instrumentierungsfehlerbild, kein nachgewiesener TLS-Fehler.
+- Diagnosekorrektur auf dem Feature-Branch: Der Instrumentierungstest hängt nun eine mögliche Server-seitige TLS-Ausnahme an den Clientfehler an und setzt ein Socket-Timeout. Dadurch soll ein erneuter API-26-Fehler die tatsächliche Gegenursache offenlegen.
+- Workflowkorrektur auf dem Feature-Branch: Emulator-Logcat wird nach dem Instrumentierungslauf unabhängig vom Testergebnis ausgelesen und als Actions-Artefakt `pairing-tls-logcat-api-*` gesichert. Das soll insbesondere den API-35-Prozessabsturz diagnostizierbar machen.
+- Diese Änderungen sind reine Test-/CI-Diagnostik. Es wurden weder produktiver Netzwerktransport noch Profilübertragung implementiert.
+- **Claude-Review:** derzeit nicht verfügbar (Nutzerlimit; voraussichtlich wieder ab 23:00 Uhr). Der Review bleibt vor dem nächsten größeren Umsetzungsschritt vorgesehen; bis dahin wird nur die Fehlerdiagnose fortgesetzt.
+- PR #5 bleibt offen und Draft. `main`, Produktionsversion **0.4.64 / versionCode 94**, Updater, ioBroker-Sync und WF-RAC-Steuerpfad bleiben unverändert. Keine Produktions-APK erstellt oder veröffentlicht.
