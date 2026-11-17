@@ -1,10 +1,13 @@
 name: KlimaPilot WLAN Branch Validation
 
 on:
+  push:
+    branches:
+      - test
   pull_request:
     branches:
       - main
-      - feature/local-wifi-profile-sync
+      - test
   workflow_dispatch:
 
 permissions:
