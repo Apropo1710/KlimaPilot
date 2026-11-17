@@ -1,3 +1,20 @@
+<!-- AUTO-PRODUCTION-STATUS:START -->
+## Automatisch gepflegter Produktionsstatus
+
+- Quellcommit des APK-Builds: 7ca092cb82e0c32844e5031a1cec94cb9ac10d1d
+- App-Version / versionCode: **0.4.63 / 93**
+- Build-Zeit: 2026-11-17 11:21:42 UTC
+- APK-Dateiname: **KlimaPilot.apk**
+- APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
+- Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
+- APK-SHA-256: 25e4d759ee5120d3d793cb07d651354d6cef226d9097a1a03cb02c13751b0151
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
+- Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
+- Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
+          - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
+
+<!-- AUTO-PRODUCTION-STATUS:END -->
+
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
 **Zuletzt abgeglichen:** 17.11.2026, 12:19 Uhr MEZ  
@@ -112,4 +129,4 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - ioBroker bleibt zunächst als bestehender Synchronisationsanbieter erhalten. Eine unabhängige Cloud oder direkte Smartphone-Synchronisation kann später ergänzend hinzukommen.
 - Konfliktbehandlung, doppelte Events, Wiederanlauf und Löschungen müssen ausdrücklich berücksichtigt und mit mindestens zwei Smartphones getestet werden.
 - Ein absolut ausfallfreies System kann nicht garantiert werden. Ziel ist, dass der Ausfall eines Synchronisationsdienstes weder die lokale Bedienung noch gespeicherte Daten gefährdet.
-- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n\n\n\n
+- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n\n\n\n\n
