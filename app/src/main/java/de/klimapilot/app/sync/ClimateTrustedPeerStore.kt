@@ -100,7 +100,9 @@ internal class ClimateTrustedPeerStore(context: Context) {
             "Ungültige Schlüssellänge."
         }
         val key = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(encoded))
-        require(key.algorithm.equals("EC", ignoreCase = true)) { "Nur EC-Geräteschlüssel werden unterstützt." }
+        require(ClimatePeerIdentityStore.isSupportedPublicKey(key)) {
+            "Nur EC-Schlüssel auf der Kurve secp256r1 werden unterstützt."
+        }
         val canonical = Base64.encodeToString(key.encoded, Base64.NO_WRAP)
         val digest = MessageDigest.getInstance("SHA-256").digest(key.encoded)
         val peerId = digest.joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
