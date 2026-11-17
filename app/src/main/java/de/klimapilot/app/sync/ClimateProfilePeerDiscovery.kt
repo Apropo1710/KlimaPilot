@@ -68,6 +68,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     private var ownServiceName: String? = null
     private var ownDiscoveryId = ""
     private var onPeerFound: ((UnverifiedClimatePeer) -> Unit)? = null
+    private var onPeerLost: ((String) -> Unit)? = null
     private var onError: ((String) -> Unit)? = null
     private val pending = ArrayDeque<NsdServiceInfo>()
     private val seenNames = mutableSetOf<String>()
@@ -76,6 +77,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     @Synchronized
     fun start(
         onPeerFound: (UnverifiedClimatePeer) -> Unit,
+        onPeerLost: (String) -> Unit,
         onError: (String) -> Unit,
     ): Boolean {
         if (active) return false
@@ -83,6 +85,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         generation += 1
         val run = generation
         this.onPeerFound = onPeerFound
+        this.onPeerLost = onPeerLost
         this.onError = onError
         ownDiscoveryId = UUID.randomUUID().toString().replace("-", "").lowercase(Locale.ROOT)
         ownServiceName = "KlimaPilot-${ownDiscoveryId.take(8)}"
@@ -142,7 +145,10 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                 }
                 override fun onServiceLost(serviceInfo: NsdServiceInfo) {
                     synchronized(this@ClimateProfilePeerDiscovery) {
-                        if (isCurrent(run)) seenNames.remove(serviceInfo.serviceName)
+                        if (isCurrent(run) && seenNames.remove(serviceInfo.serviceName)) {
+                            pending.removeAll { it.serviceName == serviceInfo.serviceName }
+                            onPeerLost?.invoke(serviceInfo.serviceName)
+                        }
                     }
                 }
                 override fun onDiscoveryStopped(serviceType: String) = Unit
@@ -253,6 +259,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         multicastLock?.let { lock -> if (lock.isHeld) runCatching { lock.release() } }
         multicastLock = null
         onPeerFound = null
+        onPeerLost = null
         onError = null
     }
 }
