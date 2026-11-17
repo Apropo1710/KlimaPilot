@@ -1,9 +1,6 @@
 name: KlimaPilot Pairing TLS Compatibility
 
 on:
-  push:
-    branches:
-      - feature/local-wifi-pairing
   pull_request:
     branches:
       - feature/local-wifi-profile-sync
