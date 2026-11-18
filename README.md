@@ -48,5 +48,6 @@ Der aktuelle Branch-, PR-, Build- und Validierungsstand wird ausschließlich in 
 
 - [Repository](https://github.com/Apropo1710/KlimaPilot)
 - [GitHub Actions](https://github.com/Apropo1710/KlimaPilot/actions)
+- Die Debug-Testversion wird im Workflow „KlimaPilot WLAN Branch Validation“ gebaut, geprüft und als Artefakt `KlimaPilot-debug-test-0.4.68` für den Smartphone-Test bereitgestellt.
 - [PR #6 – WLAN-Pairing (Draft)](https://github.com/Apropo1710/KlimaPilot/pull/6)
 - [Produktions-APK](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
