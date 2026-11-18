@@ -1,15 +1,13 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 13:40 Uhr MEZ (Kontenübertragung für frische Geräte ergänzt; CI-Läufe #79 und #214 laufen)
+**Letzter Abgleich:** 18.11.2026, 13:xx Uhr MEZ (Test-APK-Artefaktbereitstellung ergänzt; WLAN-Workflow #221 läuft; API-26-Lauf #86 fehlgeschlagen)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
 
 ## 1. Produktivstand – `main`
 
-- Aktueller `main`-HEAD: `b82433038a3ced3de3ff908788fde4ef36d58f66`
-- Produktivversion aus `app/build.gradle.kts`: **0.4.64 / versionCode 94**
-- Letzter bestätigter erfolgreicher Produktionsbuild: **GitHub Actions #233**, Quellcommit `b88ff7e9709bc1ea5aafd673e26bb1d4efee9c16`.
+- Produktionsstand zuletzt separat bestätigt: **0.4.67 / versionCode 97**, Build #238 erfolgreich auf Commit `608912f99e2653d271104aa2f620d2c64cdef651`. Dieser Test-Branch-Arbeitsgang verändert `main` nicht.
 - Release `latest` enthält die signierte APK dieses Builds. Der aktuelle `main`-HEAD ist ein späterer Dokumentationscommit; Build-Commit und aktueller Branch-HEAD sind daher ausdrücklich zu unterscheiden.
 - [Direkter APK-Download](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
 - `main` wurde bei der hier dokumentierten Bereinigung nicht verändert.
@@ -25,15 +23,16 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2a. Kontenübernahme direkt aus ioBroker (18.11.2026)
 
-- Die Testversion verwendet jetzt denselben direkten Anmeldeweg wie der aktuelle Produktionsstand: Auf einem Gerät ohne lokale Konten kann die vorhandene Registry über die WebSocket-Adresse direkt aus `0_userdata.0.KlimaPilot.accounts` in ioBroker geladen werden.
-- Anschließend erfolgt die Anmeldung mit dem bereits vorhandenen Benutzernamen und Passwort. Es ist weder ein neuer Administrator noch ein Export/Import per Datei oder manuelles Kopieren erforderlich.
-- Der Import schreibt nur bei fehlender oder gültig leerer lokaler Registry. Bereits vorhandene Konten und beschädigte lokale Daten werden nicht überschrieben.
-- Die bestehende WLAN-/Pairing-Entwicklung auf `test` wurde nicht zurückgesetzt. Der manuelle JSON-Transfer wurde in der Login-Ersteinrichtung durch den direkten ioBroker-Abruf ersetzt.
-- Gezielte Repository-Regressionstests decken fehlende, leere, bereits befüllte und beschädigte lokale Registries ab.
-- Testversion: **0.4.68 / versionCode 98** (Debug-Paketkennung `de.klimapilot.app.debug`).
-- Codeänderungen: `ab7da3a` (sichere Importlogik), `9d15852` (ioBroker-Abruf), `0ad1d42` (Versionsanhebung), `f8f4261` (Login-Oberfläche), `86cd86d` (Regressionstests), `7f75f4d` (manuellen Datei-Transfer aus der Oberfläche entfernt).
-- GitHub Actions: WLAN-Validierung #220 und API-26-/TCP-Validierung #85 laufen aktuell für Commit `7f75f4d`; die API-26-APK-Prüfung wurde auf versionCode 98 und `0.4.68-debug` angepasst. Smartphone-Test auf zwei Geräten steht aus.
-- `main` bleibt unverändert. Der Updater wurde nicht verändert.
+- Auf einem Gerät ohne lokale Konten kann die vorhandene Registry über die WebSocket-Adresse direkt aus `0_userdata.0.KlimaPilot.accounts` in ioBroker geladen werden.
+- Anschließend erfolgt die Anmeldung mit dem vorhandenen Benutzernamen und Passwort. Kein neuer Administrator und kein Datei-Export/-Import oder manuelles Kopieren erforderlich.
+- Import überschreibt keine bereits befüllte oder beschädigte lokale Registry.
+- Testversion: **0.4.68 / versionCode 98**, Debug-Paketkennung `de.klimapilot.app.debug`, versionName `0.4.68-debug`.
+- Codeänderungen: `ab7da3a`, `9d15852`, `0ad1d42`, `f8f4261`, `86cd86d`, `7f75f4d`. Aktueller Branch-HEAD nach CI-/Dokumentationsänderungen: siehe Branch `test`.
+- WLAN-Validierung #220 war auf Commit `7f75f4d534d646cf9f06540a7ceeef62ae2e9216` erfolgreich (Unit-Tests und Debug-Kompilierung).
+- API-26-Lauf #86 auf Commit `f1fd7af3f6ba5ff61a4ccd27bd72f8df39c37b42` ist fehlgeschlagen: 4/5 Instrumentierungstests bestanden; der Fehler war `ClimatePeerTcpCompatibilityTest.clientSocketCreatedDuringShutdownIsClosedBeforeConnect`. Die APK-Upload-Schritte wurden dadurch übersprungen. Dieser Emulatorfehler betrifft den TCP-Peer-Test, nicht den Kontenimport.
+- Zur Bereitstellung der APK wurde der WLAN-Workflow erweitert: Nach Unit-Tests und Debug-Build prüft er Paketkennung, Version, Abwesenheit von `REQUEST_INSTALL_PACKAGES` und APK-Signatur und lädt anschließend `KlimaPilot-debug-test-0.4.68` hoch. Der dazugehörige WLAN-Lauf #221 ist derzeit **queued/in Bearbeitung**. Kein neuer API-26-Lauf wurde durch diese Workflow-/README-Änderung ausgelöst.
+- Zwei-Smartphone-Test steht noch aus. Bis zur erfolgreichen Geräteprüfung bleibt Peer-Nutzdatentransfer gesperrt.
+- `main` und der produktive Updater bleiben unverändert.
 
 ## 3. Letzte Codeänderung
 
