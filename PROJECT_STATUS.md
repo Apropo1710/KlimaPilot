@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 08:56 Uhr MEZ  
+**Letzter Abgleich:** 18.11.2026, 10:20 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -64,15 +64,17 @@ Die folgenden Nachweise sind die zuletzt konkret dokumentierten Ergebnisse; sie 
 - WLAN-Workflow **#202**, erfolgreich auf älterem Commit `ae1bdc03c78624ff640505b4bd255bfd885b05c5`.
 - WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
 - Separater TCP-Emulatorlauf **#62**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26.
-- Für den App-Code-Commit `bba8969...` und den anschließenden Test-Commit `e55a92e...` ist kein erfolgreicher Android-Build oder Gradle-/JUnit-Lauf bestätigt.
+- WLAN-Workflow **#203**, erfolgreich per `workflow_dispatch` auf `test` mit Commit `1a1d9df06492b45b89d537ac2844d76c789280a6`: `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin` erfolgreich. Damit sind die elf aktuellen Netzwerk-Policy-Tests auch über Gradle/JUnit ausgeführt.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
-- Kein API-35-Emulatornachweis und kein Zwei-Smartphone-Praxistest bestätigt.
-- Für den aktuellen `test`-HEAD `e55a92e...` wurde trotz aktualisiertem PR-Kopf kein Actions-Lauf angelegt; die commitbezogene Workflow-Abfrage und der kombinierte Commit-Status liefern keine Runs/Checks. Der letzte erfolgreiche WLAN-Lauf #202 liegt vor dem Codecommit `bba8969...`; der letzte TCP-Emulatorlauf #62 ebenfalls.
-- Die elf reinen Netzwerk-Policy-Fälle wurden zusätzlich mit dem lokalen Kotlin-Compiler in einem separaten Smoke-Harness ausgeführt: **11/11 bestanden**. Das ist ausdrücklich kein Ersatz für `testDebugUnitTest`, Android-Kompilierung oder Emulator-/Gerätetests. In der verfügbaren lokalen Umgebung sind weder Gradle noch Android SDK/ADB eingerichtet.
+- TCP-Emulatorlauf **#63**, Commit `725fe3109aa4712abda0a4f500cb6433c8a49e19` (Workflow-only-Abzweig vom identischen App-/Teststand `1a1d9df...`): API 26 erfolgreich; Gradle-Build erfolgreich und Instrumentierungstests **3/3 bestanden**. API 35 im selben Lauf fehlgeschlagen, weil der Emulator/Package-Manager nicht rechtzeitig verfügbar war; keine bestandenen API-35-App-Tests.
+- Optionale API-35-Wiederholungen #66, #67 und #68 fehlgeschlagen; #64 und #65 wurden während der Workflow-Konfigurationskorrektur abgebrochen. Lauf #68 enthielt zusätzliche KVM-Berechtigungs- und Emulator-Readiness-Prüfungen, endete aber weiterhin mit Fehler im API-35-Job. API 35 bleibt ausdrücklich optional und ist kein Freigabekriterium. Keine weiteren API-35-Wiederholungen, solange kein konkreter neuer technischer Ansatz vorliegt.
+- Kein Zwei-Smartphone-Praxistest bestätigt.
+- Der erfolgreiche WLAN-Lauf #203 deckt den aktuellen `test`-HEAD `1a1d9df...` ab. Der API-26-Instrumentierungslauf #63 verwendet einen separaten Workflow-only-Commit, dessen App-/Testbaum identisch zum `test`-HEAD ist.
+- Die elf Netzwerk-Policy-Fälle wurden im WLAN-Workflow #203 auf dem aktuellen App-/Teststand durch `testDebugUnitTest` ausgeführt; der gesamte Workflow war erfolgreich. Zusätzlich wurden sie zuvor mit einem separaten Kotlin-Smoke-Harness 11/11 bestanden. Der Smoke-Harness ist kein Ersatz für Gradle, Android-Kompilierung oder Emulator-/Gerätetests.
 
 Workflows:
 - `.github/workflows/wlan-validation.yml`: PR-Trigger sowie `workflow_dispatch`; laut Workflowdefinition Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35.
-- `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; der Workflow validiert inzwischen TCP-Peer-Authentifizierung und ist nur manuell startbar.
+- `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; der Workflow validiert inzwischen TCP-Peer-Authentifizierung und ist nur manuell startbar. Die API-35-Experimente liefen ausschließlich auf temporären `validation/*`-Branches; sie wurden nicht in `main`, `test` oder PR #6 übernommen.
 
 ## 6. Verbindliche Freigabesperren
 
@@ -92,10 +94,12 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Die manuelle GitHub-Actions-Validierung für den aktuellen Commit auslösen, sobald ein Actions-Dispatch-Zugang verfügbar ist; anschließend Unit-Tests und Debug-Kompilierung prüfen. Bis dahin keinen CI-Erfolg behaupten.
-2. Danach gezielte Geräte-/Emulatortests für WLAN-Verlust, Wechsel des Standardnetzes, parallele WLAN-Verfügbarkeit und einen Netzwechsel während des Discovery-Starts durchführen.
-3. Erst nach erfolgreicher Validierung die Integration des TCP-Handshakes planen.
-4. Bis zur vollständigen Protokollhärtung und zum erfolgreichen Zwei-Smartphone-Test bleibt Peer-Nutzdatentransfer gesperrt.
+1. Die aktuelle WLAN-/Lifecycle-Basis ist durch WLAN-Workflow #203 und API-26-TCP-Emulatorlauf #63 validiert.
+2. Als nächsten Entwicklungsschritt den vorhandenen gegenseitigen `ClimatePeerTcp`-Handshake kontrolliert in den Discovery-Listener und einen expliziten Verbindungsversuch zu einem bereits gekoppelten Peer integrieren. Die Verbindung wird nach erfolgreicher Authentifizierung wieder geschlossen; noch keine Nutzdaten.
+3. Dafür zunächst begrenzte parallele Server-Sessions, Socket-/Executor-Cleanup, Trust-Prüfung und UI-Rückmeldungen spezifizieren und testen. Keine automatische Verbindung zu beliebigen Discovery-Ankündigungen.
+4. Nach der Integration WLAN-Workflow #203-ähnliche Prüfung und den verpflichtenden API-26-Instrumentierungslauf ausführen. API 35 bleibt optional.
+5. Erst danach Nachrichtenframing, Größen-/Schema-/Gerätevalidierung, Replay-/Duplikaterkennung und idempotente Wiederaufnahme umsetzen.
+6. Bis zur vollständigen Protokollhärtung und zum erfolgreichen Zwei-Smartphone-Test bleibt Peer-Nutzdatentransfer gesperrt.
 
 ## 9. Dokumentationsstruktur und Pflege
 
