@@ -1,9 +1,6 @@
 name: KlimaPilot Local TCP Peer Authentication
 
 on:
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
