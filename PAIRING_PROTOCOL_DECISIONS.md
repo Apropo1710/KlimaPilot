@@ -1,9 +1,7 @@
 # KlimaPilot – Pairing- und Protokollentscheidungen
 
-**Aktueller Stand:** 18.11.2026, 08:16 Uhr MEZ  
-**Arbeitsbranch:** `test`, PR #6 offen/Draft, nicht gemergt  
-**Produktionsbranch:** `main`, unverändert
-
+**Fachlicher Stand:** 18.11.2026  
+**Branch-/PR-/CI-Status:** ausschließlich in `PROJECT_STATUS.md`.
 ## 1. Verbindliche Architekturgrenzen
 
 - Pairing verbindet zwei KlimaPilot-Installationen; es ist unabhängig vom WF-RAC-Pairing zur Klimaanlage.
@@ -95,13 +93,9 @@ Discovery bleibt ausdrücklich reject-only: der angekündigte TCP-Port nimmt Ver
 - Bestehenden ioBroker-Transport und dessen Event-Engine regressionsprüfen.
 - Zwei reale Smartphones testen.
 
-## 9. Aktueller Validierungsstand
+## 9. Validierung
 
-- WLAN-Run #202 erfolgreich auf älterem Commit `ae1bdc03...`.
-- TCP-Emulator-Run #201 erfolgreich auf älterem Commit `41b9a3ab...`, API 26.
-- Der aktuelle Lifecycle-Codecommit `bba8969...` hat keinen bestätigten Android-Build oder Testlauf.
-- API 35 und Zwei-Smartphone-Test sind nicht bestätigt.
-- Die sieben JVM-Adress-/IPv6-Tests sind vorhanden, aber nicht als aktuell ausgeführt bestätigt.
+Build-, CI- und Geräte-Testnachweise für den aktuellen Stand werden ausschließlich in `PROJECT_STATUS.md` geführt. Ältere erfolgreiche Testläufe dürfen nicht als Validierung des neuesten Codes ausgegeben werden.
 
 ## 10. Historische Entscheidung
 
