@@ -147,3 +147,14 @@ Ein absolut ausfallfreies System ist nicht garantierbar. Ziel ist, dass der Ausf
 - Code-Commit: `6748bffe9e6f2d000e5729d2dbede3e5f957e1f7`. Der CI-Nachweis für diesen neuen Ansatz ist noch ausstehend; Folgecommits enthalten Workflow- und Dokumentationspflege.
 - Kein produktiver Peer-Transport, kein Profiltransfer und kein bestätigter Zwei-Smartphone-Test. Discovery bleibt reject-only.
 - Updater und `main` unangetastet.
+
+
+## Code-Review – Zwischenstand 18.11.2026, 07:21 Uhr MEZ
+
+- TCP-Handshake-Code und vorhandene JVM-/Instrumentierungstests geprüft. Authentifizierung und Trust-Prüfung sind beidseitig implementiert; TCP bleibt unverschlüsselt.
+- Discovery ist weiterhin reject-only; keine Profil-/Outbox-Daten werden übertragen.
+- Vor späterer Integration muss der Listener ausdrücklich auf das aktive WLAN-Interface begrenzt werden: aktuell wird `ServerSocket(0)` ohne Interface-Bindung erzeugt (Wildcard-Bindung).
+- Pairing-Controller-Test nutzt für beide simulierten Geräte denselben Trust-Store. Getrennte Trust-Stores als zusätzliche Testabdeckung erforderlich.
+- Kein neuer Testlauf und keine Codeänderung im Rahmen dieser Prüfung.
+- Aktueller Branchvergleich nach den zwischenzeitlichen Dokumentationscommits: `test` **153 ahead / 10 behind** gegenüber `main`, Merge-Base unverändert `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die Branches bleiben divergent; kein Rebase/Merge ohne Prüfung und Freigabe.
+
