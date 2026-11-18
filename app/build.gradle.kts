@@ -13,11 +13,17 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 98
-        versionName = "0.4.68"
+        versionCode = 99
+        versionName = "0.4.69"
     }
 
     signingConfigs {
+        create("testDebug") {
+            storeFile = file("klimapilot-test-debug.keystore")
+            storePassword = "klimapilot-test-only"
+            keyAlias = "klimapilot-test"
+            keyPassword = "klimapilot-test-only"
+        }
         create("release") {
             storeFile = file(System.getenv("KLIMAPILOT_KEYSTORE_PATH") ?: "release.keystore")
             storePassword = System.getenv("KLIMAPILOT_STORE_PASSWORD")
@@ -33,6 +39,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            signingConfig = signingConfigs.getByName("testDebug")
         }
     }
     compileOptions {
