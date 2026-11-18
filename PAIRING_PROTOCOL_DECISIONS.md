@@ -211,6 +211,6 @@ Diese Punkte sind Review-Ergebnisse und offene Integrationsanforderungen, keine 
 - Ein zusätzliches WLAN-Netz beendet die Discovery nicht mehr automatisch. `onAvailable` bricht nur ab, wenn das neu verfügbare WLAN zugleich `ConnectivityManager.activeNetwork` ist. Ein Verlust des ursprünglich ausgewählten WLANs wird weiterhin über `onLost` erkannt; Änderungen an dessen Interface oder ausgewählter Adresse bleiben fail-closed.
 - Die Scope-Erzeugung für IPv6-Link-Local-Adressen wurde in eine separat prüfbare Funktion ausgelagert. Sie akzeptiert ausschließlich Link-Local-IPv6 und bindet die Adresse über `Inet6Address.getByAddress(..., NetworkInterface)` an das angegebene Interface.
 - Zwei zusätzliche JVM-Tests prüfen die Scope-Bindung am Linux-Loopback-Interface und die Ablehnung einer IPv6-ULA-Adresse durch die Scope-Funktion.
-- Implementierungscommits auf `test`: `4f35e1f` (Discovery/Selector) und `fc29e1f` (Tests). Insgesamt sieben Adressauswahl-/Scope-Testfälle sind im Quellcode vorhanden.
+- Implementierungscommits auf `test`: `4f35e1f` (Discovery/Selector) und `d91b00b` (Tests). Insgesamt sieben Adressauswahl-/Scope-Testfälle sind im Quellcode vorhanden.
 - CI/Build noch nicht bestätigt. Die Testfälle sind ergänzt, aber nicht als ausgeführt oder bestanden zu werten.
 - Keine Änderung an Pairing-Kryptografie, TCP-Handshake, Nutzdatenübertragung, Updater, `main` oder Produktionsrelease.
