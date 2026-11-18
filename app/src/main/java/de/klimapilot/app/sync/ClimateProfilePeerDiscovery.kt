@@ -321,11 +321,13 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         val capabilities = connectivity.getNetworkCapabilities(selectedNetwork)
         val linkProperties = connectivity.getLinkProperties(selectedNetwork)
         val currentInterfaceName = linkProperties?.interfaceName
-        val currentAddress = currentInterfaceName?.let { interfaceName ->
-            ClimateWifiListenerAddressSelector.select(
-                interfaceName,
-                linkProperties.linkAddresses.map { it.address },
-            )
+        val currentAddress = linkProperties?.let { properties ->
+            properties.interfaceName?.let { interfaceName ->
+                ClimateWifiListenerAddressSelector.select(
+                    interfaceName,
+                    properties.linkAddresses.map { it.address },
+                )
+            }
         }
         val defaultNetwork = connectivity.activeNetwork
         val defaultNetworkIsDifferentWifi = defaultNetwork != null &&
