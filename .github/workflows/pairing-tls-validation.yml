@@ -71,8 +71,8 @@ jobs:
           VERSION_CODE=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK" )
           VERSION_NAME=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK" )
           test "$APP_ID" = "de.klimapilot.app.debug"
-          test "$VERSION_CODE" = "95"
-          test "$VERSION_NAME" = "0.4.65-debug"
+          test "$VERSION_CODE" = "98"
+          test "$VERSION_NAME" = "0.4.68-debug"
           PERMISSIONS=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest permissions "$APK" )
           if printf '%s\\n' "$PERMISSIONS" | grep -q "android.permission.REQUEST_INSTALL_PACKAGES"; then
             echo "ERROR: Debug APK still declares REQUEST_INSTALL_PACKAGES"
