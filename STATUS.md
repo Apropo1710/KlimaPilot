@@ -1,13 +1,13 @@
 # KlimaPilot – aktueller Projektstatus
 
-**Abgleich:** 18.11.2026, 03:09 Uhr MEZ  
+**Abgleich:** 18.11.2026, 21:00 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Branch:** `main`  
 **App-Version:** **0.4.64 / versionCode 94**
 
 ## Verifizierter Produktionsstand
 
-- Aktueller `main`-HEAD: `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd` (Dokumentationscommit vom 17.11.2026, 11:29:12 UTC).
+- Aktueller `main`-HEAD: `356842b20acbc042a21cb4d06e664dbd45654d98` (Dokumentationscommit vom 17.11.2026, 11:29:12 UTC).
 - Letzter funktionaler Merge: PR #3 „Absicherung der Klimaprofil-Synchronisation durch dauerhaftes Änderungsjournal“, Merge-Commit `ee65841387824bca7d2b07ca80f71501540af157`.
 - Versionscommit: `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`; Version aus `app/build.gradle.kts`: **0.4.64 / versionCode 94**.
 - APK-Build-Quellcommit: `a87e0d8e2cfed5e1d2c3399466e1edaef1a66d00` (Dokumentationscommit auf demselben App-Code-Baum).
