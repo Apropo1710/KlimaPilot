@@ -1,30 +1,39 @@
 # KlimaPilot – aktueller Projektstatus
 
-**Abgleich:** 17.11.2026, 02:56 Uhr MEZ  
+**Abgleich:** 18.11.2026, 03:09 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Branch:** `main`  
-**App-Version:** **0.4.63 / versionCode 93**
+**App-Version:** **0.4.64 / versionCode 94**
 
 ## Verifizierter Produktionsstand
 
-- `main`-HEAD vor dieser Statuspflege: `cd26cc24659c103e0ce1f2cccc8467a06050b9b9` (Dokumentationscommit).
-- Letzter App-Code-Commit: `42472a3af147` – Importkorrektur für die Rundungs-/Snapshot-Validierung; davor wurde mit `f670b9a8c252` das Erhalten und Synchronisieren individueller Klimaeinstellungen umgesetzt.
-- APK-Build-Quellcommit: `c7a1c6a458f0c44533d08672db5592a20748bfc6` (Dokumentationscommit auf demselben App-Code-Baum).
-- GitHub Actions [#222](https://github.com/Apropo1710/KlimaPilot/actions/runs/43957989783): **completed / success**, exakt für den APK-Build-Quellcommit.
-- Version aus `app/build.gradle.kts`: **0.4.63 / versionCode 93**. APK-Paket-/Versionsprüfung und Signaturprüfung laut Produktionsnachweis erfolgreich.
-- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `756488225`, 11.370.139 Bytes; aktualisiert 16.11.2026, 21:19:22 UTC.
-- APK-SHA-256: `48e876e988186d3021d79364bd3405400c5a98a7168332b5d4c0d221f474f52f`.
-- Git-Tag `latest` zeigt auf den APK-Build-Quellcommit `c7a1c6a458f0c44533d08672db5592a20748bfc6`.
+- Aktueller `main`-HEAD: `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd` (Dokumentationscommit vom 17.11.2026, 11:29:12 UTC).
+- Letzter funktionaler Merge: PR #3 „Absicherung der Klimaprofil-Synchronisation durch dauerhaftes Änderungsjournal“, Merge-Commit `ee65841387824bca7d2b07ca80f71501540af157`.
+- Versionscommit: `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`; Version aus `app/build.gradle.kts`: **0.4.64 / versionCode 94**.
+- APK-Build-Quellcommit: `a87e0d8e2cfed5e1d2c3399466e1edaef1a66d00` (Dokumentationscommit auf demselben App-Code-Baum).
+- GitHub Actions [Build #229](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073807709): **completed / success** für exakt diesen Build-Quellcommit.
+- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `758790648`, 11.370.135 Bytes; zuletzt aktualisiert 17.11.2026, 11:29:11 UTC.
+- APK-SHA-256 laut automatisch gepflegtem Produktionsnachweis: `1553402f6baebe028d6876581aef235aa3abf89a7047150e4b47a429ef1730e2`; Signaturprüfung erfolgreich.
 - APK: https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
 
-## Offener Synchronisations-PR
+## Abgeschlossene Profil-Synchronisations-PR
 
-- [PR #3 – dauerhaftes Änderungsjournal](https://github.com/Apropo1710/KlimaPilot/pull/3) ist offen und Draft, Head `ad84fe8d3cc7`, noch nicht gemergt. Die jüngste GitHub-Abfrage lieferte für die Mergeability `unknown` (eine frühere Abfrage meldete `clean`); daher derzeit keine abschließende Konfliktbewertung.
-- Der aktuelle PR-Head ergänzt das erneute Abarbeiten ausstehender Profiländerungen während der periodischen Synchronisation. Validierungslauf #15 / Run `43964905903`: **completed / success**.
-- Diese PR-Änderungen sind noch nicht Bestandteil des Produktions-Releases 0.4.63.
+- [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) wurde am 17.11.2026 um 12:14:49 Uhr MEZ geschlossen und gemergt.
+- Gemergter PR-Head: `c111d1376b14801ec83c0eddbbc42de3dbb35ff0`; Merge-Commit auf `main`: `ee65841387824bca7d2b07ca80f71501540af157`.
+- Die PR-Validierung war erfolgreich; der Produktionsbuild #229 enthält den gemergten Code.
+- Die in der unabhängigen Prüfung genannten niedrigen Restrisiken (Fehlerbehandlung einzelner Upload-Stufen, Recovery eines beschädigten Journals und theoretischer Logical-Clock-Überlauf) bleiben mögliche spätere Härtungspunkte.
+- Robolectric-Tests ersetzen keine realen Prozess-Kill- oder Zwei-Smartphone-Tests.
+
+## Aktueller WLAN-Pairing-Teststand
+
+- [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) ist offen und Draft; Head-Branch `test`, aktueller Head `5175c47d3eb743fdb31a50e9d8c674b17dd2ff00`, Mergeability aktuell **clean**. Nicht gemergt.
+- Für exakt diesen Head sind WLAN Branch Validation #190 / Run `44193818224` und Local TCP Peer Authentication #51 / Run `44193818323` **completed / success**.
+- Der vorherige Local-TCP-Lauf #50 / Run `44193730745` schlug auf dem älteren Commit `982a6e25` fehl; der nachfolgende Commit `5175c47` wurde erfolgreich geprüft. Der alte Fehler ist daher kein aktueller Fehlschlag des Branch-Heads.
+- Der jüngste Commit stellt API 26 als verpflichtenden Test ein und macht API 35 manuell. Das ist eine CI-Matrix-Einstellung, keine Änderung an `minSdk`, `targetSdk` oder der Gerätekompatibilität der App.
 
 ## Zuletzt umgesetzt
 
+- 0.4.64: das dauerhafte Änderungsjournal aus PR #3 ist in main integriert; individuelle Klimaeinstellungen und ausstehende Profiländerungen werden abgesichert synchronisiert.
 - 0.4.63: individuelle Klimaeinstellungen bleiben erhalten und werden synchronisiert; Snapshot-Rundungsvalidierung korrigiert.
 - 0.4.59: Cloud-Symbol 12 dp weiter vom Zahnrad abgesetzt; bei Verbindung grün, offline gedimmt.
 - 0.4.58: Cloud-Symbol rechts neben Zahnrad; abgeschnittenen Status-Text entfernt.
@@ -43,10 +52,15 @@
 
 ## Branchstatus und nicht abgeschlossene Nebenstände
 
-- `feature/direct-wf-rac-wlan`: PR #1 wurde am 15.11.2026 gemergt. Der Branch lief danach weiter und liegt aktuell **23 Commits voraus / 235 zurück** gegenüber `main`; es gibt keinen offenen PR. Der Diff enthält nachgelagerte WLAN-Diagnostik, einen separaten Test-Updatekanal sowie Änderungen an Build-/App-Dateien. Diese 23 Commits sind nicht automatisch Bestandteil von `main`; vor Wiederverwendung, Cherry-pick oder Löschung einzeln prüfen.
-- `docs/status-refresh-2026-11-16`: PR #2 wurde geschlossen, nicht gemergt. Der Branch liegt **1 Commit voraus / 61 zurück** und enthält eine abweichende `STATUS.md`; kein offener PR. Nicht ungeprüft übernehmen.
-- `docs/status-reconcile-2026-11-15`: **0 Commits voraus / 235 zurück**, kein eigener Dateidiff; historischer Restbranch ohne offenen PR.
-- `main` bleibt der alleinige maßgebliche Produktionsbranch. Keine dieser Nebenbranches wurde im Rahmen dieser Statuspflege gemergt oder gelöscht.
+- `main` bleibt der alleinige Produktionsbranch. Es wird nichts automatisch gemergt oder gelöscht.
+- `test`: PR #6, **139 Commits voraus / 0 zurück** gegenüber `main`; aktiver zentraler WLAN-/Pairing-Testbranch.
+- `feature/local-wifi-pairing`: **101 Commits voraus / 0 zurück**; kein eigener offener PR.
+- `feature/local-wifi-profile-sync`: **58 Commits voraus / 0 zurück**; kein eigener offener PR.
+- Die drei lokalen WLAN-/Pairing-Branches sind getrennte Arbeitsstände. Ihre Commits werden nicht automatisch untereinander oder nach `main` übernommen.
+- `feature/direct-wf-rac-wlan`: PR #1 wurde am 15.11.2026 gemergt; danach weiterentwickelt. Aktueller Vergleich **23 Commits voraus / 316 zurück**, kein offener PR. Der Diff enthält WLAN-Diagnostik, separaten Test-Updatekanal und Änderungen an Build-/App-Dateien; diese Folgeänderungen sind nicht Bestandteil von `main`.
+- `fix/durable-profile-change-journal`: PR #3 ist gemergt; Branch liegt **0 Commits voraus / 15 zurück** und enthält keinen zusätzlichen Commit gegenüber `main`.
+- `docs/status-refresh-2026-11-16`: PR #2 wurde geschlossen, nicht gemergt. Branch behalten, aber nicht ungeprüft übernehmen.
+- `docs/status-reconcile-2026-11-15`: historischer Dokumentationsbranch ohne offenen PR.
 
 ## Offene Prüfungen
 
@@ -55,7 +69,7 @@
 - Modellabhängige Luftführung/3D-Automatik und Profilanwendung am echten Gerät (0.4.53 M3/M4).
 - Profil-Synchronisierung mit zwei Smartphones und realem ioBroker (0.4.53 M5).
 - Hardwaretests nach Installation der Klimaanlage.
-- Nutzer-Endtest der installierten 0.4.63 noch nicht bestätigt.
+- Nutzer-Endtest der installierten 0.4.64 noch nicht bestätigt.
 
 ## Updater – abgeschlossen
 
@@ -65,12 +79,15 @@ Der Updater funktioniert und wurde vom Nutzer erfolgreich getestet. Keine offene
 
 | Run | Version | Ergebnis |
 |---|---|---|
-| #222 | 0.4.63 / 93 | success – aktueller Release |
+| [#229](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073807709) | **0.4.64 / 94** | **success** – aktueller Release |
+| [#227](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073072643) | 0.4.64 / 94 | success – vorheriger Release-Lauf |
+| [#226](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073032166) | 0.4.63 / 93 | success – Zwischenrelease |
+| [#225](https://github.com/Apropo1710/KlimaPilot/actions/runs/44072272599) | 0.4.63 / 93 | success – Merge-Stand |
+| #222 | 0.4.63 / 93 | success – historischer Release |
 | #211 | 0.4.59 / 89 | success – historischer Release |
 | #210 | 0.4.58 / 88 | success |
-| #209 | 0.4.57 / 87 | success – Color-Import korrigiert |
-| #208 | 0.4.57 Zwischenstand | failure |
-| #207 | 0.4.57 Zwischenstand | failure |
+| #209 | 0.4.57 / 87 | success |
+| #208 / #207 | 0.4.57 Zwischenstände | failure – historisch, durch spätere Builds abgelöst |
 | #206 | 0.4.56 / 86 | success |
 
 ## Dokumentationsquellen
