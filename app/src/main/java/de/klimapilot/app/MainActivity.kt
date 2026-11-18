@@ -124,7 +124,11 @@ private fun KlimaPilotApp(appVersion: String) {
     var accountPasswordConfirmation by remember { mutableStateOf("") }
     var accountDisplayName by remember { mutableStateOf("") }
     var accountIoBrokerAddress by remember {
-        mutableStateOf(prefs.getString("iobroker_server", "") ?: "")
+        mutableStateOf(
+            prefs.getString("klimapilot_iobroker_address", null)
+                ?: prefs.getString("iobroker_server", "")
+                ?: ""
+        )
     }
     val rooms = remember {
         mutableStateListOf<String>().apply {
@@ -274,20 +278,19 @@ private fun KlimaPilotApp(appVersion: String) {
             KlimaPilotAccountLoadResult.Missing -> Unit
         }
 
-        accountLoading = true
-        accountStatus = "Vorhandene Konten werden einmalig aus der bisherigen ioBroker-Sicherung übernommen …"
-        val legacyUrl = prefs.getString("iobroker_server", null)?.trim()?.trimEnd('/')
+        val legacyUrl = (
+            prefs.getString("klimapilot_iobroker_address", null)
+                ?: prefs.getString("iobroker_server", null)
+        )?.trim()?.trimEnd('/')
         if (legacyUrl.isNullOrBlank()) {
-            val empty = KlimaPilotAccountRegistry()
-            if (accountRepository.saveInitial(empty)) {
-                accountRegistry = empty
-                accountStatus = ""
-            } else {
-                accountStatus = "Lokale Konten konnten nicht initialisiert werden. Bitte erneut versuchen."
-            }
+            accountRegistry = null
             accountLoading = false
+            accountStatus = "ioBroker ist noch nicht eingerichtet. Bitte gib die WebSocket-Adresse ein, damit KlimaPilot deine vorhandenen Konten laden kann."
             return
         }
+        accountIoBrokerAddress = legacyUrl
+        accountLoading = true
+        accountStatus = "Verbindung zu ioBroker wird im Hintergrund hergestellt und vorhandene Konten werden geladen …"
         IoBrokerClient.connect(legacyUrl, subscribeAll = false) { connected, message ->
             if (!connected) {
                 IoBrokerClient.disconnect()
@@ -301,6 +304,10 @@ private fun KlimaPilotApp(appVersion: String) {
                 if (legacy != null) {
                     if (accountRepository.saveInitial(legacy)) {
                         accountRegistry = legacy
+                        prefs.edit()
+                            .putString("iobroker_server", legacyUrl)
+                            .putString("klimapilot_iobroker_address", legacyUrl)
+                            .apply()
                         val remembered = prefs.getString("klimapilotRememberedUsername", null)
                         val savedAccount = remembered?.let { legacy.find(it) }
                         if (savedAccount != null) {
@@ -372,7 +379,10 @@ private fun KlimaPilotApp(appVersion: String) {
                     }
                     else -> {
                         accountRegistry = existing
-                        prefs.edit().putString("iobroker_server", address).apply()
+                        prefs.edit()
+                            .putString("iobroker_server", address)
+                            .putString("klimapilot_iobroker_address", address)
+                            .apply()
                         accountUsername = ""
                         accountPassword = ""
                         accountPasswordConfirmation = ""
