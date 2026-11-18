@@ -1,10 +1,10 @@
 # KlimaPilot – aktueller Projekt- und Übergabestatus
 
-**Abgleich:** 18.11.2026, 07:33 Uhr MEZ  
+**Abgleich:** 18.11.2026, 07:41 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Produktionsbranch:** `main` – HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`  
 **Produktionsversion:** **0.4.64 / versionCode 94**  
-**Arbeitsbranch:** `test` – App-Code-HEAD `9cb2599ab714f71b9f0334ecc85678e31b489ed2` (anschließender Doku-Commit)
+**Arbeitsbranch:** `test` – App-Code-/Test-Commits `4f35e1f` und `fc29e1f`; Statusdokumentation wird in den nachfolgenden Commits ergänzt.
 
 ### Neueste Änderung – WLAN-Interface-Bindung (18.11.2026)
 
@@ -23,7 +23,7 @@
 ## WLAN-/Pairing-Arbeitsstand
 
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen/Draft, nicht gemergt.
-- `main...test`: **159 ahead / 10 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
+- `main...test`: **divergent (kein Merge/Rebase)**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
 - Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246): **success** auf älterem App-Code-HEAD `ae1bdc03`. Für den aktuellen App-Code-HEAD `7cd8001` gibt es noch keinen CI-Lauf; die GitHub-API hat nach dem Commit keinen PR-Run erzeugt.
 - TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) erfolgreich auf älterem Commit `41b9a3ab`, API 26. Für aktuellen HEAD kein Emulatornachweis; API 35 nicht bestätigt.
 - TCP-Emulatorworkflow nur manuell (`workflow_dispatch`); WLAN-Workflow bei PR-Updates. Keine doppelten automatischen Emulatorläufe.
@@ -34,7 +34,7 @@
 
 ## Nächster Arbeitsschritt
 
-Discovery-, TCP-, Session-Controller- und Trusted-Peer-Code vollständig prüfen; Integrationsdesign und Sicherheitsgrenzen festlegen. Bis dahin keine Nutzdatenübertragung, kein Merge und kein Produktionsrelease.
+Einen CI-Lauf auf dem aktuellen Test-Code auswerten, sobald GitHub Actions ihn automatisch für PR #6 bereitstellt. Bis zu einem bestätigten Lauf keine Android-Validierung behaupten. Danach gezieltes Review der WLAN-Lifecycle-Änderung fortsetzen. Bis dahin keine Nutzdatenübertragung, kein Merge und kein Produktionsrelease.
 
 ## Feste Projektregeln
 
