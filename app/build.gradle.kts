@@ -13,8 +13,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 101
-        versionName = "0.4.71"
+        versionCode = 102
+        versionName = "0.4.72"
         // Update source: production keeps the release tag "latest" with KlimaPilot.apk.
         buildConfigField("String", "UPDATE_RELEASE_TAG", "\"latest\"")
         buildConfigField("String", "UPDATE_ASSET_NAME", "\"KlimaPilot.apk\"")
