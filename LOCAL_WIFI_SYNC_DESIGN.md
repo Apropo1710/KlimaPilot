@@ -37,6 +37,8 @@ Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen
 - Wird ein anderes WLAN zum Standardnetz, wird fail-closed abgebrochen.
 - Mobilfunk als Standardnetz ist zulässig, solange das ausgewählte WLAN verfügbar bleibt.
 - Beide Callbacks werden beim Cleanup abgemeldet.
+- Direkt nach der Callback-Registrierung wird der ausgewählte WLAN-Snapshot erneut gelesen (Transport, Interface, Adresse und aktuelles Defaultnetz). Hat sich das Netzwerk bereits während des Starts geändert, wird die Discovery vor der DNS-SD-Ankündigung abgebrochen. Damit wird ein möglicher Verlust im Zeitfenster zwischen erster Netzwerkerkennung und Callback-Registrierung abgefangen.
+- Die Entscheidungslogik für Defaultnetzwechsel und Snapshot-Revalidierung ist als reine Funktion ausgelagert und mit JVM-Tests abgedeckt.
 - Der aktuelle Code-Commit und seine Validierung werden ausschließlich in `PROJECT_STATUS.md` geführt.
 
 ### Reject-only Listener

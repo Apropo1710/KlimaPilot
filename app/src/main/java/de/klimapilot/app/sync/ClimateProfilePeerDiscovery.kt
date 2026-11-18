@@ -119,6 +119,27 @@ internal object ClimateWifiListenerAddressSelector {
     }
 }
 
+/** Pure decisions for network callback handling; kept separate for deterministic JVM tests. */
+internal object ClimatePeerNetworkPolicy {
+    fun shouldAbortForDefaultNetwork(
+        isCurrentRun: Boolean,
+        isSelectedNetwork: Boolean,
+        hasWifiTransport: Boolean,
+    ): Boolean = isCurrentRun && !isSelectedNetwork && hasWifiTransport
+
+    fun isSelectedWifiSnapshotValid(
+        selectedNetworkIsWifi: Boolean,
+        currentInterfaceName: String?,
+        currentAddress: InetAddress?,
+        expectedInterfaceName: String,
+        expectedAddress: InetAddress,
+        defaultNetworkIsDifferentWifi: Boolean,
+    ): Boolean = selectedNetworkIsWifi &&
+        !defaultNetworkIsDifferentWifi &&
+        currentInterfaceName == expectedInterfaceName &&
+        currentAddress == expectedAddress
+}
+
 internal class ClimateProfilePeerDiscovery(context: Context) {
     private val appContext = context.applicationContext
     private val nsd = appContext.getSystemService(Context.NSD_SERVICE) as NsdManager
@@ -198,6 +219,13 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
             startRejectOnlyAcceptLoop(socket, run)
             registerWifiNetworkCallback(run)
             registerDefaultNetworkCallback(run)
+
+            // Re-read the selected network after both observers are registered.
+            // This closes the snapshot/registration race: a network lost before
+            // callback registration cannot be reported later through onLost().
+            if (!isSelectedWifiSnapshotStillValid(wifiNetwork, interfaceName, hostAddress)) {
+                throw IOException("Das WLAN-Netzwerk hat sich während des Starts geändert. Bitte die Suche erneut starten.")
+            }
 
             val service = NsdServiceInfo().apply {
                 serviceName = ownServiceName
@@ -285,6 +313,36 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         }
     }
 
+    private fun isSelectedWifiSnapshotStillValid(
+        selectedNetwork: Network,
+        expectedInterfaceName: String,
+        expectedAddress: InetAddress,
+    ): Boolean {
+        val capabilities = connectivity.getNetworkCapabilities(selectedNetwork)
+        val linkProperties = connectivity.getLinkProperties(selectedNetwork)
+        val currentInterfaceName = linkProperties?.interfaceName
+        val currentAddress = currentInterfaceName?.let { interfaceName ->
+            ClimateWifiListenerAddressSelector.select(
+                interfaceName,
+                linkProperties.linkAddresses.map { it.address },
+            )
+        }
+        val defaultNetwork = connectivity.activeNetwork
+        val defaultNetworkIsDifferentWifi = defaultNetwork != null &&
+            defaultNetwork != selectedNetwork &&
+            connectivity.getNetworkCapabilities(defaultNetwork)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+
+        return ClimatePeerNetworkPolicy.isSelectedWifiSnapshotValid(
+            selectedNetworkIsWifi = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true,
+            currentInterfaceName = currentInterfaceName,
+            currentAddress = currentAddress,
+            expectedInterfaceName = expectedInterfaceName,
+            expectedAddress = expectedAddress,
+            defaultNetworkIsDifferentWifi = defaultNetworkIsDifferentWifi,
+        )
+    }
+
     private fun registerWifiNetworkCallback(run: Long) {
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
@@ -344,8 +402,12 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
 
     private fun handleDefaultNetwork(run: Long, network: Network, capabilities: NetworkCapabilities?) {
         synchronized(this@ClimateProfilePeerDiscovery) {
-            if (!isCurrent(run) || network == activeWifiNetwork) return
-            if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+            val shouldAbort = ClimatePeerNetworkPolicy.shouldAbortForDefaultNetwork(
+                isCurrentRun = isCurrent(run),
+                isSelectedNetwork = network == activeWifiNetwork,
+                hasWifiTransport = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true,
+            )
+            if (shouldAbort) {
                 fail(run, "Das aktive WLAN-Netzwerk hat gewechselt. Bitte die Suche erneut starten.")
             }
         }

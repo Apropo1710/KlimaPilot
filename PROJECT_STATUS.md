@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 08:24 Uhr MEZ  
+**Letzter Abgleich:** 18.11.2026, 08:40 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -17,7 +17,8 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 ## 2. Entwicklungsstand – `test` und PR #6
 
 - Aktueller `test`-HEAD: dieser abschließende Dokumentationscommit.
-- Letzter App-Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
+- Letzter App-Code-Commit vor dem aktuellen Lifecycle-Härtungscommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
+- Die nachfolgende Lifecycle-Härtung wird mit dem aktuellen Commit dieses Dokumentations-/Codepakets veröffentlicht.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
 - Branchvergleich nach dieser Bereinigung: **194 Commits ahead / 10 behind** gegenüber `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die Branches sind divergent; kein Rebase oder Merge im Rahmen der Dokumentationspflege.
 - PR #6 umfasst den WLAN-/Pairing-Arbeitsstrang. Vor einer späteren Integration ist ein vollständiger Diff-Review gegen den dann aktuellen `main` erforderlich.
@@ -34,6 +35,9 @@ Datei: `app/src/main/java/de/klimapilot/app/sync/ClimateProfilePeerDiscovery.kt`
 - Mobilfunk als Standardnetz ist zulässig, solange das ausgewählte WLAN selbst verfügbar bleibt.
 - Verlust und Änderung der Link-Eigenschaften des ausgewählten WLANs werden weiterhin separat überwacht.
 - Beide Callbacks werden beim Cleanup abgemeldet.
+- **Review-Fund vom 18.11.2026:** Zwischen dem initialen Lesen des ausgewählten WLANs und der Registrierung der NetworkCallbacks bestand ein Race-Fenster. Ein bereits vor der Callback-Registrierung verlorenes Netzwerk muss nicht nachträglich über `onLost` gemeldet werden.
+- **Gezielte Absicherung:** Nach Registrierung beider Callbacks wird der ausgewählte Network-/LinkProperties-Snapshot erneut gelesen. Die Discovery wird vor der DNS-SD-Ankündigung abgebrochen, wenn der ausgewählte Transport, das Interface oder die gewählte Adresse nicht mehr übereinstimmen oder bereits ein anderes WLAN das Defaultnetz ist.
+- Die Defaultnetz- und Snapshot-Entscheidungen sind als reine Policy-Funktionen ausgelagert und durch neun neue JVM-Fälle abgedeckt (noch nicht als ausgeführt bestätigt).
 - Der TCP-Listener bleibt reject-only: eingehende Verbindungen werden angenommen und unmittelbar geschlossen. Es gibt keinen integrierten authentifizierten Handshake und keinen Nutzdatentransfer.
 
 ## 4. Pairing- und Synchronisationsstatus
@@ -57,7 +61,8 @@ Die folgenden Nachweise sind die zuletzt konkret dokumentierten Ergebnisse; sie 
 - WLAN-Workflow **#202**, erfolgreich auf älterem Commit `ae1bdc03c78624ff640505b4bd255bfd885b05c5`.
 - WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
 - Separater TCP-Emulatorlauf **#62**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26.
-- Für den aktuellen App-Code-Commit `bba8969...` ist kein zugehöriger erfolgreicher Android-Build oder Testlauf bestätigt.
+- Für den App-Code-Commit `bba8969...` ist kein zugehöriger erfolgreicher Android-Build oder Testlauf bestätigt.
+- Die neue Lifecycle-Snapshot-Absicherung und ihre neun Policy-Testfälle sind im aktuellen Änderungspaket enthalten; ein Android-Build/Unit-Testlauf für dieses Paket ist noch nicht bestätigt.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
 - Kein API-35-Emulatornachweis und kein Zwei-Smartphone-Praxistest bestätigt.
 - Eine Abfrage der PR-Workflow-Runs für `bba8969...` und den damaligen Doku-HEAD lieferte keine zugeordneten Runs. Es wird daher kein aktueller CI-Erfolg behauptet.
@@ -84,11 +89,10 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Den aktuellen Netzwerk-Lifecycle-Code unabhängig reviewen.
-2. Einen erfolgreichen Android-Build und die vorgesehenen Unit-Tests exakt auf dem aktuellen Codecommit nachweisen.
-3. Danach gezielte Tests für WLAN-Verlust, Wechsel des Standardnetzes und parallele WLAN-Verfügbarkeit durchführen.
-4. Erst nach erfolgreicher Validierung die Integration des TCP-Handshakes planen.
-5. Bis zur vollständigen Protokollhärtung und zum erfolgreichen Zwei-Smartphone-Test bleibt Peer-Nutzdatentransfer gesperrt.
+1. Android-Unit-Tests und Debug-Kompilierung für den Lifecycle-Snapshot-Fix auf dem aktuellen Commit nachweisen.
+2. Danach gezielte Geräte-/Emulatortests für WLAN-Verlust, Wechsel des Standardnetzes, parallele WLAN-Verfügbarkeit und einen Netzwechsel während des Discovery-Starts durchführen.
+3. Erst nach erfolgreicher Validierung die Integration des TCP-Handshakes planen.
+4. Bis zur vollständigen Protokollhärtung und zum erfolgreichen Zwei-Smartphone-Test bleibt Peer-Nutzdatentransfer gesperrt.
 
 ## 9. Dokumentationsstruktur und Pflege
 
