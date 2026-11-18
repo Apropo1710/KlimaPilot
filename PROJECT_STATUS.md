@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, ca. 15:20 Uhr MEZ (Login-Komfort teilweise implementiert; direkte Ein-Schritt-Gerätekopplung in technischer Umsetzung; noch kein neuer Build)
+**Letzter Abgleich:** 18.11.2026, 15:11 Uhr MEZ (Login-Komfort teilweise implementiert; direkte Ein-Schritt-Gerätekopplung in technischer Umsetzung; noch kein neuer Build)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
