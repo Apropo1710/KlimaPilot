@@ -106,9 +106,16 @@ internal object ClimateWifiListenerAddressSelector {
         ipv6.firstOrNull { (it.address[0].toInt() and 0xfe) == 0xfc }?.let { return it }
 
         val linkLocal = ipv6.firstOrNull { it.isLinkLocalAddress } ?: return null
+        return scopeLinkLocalAddress(linkLocal, interfaceName)
+    }
+
+    internal fun scopeLinkLocalAddress(address: Inet6Address, interfaceName: String): Inet6Address? {
+        if (!address.isLinkLocalAddress || interfaceName.isBlank()) return null
         val networkInterface = runCatching { NetworkInterface.getByName(interfaceName) }.getOrNull()
             ?: return null
-        return runCatching { Inet6Address.getByAddress(null, linkLocal.address, networkInterface) }.getOrNull()
+        return runCatching {
+            Inet6Address.getByAddress(null, address.address, networkInterface)
+        }.getOrNull()
     }
 }
 
@@ -283,8 +290,10 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                     if (!isCurrent(run) || network == activeWifiNetwork) return
                     val isWifi = connectivity.getNetworkCapabilities(network)
                         ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-                    if (isWifi) {
-                        fail(run, "Das WLAN-Netzwerk hat gewechselt. Bitte die Suche erneut starten.")
+                    // Ignore additional Wi-Fi networks. Only abort when the newly
+                    // available Wi-Fi network actually becomes Android's default.
+                    if (isWifi && network == connectivity.activeNetwork) {
+                        fail(run, "Das aktive WLAN-Netzwerk hat gewechselt. Bitte die Suche erneut starten.")
                     }
                 }
             }
