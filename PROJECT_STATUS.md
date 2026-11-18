@@ -17,7 +17,7 @@
 
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 19:50 Uhr MEZ (0.4.74 von Play Protect blockiert; 0.4.75 mit Updater-Code exakt wie 0.4.67 und ohne WLAN-Adresssuche)
+**Letzter Abgleich:** 18.11.2026, 20:45 Uhr MEZ (Smartphone-zu-Smartphone-Synchronisation 0.4.77 auf `test`, Build #253; Produktion unverändert 0.4.75)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -34,6 +34,15 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 - Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur). Übernahme nach `main` nach Gerätetest.
 - Nächstes Ziel: Synchronisation von Konten und Klimaprofilen direkt zwischen gekoppelten Smartphones, damit alles ohne ioBroker weiterläuft. Der aktuelle Zustand der Klimaanlage wird bereits von jedem Smartphone direkt per WF-RAC gelesen (kein ioBroker nötig).
+
+## 2i. Synchronisation zwischen gekoppelten Smartphones (18.11.2026, `test`)
+
+- Commits `511a179` (0.4.76, Build #252) und `18a1dd3` (0.4.77, Build #253): nach der gegenseitigen TCP-Authentifizierung tauschen beide Geräte je einen Datenstand aus (`ClimatePeerDataSync`).
+- Inhalt: Kontenliste (höhere Revision gewinnt, bei gleicher Revision deterministischer Digest), neuestes Profilereignis je Profil (Anwendung über `ClimateProfileSyncEngine`, gleiche Regeln wie ioBroker; ioBroker-Ereignisse werden über ein Peer-Ereignisprotokoll weitergereicht), Admin-Konfiguration (Räume, Geräte, WF-RAC-Modulidentitäten; neuere Änderungszeit gewinnt) und ioBroker-Adresse (nur übernommen, wenn keine gespeichert ist).
+- Automatisch im Vordergrund, sobald mindestens ein Gerät gekoppelt ist: DNS-SD-Suche, Abgleich beim Finden und alle 30 s; Neustart direkt nach einer Kopplung. Die Kopplungskarte ist jetzt auch in der Produktions-App sichtbar; die Debug-Karte „Lokales WLAN“ entfällt.
+- Anmeldung: gespeicherte ioBroker-Adresse, sonst `ws://192.168.178.54:8084` (keine Netzwerksuche).
+- Unit-Tests `ClimatePeerDataSyncTest` (Kontenrevision, Konvergenz, Ereignisprotokoll, Snapshot-Roundtrip, Konfigurationsübernahme). Test-APK 0.4.77 SHA-256 `ba789c2de2c4012f69e06b8e38d6b7e67259459673283bb846daed892a7c6f41`.
+- **Noch offen:** Zwei-Geräte-Test; erst danach Übernahme nach `main`.
 
 ## 2h. Play-Protect-Blockade von 0.4.74 und Korrektur der Updater-Doku (18.11.2026)
 
