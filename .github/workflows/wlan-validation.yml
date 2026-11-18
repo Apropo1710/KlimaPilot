@@ -8,6 +8,7 @@ on:
       - test
     paths-ignore:
       - PROJECT_STATUS.md
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
