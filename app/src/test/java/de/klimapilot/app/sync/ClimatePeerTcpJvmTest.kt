@@ -117,8 +117,7 @@ class ClimatePeerTcpJvmTest {
                 input.readFully(ByteArray(32))
                 input.readInt() // server peer-id field length
                 input.readFully(ByteArray(64))
-                input.readInt() // server public-key field length
-                val keyLength = input.readInt()
+                val keyLength = input.readInt() // server public-key field length
                 input.readFully(ByteArray(keyLength))
                 data.writeInt(4097)
                 data.flush()
