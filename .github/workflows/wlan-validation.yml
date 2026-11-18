@@ -45,3 +45,31 @@ jobs:
 
       - name: Unit-Tests und Debug-Kompilierung
         run: gradle --no-daemon testDebugUnitTest assembleDebug compileReleaseKotlin
+
+      - name: Debug-APK für Smartphone-Praxistest prüfen
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          APP_ID=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK" )
+          VERSION_CODE=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK" )
+          VERSION_NAME=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK" )
+          test "$APP_ID" = "de.klimapilot.app.debug"
+          test "$VERSION_CODE" = "98"
+          test "$VERSION_NAME" = "0.4.68-debug"
+          PERMISSIONS=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest permissions "$APK" )
+          if printf '%s\\n' "$PERMISSIONS" | grep -q "android.permission.REQUEST_INSTALL_PACKAGES"; then
+            echo "ERROR: Debug APK still declares REQUEST_INSTALL_PACKAGES"
+            exit 1
+          fi
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          sha256sum "$APK" | tee debug-apk.sha256
+
+      - name: Debug-APK als Testartefakt bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: KlimaPilot-debug-test-0.4.68
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            debug-apk.sha256
+          if-no-files-found: error
+          retention-days: 7
