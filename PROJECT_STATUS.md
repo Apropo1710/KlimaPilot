@@ -23,15 +23,17 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Die Branches sind weiterhin divergent; `test` liegt 217 Commits vor und 10 Commits hinter `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Kein Rebase oder Merge im Rahmen der Dokumentationspflege.
 - PR #6 umfasst den WLAN-/Pairing-Arbeitsstrang. Vor einer späteren Integration ist ein vollständiger Diff-Review gegen den dann aktuellen `main` erforderlich.
 
-## 2a. Kontenübertragung für neue Geräte (18.11.2026)
+## 2a. Kontenübernahme direkt aus ioBroker (18.11.2026)
 
-- Auf `test` wurde die Ersteinrichtung erweitert: Bei leerer lokaler Kontenliste kann eine zuvor exportierte Konten-Registry übernommen werden. Danach erfolgt die normale Anmeldung mit Benutzername und bestehendem Passwort; eine neue Administratoranlage ist nicht erforderlich.
-- Ein Administrator kann in der Benutzerverwaltung die Registry über den Android-Teilen-Dialog exportieren. Die Übertragung enthält ausschließlich die vorhandenen PBKDF2-Passwortprüfwerte, keine Klartextpasswörter. Die Exportdaten sind vertraulich zu behandeln und nur direkt an eigene Geräte zu übertragen.
-- Der Import akzeptiert nur eine gültige Registry mit mindestens einem Konto und schreibt ausschließlich in eine leere lokale Registry. Vorhandene oder beschädigte lokale Kontendaten werden nicht überschrieben.
-- Die bisherige lokale Speicherung und Anmeldung auf bereits eingerichteten Geräten bleiben bestehen. Der Updater wurde nicht geändert.
-- Codecommits: `964a8518` (geschützte Übernahme-Methode), `c9afb782` (UI/Import), `d306f8bb` (Export-/Import-UI), `0288959c` (Share-Export/Import-Verarbeitung), `ec760486` (Vertraulichkeitshinweis).
-- Die CI-Validierung auf dem finalen App-Code-Stand `ec760486` läuft noch: WLAN-Workflow #214 und API-26-Workflow #79. Smartphone-Test steht aus.
-- Diese Funktion ist zunächst auf `test` umgesetzt. `main` ist weiterhin unverändert, bis die Testimplementierung geprüft ist.
+- Die Testversion verwendet jetzt denselben direkten Anmeldeweg wie der aktuelle Produktionsstand: Auf einem Gerät ohne lokale Konten kann die vorhandene Registry über die WebSocket-Adresse direkt aus `0_userdata.0.KlimaPilot.accounts` in ioBroker geladen werden.
+- Anschließend erfolgt die Anmeldung mit dem bereits vorhandenen Benutzernamen und Passwort. Es ist weder ein neuer Administrator noch ein Export/Import per Datei oder manuelles Kopieren erforderlich.
+- Der Import schreibt nur bei fehlender oder gültig leerer lokaler Registry. Bereits vorhandene Konten und beschädigte lokale Daten werden nicht überschrieben.
+- Die bestehende WLAN-/Pairing-Entwicklung auf `test` wurde nicht zurückgesetzt. Der manuelle JSON-Transfer wurde in der Login-Ersteinrichtung durch den direkten ioBroker-Abruf ersetzt.
+- Gezielte Repository-Regressionstests decken fehlende, leere, bereits befüllte und beschädigte lokale Registries ab.
+- Testversion: **0.4.68 / versionCode 98** (Debug-Paketkennung `de.klimapilot.app.debug`).
+- Codeänderungen: `ab7da3a` (sichere Importlogik), `9d15852` (ioBroker-Abruf), `0ad1d42` (Versionsanhebung), `f8f4261` (Login-Oberfläche).
+- GitHub-Actions-Validierung nach den Änderungen steht aus; Smartphone-Test auf zwei Geräten steht aus.
+- `main` bleibt unverändert. Der Updater wurde nicht verändert.
 
 ## 3. Letzte Codeänderung
 
