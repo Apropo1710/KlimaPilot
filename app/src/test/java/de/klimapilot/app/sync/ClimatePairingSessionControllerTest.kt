@@ -65,14 +65,18 @@ class ClimatePairingSessionControllerTest {
         assertNotNull(reviewB)
         assertTrue(storeA.trustedPeers().isEmpty())
 
-        val trustedB = controllerA.confirmOutgoingResponse(reviewB!!, "Telefon B", now + 3)
-        assertEquals(peerId(pairB), trustedB.peerId)
-        assertTrue(storeB.trustedPeers().isEmpty())
-        val responseJson = JSONObject(responsePayload)
-        val ackPayload = signedAcknowledgement(
-            pairA, reviewB!!.sessionId, peerId(pairB),
-            responseJson.getString("nonce"), now + 4
+        val ackPayload = controllerA.confirmOutgoingResponseAndCreateAcknowledgement(
+            reviewB!!, "Telefon B",
+            createAcknowledgement = { response, timestamp ->
+                signedAcknowledgement(
+                    pairA, response.sessionId, response.responderPeerId,
+                    response.responderNonceBase64, timestamp
+                )
+            },
+            nowMillis = now + 3
         )
+        assertEquals(setOf(peerId(pairB)), storeA.trustedPeers().map { it.peerId }.toSet())
+        assertTrue(storeB.trustedPeers().isEmpty())
         controllerB.acknowledgeIncomingInvitation(ackPayload, now + 4)
         assertEquals(setOf(peerId(pairA)), storeB.trustedPeers().map { it.peerId }.toSet())
         assertEquals(setOf(peerId(pairB)), storeA.trustedPeers().map { it.peerId }.toSet())
