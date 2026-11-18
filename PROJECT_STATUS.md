@@ -20,7 +20,7 @@
 **Zuletzt abgeglichen:** 18.11.2026, 21:00 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`  
-**Produktionsversion:** **0.4.64 / versionCode 94**
+**Produktionsversion:** **0.4.65 / versionCode 95**
 
 ## Aktueller GitHub-, Build- und Release-Stand
 
@@ -67,6 +67,15 @@
 - `docs/status-refresh-2026-11-16`: PR #2 geschlossen, nicht gemergt; abweichende Statusdatei, nicht ungeprüft übernehmen.
 - `docs/status-reconcile-2026-11-15`: historischer Dokumentationsbranch ohne offenen PR.
 - Keine Nebenbranch wird automatisch gemergt oder gelöscht. `main` bleibt der Produktionsbranch.
+
+## Kontenübertragung zwischen Geräten – 18.11.2026
+
+- Die lokale Konten-Registry bleibt auf jedem Gerät lokal gespeichert. Für ein weiteres Gerät gibt es nun einen ausdrücklichen Export-/Importweg.
+- Ein Administrator kann in der Benutzerverwaltung die Kontenliste über den Android-Teilen-Dialog exportieren. Auf einem frisch eingerichteten Gerät kann die exportierte JSON-Registry in der Ersteinrichtung eingefügt und importiert werden; anschließend ist die Anmeldung mit einem bestehenden Administrator- oder Benutzerkonto möglich.
+- Der Export enthält PBKDF2-Passwortprüfwerte, jedoch keine Klartextpasswörter. Die Daten sind vertraulich und ausschließlich direkt an eigene Geräte zu übertragen.
+- Der Import akzeptiert nur eine gültige Registry mit mindestens einem Konto und schreibt ausschließlich in eine leere lokale Registry. Bereits vorhandene oder beschädigte Kontendaten werden nicht überschrieben.
+- Die bisherige Admin-Ersteinrichtung bleibt für eine tatsächlich neue Installation ohne vorhandene Konten erhalten. Kein Gastkonto und kein Überspringen der Einrichtung.
+- Version **0.4.65 / versionCode 95**. Updater und Installationsablauf bleiben unverändert.
 
 ## 2. Letzter Funktionsumfang / UI-Änderungen
 
