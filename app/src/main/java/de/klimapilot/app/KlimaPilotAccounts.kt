@@ -234,23 +234,6 @@ internal class KlimaPilotAccountRepository(context: Context) {
         prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
     }
 
-    /**
-     * Übernimmt eine vorhandene Registry nur in eine noch leere lokale Ersteinrichtung.
-     * Beschädigte oder bereits mit Konten belegte lokale Daten werden niemals überschrieben.
-     */
-    fun replaceEmptyWithImported(registry: KlimaPilotAccountRegistry): Boolean = synchronized(lock) {
-        if (registry.accounts.isEmpty()) return@synchronized false
-        when (val local = load()) {
-            KlimaPilotAccountLoadResult.Missing ->
-                prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
-            is KlimaPilotAccountLoadResult.Loaded -> {
-                if (local.registry.accounts.isNotEmpty() || local.registry.revision != 0L) return@synchronized false
-                prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
-            }
-            is KlimaPilotAccountLoadResult.Invalid -> false
-        }
-    }
-
     fun save(expectedRevision: Long, registry: KlimaPilotAccountRegistry, callback: (Boolean, String?) -> Unit) {
         val result = synchronized(lock) {
             when (val loaded = load()) {
@@ -282,8 +265,8 @@ internal fun KlimaPilotAccountLoginScreen(
     passwordConfirmation: String, onPasswordConfirmation: (String) -> Unit,
     displayName: String, onDisplayName: (String) -> Unit,
     loading: Boolean, status: String,
-    importText: String, onImportText: (String) -> Unit,
-    onImportAccounts: () -> Unit,
+    ioBrokerAddress: String, onIoBrokerAddress: (String) -> Unit,
+    onLoadExistingAccounts: () -> Unit,
     onReload: () -> Unit, onSubmit: () -> Unit
 ) {
     val setup = registry?.accounts?.isEmpty() == true
@@ -347,26 +330,25 @@ internal fun KlimaPilotAccountLoginScreen(
                 Spacer(Modifier.height(18.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(10.dp))
-                Text("Bereits vorhandenes Konto verwenden", fontWeight = FontWeight.SemiBold)
+                Text("Mit vorhandenem Benutzerkonto anmelden", fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Exportiere auf deinem bisherigen Gerät die Kontenliste und füge den Inhalt hier ein. Die Übertragungsdaten enthalten Passwort-Prüfwerte: Übertrage sie nur direkt an dein eigenes Gerät und gib sie nicht weiter.",
+                    "Gib die WebSocket-Adresse deines ioBroker ein. KlimaPilot lädt dann die dort bereits gespeicherte Kontenliste. Anschließend kannst du dich mit deinem bisherigen Benutzernamen und Passwort anmelden.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
                 )
                 OutlinedTextField(
-                    value = importText,
-                    onValueChange = onImportText,
-                    label = { Text("Übertragene Kontenliste") },
-                    placeholder = { Text("JSON-Inhalt hier einfügen") },
-                    minLines = 3,
-                    maxLines = 6,
+                    value = ioBrokerAddress,
+                    onValueChange = onIoBrokerAddress,
+                    label = { Text("ioBroker-WebSocket-Adresse") },
+                    placeholder = { Text("ws://192.168.178.54:8084") },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedButton(
-                    onClick = onImportAccounts,
-                    enabled = !loading && importText.isNotBlank(),
+                    onClick = onLoadExistingAccounts,
+                    enabled = !loading && ioBrokerAddress.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (loading) "Konten werden übernommen …" else "Kontenliste importieren")
+                    Text(if (loading) "Vorhandene Konten werden geladen …" else "Vorhandene Konten laden")
                 }
             }
         }
@@ -386,8 +368,7 @@ internal fun KlimaPilotAccountSettingsScreen(
     onSwitchAccount: () -> Unit,
     onAddAccount: (String, String, String, String) -> Unit,
     onResetPassword: (String, String) -> Unit,
-    onDeleteAccount: (String) -> Unit,
-    onExportAccounts: () -> Unit
+    onDeleteAccount: (String) -> Unit
 ) {
     var showAdd by remember { mutableStateOf(false) }
     var newUsername by remember { mutableStateOf("") }
@@ -429,9 +410,6 @@ internal fun KlimaPilotAccountSettingsScreen(
         }
         if (account.role == KlimaPilotAccount.ADMIN) {
             Text("Benutzerverwaltung · ${accounts.size} Konten", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            OutlinedButton(onClick = onExportAccounts, modifier = Modifier.fillMaxWidth()) {
-                Text("Kontenliste für anderes Gerät exportieren")
-            }
             accounts.forEach { item ->
                 Card(shape = RoundedCornerShape(14.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
