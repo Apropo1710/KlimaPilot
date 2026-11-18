@@ -20,7 +20,7 @@ class ClimatePeerDataSyncTest {
 
     @Before
     fun clear() {
-        listOf("klimapilot_accounts", "klimapilot_peer_event_log", "klimapilot_profile_sync", "klimapilot_climate_profiles", "klimapilot_settings")
+        listOf("klimapilot_accounts", "klimapilot_peer_event_log", "klimapilot_profile_sync", "klimapilot_climate_profiles", "klimapilot_settings", "wf_rac_identities")
             .forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
     }
 
@@ -85,5 +85,27 @@ class ClimatePeerDataSyncTest {
         val own = ClimatePeerDataSync(context).buildSnapshot()
         assertEquals(1, own.getJSONArray("events").length())
         assertTrue(own.has("accounts"))
+    }
+
+    @Test
+    fun newerAdminConfigurationReplacesLocalRoomsDevicesAndAddsModuleIdentity() {
+        val settings = context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE)
+        settings.edit().putLong(ClimatePeerDataSync.KEY_CONFIG_UPDATED_AT, 100L).putStringSet("rooms", setOf("Alt")).commit()
+        val devices = JSONArray().put(JSONObject().put("id", "d1").put("name", "Klima Wohnzimmer").put("room", "Wohnzimmer")
+            .put("wfRacHost", "192.168.178.80").put("wfRacAirconId", "abc").put("syncDeviceKey", "wfrac:abc"))
+        val config = JSONObject().put("updatedAt", 200L).put("rooms", JSONArray().put("Wohnzimmer"))
+            .put("devices", devices)
+            .put("wfRac", JSONArray().put(JSONObject().put("airconId", "abc").put("host", "192.168.178.80").put("scheme", "HTTP").put("certificatePin", JSONObject.NULL)))
+        val snapshot = JSONObject().put("v", 1).put("config", config).put("iobroker", "192.168.178.54")
+        val result = ClimatePeerDataSync(context).applySnapshot(snapshot)
+        assertTrue(result.configChanged)
+        assertEquals(setOf("Wohnzimmer"), settings.getStringSet("rooms", null))
+        assertEquals("abc", JSONArray(settings.getString("devices", "[]")).getJSONObject(0).getString("wfRacAirconId"))
+        assertEquals("192.168.178.80", de.klimapilot.app.wfrac.WfRacIdentityStore(context).findByAirconId("abc")?.host)
+        assertEquals("ws://192.168.178.54:8084", IoBrokerAddress.saved(settings))
+        // An older configuration is ignored.
+        val older = JSONObject().put("v", 1).put("config", JSONObject(config.toString()).put("updatedAt", 150L).put("rooms", JSONArray().put("Keller")))
+        assertFalse(ClimatePeerDataSync(context).applySnapshot(older).configChanged)
+        assertEquals(setOf("Wohnzimmer"), settings.getStringSet("rooms", null))
     }
 }

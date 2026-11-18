@@ -132,8 +132,7 @@ private fun KlimaPilotApp(appVersion: String) {
             if (isEmpty()) addAll(listOf("Wohnzimmer", "Schlafzimmer"))
         }
     }
-    val devices = remember {
-        mutableStateListOf<UserDevice>().apply {
+    fun readSavedDevices(): List<UserDevice> = mutableListOf<UserDevice>().apply {
             val saved = prefs.getString("devices", null)
             if (saved.isNullOrBlank()) {
                 add(UserDevice("1", "Klimaanlage", "Wohnzimmer"))
@@ -153,10 +152,13 @@ private fun KlimaPilotApp(appVersion: String) {
                     ))
                 }
             }
-        }
+    }
+    val devices = remember {
+        mutableStateListOf<UserDevice>().apply { addAll(readSavedDevices()) }
     }
     fun saveData() {
         prefs.edit()
+            .putLong(ClimatePeerDataSync.KEY_CONFIG_UPDATED_AT, System.currentTimeMillis())
             .putStringSet("rooms", rooms.toSet())
             .putString("devices", org.json.JSONArray().apply {
                 devices.forEach { device ->
@@ -288,11 +290,12 @@ private fun KlimaPilotApp(appVersion: String) {
         val saved = IoBrokerAddress.saved(prefs)
         accountLoading = true
         accountStatus = ""
-        val candidates = if (manualUrl != null) listOf(manualUrl) else listOfNotNull(saved)
+        val candidates = if (manualUrl != null) listOf(manualUrl)
+            else listOfNotNull(saved, IoBrokerAddress.DEFAULT_URL).distinct()
         IoBrokerAutoSetup.connect(context, candidates, scanNetwork = manualUrl == null) { url, error ->
             if (url == null) {
                 accountLoading = false
-                accountIoBrokerAddress = manualUrl ?: saved ?: accountIoBrokerAddress
+                accountIoBrokerAddress = manualUrl ?: saved ?: accountIoBrokerAddress.ifBlank { IoBrokerAddress.DEFAULT_URL }
                 accountStatus = if (manualUrl != null) "Keine Verbindung zu $manualUrl: $error" else ""
                 return@connect
             }
@@ -557,6 +560,11 @@ private fun KlimaPilotApp(appVersion: String) {
     ClimatePeerAutoSync(enabled = accountAuthenticated && currentAccount != null)
     LaunchedEffect(PeerSyncSignals.dataRevision) {
         if (PeerSyncSignals.dataRevision == 0) return@LaunchedEffect
+        val savedRooms = prefs.getStringSet("rooms", null)?.toList().orEmpty()
+        if (savedRooms.isNotEmpty() && savedRooms.toSet() != rooms.toSet()) { rooms.clear(); rooms.addAll(savedRooms) }
+        val savedDevices = readSavedDevices()
+        if (savedDevices != devices.toList()) { devices.clear(); devices.addAll(savedDevices) }
+        IoBrokerAddress.saved(prefs)?.let { if (accountIoBrokerAddress.isBlank()) accountIoBrokerAddress = it }
         val loaded = accountRepository.load() as? KlimaPilotAccountLoadResult.Loaded ?: return@LaunchedEffect
         accountRegistry = loaded.registry
         currentAccount?.let { account ->

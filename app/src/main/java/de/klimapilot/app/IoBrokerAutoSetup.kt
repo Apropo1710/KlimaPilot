@@ -18,6 +18,8 @@ import org.json.JSONObject
  */
 internal object IoBrokerAddress {
     const val DEFAULT_PORT = 8084
+    /** Known ioBroker of this household; tried when no address is saved yet. */
+    const val DEFAULT_URL = "ws://192.168.178.54:8084"
 
     /** Wandelt Nutzereingaben wie `192.168.178.54`, `host:8084` oder `ws://host:8084` in eine ws(s)-URL um. */
     fun normalize(input: String?): String? {
