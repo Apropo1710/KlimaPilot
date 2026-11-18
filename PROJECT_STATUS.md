@@ -15,6 +15,19 @@
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
+## Kontenlogin über vorhandene ioBroker-Registry – Arbeitsstand 18.11.2026, 13:52 MEZ
+
+- Ziel: Anmeldung auf einem weiteren Smartphone mit bereits vorhandenen ioBroker-Konten ermöglichen, ohne JSON-Datei-Export oder manuelle Übertragung.
+- Run #234 (Commit `f61b523`) war für Version 0.4.65 / versionCode 95 erfolgreich; dies ist der letzte bestätigte erfolgreiche Produktionsbuild vor der aktuellen Kontenänderung.
+- Run #235 (Commit `8ae8cc8`) schlug wegen nicht angepasster Parameter der Login-Screen-Aufrufe und eines entfernten Export-Callbacks fehl.
+- Run #236 (Commit `fc920f6`) wurde abgebrochen.
+- Run #237 (Commit `9872d3e`, Version 0.4.66 / 96) schlug bei `MainActivity.kt` mit `Unresolved reference: replaceEmptyWithImported` fehl. Ursache: Aufruf in der UI vorhanden, Repository-Methode fehlte.
+- Der aktuelle Fix ergänzt die Methode mit Schutzregeln: Import nur bei fehlender oder gültig leerer lokaler Registry; eine befüllte oder beschädigte lokale Registry wird niemals überschrieben. Eine leere ioBroker-Registry wird in der UI bereits abgewiesen.
+- Vier Robolectric-Tests decken fehlende Registry, gültige leere Registry, vorhandene Konten und beschädigte lokale Daten ab.
+- Updater und Installationscode bleiben unverändert.
+- Quellstand vor diesem Fix: `9872d3e5462729f2bfdd38af0b049505ab4a90b9`; Version des vorbereiteten Fixes: **0.4.67 / versionCode 97**. Build und Release sind noch nicht bestätigt.
+
+
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
 **Zuletzt abgeglichen:** 18.11.2026, 21:00 Uhr MEZ  
@@ -68,14 +81,13 @@
 - `docs/status-reconcile-2026-11-15`: historischer Dokumentationsbranch ohne offenen PR.
 - Keine Nebenbranch wird automatisch gemergt oder gelöscht. `main` bleibt der Produktionsbranch.
 
-## Kontenübertragung zwischen Geräten – 18.11.2026
+## Frühere Kontenübertragung per Datei – durch ioBroker-Direktübernahme abgelöst
 
-- Die lokale Konten-Registry bleibt auf jedem Gerät lokal gespeichert. Für ein weiteres Gerät gibt es nun einen ausdrücklichen Export-/Importweg.
-- Ein Administrator kann in der Benutzerverwaltung die Kontenliste über den Android-Teilen-Dialog exportieren. Auf einem frisch eingerichteten Gerät kann die exportierte JSON-Registry in der Ersteinrichtung eingefügt und importiert werden; anschließend ist die Anmeldung mit einem bestehenden Administrator- oder Benutzerkonto möglich.
-- Der Export enthält PBKDF2-Passwortprüfwerte, jedoch keine Klartextpasswörter. Die Daten sind vertraulich und ausschließlich direkt an eigene Geräte zu übertragen.
-- Der Import akzeptiert nur eine gültige Registry mit mindestens einem Konto und schreibt ausschließlich in eine leere lokale Registry. Bereits vorhandene oder beschädigte Kontendaten werden nicht überschrieben.
-- Die bisherige Admin-Ersteinrichtung bleibt für eine tatsächlich neue Installation ohne vorhandene Konten erhalten. Kein Gastkonto und kein Überspringen der Einrichtung.
-- Version **0.4.65 / versionCode 95**. Updater und Installationsablauf bleiben unverändert.
+- Der Datei-Export-/Importansatz aus Version 0.4.65 war ein Zwischenstand und wurde auf ausdrücklichen Nutzerwunsch verworfen.
+- Vorgesehen ist stattdessen, dass ein frisch eingerichtetes Smartphone während der Ersteinrichtung die vorhandene Registry direkt über die angegebene ioBroker-WebSocket-Verbindung liest.
+- Die importierte Registry wird nur lokal gespeichert, wenn die lokale Registry fehlt oder gültig leer ist. Befüllte oder beschädigte lokale Daten dürfen nicht überschrieben werden.
+- Kein Gastkonto und kein Überspringen der Ersteinrichtung. Die Anmeldung erfolgt anschließend mit einem bestehenden ioBroker-Konto.
+- Die Umsetzung befindet sich in Arbeit; erst ein erfolgreicher Build und ein Smartphone-Test bestätigen die Funktion.
 
 ## 2. Letzter Funktionsumfang / UI-Änderungen
 

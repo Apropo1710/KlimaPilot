@@ -1,9 +1,22 @@
 # KlimaPilot – aktueller Projektstatus
 
-**Abgleich:** 18.11.2026, 21:00 Uhr MEZ  
+## Aktueller Kontenlogin-Arbeitsstand – 18.11.2026, 13:52 MEZ
+
+- Live geprüfter `main`-HEAD vor Fix: `9872d3e5462729f2bfdd38af0b049505ab4a90b9`.
+- Letzter bestätigter erfolgreicher Produktionsbuild: #234, Version 0.4.65 / 95, Commit `f61b523`.
+- #235 fehlgeschlagen (Login-Screen-Parameter/entfernter Export-Callback); #236 abgebrochen; #237 fehlgeschlagen: fehlende Repository-Methode `replaceEmptyWithImported`.
+- Fehlerursache in #237: `MainActivity.kt` ruft die nicht vorhandene Methode auf `KlimaPilotAccountRepository` auf.
+- Ziel bleibt direkter Abruf der bestehenden ioBroker-Kontenregistry beim Login auf einem neuen Gerät – ausdrücklich kein Datei-Export.
+- Vorbereiteter Fix: Methode ergänzt, die nur fehlende oder gültig leere lokale Konten-Registry ersetzt; vorhandene/beschädigte lokale Daten bleiben geschützt. Vier Robolectric-Tests ergänzt.
+- Vorbereitete Version: **0.4.67 / versionCode 97**. Noch kein Commit, Build oder Release bestätigt.
+- Updater bleibt unangetastet.
+
+---
+
+**Abgleich:** 18.11.2026, 13:52 Uhr MEZ (Live-Prüfung GitHub)  
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Branch:** `main`  
-**App-Version:** **0.4.64 / versionCode 94**
+**Quellversion auf main vor Fix:** **0.4.66 / versionCode 96**; vorbereiteter Fix: **0.4.67 / 97** (noch nicht gebaut)
 
 ## Verifizierter Produktionsstand
 
