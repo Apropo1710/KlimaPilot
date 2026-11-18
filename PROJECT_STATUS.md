@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 12:48 Uhr MEZ (Debug-APK-Bereitstellung ergänzt; neuer API-26-Lauf automatisch ausgelöst)  
+**Letzter Abgleich:** 18.11.2026, 13:05 Uhr MEZ (API-26-Lauf #70 erfolgreich; Debug-APK-Artefakt geprüft)  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -16,7 +16,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD nach Ergänzung der Debug-APK-Bereitstellung: `e685389a30aed387561815b506bdf1e6cc673ff9`. Der Workflow-Commit baut nach erfolgreicher API-26-Instrumentierung die Debug-APK, prüft Paketkennung/Version/Signatur und lädt sie als CI-Artefakt hoch. Der WLAN-Workflow ignoriert Workflow-only-Änderungen. Der getestete App-/Code-Stand des WLAN-Laufs #205 ist `f99ffb0a48a77afcd03c38950927369288fcfc5e`; die Folgecommits ändern ausschließlich CI-Konfiguration und Dokumentation. Der letzte Code-/Teststand davor bleibt `63d53bb07a55bfb0207659749f8e6624d78215a7` (Socket-Cleanup-Fix `334308e40ea17b2e57a6c640ca49c20e83d22e8b` plus gezielter Regressionstest).
+- Aktueller `test`-HEAD: `7fbe12dfc139becd65f11214e7a4ec8e499ee8c0` (Status-/PR-Dokumentation). Der geprüfte Workflow-/App-Stand für API-26-Lauf #70 ist `e685389a30aed387561815b506bdf1e6cc673ff9`. Der Workflow-Commit baut nach erfolgreicher API-26-Instrumentierung die Debug-APK, prüft Paketkennung/Version/Signatur und lädt sie als CI-Artefakt hoch. Der WLAN-Workflow ignoriert Workflow-only-Änderungen. Der getestete App-/Code-Stand des WLAN-Laufs #205 ist `f99ffb0a48a77afcd03c38950927369288fcfc5e`; die Folgecommits ändern ausschließlich CI-Konfiguration und Dokumentation. Der letzte Code-/Teststand davor bleibt `63d53bb07a55bfb0207659749f8e6624d78215a7` (Socket-Cleanup-Fix `334308e40ea17b2e57a6c640ca49c20e83d22e8b` plus gezielter Regressionstest).
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
@@ -70,7 +70,7 @@ Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als 
 - WLAN-Workflow **#205**, manuell gestartet auf `test` mit HEAD `f99ffb0a48a77afcd03c38950927369288fcfc5e`, erfolgreich abgeschlossen. `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin` liefen im Schritt „Unit-Tests und Debug-Kompilierung“ erfolgreich. Dies bestätigt JVM-Unit-Tests und Kompilierung auf diesem App-Stand, ersetzt aber keinen Android-Instrumentierungstest.
 - WLAN-Workflow **#206**, Push-Trigger auf CI-Konfigurationscommit `e01cc74...`, erfolgreich abgeschlossen. Derselbe Unit-/Debug-/Release-Kompilierungsschritt war erfolgreich; kein Emulator-/Instrumentierungstest.
 - TCP-Peer-Emulatorworkflow **#69** auf API 26, Commit `3fbe06d0f8cf357bb787ca2a95a47a41fb55767d`, erfolgreich abgeschlossen. Alle Steps einschließlich „Android Emulator und TCP-Peer-Test“ und Diagnose-Artefakt waren erfolgreich. Der Step führt `testDebugUnitTest connectedDebugAndroidTest` aus; damit ist der Android-Instrumentierungslauf auf API 26 erfolgreich. Der genaue einzelne Testfallzähler ist aus den verfügbaren Jobmetadaten nicht ersichtlich.
-- Nachträgliche Workflow-Ergänzung: Nach erfolgreicher API-26-Prüfung wird `app-debug.apk` auf Paketkennung `de.klimapilot.app.debug`, versionCode `94`, versionName `0.4.64-debug` geprüft, mit `apksigner` verifiziert und als Artefakt `KlimaPilot-debug-api26-test` hochgeladen. Diese Ergänzung ist noch nicht durch einen fertigen Lauf bestätigt; der durch den Workflow-Commit ausgelöste Lauf muss erfolgreich enden.
+- Nachträgliche Workflow-Ergänzung: Nach erfolgreicher API-26-Prüfung wird `app-debug.apk` auf Paketkennung `de.klimapilot.app.debug`, versionCode `94`, versionName `0.4.64-debug` geprüft, mit `apksigner` verifiziert und als Artefakt `KlimaPilot-debug-api26-test` hochgeladen. API-26-Lauf **#70** auf Commit `e685389a30aed387561815b506bdf1e6cc673ff9` erfolgreich abgeschlossen. Der Emulator-/Instrumentierungsschritt, die Paket-/Versions-/Signaturprüfung und der Artefakt-Upload waren erfolgreich. Das Artefakt `KlimaPilot-debug-api26-test` wurde heruntergeladen und enthält `app-debug.apk` (18.796.844 Bytes) sowie SHA-256 `197b2f069a20d4fd845c6499c736ca87e5254291774fa4d910a4e1987cc0d7bd`. Geprüfte erwartete Werte: Paket `de.klimapilot.app.debug`, versionCode `94`, versionName `0.4.64-debug`; `apksigner verify` erfolgreich.
 - WLAN-Workflow **#207** auf demselben Commit `3fbe06d...` ebenfalls erfolgreich; er war ein redundanter zusätzlicher Lauf mit Unit-Tests und Debug-/Release-Kompilierung, nicht der Emulatornachweis.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
 - TCP-Emulatorlauf **#63**, Commit `725fe3109aa4712abda0a4f500cb6433c8a49e19` (Workflow-only-Abzweig vom identischen App-/Teststand `1a1d9df...`): API 26 erfolgreich; Gradle-Build erfolgreich und Instrumentierungstests **3/3 bestanden**. API 35 im selben Lauf fehlgeschlagen, weil der Emulator/Package-Manager nicht rechtzeitig verfügbar war; keine bestandenen API-35-App-Tests.
@@ -101,7 +101,7 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Den API-26-Lauf abwarten, der durch `e685389...` ausgelöst wurde. Bei Erfolg Debug-APK-Artefakt `KlimaPilot-debug-api26-test` samt Paket-/Versions-/Signaturprüfung kontrollieren und erst dann für den Zwei-Smartphone-Test verwenden.
+1. Debug-APK `KlimaPilot-debug-api26-test` auf zwei realen Smartphones installieren und Pairing/Handshake testen. APK ist eine separate Debug-App (`de.klimapilot.app.debug`, Version `0.4.64-debug`, versionCode 94); noch kein Profiltransfer.
 2. Anschließend die explizite Authentifizierung zwischen zwei realen Smartphones prüfen: beidseitig gekoppelte Peers erfolgreich, unbekannter Peer abgewiesen, WLAN-Socket-Bindung bei mobilem Defaultnetz, Abbruch während Handshake und Cleanup beim Stop.
 3. Falls CI und Geräteprüfung erfolgreich sind, Nachrichtenframing, Größen-/Schema-/Gerätevalidierung, Replay-/Duplikaterkennung und idempotente Wiederaufnahme spezifizieren.
 4. Regressionstests für den bestehenden ioBroker-Sync-Pfad ergänzen.
