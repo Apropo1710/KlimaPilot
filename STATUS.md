@@ -4,7 +4,7 @@
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Produktionsbranch:** `main` – HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`  
 **Produktionsversion:** **0.4.64 / versionCode 94**  
-**Arbeitsbranch:** `test` – App-Code-/Test-Commits `4f35e1f` und `d91b00b`; Statusdokumentation wird in den nachfolgenden Commits ergänzt.
+**Arbeitsbranch:** `test` – App-Code-/Test-Commits `4f35e1f` und `305fc0e`; Statusdokumentation wird in den nachfolgenden Commits ergänzt.
 
 ### Neuester Arbeitsstand – WLAN-Callback und IPv6-Scope (18.11.2026, 07:41 Uhr MEZ)
 
@@ -12,7 +12,7 @@
 - Ein zusätzlich verfügbares WLAN beendet die laufende Suche nicht mehr pauschal. Abbruch erfolgt bei einem neu verfügbaren WLAN nur dann, wenn es zugleich Androids aktives Standardnetz wird. Verlust oder Adresswechsel des ursprünglich ausgewählten WLANs bleiben fail-closed.
 - IPv6-Link-Local-Adressen werden mit Interface-Scope gebunden. Die Scope-Erzeugung ist separat gekapselt und der Test ruft den vollständigen Selector auf.
 - Sieben JVM-Testfälle sind in der Adressauswahl-Testdatei vorhanden. **Sie sind für den aktuellen Stand noch nicht ausgeführt/bestätigt.**
-- App-Code-Commit: `4f35e1feb60e0f46eac360fee51a58d024bfc6bb`; Test-Commit: `d91b00b8c4c20535b97795e5db7fc54a735a5fad`. Anschließende Dokumentationscommits halten diesen Stand fest.
+- App-Code-Commit: `4f35e1feb60e0f46eac360fee51a58d024bfc6bb`; Test-Commit: `305fc0e03df09ae2c7ff8e8511a88bc2abaeaea4`. Anschließende Dokumentationscommits halten diesen Stand fest.
 - CI/Unit-Tests/Android-Build/Emulator für diese Commits nicht bestätigt. Discovery bleibt reject-only; keine Handshake-Integration und keine Profilübertragung.
 
 ## Produktionsstand
@@ -25,7 +25,7 @@
 
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen/Draft, nicht gemergt.
 - `main...test`: **divergent (kein Merge/Rebase)**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
-- Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246): **success** auf älterem App-Code-HEAD `ae1bdc03`. Für den aktuellen WLAN-/IPv6-Code-HEAD `4f35e1f` und den Test-HEAD `d91b00b` gibt es noch keinen CI-Lauf; die GitHub-API hat nach dem Commit keinen PR-Run erzeugt.
+- Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246): **success** auf älterem App-Code-HEAD `ae1bdc03`. Für den aktuellen WLAN-/IPv6-Code-HEAD `4f35e1f` und den Test-HEAD `305fc0e` gibt es noch keinen CI-Lauf; die GitHub-API hat nach dem Commit keinen PR-Run erzeugt.
 - TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) erfolgreich auf älterem Commit `41b9a3ab`, API 26. Für aktuellen HEAD kein Emulatornachweis; API 35 nicht bestätigt.
 - TCP-Emulatorworkflow nur manuell (`workflow_dispatch`); WLAN-Workflow bei PR-Updates. Keine doppelten automatischen Emulatorläufe.
 - QR-Pairing, lokale Bestätigung, Keystore-Identität, Trusted-Peer-Speicher und TCP-Challenge-Response sind implementiert. TLS/mTLS wurde nach Nutzerfreigabe verworfen; TCP ist unverschlüsselt.
