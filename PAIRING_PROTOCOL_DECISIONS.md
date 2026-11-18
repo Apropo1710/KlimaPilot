@@ -77,20 +77,20 @@ Handshake-Merkmale:
 | WLAN-Interface-Bindung | Implementiert |
 | WLAN-/Defaultnetz-Lifecycle-Überwachung | Implementiert, aktuelle CI-Prüfung offen |
 | TCP-Peer-Handshake-Klasse | Implementiert, separat getestet auf älteren Ständen |
-| Handshake in Discovery-Listener integriert | **Nicht umgesetzt** |
+| Handshake in Discovery-Listener integriert | Implementiert, CI-/Geräteprüfung offen |
 | Profil-/Outbox-Transfer über Peer-TCP | **Nicht umgesetzt** |
 | Zwei-Smartphone-Praxistest | **Nicht durchgeführt** |
 
-Discovery bleibt ausdrücklich reject-only: der angekündigte TCP-Port nimmt Verbindungen nur an, um sie sofort zu schließen.
+Discovery-Metadaten bleiben unverifiziert. Der angekündigte TCP-Port führt bei eingehenden Verbindungen den gegenseitigen Handshake aus; ein ausgehender Handshake erfolgt nur nach ausdrücklicher Nutzeraktion. Unbekannte/nicht vertraute Peers werden abgewiesen. Jede Verbindung wird nach dem Handshake geschlossen; es werden keine Nutzdaten übertragen.
 
 ## 8. Offene technische Anforderungen vor Nutzdaten
 
-- Authentifizierten Handshake in Listener und Client integrieren, ohne unautorisierte Daten vor erfolgreichem Abschluss anzunehmen.
+- Die integrierte Handshake-Stufe durch CI und Zwei-Smartphone-Test absichern; unautorisierte Verbindungen müssen weiterhin abgewiesen werden.
 - Framing mit Protokollversion, Nachrichtentyp und festen Größenobergrenzen definieren.
 - Schema-/Typ-/Wertebereichs- und Gerätezuordnungsvalidierung auf Empfängerseite.
 - Replay-/Duplikaterkennung und idempotente Wiederaufnahme.
 - Empfangsbestätigung erst nach dauerhafter Speicherung.
-- Fehler-/Timeout-/Abbruchpfade, parallele Verbindungen und Ressourcen-Cleanup testen.
+- Fehler-/Timeout-/Abbruchpfade, parallele Verbindungen und Ressourcen-Cleanup durch CI und reale Geräte testen.
 - Bestehenden ioBroker-Transport und dessen Event-Engine regressionsprüfen.
 - Zwei reale Smartphones testen.
 

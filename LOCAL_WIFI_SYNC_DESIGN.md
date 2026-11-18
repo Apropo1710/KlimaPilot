@@ -41,9 +41,14 @@ Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen
 - Die Entscheidungslogik für Defaultnetzwechsel und Snapshot-Revalidierung ist als reine Funktion ausgelagert und mit JVM-Tests abgedeckt.
 - Der aktuelle Code-Commit und seine Validierung werden ausschließlich in `PROJECT_STATUS.md` geführt.
 
-### Reject-only Listener
+### Authentifizierter Handshake-Listener
 
-Der TCP-Port wird für Discovery angekündigt. Eingehende Verbindungen werden angenommen und unmittelbar geschlossen. Der Listener authentifiziert noch keine Peers und verarbeitet keine Nutzdaten.
+- Der TCP-Port wird weiterhin über DNS-SD angekündigt; Discovery-Metadaten sind nur ein Locator und kein Vertrauensnachweis.
+- Eingehende Verbindungen durchlaufen den gegenseitigen `ClimatePeerTcp`-Handshake. Nur Peers, deren Schlüssel auf beiden Geräten im Trusted-Peer-Speicher liegen, können ihn abschließen.
+- Ein ausgehender Handshake wird ausschließlich durch eine ausdrückliche Nutzeraktion gestartet. Der Client-Socket wird über die `SocketFactory` des ausgewählten WLAN-Netzes erstellt, auch wenn Android Mobilfunk als Defaultnetz verwendet.
+- Serverseitige Sessions sind auf 1–2 Worker mit vier wartenden Verbindungen begrenzt; clientseitig läuft ein Worker mit vier Wartenden. Überlast wird abgewiesen.
+- Verbindungen werden nach dem Handshake geschlossen. Stop/Cleanup schließt aktive Sockets und beendet die Session-Executor.
+- Es werden weiterhin keine Profil-/Outbox- oder sonstigen App-Nutzdaten übertragen.
 
 ## 4. Identität und QR-Pairing
 
@@ -67,19 +72,19 @@ Der TCP-Port wird für Discovery angekündigt. Eingehende Verbindungen werden an
 
 TLS/mTLS wurde nach ausdrücklicher Nutzerentscheidung verworfen. TCP ist nicht transportverschlüsselt; andere Teilnehmer desselben WLANs können den Datenverkehr passiv mitlesen. Signaturen authentifizieren Peers und erschweren aktive Manipulation, ersetzen aber keine Verschlüsselung.
 
-**Wichtig:** Der Handshake ist noch nicht mit dem Discovery-Listener verbunden. Die Existenz der Klasse bedeutet nicht, dass der Netzwerkpfad bereits authentifiziert arbeitet.
+**Implementierungsstand:** Der Handshake ist seit Code-Commit `3ea93c9...` mit Listener und explizitem Client-Verbindungsversuch verbunden. Die neue Integration ist noch nicht durch CI oder einen Zwei-Smartphone-Test bestätigt.
 
 ## 6. Freigabegates vor Profiltransfer
 
 Vor jeglicher Peer-Nutzdatenübertragung sind mindestens umzusetzen und zu prüfen:
 
-1. Handshake sicher in den Listener-/Client-Lifecycle integrieren.
+1. Die Handshake-Integration durch CI und reale Zwei-Smartphone-Tests absichern; Fehler-, Timeout-, Netzwechsel- und Stop-Pfade prüfen.
 2. Eindeutiges Nachrichtenframing und Protokollversion.
 3. Harte Obergrenzen für Frame-, Event- und Gesamtnachrichtengröße.
 4. Schema-, Typ-, Geräte- und Wertebereichsvalidierung.
 5. Replay-/Duplikaterkennung und sichere Wiederaufnahme nach Verbindungsabbruch.
 6. Bestätigung erst nach dauerhafter Übernahme empfangener Events.
-7. Schutz gegen parallele Sessions und sauberes Socket-/Callback-Cleanup.
+7. Schutz gegen parallele Sessions und sauberes Socket-/Callback-Cleanup ist implementiert; CI-/Geräteprüfung steht aus.
 8. Regressionstests für den bestehenden ioBroker-Sync-Pfad.
 9. Erfolgreiche Android-CI-Validierung und Praxistest mit zwei Smartphones.
 
