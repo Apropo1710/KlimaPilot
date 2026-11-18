@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: f61b5234916be12f7b0c0b7dda501a6084ad9753
-- App-Version / versionCode: **0.4.65 / 95**
-- Build-Zeit: 2026-11-18 12:41:45 UTC
+- Quellcommit des APK-Builds: 608912f99e2653d271104aa2f620d2c64cdef651
+- App-Version / versionCode: **0.4.67 / 97**
+- Build-Zeit: 2026-11-18 12:57:05 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: aa02bfd2ad5b2e6dae8ba951870e84e12cf24ff03657545bae5846961c007f6b
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: a1756d59c8ec5e92923a07a7a7086023cc42ff6480e0b1541f7808cb626e0ce5
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -184,4 +184,4 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - ioBroker bleibt zunächst als bestehender Synchronisationsanbieter erhalten. Eine unabhängige Cloud oder direkte Smartphone-Synchronisation kann später ergänzend hinzukommen.
 - Konfliktbehandlung, doppelte Events, Wiederanlauf und Löschungen müssen ausdrücklich berücksichtigt und mit mindestens zwei Smartphones getestet werden.
 - Ein absolut ausfallfreies System kann nicht garantiert werden. Ziel ist, dass der Ausfall eines Synchronisationsdienstes weder die lokale Bedienung noch gespeicherte Daten gefährdet.
-- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n\n\n\n\n\n\n\n\n\n\n
+- Dieses Vorhaben ist keine Erlaubnis, den funktionierenden Updater oder den direkten Klimasteuerungsweg umzubauen.\n\n\n\n\n\n\n\n\n\n\n\n\n
