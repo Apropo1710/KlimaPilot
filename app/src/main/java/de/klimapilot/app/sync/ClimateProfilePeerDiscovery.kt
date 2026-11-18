@@ -99,11 +99,11 @@ internal object ClimateWifiListenerAddressSelector {
             it.isAnyLocalAddress || it.isLoopbackAddress || it.isMulticastAddress
         }
         val ipv4 = usable.filterIsInstance<Inet4Address>()
+            .filter { it.isSiteLocalAddress || it.isLinkLocalAddress }
         if (ipv4.isNotEmpty()) return ipv4.firstOrNull { it.isSiteLocalAddress } ?: ipv4.first()
 
         val ipv6 = usable.filterIsInstance<Inet6Address>()
         ipv6.firstOrNull { (it.address[0].toInt() and 0xfe) == 0xfc }?.let { return it }
-        ipv6.firstOrNull { !it.isLinkLocalAddress }?.let { return it }
 
         val linkLocal = ipv6.firstOrNull { it.isLinkLocalAddress } ?: return null
         val networkInterface = runCatching { NetworkInterface.getByName(interfaceName) }.getOrNull()
@@ -168,12 +168,8 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                 setReferenceCounted(false)
                 acquire()
             }
-            val wifiNetwork = connectivity.activeNetwork
+            val wifiNetwork = findWifiNetwork()
                 ?: throw IOException("Es ist kein aktives WLAN-Netzwerk verfügbar.")
-            if (connectivity.getNetworkCapabilities(wifiNetwork)
-                    ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true) {
-                throw IOException("Für die Gerätesuche muss WLAN aktiv sein.")
-            }
             val linkProperties = connectivity.getLinkProperties(wifiNetwork)
                 ?: throw IOException("Die WLAN-Netzwerkeigenschaften sind noch nicht verfügbar.")
             val interfaceName = linkProperties.interfaceName
@@ -262,15 +258,32 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         }
     }
 
+    /**
+     * The default network can be mobile data while Wi-Fi is connected (for example,
+     * when Wi-Fi has no validated internet route). Search all currently available
+     * networks and prefer the default only when it is itself a Wi-Fi network.
+     */
+    private fun findWifiNetwork(): Network? {
+        val networks = connectivity.allNetworks
+        val defaultNetwork = connectivity.activeNetwork
+        val candidates = buildList {
+            if (defaultNetwork != null) add(defaultNetwork)
+            networks.forEach { if (it != defaultNetwork) add(it) }
+        }
+        return candidates.firstOrNull { network ->
+            connectivity.getNetworkCapabilities(network)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }
+    }
+
     private fun registerWifiNetworkCallback(run: Long) {
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 synchronized(this@ClimateProfilePeerDiscovery) {
                     if (!isCurrent(run) || network == activeWifiNetwork) return
-                    val isCurrentWifi = connectivity.activeNetwork == network &&
-                        connectivity.getNetworkCapabilities(network)
-                            ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-                    if (isCurrentWifi) {
+                    val isWifi = connectivity.getNetworkCapabilities(network)
+                        ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+                    if (isWifi) {
                         fail(run, "Das WLAN-Netzwerk hat gewechselt. Bitte die Suche erneut starten.")
                     }
                 }

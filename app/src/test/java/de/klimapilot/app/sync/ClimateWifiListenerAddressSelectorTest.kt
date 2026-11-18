@@ -24,6 +24,24 @@ class ClimateWifiListenerAddressSelectorTest {
     }
 
     @Test
+    fun rejectsPublicAddressesInsteadOfBindingOutsideTheLocalLan() {
+        assertNull(
+            ClimateWifiListenerAddressSelector.select(
+                "wlan0",
+                listOf(InetAddress.getByName("8.8.8.8"), InetAddress.getByName("2001:4860:4860::8888"))
+            )
+        )
+    }
+
+    @Test
+    fun acceptsIpv4LinkLocalAsLocalFallback() {
+        val selected = ClimateWifiListenerAddressSelector.select(
+            "wlan0", listOf(InetAddress.getByName("169.254.10.20"))
+        )
+        assertEquals("169.254.10.20", selected?.hostAddress)
+    }
+
+    @Test
     fun rejectsMissingInterfaceAndNonUsableAddresses() {
         assertNull(ClimateWifiListenerAddressSelector.select(
             null, listOf(InetAddress.getByName("192.168.1.25"))
