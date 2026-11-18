@@ -1,3 +1,46 @@
+# KlimaPilot – aktueller Projekt- und Übergabestatus
+
+**Abgleich:** 18.11.2026, 21:00 Uhr MEZ  
+**Repository:** https://github.com/Apropo1710/KlimaPilot  
+**Produktionsbranch:** `main` – HEAD `356842b20acbc042a21cb4d06e664dbd45654d98`  
+**Produktionsversion:** **0.4.64 / versionCode 94**  
+**Arbeitsbranch:** `test` – HEAD `ae1bdc03c78624ff640505b4bd255bfd885b05c5`
+
+## Produktionsstand
+
+- `main` ist alleiniger Produktionsbranch; PR #6 ist nicht gemergt.
+- Letzter bestätigter Produktionsbuild: #229, **success**; Release `latest` enthält die signierte APK 0.4.64 / 94. Dokumentationsänderungen erzeugen keinen neuen App-Build.
+- Updater ist abgeschlossen und vom Nutzer bestätigt. **Nicht verändern.**
+
+## WLAN-/Pairing-Arbeitsstand
+
+- [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen/Draft, nicht gemergt.
+- `main...test`: **151 ahead / 2 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
+- WLAN-Validierung auf exakt `ae1bdc03c78624ff640505b4bd255bfd885b05c5`: [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246) **success** (Unit-Tests, Debug-Assembly, `compileReleaseKotlin`).
+- TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) erfolgreich auf älterem Commit `41b9a3ab`, API 26. Für aktuellen HEAD kein Emulatornachweis; API 35 nicht bestätigt.
+- TCP-Emulatorworkflow nur manuell (`workflow_dispatch`); WLAN-Workflow bei PR-Updates. Keine doppelten automatischen Emulatorläufe.
+- QR-Pairing, lokale Bestätigung, Keystore-Identität, Trusted-Peer-Speicher und TCP-Challenge-Response sind implementiert. TLS/mTLS wurde nach Nutzerfreigabe verworfen; TCP ist unverschlüsselt.
+- Discovery ist weiterhin reject-only; TCP-Handshake ist noch nicht angebunden. Kein Profil-/Outbox-Transfer und keine automatische Peer-Synchronisierung.
+- Vor Profiltransfer zwingend: sichere Integration, strikte Empfänger-Validierung, erfolgreicher Zwei-Smartphone-Test und unabhängige Prüfung.
+- WLAN-/Pairing-Oberfläche ist ausschließlich in der Debug-App sichtbar (`BuildConfig.DEBUG`, Application-ID `de.klimapilot.app.debug`). Updater liegt außerhalb des Debug-Guards und wurde nicht geändert.
+
+## Nächster Arbeitsschritt
+
+Discovery-, TCP-, Session-Controller- und Trusted-Peer-Code vollständig prüfen; Integrationsdesign und Sicherheitsgrenzen festlegen. Bis dahin keine Nutzdatenübertragung, kein Merge und kein Produktionsrelease.
+
+## Feste Projektregeln
+
+- Vor Änderungen aktuellen `main`-Stand und betroffene Dateien prüfen.
+- `main` bleibt produktiv; `test` ist nicht freigegeben.
+- Keine alten CI-Runs als aktuellen Status werten.
+- Keine unnötigen Workflowstarts; TCP-Emulatorlauf nur gezielt manuell.
+- Updater, bestehende ioBroker-Synchronisierung und WF-RAC-Steuerpfad nicht unnötig verändern.
+- Hardware-/Zwei-Smartphone-Tests nur als bestanden markieren, wenn tatsächlich ausgeführt.
+
+---
+
+Historische Detailchronik folgt; bei Widersprüchen gilt die Statuskorrektur oben.
+
 # KlimaPilot – aktueller Projektstatus
 
 **Abgleich:** 17.11.2026, 02:56 Uhr MEZ  
