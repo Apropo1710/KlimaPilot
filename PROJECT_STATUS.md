@@ -17,23 +17,25 @@
 
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 21:15 Uhr MEZ (Produktion 0.4.78: Kopplungskarte ausklappbar, ohne Fingerprint-Texte, Update-Buttons volle Breite)
+**Letzter Abgleich:** 18.11.2026, 21:35 Uhr MEZ (Dokumentation vollständig nachgezogen; Produktion 0.4.78)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
 
 ## 1. Produktivstand – `main`
 
+- **Aktuell in Produktion: 0.4.78 / versionCode 108** (Produktionsbuild #242, Commit `6be0db9`, Release `latest`). Konten, Klimaprofile, Räume und Geräte werden zwischen gekoppelten Smartphones abgeglichen. Updates zeigen derzeit eine Play-Protect-Warnung („Trotzdem installieren“).
+- Verlauf der Übernahme nach `main` am 18.11.2026:
 - **18.11.2026, auf ausdrücklichen Wunsch des Nutzers:** Der komplette Stand von `test` wurde nach `main` übernommen. Vorgehen: `main` (19 eigene Commits, u. a. Konten-Fixes 0.4.66/0.4.67) per Merge-Commit `12096f3a545b17403ffb83c1c75a226d8f7150ef` in `test` geholt, Konflikte zugunsten von `test` gelöst (Konten-, Profil- und Gerätespeicher verwenden auf beiden Branches identische Schlüssel, Produktionsdaten bleiben lesbar), WLAN-Workflow **#250** inkl. `lintVitalRelease` erfolgreich, danach `main` per Fast-Forward auf `12096f3` gesetzt.
 - Produktionsbuild **#239** (Run `44368187182`) erfolgreich; Release `latest` enthält **0.4.74 / versionCode 104**, `de.klimapilot.app`, APK-SHA-256 `a8f82d14475a5e4497a4941fb43a08c0d5b2314ee54260dd072fbd3e3b5237fe`. Unabhängig nachgeprüft: gleiches Produktionszertifikat wie bisherige Releases (`d3402444a8fd284f…`), Manifest-Berechtigungen wie bisher in Produktion. Updater-Installationsablauf unverändert.
-- Neu in Produktion gegenüber 0.4.67: automatische ioBroker-Einrichtung und QR-Kontoübernahme (2f), Ein-Scan-Pairing (2d), Abfrage der Klimaanlage alle 10 s statt 15 s, Pairing-Karte ohne Infotext mit „QR-Code anzeigen“.
+- Neu in Produktion gegenüber 0.4.67: automatische ioBroker-Einrichtung und QR-Kontoübernahme (2f), Ein-Scan-Pairing (2d), Abfrage der Klimaanlage alle 10 s statt 15 s. Danach 0.4.75 (2h), 0.4.77 (2i) und 0.4.78 (2j).
 - PR #6 ist damit inhaltlich in `main` enthalten. `test` wurde danach auf `main` (`f5bfba9`) gesetzt; beide Branches sind identisch.
 - [Direkter APK-Download](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
 
 ## 2. Entwicklungsstand – `test`
 
-- Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur). Übernahme nach `main` nach Gerätetest.
-- Nächstes Ziel: Synchronisation von Konten und Klimaprofilen direkt zwischen gekoppelten Smartphones, damit alles ohne ioBroker weiterläuft. Der aktuelle Zustand der Klimaanlage wird bereits von jedem Smartphone direkt per WF-RAC gelesen (kein ioBroker nötig).
+- `test` und `main` sind auf demselben Code-Stand (0.4.78). Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur `230865b9…65ecfb`, Installation über den Direktlink). Übernahme nach `main` nach Gerätetest.
+- Historie des heutigen Tages in den Abschnitten 2j (neueste) bis 2a.
 
 ## 2j. Oberflächenpflege 0.4.78 (18.11.2026)
 
@@ -152,43 +154,20 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 3. Letzte Codeänderung
 
-Code-/Integrations-Commit: `3ea93c97a7db0de2a5c287d6666713e40af76cf7`  
-Vorheriger Cleanup-Fix: `84a555d0d226c4505d0136ad0b208b5197bbdf67`  
-Socket-Lifecycle-Fix: `334308e40ea17b2e57a6c640ca49c20e83d22e8b`  
-Regressionstest: `63d53bb07a55bfb0207659749f8e6624d78215a7`  
-Betroffene Dateien: `ClimateProfilePeerDiscovery.kt`, `ClimatePeerTcpConnectionManager.kt`, `MainActivity.kt` und `ClimatePeerTcpCompatibilityTest.kt`.
-
-- Zusätzlich zum WLAN-spezifischen `registerNetworkCallback` wird `registerDefaultNetworkCallback` verwendet.
-- Der Default-Callback erkennt einen Wechsel des Android-Standardnetzes zu einem anderen WLAN.
-- Ein zusätzlich verfügbares WLAN allein beendet die Discovery nicht.
-- Ein Wechsel des Standardnetzes zu einem anderen WLAN beendet die laufende Discovery fail-closed.
-- Mobilfunk als Standardnetz ist zulässig, solange das ausgewählte WLAN selbst verfügbar bleibt.
-- Verlust und Änderung der Link-Eigenschaften des ausgewählten WLANs werden weiterhin separat überwacht.
-- Beide Callbacks werden beim Cleanup abgemeldet.
-- **Review-Fund vom 18.11.2026:** Zwischen dem initialen Lesen des ausgewählten WLANs und der Registrierung der NetworkCallbacks bestand ein Race-Fenster. Ein bereits vor der Callback-Registrierung verlorenes Netzwerk muss nicht nachträglich über `onLost` gemeldet werden.
-- **Gezielte Absicherung:** Nach Registrierung beider Callbacks wird der ausgewählte Network-/LinkProperties-Snapshot erneut gelesen. Die Discovery wird vor der DNS-SD-Ankündigung abgebrochen, wenn der ausgewählte Transport, das Interface oder die gewählte Adresse nicht mehr übereinstimmen oder bereits ein anderes WLAN das Defaultnetz ist.
-- Die Defaultnetz- und Snapshot-Entscheidungen sind als reine Policy-Funktionen ausgelagert und durch elf gezielte JVM-Fälle abgedeckt. Die Gradle-/JUnit-Ausführung wurde im WLAN-Workflow #203 auf App-/Teststand `1a1d9df...` bestätigt.
-- Die erneute Snapshot-Prüfung liest LinkProperties null-sicher; bei fehlendem Netzwerk, Interface oder geeigneter Adresse wird der Start fail-closed abgebrochen.
-- Der Listener nimmt eingehende Verbindungen für den begrenzten gegenseitigen `ClimatePeerTcp`-Handshake an. Der Handshake wird in einem begrenzten Session-Executor ausgeführt; unbekannte/nicht vertraute Peers werden abgewiesen. Nach erfolgreichem oder fehlgeschlagenem Handshake wird der Socket geschlossen.
+- Produktion und `test`: 0.4.78 / 108, Code-Commit `6be0db92978ee09980608779a5b1ef32a1fbfa9a` (Abschnitt 2j). Davor: Smartphone-Synchronisation (2i), Play-Protect-Korrektur (2h), automatische ioBroker-Einrichtung (2f).
 
 ## 4. Pairing- und Synchronisationsstatus
 
-- ECDSA-P-256-Installationsidentität im Android Keystore; privater Schlüssel nicht exportierbar.
-- Bisheriger Pairing-Ablauf: signierte QR-Einladung (120 Sekunden), signierte sitzungsgebundene Antwort und beidseitige Fingerprint-/Nutzerbestätigung. Dieser Ablauf benötigt aktuell mehr als einen Scan und speichert in zwei getrennten Bestätigungsschritten.
-- Trusted-Peer-Speicher enthält nur ausdrücklich bestätigte Peers.
-- DNS-SD-Discovery mit Diensttyp `_klimapilot-sync._tcp.`.
-- Lokale Adressauswahl berücksichtigt private IPv4, IPv4-Link-Local, IPv6-ULA und scoped IPv6-Link-Local; öffentliche Adressen werden nicht als Listener-Adresse verwendet.
-- WLAN-Callback überwacht das ausgewählte WLAN; Default-Network-Callback erkennt Wechsel zu einem anderen WLAN.
-- `ClimatePeerTcp` implementiert einen signaturbasierten gegenseitigen Handshake mit Nonces, Rollenbindung, Peer-ID-/Schlüsselprüfung und Zeit-/Feldgrößenlimits. Er ist seit Commit `3ea93c9...` in den Discovery-Listener und einen ausdrücklich gestarteten Client-Verbindungsversuch integriert.
-- TLS/mTLS wurde nach ausdrücklicher Nutzerentscheidung verworfen. TCP ist unverschlüsselt; andere Teilnehmer desselben WLANs können Daten passiv mitlesen.
-- Discovery-Metadaten bleiben unverifiziert. Der ausgehende Authentifizierungsversuch wird nur nach ausdrücklichem UI-Klick gestartet und verwendet die SocketFactory des ausgewählten WLAN-Netzes (auch wenn Mobilfunk Android-Defaultnetz ist).
-- Eingehende und ausgehende Handshake-Sessions laufen in begrenzten ThreadPools (Server: 1–2 Threads/4 Wartende; Client: 1 Thread/4 Wartende). Stop/Cleanup schließt aktive Sockets und beendet die Executor-Queues.
-- Nach dem Handshake werden beide Seitenverbindungen sofort geschlossen. Es existiert weiterhin keine API zum Übertragen von Profil-, Outbox- oder sonstigen App-Nutzdaten.
-- `ClimateProfileSyncEngine` wird vom bestehenden ioBroker-Sync-Pfad verwendet; die lokale Peer-Nutzdaten-Transportintegration fehlt; bisher ist nur die Handshake-Stufe angeschlossen.
+- Kopplung: Ein-Scan-QR mit signiertem ACK, in Produktions- und Testversion; Fingerprints werden nur im Hintergrund geprüft.
+- Abgleich zwischen gekoppelten Geräten: Konten, Klimaprofile (inkl. aktivem Profil und individuellen Einstellungen), Räume, Geräte, WF-RAC-Modulidentitäten, ioBroker-Adresse. Automatisch bei geöffneter App, alle 30 s. Details in `LOCAL_WIFI_SYNC_DESIGN.md`, Abschnitt 6.
+- Aktueller Zustand der Klimaanlage: jedes Smartphone liest ihn direkt per WF-RAC alle 10 s (kein ioBroker nötig).
+- ioBroker-Profilsync läuft unverändert parallel; die gemeinsame `ClimateProfileSyncEngine` sorgt für gleiche Konfliktregeln.
+- TCP ist unverschlüsselt (Nutzerentscheidung); Inhalte inkl. Passwort-Hashes sind im eigenen WLAN mitlesbar.
+- Gerätetest 18.11.2026: Kopplung Smartphone/Tablet und Raumübertragung bestanden; Produktions-Apps beider Nutzer gekoppelt (0.4.77/0.4.78). Offen: Test mit der realen Klimaanlage, Negativfälle der Kopplung.
 
-## 5. CI- und Testnachweise
+## 5. CI- und Testnachweise (historisch, Stand vor 18.11.2026 abends)
 
-Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als Validierung der neuen Handshake-Integration ausgegeben werden:
+Aktuelle Nachweise stehen in den Abschnitten 1 und 2e–2j. Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als Validierung der neuen Handshake-Integration ausgegeben werden:
 
 - WLAN-Workflow **#202**, erfolgreich auf älterem Commit `ae1bdc03c78624ff640505b4bd255bfd885b05c5`.
 - WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
@@ -213,29 +192,27 @@ Workflows:
 - `.github/workflows/wlan-validation.yml`: Push-Trigger für `test`; nur `PROJECT_STATUS.md` und `app/src/debug/**` sind ausgeschlossen (Workflow-Änderungen bauen seit `695e9ab` neu). Zusätzlich `workflow_dispatch`; führt Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35 aus, prüft Manifest, Signatur und Test-Zertifikat und veröffentlicht die APK als Pre-Release `klimapilot-test-latest`.
 - `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; API-26-Emulator-/Instrumentierungstest. Seit Commit `2e6a817...` kein Push-Trigger mehr; nur `workflow_dispatch` ist konfiguriert. Reguläre Änderungen auf `test` lösen diesen Emulatorworkflow nicht mehr aus. Manuelle Auslösung bleibt aufgrund der Workflow-Datei nur auf `test` möglicherweise nicht über die GitHub-Oberfläche verfügbar. Der WLAN-Workflow bleibt der reguläre Prüfweg.
 
-## 6. Verbindliche Freigabesperren
+## 6. Verbindliche Regeln
 
-- Kein Merge von PR #6 und keine Änderung an `main` ohne ausdrückliche Freigabe.
-- Keine Produktionsversionserhöhung, kein Produktionsbuild und kein Release aus diesem WLAN-Arbeitsstrang.
-- Kein Profil-/Nutzdatentransfer über Peer-TCP vor vollständiger Nachrichten-/Payload-Härtung und erfolgreichem Zwei-Smartphone-Test.
-- Updater und Installationsablauf sind abgeschlossen und dürfen **niemals geändert** werden.
-- Bestehende ioBroker-Verbindung, WF-RAC-Steuerung und Produktionsfunktionen schützen.
+- Updater und Installationsablauf dürfen **niemals geändert** werden (siehe 2h; nur reine Layout-Änderungen nach ausdrücklichem Wunsch).
+- Neue Funktionen zuerst auf `test` mit der Testversion prüfen; Übernahme nach `main` auf Wunsch des Nutzers. Produktionsbuild nur über Push auf `main`.
+- Commits, die nur Dokumentation auf `main` ändern, mit `[skip ci]` kennzeichnen, damit kein Release entsteht.
+- Bestehende ioBroker-Verbindung, WF-RAC-Steuerung und Produktionsdaten schützen.
 
 ## 7. Produkt- und Hardwaregrenzen
 
 - Zielgerät: Mitsubishi Heavy SRK15ZS-WF.
-- Die Klimaanlage ist noch nicht installiert; reale Hardware-/Firmwarefunktionen sind daher nicht bestätigt.
+- Die Klimaanlage wird am 19.11.2026 in Betrieb genommen; reale Hardware-/Firmwarefunktionen sind bis dahin nicht bestätigt.
 - Adapter `mhi-wfrac` ist noch nicht eingerichtet und wird erst nach Installation der Klimaanlage verwendet.
 - SENEC/`energyfluss` nicht als Datenquelle einplanen.
 - Produktionsverbindung zu ioBroker: WebSocket `ws.0`, Port 8084; Alive-Prüfung über `system.adapter.admin.0.alive`.
 
 ## 8. Nächste Schritte
 
-1. Test-APK 0.4.69 (Pre-Release `klimapilot-test-latest`) auf beiden Smartphones installieren; bei alter Testinstallation einmalige Neuinstallation nach Datenprüfung.
-2. Zwei-Smartphone-Test des Ein-Scan-Pairings: erfolgreiche Kopplung mit beidseitiger Speicherung, Abbruch, Timeout, Verbindungsverlust während Antwort/ACK, ungültige/gefälschte/wiederholte Nachrichten, ungültiger WLAN-Endpunkt. Ein abgebrochener Ablauf darf nirgends als gekoppelt erscheinen.
-3. Nach bestandenem Gerätetest: Nachrichtenframing, Schema-/Größenvalidierung, Replay-/Duplikaterkennung und idempotente Wiederaufnahme für den Nutzdatentransfer spezifizieren.
-4. Regressionstests für den bestehenden ioBroker-Sync-Pfad ergänzen.
-5. Bis dahin bleibt Peer-Nutzdatentransfer gesperrt; kein Merge von PR #6 ohne Freigabe.
+1. Inbetriebnahme der Klimaanlage: auf dem Admin-Handy hinzufügen und WF-RAC koppeln; prüfen, dass sie auf dem zweiten Handy erscheint, von dort steuerbar ist und Änderungen nach ~10 s auf beiden Geräten sichtbar sind.
+2. Profilübertragung mit realer Anlage prüfen.
+3. Play-Protect-Einstufung klären (Updates müssen derzeit mit „Trotzdem installieren“ bestätigt werden).
+4. Optional: Negativfälle der Kopplung testen; gekoppelte Geräte in der Oberfläche entfernbar machen.
 
 ## 9. Dokumentationsstruktur und Pflege
 
@@ -243,7 +220,7 @@ Workflows:
 - `README.md`: kurze Projektbeschreibung, technische Basis, feste Grundregeln und Links. Keine zweite Statusübersicht.
 
 ### Einzige Statusquelle
-- `PROJECT_STATUS.md`: Produktivversion, Branches, Commits, PR, Builds, CI-Nachweise, aktueller Arbeitsstand, offene Gates und nächste Schritte.
+- `PROJECT_STATUS.md`: Produktivversion, Branches, Commits, Builds, CI-Nachweise, aktueller Arbeitsstand, Regeln und nächste Schritte.
 
 ### Technische Fachkonzepte
 - `DIRECT_WLAN_MIGRATION.md`: direkter WF-RAC-Kommunikationsweg und Hardwaretestanforderungen.

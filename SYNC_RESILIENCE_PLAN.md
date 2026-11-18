@@ -27,21 +27,14 @@ Profiländerungen sollen dauerhaft gespeichert, bei Verbindungsunterbrechungen n
 
 ## 4. Lokale Smartphone-Synchronisation – aktueller Stand
 
-Implementiert auf `test`:
-- Discovery per DNS-SD.
-- ECDSA-Installationsidentität im Android Keystore.
-- signierte QR-Einladung und Antwort, gegenseitige Bestätigung und Trusted-Peer-Speicher.
-- separater TCP-Handshake zur gegenseitigen Peer-Authentifizierung.
-- lokale WLAN-Adressauswahl und Lifecycle-Überwachung.
+Umgesetzt und seit 0.4.77 in Produktion:
+- Discovery per DNS-SD, ECDSA-Identität im Android Keystore, Ein-Scan-Kopplung mit signiertem ACK, Trusted-Peer-Speicher.
+- Gegenseitiger TCP-Handshake, danach Datenabgleich (`ClimatePeerDataSync`): Konten, Profilereignisse über `ClimateProfileSyncEngine`, Admin-Konfiguration, ioBroker-Adresse.
+- Peer-Ereignisprotokoll (`ClimatePeerEventLog`) hält das neueste Ereignis je Profil, auch aus ioBroker, damit Geräte ohne ioBroker vollständig abgleichen.
+- Automatischer Abgleich bei geöffneter App (beim Finden und alle 30 s).
+- Zwei-Geräte-Test am 18.11.2026 bestanden.
 
-Noch nicht umgesetzt:
-- Integration des TCP-Handshakes in den Discovery-Listener.
-- Nachrichtenframing und Nutzdatenprotokoll.
-- Peer-Transportanbindung an Outbox und `ClimateProfileSyncEngine`.
-- dauerhafte Empfangsbestätigung, Replay-/Duplikatbehandlung und Wiederaufnahme.
-- Zwei-Smartphone-Test.
-
-Discovery bleibt reject-only; es werden keine Profile über Peer-TCP übertragen.
+Noch offen: Praxistest der Fehlerfälle; Zusammenführung einzelner Konten bei gleichzeitigen Änderungen (derzeit gewinnt ein vollständiger Kontenstand).
 
 ## 5. Verbindliche Konflikt- und Wiederanlaufgrundsätze
 
@@ -71,4 +64,4 @@ Die nächsten Arbeitsschritte und ihre Freigabestatus werden ausschließlich in 
 
 ## 9. Produktionsschutz
 
-Alle lokalen Peer-Arbeiten bleiben auf `test`. PR #6 bleibt Draft. Kein Merge, keine Produktionsversionserhöhung und kein Release ohne ausdrückliche Freigabe. Updater und bestehende ioBroker-/WF-RAC-Funktionen bleiben unangetastet.
+Neue Peer-Funktionen werden auf `test` gebaut und mit der Testversion geprüft, bevor sie nach `main` gehen. Updater und bestehende ioBroker-/WF-RAC-Steuerung bleiben unangetastet.

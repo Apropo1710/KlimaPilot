@@ -7,7 +7,7 @@
 
 Zwei KlimaPilot-Installationen sollen nach bewusster gegenseitiger Kopplung Profile/Ereignisse lokal über WLAN austauschen können. Der Weg ist unabhängig von Cloud-Diensten und vom direkten WF-RAC-Steuerpfad.
 
-Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen Smartphones werden keine Profil- oder sonstigen App-Nutzdaten über den Peer-TCP-Weg übertragen.
+Seit 0.4.76/0.4.77 (18.11.2026) werden nach gegenseitiger Authentifizierung Konten, Profilereignisse, Admin-Konfiguration (Räume, Geräte, WF-RAC-Modulidentitäten) und die ioBroker-Adresse übertragen; siehe Abschnitt 6. Zwei-Geräte-Test bestanden, in Produktion seit 0.4.77.
 
 ## 2. Bestehende Synchronisationsbasis
 
@@ -16,7 +16,7 @@ Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen
 - Ereignisse enthalten Installations-/Gerätebezug, Sequenz und Logical Clock.
 - Der bestehende ioBroker-Sync-Client nutzt eine eigene WebSocket-Verbindung und prüft Authentifizierung sowie `system.adapter.admin.0.alive`.
 - `ClimateProfileSyncEngine` verarbeitet Remote-Ereignisse transportneutral mit Versionsvergleich, Gerätezuordnung und Fehlerisolation.
-- Diese Engine wird aktuell vom ioBroker-Sync-Pfad verwendet. Die lokale Peer-Verbindung ist noch nicht daran angeschlossen.
+- Diese Engine wird vom ioBroker-Sync-Pfad und vom Peer-Abgleich (`ClimatePeerDataSync`) verwendet.
 
 ## 3. Implementierter Peer-Aufbau
 
@@ -45,11 +45,10 @@ Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen
 
 - Der TCP-Port wird weiterhin über DNS-SD angekündigt; Discovery-Metadaten sind nur ein Locator und kein Vertrauensnachweis.
 - Eingehende Verbindungen durchlaufen den gegenseitigen `ClimatePeerTcp`-Handshake. Nur Peers, deren Schlüssel auf beiden Geräten im Trusted-Peer-Speicher liegen, können ihn abschließen.
-- Ein ausgehender Handshake wird ausschließlich durch eine ausdrückliche Nutzeraktion gestartet. Der Client-Socket wird über die `SocketFactory` des ausgewählten WLAN-Netzes erstellt, auch wenn Android Mobilfunk als Defaultnetz verwendet.
+- Ein ausgehender Handshake wird automatisch gestartet, sobald ein angekündigtes Gerät gefunden wird, und danach alle 30 s wiederholt (nur bei geöffneter App und mindestens einem gekoppelten Gerät). Der Client-Socket wird über die `SocketFactory` des ausgewählten WLAN-Netzes erstellt, auch wenn Android Mobilfunk als Defaultnetz verwendet.
 - Serverseitige Sessions sind auf 1–2 Worker mit vier wartenden Verbindungen begrenzt; clientseitig läuft ein Worker mit vier Wartenden. Überlast wird abgewiesen.
-- Verbindungen werden nach dem Handshake geschlossen. Stop/Cleanup schließt aktive Sockets und beendet die Session-Executor.
+- Nach dem Handshake folgt der Datenabgleich (Abschnitt 6), danach wird die Verbindung geschlossen. Stop/Cleanup schließt aktive Sockets und beendet die Session-Executor.
 - Socket-Erzeugung und Aufnahme in die aktive Socket-Verwaltung sind atomar gegen `close()` abgesichert. Liefert eine SocketFactory einen Socket erst nach Beginn des Stop-Vorgangs zurück, wird er unmittelbar geschlossen und nicht mehr verbunden. Ein gezielter Instrumentierungstest deckt dieses Race ab; die Ausführung auf dem aktuellen Stand steht noch aus.
-- Es werden weiterhin keine Profil-/Outbox- oder sonstigen App-Nutzdaten übertragen.
 
 ## 4. Identität und QR-Pairing
 
@@ -57,9 +56,9 @@ Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen
 - Peer-ID wird aus dem öffentlichen Schlüssel abgeleitet.
 - Signierte QR-Einladung mit 120 Sekunden Gültigkeit, Sitzungs-ID und Nonce.
 - Signierte Antwort bindet den Responder an Einladung, Sitzung und Nonce.
-- Beide Seiten müssen den Peer/Fingerprint explizit bestätigen.
+- Ein-Scan-Ablauf: Das zweite Gerät bestätigt mit „Koppeln“; die Fingerprint-Prüfung läuft im Hintergrund (keine Fingerprint-Anzeige in der Oberfläche).
 - Erst danach darf der Peer in den Trusted-Peer-Speicher übernommen werden.
-- Debug-Pairing ist von der produktiven Release-App getrennt (`de.klimapilot.app.debug`).
+- Kopplung ist in Produktions- und Testversion verfügbar; die beiden Apps haben getrennte Identitäten und müssen jeweils für sich gekoppelt werden.
 
 ## 5. TCP-Peer-Authentifizierung und Transportentscheidung
 
@@ -73,21 +72,18 @@ Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen
 
 TLS/mTLS wurde nach ausdrücklicher Nutzerentscheidung verworfen. TCP ist nicht transportverschlüsselt; andere Teilnehmer desselben WLANs können den Datenverkehr passiv mitlesen. Signaturen authentifizieren Peers und erschweren aktive Manipulation, ersetzen aber keine Verschlüsselung.
 
-**Implementierungsstand:** Der Handshake ist seit Code-Commit `3ea93c9...` mit Listener und explizitem Client-Verbindungsversuch verbunden. Die neue Integration ist noch nicht durch CI oder einen Zwei-Smartphone-Test bestätigt.
+**Implementierungsstand:** Handshake und anschließender Datenabgleich sind in Listener und automatischen Client-Abgleich integriert; Zwei-Geräte-Test am 18.11.2026 bestanden.
 
-## 6. Freigabegates vor Profiltransfer
+## 6. Datenabgleich nach der Authentifizierung (umgesetzt)
 
-Vor jeglicher Peer-Nutzdatenübertragung sind mindestens umzusetzen und zu prüfen:
-
-1. Die Handshake-Integration durch CI und reale Zwei-Smartphone-Tests absichern; Fehler-, Timeout-, Netzwechsel- und Stop-Pfade prüfen.
-2. Eindeutiges Nachrichtenframing und Protokollversion.
-3. Harte Obergrenzen für Frame-, Event- und Gesamtnachrichtengröße.
-4. Schema-, Typ-, Geräte- und Wertebereichsvalidierung.
-5. Replay-/Duplikaterkennung und sichere Wiederaufnahme nach Verbindungsabbruch.
-6. Bestätigung erst nach dauerhafter Übernahme empfangener Events.
-7. Schutz gegen parallele Sessions und sauberes Socket-/Callback-Cleanup ist implementiert; CI-/Geräteprüfung steht aus.
-8. Regressionstests für den bestehenden ioBroker-Sync-Pfad.
-9. Erfolgreiche Android-CI-Validierung und Praxistest mit zwei Smartphones.
+- Rahmen: Magic `KPSD`, 4-Byte-Länge, UTF-8-JSON, höchstens 4 MiB, Lese-Timeout 20 s, Protokollversion 1. Client sendet zuerst, Server antwortet; beide Seiten wenden den empfangenen Stand an.
+- Inhalt: Kontenliste; neuestes Profilereignis je (Gerätekennung, Profil) aus Outbox und Peer-Ereignisprotokoll (inkl. über ioBroker gelernter Ereignisse); Admin-Konfiguration mit Änderungszeit; ioBroker-Adresse.
+- Profilereignisse laufen durch `ClimateProfileSyncEngine` (Versionsvergleich, Gerätezuordnung über `syncDeviceKey`, Fehlerisolation); Wiederholungen sind idempotent.
+- Konten: höhere Revision gewinnt; bei gleicher Revision und anderem Inhalt entscheidet ein SHA-256-Digest, sodass beide Geräte gleich enden. Beschädigte lokale Daten werden nie überschrieben.
+- Konfiguration: neuere Änderungszeit gewinnt (nur Administratoren können Räume/Geräte ändern). WF-RAC-Modulidentitäten werden übernommen; jedes Handy registriert sich beim ersten Befehl selbst am Modul.
+- ioBroker-Adresse wird nur übernommen, wenn lokal keine gespeichert ist.
+- Grenzen: höchstens 20 000 Ereignisse je Abgleich; Transport unverschlüsselt (Nutzerentscheidung), Inhalte inkl. Passwort-Hashes sind im WLAN mitlesbar.
+- Bekannte Vereinfachung: Konflikte bei gleichzeitigen Kontoänderungen auf zwei Geräten werden ganz zugunsten eines Stands aufgelöst (keine Zusammenführung einzelner Konten).
 
 ## 7. Validierung
 

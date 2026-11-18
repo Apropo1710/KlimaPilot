@@ -8,8 +8,8 @@
 - Pairing verbindet zwei KlimaPilot-Installationen; es ist unabhängig vom WF-RAC-Pairing zur Klimaanlage.
 - Discovery ist kein Vertrauensnachweis.
 - QR-Pairing, TCP-Authentifizierung und Nutzdatentransfer sind getrennte Protokollstufen.
-- Kein Profil-/Outbox-Transfer über Peer-TCP, solange Handshake-Integration, Nachrichtenhärtung und Zwei-Smartphone-Test fehlen.
-- PR #6 bleibt Draft; kein Merge ohne ausdrückliche Freigabe.
+- Nutzdaten fließen erst nach erfolgreicher gegenseitiger Authentifizierung über dieselbe Verbindung (siehe `LOCAL_WIFI_SYNC_DESIGN.md`, Abschnitt 6).
+- PR #6 ist seit 18.11.2026 in `main` enthalten.
 
 ## 2. Identität
 
@@ -25,10 +25,10 @@
 - Enthält Protokollversion, Sitzungs-ID, Erstellungs-/Ablaufzeit, Peer-ID, öffentlichen Schlüssel, Fingerprint, Nonce und Signatur.
 - Antwort ist ebenfalls signiert und an Sitzungs-ID sowie Einladungs-Nonce gebunden.
 - Parser prüfen Payloadgröße, Version, Zeitfenster, Nonces, Schlüssel-/Fingerprint-Konsistenz und Signatur.
-- Beide Seiten bestätigen den Peer und Fingerprint ausdrücklich.
+- Ein-Scan-Ablauf: Einladender startet einen zeitlich begrenzten TCP-Rückkanal; das zweite Gerät bestätigt „Koppeln“, sendet die signierte Antwort, das Einladungsgerät speichert und schickt ein signiertes ACK; erst danach speichert das zweite Gerät. Fingerprints werden im Hintergrund geprüft, aber nicht angezeigt.
 - Erst nach der lokalen Bestätigung darf der Peer gespeichert werden.
 - Wiederverwendung bereits konsumierter Sitzungen wird abgelehnt.
-- Pairing-UI ist auf die Debug-App `de.klimapilot.app.debug` begrenzt.
+- Pairing-UI ist seit 0.4.76 auch in der Produktions-App vorhanden (ausklappbare Kachel „Geräte koppeln“).
 
 ## 4. Trusted-Peer-Speicher
 
@@ -72,28 +72,22 @@ Handshake-Merkmale:
 | Keystore-Identität | Implementiert |
 | Signierte QR-Einladung | Implementiert |
 | Signierte QR-Antwort | Implementiert |
-| Gegenseitige Nutzerbestätigung | Implementiert |
+| Ein-Scan-Kopplung mit signiertem ACK | Implementiert, Gerätetest bestanden |
 | Trusted-Peer-Speicher | Implementiert |
 | DNS-SD-Discovery | Implementiert |
 | WLAN-Interface-Bindung | Implementiert |
-| WLAN-/Defaultnetz-Lifecycle-Überwachung | Implementiert, aktuelle CI-Prüfung offen |
+| WLAN-/Defaultnetz-Lifecycle-Überwachung | Implementiert |
 | TCP-Peer-Handshake-Klasse | Implementiert, separat getestet auf älteren Ständen |
-| Handshake in Discovery-Listener integriert | Implementiert, CI-/Geräteprüfung offen |
-| Profil-/Outbox-Transfer über Peer-TCP | **Nicht umgesetzt** |
-| Zwei-Smartphone-Praxistest | **Nicht durchgeführt** |
+| Handshake in Discovery-Listener integriert | Implementiert, automatisch |
+| Konten-/Profil-/Konfigurationsabgleich über Peer-TCP | Implementiert (0.4.76/0.4.77) |
+| Zwei-Geräte-Praxistest | Kopplung und Abgleich bestanden (18.11.2026); Negativfälle offen |
 
-Discovery-Metadaten bleiben unverifiziert. Der angekündigte TCP-Port führt bei eingehenden Verbindungen den gegenseitigen Handshake aus; ein ausgehender Handshake erfolgt nur nach ausdrücklicher Nutzeraktion. Unbekannte/nicht vertraute Peers werden abgewiesen. Jede Verbindung wird nach dem Handshake geschlossen; es werden keine Nutzdaten übertragen.
+Discovery-Metadaten bleiben unverifiziert. Eingehende und automatisch ausgehende Verbindungen durchlaufen den gegenseitigen Handshake; unbekannte/nicht vertraute Peers werden abgewiesen. Nach erfolgreicher Authentifizierung folgt der Datenabgleich, danach wird die Verbindung geschlossen.
 
-## 8. Offene technische Anforderungen vor Nutzdaten
+## 8. Offene Punkte
 
-- Die integrierte Handshake-Stufe durch CI und Zwei-Smartphone-Test absichern; unautorisierte Verbindungen müssen weiterhin abgewiesen werden.
-- Framing mit Protokollversion, Nachrichtentyp und festen Größenobergrenzen definieren.
-- Schema-/Typ-/Wertebereichs- und Gerätezuordnungsvalidierung auf Empfängerseite.
-- Replay-/Duplikaterkennung und idempotente Wiederaufnahme.
-- Empfangsbestätigung erst nach dauerhafter Speicherung.
-- Fehler-/Timeout-/Abbruchpfade, parallele Verbindungen und Ressourcen-Cleanup durch CI und reale Geräte testen.
-- Bestehenden ioBroker-Transport und dessen Event-Engine regressionsprüfen.
-- Zwei reale Smartphones testen.
+- Praxistests der Negativfälle (Abbruch, Timeout, Verbindungsverlust während Antwort/ACK, wiederverwendeter oder manipulierter QR-Code).
+- Entfernen gekoppelter Geräte über die Oberfläche (Widerruf ist im Speicher vorhanden, aber nicht in der UI).
 
 ## 9. Validierung
 
