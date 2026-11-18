@@ -234,6 +234,23 @@ internal class KlimaPilotAccountRepository(context: Context) {
         prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
     }
 
+    /**
+     * Übernimmt eine vorhandene Registry nur in eine noch leere lokale Ersteinrichtung.
+     * Beschädigte oder bereits mit Konten belegte lokale Daten werden niemals überschrieben.
+     */
+    fun replaceEmptyWithImported(registry: KlimaPilotAccountRegistry): Boolean = synchronized(lock) {
+        if (registry.accounts.isEmpty()) return@synchronized false
+        when (val local = load()) {
+            KlimaPilotAccountLoadResult.Missing ->
+                prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
+            is KlimaPilotAccountLoadResult.Loaded -> {
+                if (local.registry.accounts.isNotEmpty() || local.registry.revision != 0L) return@synchronized false
+                prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
+            }
+            is KlimaPilotAccountLoadResult.Invalid -> false
+        }
+    }
+
     fun save(expectedRevision: Long, registry: KlimaPilotAccountRegistry, callback: (Boolean, String?) -> Unit) {
         val result = synchronized(lock) {
             when (val loaded = load()) {
@@ -265,6 +282,8 @@ internal fun KlimaPilotAccountLoginScreen(
     passwordConfirmation: String, onPasswordConfirmation: (String) -> Unit,
     displayName: String, onDisplayName: (String) -> Unit,
     loading: Boolean, status: String,
+    ioBrokerAddress: String, onIoBrokerAddress: (String) -> Unit,
+    onImportAccounts: () -> Unit,
     onReload: () -> Unit, onSubmit: () -> Unit
 ) {
     val setup = registry?.accounts?.isEmpty() == true
@@ -323,6 +342,31 @@ internal fun KlimaPilotAccountLoginScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(if (loading) "Bitte warten …" else if (setup) "Administrator erstellen" else "Anmelden")
+            }
+            if (setup) {
+                Spacer(Modifier.height(18.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(10.dp))
+                Text("Bereits vorhandenes Konto verwenden", fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Übernimm zuerst die bisherige Kontenliste aus deinem ioBroker. Danach kannst du dich mit deinem bestehenden Benutzerkonto anmelden.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+                )
+                OutlinedTextField(
+                    value = ioBrokerAddress,
+                    onValueChange = onIoBrokerAddress,
+                    label = { Text("ioBroker-WebSocket-Adresse") },
+                    placeholder = { Text("ws://192.168.178.54:8084") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedButton(
+                    onClick = onImportAccounts,
+                    enabled = !loading && ioBrokerAddress.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (loading) "Konten werden übernommen …" else "Vorhandene Konten übernehmen")
+                }
             }
         }
         if (status.isNotBlank()) {
