@@ -235,20 +235,27 @@ internal class KlimaPilotAccountRepository(context: Context) {
     }
 
     /**
-     * Übernimmt eine vorhandene Registry nur in eine noch leere lokale Ersteinrichtung.
-     * Beschädigte oder bereits mit Konten belegte lokale Daten werden niemals überschrieben.
+     * Übernimmt eine vorhandene ioBroker-Registry nur dann, wenn lokal noch keine
+     * Registry existiert oder die lokale Registry gültig und leer ist.
+     * Beschädigte oder bereits befüllte lokale Daten bleiben unangetastet.
      */
     fun replaceEmptyWithImported(registry: KlimaPilotAccountRegistry): Boolean = synchronized(lock) {
         if (registry.accounts.isEmpty()) return@synchronized false
-        when (val local = load()) {
-            KlimaPilotAccountLoadResult.Missing ->
-                prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
-            is KlimaPilotAccountLoadResult.Loaded -> {
-                if (local.registry.accounts.isNotEmpty() || local.registry.revision != 0L) return@synchronized false
-                prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
-            }
-            is KlimaPilotAccountLoadResult.Invalid -> false
+
+        if (!prefs.contains(LOCAL_STATE_KEY)) {
+            return@synchronized prefs.edit()
+                .putString(LOCAL_STATE_KEY, registry.toJson().toString())
+                .commit()
         }
+
+        val stored = prefs.all[LOCAL_STATE_KEY] as? String ?: return@synchronized false
+        val local = runCatching {
+            KlimaPilotAccountRegistry.fromJson(JSONObject(stored))
+        }.getOrNull() ?: return@synchronized false
+
+        if (local.accounts.isNotEmpty()) return@synchronized false
+
+        prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
     }
 
     fun save(expectedRevision: Long, registry: KlimaPilotAccountRegistry, callback: (Boolean, String?) -> Unit) {
