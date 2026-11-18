@@ -131,6 +131,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var multicastLock: WifiManager.MulticastLock? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var defaultNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var activeWifiNetwork: Network? = null
     private var activeWifiInterface: String? = null
     private var activeWifiAddress: InetAddress? = null
@@ -196,6 +197,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
             serverSocket = socket
             startRejectOnlyAcceptLoop(socket, run)
             registerWifiNetworkCallback(run)
+            registerDefaultNetworkCallback(run)
 
             val service = NsdServiceInfo().apply {
                 serviceName = ownServiceName
@@ -286,16 +288,8 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     private fun registerWifiNetworkCallback(run: Long) {
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                synchronized(this@ClimateProfilePeerDiscovery) {
-                    if (!isCurrent(run) || network == activeWifiNetwork) return
-                    val isWifi = connectivity.getNetworkCapabilities(network)
-                        ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-                    // Ignore additional Wi-Fi networks. Only abort when the newly
-                    // available Wi-Fi network actually becomes Android's default.
-                    if (isWifi && network == connectivity.activeNetwork) {
-                        fail(run, "Das aktive WLAN-Netzwerk hat gewechselt. Bitte die Suche erneut starten.")
-                    }
-                }
+                // This callback tracks all Wi-Fi networks, not Android's default route.
+                // Default-route changes are handled separately below.
             }
 
             override fun onLinkPropertiesChanged(network: Network, linkProperties: android.net.LinkProperties) {
@@ -326,6 +320,35 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
             .build()
         connectivity.registerNetworkCallback(request, callback, mainHandler)
+    }
+
+    /**
+     * A Wi-Fi network can remain available while Android changes its default route
+     * to another Wi-Fi network. A WIFI NetworkRequest callback does not reliably
+     * report that route transition, so monitor the default network independently.
+     * Mobile-data defaults are allowed while the selected Wi-Fi network remains up.
+     */
+    private fun registerDefaultNetworkCallback(run: Long) {
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                handleDefaultNetwork(run, network, connectivity.getNetworkCapabilities(network))
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                handleDefaultNetwork(run, network, networkCapabilities)
+            }
+        }
+        defaultNetworkCallback = callback
+        connectivity.registerDefaultNetworkCallback(callback, mainHandler)
+    }
+
+    private fun handleDefaultNetwork(run: Long, network: Network, capabilities: NetworkCapabilities?) {
+        synchronized(this@ClimateProfilePeerDiscovery) {
+            if (!isCurrent(run) || network == activeWifiNetwork) return
+            if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+                fail(run, "Das aktive WLAN-Netzwerk hat gewechselt. Bitte die Suche erneut starten.")
+            }
+        }
     }
 
     @Synchronized
@@ -458,6 +481,9 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         val callback = networkCallback
         networkCallback = null
         if (callback != null) runCatching { connectivity.unregisterNetworkCallback(callback) }
+        val defaultCallback = defaultNetworkCallback
+        defaultNetworkCallback = null
+        if (defaultCallback != null) runCatching { connectivity.unregisterNetworkCallback(defaultCallback) }
         activeWifiNetwork = null
         val discovery = discoveryListener
         discoveryListener = null
