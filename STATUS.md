@@ -4,13 +4,13 @@
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Produktionsbranch:** `main` – HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`  
 **Produktionsversion:** **0.4.64 / versionCode 94**  
-**Arbeitsbranch:** `test` – App-Code-/Test-Commits `4f35e1f` und `fc29e1f`; Statusdokumentation wird in den nachfolgenden Commits ergänzt.
+**Arbeitsbranch:** `test` – App-Code-/Test-Commits `4f35e1f` und `d91b00b`; Statusdokumentation wird in den nachfolgenden Commits ergänzt.
 
 ### Neuester Arbeitsstand – WLAN-Callback und IPv6-Scope (18.11.2026, 07:41 Uhr MEZ)
 
 - Discovery wählt weiterhin ein lokales WLAN und bindet den Listener explizit an dessen lokale Adresse. Öffentliche IP-Adressen werden ausgeschlossen.
 - Ein zusätzlich verfügbares WLAN beendet die laufende Suche nicht mehr pauschal. Abbruch erfolgt bei einem neu verfügbaren WLAN nur dann, wenn es zugleich Androids aktives Standardnetz wird. Verlust oder Adresswechsel des ursprünglich ausgewählten WLANs bleiben fail-closed.
-- IPv6-Link-Local-Adressen werden mit Interface-Scope gebunden. Die Scope-Erzeugung ist separat kapselt und der Test ruft den vollständigen Selector auf.
+- IPv6-Link-Local-Adressen werden mit Interface-Scope gebunden. Die Scope-Erzeugung ist separat gekapselt und der Test ruft den vollständigen Selector auf.
 - Sieben JVM-Testfälle sind in der Adressauswahl-Testdatei vorhanden. **Sie sind für den aktuellen Stand noch nicht ausgeführt/bestätigt.**
 - App-Code-Commit: `4f35e1feb60e0f46eac360fee51a58d024bfc6bb`; Test-Commit: `d91b00b8c4c20535b97795e5db7fc54a735a5fad`. Anschließende Dokumentationscommits halten diesen Stand fest.
 - CI/Unit-Tests/Android-Build/Emulator für diese Commits nicht bestätigt. Discovery bleibt reject-only; keine Handshake-Integration und keine Profilübertragung.
