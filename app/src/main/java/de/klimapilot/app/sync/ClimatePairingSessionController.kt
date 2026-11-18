@@ -97,21 +97,19 @@ internal class ClimatePairingSessionController(
      */
     @Synchronized
     fun acknowledgeIncomingInvitation(
-        sessionId: String,
-        inviterPeerId: String,
+        acknowledgementPayload: String,
         nowMillis: Long = System.currentTimeMillis()
     ): ClimateTrustedPeerStore.TrustedPeer {
         val invitation = incomingInvitation
             ?: throw IllegalStateException("Keine aktive eingehende Pairing-Sitzung.")
         val response = pendingIncomingResponse
             ?: throw IllegalStateException("Es liegt keine bestätigte Pairing-Antwort vor.")
-        check(sessionId == invitation.sessionId && sessionId == response.sessionId) {
-            "Die Speicherbestätigung gehört zu einer anderen Sitzung."
-        }
-        check(inviterPeerId == invitation.peerId && inviterPeerId == response.invitationPeerId) {
-            "Die Speicherbestätigung stammt nicht vom Einladungsgerät."
-        }
-        check(nowMillis <= invitation.expiresAtMillis) { "Die Pairing-Einladung ist abgelaufen." }
+        val acknowledgement = ClimatePairingAcknowledgement.parseAndVerify(
+            acknowledgementPayload, invitation, response, nowMillis
+        ) ?: throw IllegalArgumentException("Die signierte Speicherbestätigung ist ungültig oder abgelaufen.")
+        check(acknowledgement.inviterPeerId == invitation.peerId &&
+            acknowledgement.responderPeerId == localPeerId
+        ) { "Die Speicherbestätigung gehört nicht zu diesen Geräten." }
         val name = pendingIncomingDisplayName
             ?: throw IllegalStateException("Der Gerätename für die Speicherung fehlt.")
         val trusted = trustedPeerStore.trustPeer(invitation.publicKeyBase64, name)
