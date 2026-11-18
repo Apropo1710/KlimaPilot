@@ -18,11 +18,19 @@ android {
     }
 
     signingConfigs {
-        create("testDebug") {
-            storeFile = file("klimapilot-test-debug.keystore")
-            storePassword = "klimapilot-test-only"
-            keyAlias = "klimapilot-test"
-            keyPassword = "klimapilot-test-only"
+        // Stable test signature for debug builds. The private key is never committed:
+        // CI decodes it from the KLIMAPILOT_TEST_* GitHub Actions secrets into RUNNER_TEMP.
+        // Without these variables (local builds) the default Android debug key is used;
+        // the CI fingerprint check rejects such APKs.
+        val testKeystorePath = System.getenv("KLIMAPILOT_TEST_KEYSTORE_PATH")
+        if (!testKeystorePath.isNullOrBlank()) {
+            create("testDebug") {
+                storeFile = file(testKeystorePath)
+                storeType = "PKCS12"
+                storePassword = System.getenv("KLIMAPILOT_TEST_STORE_PASSWORD")
+                keyAlias = System.getenv("KLIMAPILOT_TEST_KEY_ALIAS")
+                keyPassword = System.getenv("KLIMAPILOT_TEST_KEY_PASSWORD")
+            }
         }
         create("release") {
             storeFile = file(System.getenv("KLIMAPILOT_KEYSTORE_PATH") ?: "release.keystore")
@@ -39,7 +47,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            signingConfig = signingConfigs.getByName("testDebug")
+            signingConfigs.findByName("testDebug")?.let { signingConfig = it }
         }
     }
     compileOptions {
