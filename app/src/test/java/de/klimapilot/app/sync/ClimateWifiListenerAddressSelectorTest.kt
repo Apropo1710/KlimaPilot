@@ -3,6 +3,7 @@ package de.klimapilot.app.sync
 import java.net.InetAddress
 import java.net.Inet6Address
 import java.net.NetworkInterface
+import org.junit.Assume.assumeNotNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -60,14 +61,25 @@ class ClimateWifiListenerAddressSelectorTest {
     }
     @Test
     fun scopesIpv6LinkLocalAddressToTheSelectedInterface() {
-        val loopback = NetworkInterface.getByName("lo")
-        org.junit.Assert.assertNotNull("Linux test runner must expose loopback", loopback)
-        val address = InetAddress.getByName("fe80::1234") as Inet6Address
+        val interfaceAndAddress = NetworkInterface.getNetworkInterfaces().toList()
+            .asSequence()
+            .filter { runCatching { it.isUp }.getOrDefault(false) }
+            .mapNotNull { networkInterface ->
+                val linkLocal = networkInterface.inetAddresses.toList()
+                    .filterIsInstance<Inet6Address>()
+                    .firstOrNull { it.isLinkLocalAddress }
+                linkLocal?.let { networkInterface to it }
+            }
+            .firstOrNull()
+        assumeNotNull("Test runner needs an interface with an assigned IPv6 link-local address", interfaceAndAddress)
+        val (networkInterface, address) = interfaceAndAddress!!
 
-        val scoped = ClimateWifiListenerAddressSelector.select("lo", listOf(address)) as? Inet6Address
+        val scoped = ClimateWifiListenerAddressSelector.select(
+            networkInterface.name, listOf(address)
+        ) as? Inet6Address
 
         org.junit.Assert.assertNotNull(scoped)
-        assertEquals("lo", scoped?.scopedInterface?.name)
+        assertEquals(networkInterface.name, scoped?.scopedInterface?.name)
         org.junit.Assert.assertTrue((scoped?.scopeId ?: 0) > 0)
     }
 
