@@ -25,8 +25,8 @@ internal class ClimatePairingInvitation(
         val publicKeyBase64: String,
         val fingerprint: String,
         val nonceBase64: String,
-        val pairingHost: String,
-        val pairingPort: Int,
+        val pairingHost: String = "192.168.1.10",
+        val pairingPort: Int = 43210,
         val signatureBase64: String
     ) {
         fun toQrPayload(): String = JSONObject()
@@ -57,6 +57,9 @@ internal class ClimatePairingInvitation(
             pairingPort.toString()
         ).joinToString("\n").toByteArray(StandardCharsets.UTF_8)
     }
+
+    fun create(nowMillis: Long = System.currentTimeMillis()): Invitation =
+        throw IllegalStateException("Für eine Einladung muss zuerst der lokale WLAN-Rückkanal gestartet werden.")
 
     fun create(
         pairingHost: String,
