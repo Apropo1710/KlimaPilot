@@ -22,7 +22,22 @@ internal class ClimatePeerTcpConnectionManager(
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
 ) : AutoCloseable {
     private val closed = AtomicBoolean(false)
+    private val socketLock = Any()
     private val activeSockets = ConcurrentHashMap.newKeySet<Socket>()
+
+    /**
+     * Registers a socket atomically against close(). If shutdown already started,
+     * the newly created socket is closed here and must not be connected or used.
+     */
+    private fun trackSocket(socket: Socket): Boolean = synchronized(socketLock) {
+        if (closed.get()) {
+            runCatching { socket.close() }
+            false
+        } else {
+            activeSockets.add(socket)
+            true
+        }
+    }
     private val serverExecutor = ThreadPoolExecutor(
         1, 2, 30L, TimeUnit.SECONDS, ArrayBlockingQueue(4),
         { task -> Thread(task, "KlimaPilot-Peer-Auth-Server").apply { isDaemon = true } },
@@ -35,11 +50,7 @@ internal class ClimatePeerTcpConnectionManager(
     )
 
     fun acceptIncoming(socket: Socket, onAuthenticated: () -> Unit): Boolean {
-        if (closed.get()) {
-            runCatching { socket.close() }
-            return false
-        }
-        activeSockets.add(socket)
+        if (!trackSocket(socket)) return false
         return try {
             serverExecutor.execute {
                 var authenticated = false
@@ -78,7 +89,7 @@ internal class ClimatePeerTcpConnectionManager(
                 try {
                     val connectedSocket = socketFactory.createSocket()
                     socket = connectedSocket
-                    activeSockets.add(connectedSocket)
+                    if (!trackSocket(connectedSocket)) return@execute
                     connectedSocket.connect(InetSocketAddress(peer.hostAddress, peer.port), CONNECT_TIMEOUT_MS)
                     ClimatePeerTcp.authenticateAsClient(connectedSocket, identityStore, trustedPeers)
                     success = true
@@ -103,8 +114,10 @@ internal class ClimatePeerTcpConnectionManager(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
-        activeSockets.toList().forEach { runCatching { it.close() } }
-        activeSockets.clear()
+        val socketsToClose = synchronized(socketLock) {
+            activeSockets.toList().also { activeSockets.clear() }
+        }
+        socketsToClose.forEach { runCatching { it.close() } }
         serverExecutor.shutdownNow()
         clientExecutor.shutdownNow()
     }
