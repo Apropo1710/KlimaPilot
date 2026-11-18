@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 11:05 Uhr MEZ  
+**Letzter Abgleich:** 18.11.2026, 11:12 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -16,7 +16,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD: `17a1dff9c5d11727a1023277c888ca699bea97bb` (TCP-Session-Cleanup-Fix).
+- Aktueller `test`-HEAD: `84a555d0d226c4505d0136ad0b208b5197bbdf67` (Server-Callback erfolgt erst nach Socket-Cleanup).
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
@@ -26,7 +26,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 ## 3. Letzte Codeänderung
 
 Code-/Integrations-Commit: `3ea93c97a7db0de2a5c287d6666713e40af76cf7`  
-Aktueller Cleanup-Fix: `17a1dff9c5d11727a1023277c888ca699bea97bb`  
+Aktueller Cleanup-Fix: `84a555d0d226c4505d0136ad0b208b5197bbdf67`  
 Betroffene Dateien: `ClimateProfilePeerDiscovery.kt`, `ClimatePeerTcpConnectionManager.kt`, `MainActivity.kt` und `ClimatePeerTcpCompatibilityTest.kt`.
 
 - Zusätzlich zum WLAN-spezifischen `registerNetworkCallback` wird `registerDefaultNetworkCallback` verwendet.
@@ -65,7 +65,7 @@ Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als 
 - WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
 - Separater TCP-Emulatorlauf **#62**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26.
 - WLAN-Workflow **#203**, erfolgreich per `workflow_dispatch` auf `test` mit Commit `1a1d9df06492b45b89d537ac2844d76c789280a6`: `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin` erfolgreich. Damit sind die elf Netzwerk-Policy-Tests auf diesem Stand über Gradle/JUnit ausgeführt.
-- Für die neue Handshake-Integration (`3ea93c9...` bis `17a1dff...`) liegt derzeit kein Actions-Run und kein Check-Run vor. Die CI-Validierung der neuen Integration ist daher **offen**.
+- Für die neue Handshake-Integration (`3ea93c9...` bis `84a555d...`) liegt derzeit kein Actions-Run und kein Check-Run vor. Die CI-Validierung der neuen Integration ist daher **offen**.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
 - TCP-Emulatorlauf **#63**, Commit `725fe3109aa4712abda0a4f500cb6433c8a49e19` (Workflow-only-Abzweig vom identischen App-/Teststand `1a1d9df...`): API 26 erfolgreich; Gradle-Build erfolgreich und Instrumentierungstests **3/3 bestanden**. API 35 im selben Lauf fehlgeschlagen, weil der Emulator/Package-Manager nicht rechtzeitig verfügbar war; keine bestandenen API-35-App-Tests.
 - Optionale API-35-Wiederholungen #66, #67 und #68 fehlgeschlagen; #64 und #65 wurden während der Workflow-Konfigurationskorrektur abgebrochen. Lauf #68 enthielt zusätzliche KVM-Berechtigungs- und Emulator-Readiness-Prüfungen, endete aber weiterhin mit Fehler im API-35-Job. API 35 bleibt ausdrücklich optional und ist kein Freigabekriterium. Keine weiteren API-35-Wiederholungen, solange kein konkreter neuer technischer Ansatz vorliegt.
