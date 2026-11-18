@@ -46,7 +46,10 @@ class ClimatePairingResponseTest {
         val unsigned = ClimatePairingInvitation.Invitation(
             "a1".repeat(16), now, now + 120_000L, peerId, key,
             peerId.chunked(4).joinToString(":"),
-            Base64.encodeToString(ByteArray(32) { it.toByte() }, Base64.NO_WRAP), ""
+            Base64.encodeToString(ByteArray(32) { it.toByte() }, Base64.NO_WRAP),
+            pairingHost = "192.168.1.10",
+            pairingPort = 43210,
+            signatureBase64 = ""
         )
         val signature = sign(pair, unsigned.signingBytes())
         return unsigned.copy(signatureBase64 = Base64.encodeToString(signature, Base64.NO_WRAP))
