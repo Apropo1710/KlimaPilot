@@ -1,7 +1,16 @@
 name: KlimaPilot Local TCP Peer Authentication
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - test
+    paths:
+      - 'app/src/**'
+      - 'app/build.gradle.kts'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - '.github/workflows/pairing-tls-validation.yml'
 
 permissions:
   contents: read
