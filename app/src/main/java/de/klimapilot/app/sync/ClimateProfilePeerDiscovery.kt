@@ -11,9 +11,12 @@ import android.net.wifi.WifiManager
 import android.os.Handler
 import android.os.Looper
 import java.io.IOException
+import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
+import java.net.InetSocketAddress
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.UUID
@@ -84,6 +87,31 @@ internal object ClimatePeerAnnouncement {
  * The announced TCP socket accepts connections only to close them immediately.
  * The owner must call stop() when the visible diagnostic surface is left or the app stops.
  */
+/**
+ * Selects one address that belongs to the active Wi-Fi link. IPv4 is preferred
+ * for broad home-router compatibility; IPv6 is used when no usable IPv4 address
+ * exists. Link-local IPv6 addresses are scoped to the Wi-Fi interface before bind.
+ */
+internal object ClimateWifiListenerAddressSelector {
+    fun select(interfaceName: String?, addresses: List<InetAddress>): InetAddress? {
+        if (interfaceName.isNullOrBlank()) return null
+        val usable = addresses.filterNot {
+            it.isAnyLocalAddress || it.isLoopbackAddress || it.isMulticastAddress
+        }
+        val ipv4 = usable.filterIsInstance<Inet4Address>()
+        if (ipv4.isNotEmpty()) return ipv4.firstOrNull { it.isSiteLocalAddress } ?: ipv4.first()
+
+        val ipv6 = usable.filterIsInstance<Inet6Address>()
+        ipv6.firstOrNull { (it.address[0].toInt() and 0xfe) == 0xfc }?.let { return it }
+        ipv6.firstOrNull { !it.isLinkLocalAddress }?.let { return it }
+
+        val linkLocal = ipv6.firstOrNull { it.isLinkLocalAddress } ?: return null
+        val networkInterface = runCatching { NetworkInterface.getByName(interfaceName) }.getOrNull()
+            ?: return null
+        return runCatching { Inet6Address.getByAddress(null, linkLocal.address, networkInterface) }.getOrNull()
+    }
+}
+
 internal class ClimateProfilePeerDiscovery(context: Context) {
     private val appContext = context.applicationContext
     private val nsd = appContext.getSystemService(Context.NSD_SERVICE) as NsdManager
@@ -97,6 +125,8 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     private var multicastLock: WifiManager.MulticastLock? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var activeWifiNetwork: Network? = null
+    private var activeWifiInterface: String? = null
+    private var activeWifiAddress: InetAddress? = null
     private var serverSocket: ServerSocket? = null
     private var acceptThread: Thread? = null
     private var ownServiceName: String? = null
@@ -138,7 +168,28 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                 setReferenceCounted(false)
                 acquire()
             }
-            val socket = ServerSocket(0).apply { soTimeout = 1000 }
+            val wifiNetwork = connectivity.activeNetwork
+                ?: throw IOException("Es ist kein aktives WLAN-Netzwerk verfügbar.")
+            if (connectivity.getNetworkCapabilities(wifiNetwork)
+                    ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true) {
+                throw IOException("Für die Gerätesuche muss WLAN aktiv sein.")
+            }
+            val linkProperties = connectivity.getLinkProperties(wifiNetwork)
+                ?: throw IOException("Die WLAN-Netzwerkeigenschaften sind noch nicht verfügbar.")
+            val interfaceName = linkProperties.interfaceName
+                ?: throw IOException("Das WLAN-Interface konnte nicht ermittelt werden.")
+            val hostAddress = ClimateWifiListenerAddressSelector.select(
+                interfaceName, linkProperties.linkAddresses.map { it.address }
+            ) ?: throw IOException("Das WLAN-Interface besitzt keine geeignete IPv4- oder IPv6-Adresse.")
+
+            activeWifiNetwork = wifiNetwork
+            activeWifiInterface = interfaceName
+            activeWifiAddress = hostAddress
+
+            val socket = ServerSocket().apply {
+                bind(InetSocketAddress(hostAddress, 0), 4)
+                soTimeout = 1000
+            }
             serverSocket = socket
             startRejectOnlyAcceptLoop(socket, run)
             registerWifiNetworkCallback(run)
@@ -146,6 +197,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
             val service = NsdServiceInfo().apply {
                 serviceName = ownServiceName
                 serviceType = KLIMAPILOT_PEER_SERVICE_TYPE
+                host = hostAddress
                 port = socket.localPort
                 setAttribute(TXT_PROTOCOL_VERSION, PEER_PROTOCOL_MAJOR)
                 setAttribute(TXT_DISCOVERY_ID, ownDiscoveryId)
@@ -211,19 +263,30 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     }
 
     private fun registerWifiNetworkCallback(run: Long) {
-        val current = connectivity.activeNetwork
-        activeWifiNetwork = current?.takeIf {
-            connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        }
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 synchronized(this@ClimateProfilePeerDiscovery) {
-                    if (!isCurrent(run)) return
-                    val previous = activeWifiNetwork
-                    if (previous == null) {
-                        activeWifiNetwork = network
-                    } else if (previous != network) {
+                    if (!isCurrent(run) || network == activeWifiNetwork) return
+                    val isCurrentWifi = connectivity.activeNetwork == network &&
+                        connectivity.getNetworkCapabilities(network)
+                            ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+                    if (isCurrentWifi) {
                         fail(run, "Das WLAN-Netzwerk hat gewechselt. Bitte die Suche erneut starten.")
+                    }
+                }
+            }
+
+            override fun onLinkPropertiesChanged(network: Network, linkProperties: android.net.LinkProperties) {
+                synchronized(this@ClimateProfilePeerDiscovery) {
+                    if (!isCurrent(run) || network != activeWifiNetwork) return
+                    val interfaceName = linkProperties.interfaceName
+                    val hostAddress = interfaceName?.let {
+                        ClimateWifiListenerAddressSelector.select(
+                            it, linkProperties.linkAddresses.map { linkAddress -> linkAddress.address }
+                        )
+                    }
+                    if (interfaceName != activeWifiInterface || hostAddress != activeWifiAddress) {
+                        fail(run, "Die WLAN-Adresse hat sich geändert. Bitte die Suche erneut starten.")
                     }
                 }
             }
@@ -380,9 +443,21 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         val registration = registrationListener
         registrationListener = null
         if (registration != null) runCatching { nsd.unregisterService(registration) }
-        runCatching { serverSocket?.close() }
+        val listener = serverSocket
         serverSocket = null
+        runCatching { listener?.close() }
+        val listenerThread = acceptThread
         acceptThread = null
+        listenerThread?.interrupt()
+        if (listenerThread != null && listenerThread !== Thread.currentThread()) {
+            try {
+                listenerThread.join(1000)
+            } catch (interrupted: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+        activeWifiInterface = null
+        activeWifiAddress = null
         pending.clear()
         seenNames.clear()
         resolveRetries.clear()

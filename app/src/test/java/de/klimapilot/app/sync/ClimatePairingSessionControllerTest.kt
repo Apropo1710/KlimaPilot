@@ -22,7 +22,8 @@ import java.security.spec.ECGenParameterSpec
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ClimatePairingSessionControllerTest {
-    private lateinit var store: ClimateTrustedPeerStore
+    private lateinit var storeA: ClimateTrustedPeerStore
+    private lateinit var storeB: ClimateTrustedPeerStore
     private lateinit var pairA: KeyPair
     private lateinit var pairB: KeyPair
     private lateinit var controllerA: ClimatePairingSessionController
@@ -31,13 +32,16 @@ class ClimatePairingSessionControllerTest {
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        context.getSharedPreferences("klimapilot_trusted_peers_v1", Context.MODE_PRIVATE)
+        context.getSharedPreferences("klimapilot_test_peers_a", Context.MODE_PRIVATE)
             .edit().clear().commit()
-        store = ClimateTrustedPeerStore(context)
+        context.getSharedPreferences("klimapilot_test_peers_b", Context.MODE_PRIVATE)
+            .edit().clear().commit()
+        storeA = ClimateTrustedPeerStore(context, "klimapilot_test_peers_a")
+        storeB = ClimateTrustedPeerStore(context, "klimapilot_test_peers_b")
         pairA = newPair()
         pairB = newPair()
-        controllerA = controller(pairA, "A")
-        controllerB = controller(pairB, "B")
+        controllerA = controller(pairA, "A", storeA)
+        controllerB = controller(pairB, "B", storeB)
     }
 
     @Test
@@ -47,20 +51,23 @@ class ClimatePairingSessionControllerTest {
 
         val reviewA = controllerB.prepareIncomingInvitation(invitationPayload, now)
         assertNotNull(reviewA)
-        assertTrue(store.trustedPeers().isEmpty())
+        assertTrue(storeA.trustedPeers().isEmpty())
+        assertTrue(storeB.trustedPeers().isEmpty())
 
         val responsePayload = controllerB.confirmIncomingInvitation(
             reviewA!!, "Telefon A", now + 1
         )
-        assertEquals(peerId(pairA), store.trustedPeers().single().peerId)
+        assertEquals(peerId(pairA), storeB.trustedPeers().single().peerId)
+        assertTrue(storeA.trustedPeers().isEmpty())
 
         val reviewB = controllerA.prepareOutgoingResponse(responsePayload, now + 2)
         assertNotNull(reviewB)
-        assertEquals(1, store.trustedPeers().size)
+        assertTrue(storeA.trustedPeers().isEmpty())
 
         val trustedB = controllerA.confirmOutgoingResponse(reviewB!!, "Telefon B", now + 3)
         assertEquals(peerId(pairB), trustedB.peerId)
-        assertEquals(setOf(peerId(pairA), peerId(pairB)), store.trustedPeers().map { it.peerId }.toSet())
+        assertEquals(setOf(peerId(pairA)), storeB.trustedPeers().map { it.peerId }.toSet())
+        assertEquals(setOf(peerId(pairB)), storeA.trustedPeers().map { it.peerId }.toSet())
 
         assertNull(controllerA.prepareOutgoingResponse(responsePayload, now + 4))
         assertNull(controllerB.prepareIncomingInvitation(invitationPayload, now + 4))
@@ -74,13 +81,13 @@ class ClimatePairingSessionControllerTest {
         val pending = controllerB.prepareIncomingInvitation(invitationPayload, now)
         assertNotNull(pending)
         controllerB.cancel()
-        assertTrue(store.trustedPeers().isEmpty())
+        assertTrue(storeA.trustedPeers().isEmpty() && storeB.trustedPeers().isEmpty())
         assertNull(controllerB.prepareIncomingInvitation(invitationPayload, now + 2))
 
         controllerA.cancel()
         val expiringInvitation = controllerA.createOutgoingInvitation(now + 10)
         assertNull(controllerB.prepareIncomingInvitation(expiringInvitation, now + 130_011))
-        assertFalse(store.isTrusted(peerId(pairA), publicKey(pairA)))
+        assertFalse(storeB.isTrusted(peerId(pairA), publicKey(pairA)))
     }
 
     @Test
@@ -97,10 +104,10 @@ class ClimatePairingSessionControllerTest {
         assertFalse(runCatching {
             controllerB.confirmIncomingInvitation(pending, "Fremd", now + 11)
         }.isSuccess)
-        assertTrue(store.trustedPeers().isEmpty())
+        assertTrue(storeA.trustedPeers().isEmpty() && storeB.trustedPeers().isEmpty())
     }
 
-    private fun controller(pair: KeyPair, label: String) =
+    private fun controller(pair: KeyPair, label: String, store: ClimateTrustedPeerStore) =
         ClimatePairingSessionController(
             localPeerId = peerId(pair),
             trustedPeerStore = store,
