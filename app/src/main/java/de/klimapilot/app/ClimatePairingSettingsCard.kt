@@ -135,6 +135,7 @@ internal fun ClimatePairingSettingsCard() {
                     busy = false
                     qrPayload = null
                     status = "Gerät erfolgreich gekoppelt. Die signierte Speicherbestätigung wurde übertragen."
+                PeerSyncSignals.pairingRevision++
                     closeListener()
                 } catch (error: Exception) {
                     busy = false
@@ -210,6 +211,7 @@ internal fun ClimatePairingSettingsCard() {
                 pending = null
                 busy = false
                 status = "Gerät erfolgreich gekoppelt. Die signierte Speicherbestätigung wurde geprüft."
+                PeerSyncSignals.pairingRevision++
             } catch (error: Exception) {
                 getController().cancel()
                 pending = null

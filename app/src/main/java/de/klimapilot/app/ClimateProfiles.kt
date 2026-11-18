@@ -323,7 +323,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(context) { ClimateProfileRepository(context) }
     val syncStore = remember(context) { ClimateProfileSyncStore(context) }
-    val syncClient = remember { ClimateProfileSyncClient() }
+    val syncClient = remember(context) { ClimateProfileSyncClient(ClimatePeerEventLog(context)) }
     val settingsPrefs = remember(context) { context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE) }
     var syncRevision by remember { mutableIntStateOf(0) }
     val profiles = remember { mutableStateListOf<ClimateProfile>() }
@@ -375,7 +375,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         if (syncDeviceKey.isNotBlank()) syncRevision++
         return null
     }
-    LaunchedEffect(repository) {
+    LaunchedEffect(repository, PeerSyncSignals.dataRevision) {
+        if (PeerSyncSignals.dataRevision > 0) selectedProfileId = syncStore.activeProfileId(deviceId)
         runCatching { repository.load() }
             .onSuccess { profiles.clear(); profiles.addAll(it); loadSucceeded = true; loaded = true }
             .onFailure { loadSucceeded = false; status = it.message ?: "Klimaprofile konnten nicht geladen werden."; loaded = true }

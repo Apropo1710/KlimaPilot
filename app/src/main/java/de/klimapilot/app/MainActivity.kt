@@ -554,6 +554,17 @@ private fun KlimaPilotApp(appVersion: String) {
     }
 
     LaunchedEffect(Unit) { loadAccounts() }
+    ClimatePeerAutoSync(enabled = accountAuthenticated && currentAccount != null)
+    LaunchedEffect(PeerSyncSignals.dataRevision) {
+        if (PeerSyncSignals.dataRevision == 0) return@LaunchedEffect
+        val loaded = accountRepository.load() as? KlimaPilotAccountLoadResult.Loaded ?: return@LaunchedEffect
+        accountRegistry = loaded.registry
+        currentAccount?.let { account ->
+            val updated = loaded.registry.find(account.username)
+            if (updated != null) currentAccount = updated
+            else { currentAccount = null; accountAuthenticated = false }
+        }
+    }
 
     BackHandler(enabled = !accountAuthenticated) { }
     BackHandler(enabled = accountAuthenticated && (showSettings || showManager || showProfileManager || showAccountSettings)) {
@@ -1414,31 +1425,6 @@ private fun SettingsScreen(
     var fontSizeExpanded by remember { mutableStateOf(false) }
     var ioBrokerExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val peerDiscovery = remember(context) { ClimateProfilePeerDiscovery(context) }
-    val lifecycleOwner = context as? LifecycleOwner
-    var peerScanning by remember { mutableStateOf(false) }
-    var peerScanMessage by remember { mutableStateOf("Noch keine lokale WLAN-Suche gestartet.") }
-    val discoveredPeers = remember { mutableStateMapOf<String, UnverifiedClimatePeer>() }
-    val authenticatingPeers = remember { mutableStateMapOf<String, Boolean>() }
-    DisposableEffect(peerDiscovery, lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                peerDiscovery.stop()
-                peerScanning = false
-                discoveredPeers.clear()
-                authenticatingPeers.clear()
-                peerScanMessage = "WLAN-Suche wegen App-Hintergrund beendet."
-            }
-        }
-        lifecycleOwner?.lifecycle?.addObserver(observer)
-        onDispose {
-            lifecycleOwner?.lifecycle?.removeObserver(observer)
-            peerDiscovery.stop()
-            peerScanning = false
-            discoveredPeers.clear()
-            authenticatingPeers.clear()
-        }
-    }
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
             .background(AppBg)
@@ -1543,76 +1529,7 @@ private fun SettingsScreen(
                 )
             }
         }
-        if (BuildConfig.DEBUG) {
-            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
-                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text("Lokales WLAN", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("Sucht nach anderen KlimaPilot-Geräten im selben Netzwerk. Gefundene Geräte sind zunächst nicht vertrauenswürdig.", color = Muted, fontSize = 11.sp)
-                    Button(
-                        onClick = {
-                            if (peerScanning) {
-                                peerDiscovery.stop()
-                                peerScanning = false
-                                discoveredPeers.clear()
-                                authenticatingPeers.clear()
-                                peerScanMessage = "WLAN-Suche beendet."
-                            } else {
-                                discoveredPeers.clear()
-                                peerScanMessage = "Suche im lokalen WLAN …"
-                                peerScanning = true
-                                val started = peerDiscovery.start(
-                                    onPeerFound = { peer ->
-                                        discoveredPeers[peer.instanceName] = peer
-                                        peerScanMessage = "Unbestätigte Dienstankündigung gefunden."
-                                    },
-                                    onPeerLost = { instanceName ->
-                                        discoveredPeers.remove(instanceName)
-                                    },
-                                    onError = { message ->
-                                        peerScanning = false
-                                        discoveredPeers.clear()
-                                        authenticatingPeers.clear()
-                                        peerScanMessage = message
-                                    },
-                                    onPeerAuthenticated = {
-                                        peerScanMessage = "Eingehendes gekoppeltes Gerät erfolgreich authentifiziert; Verbindung geschlossen, keine Nutzdaten übertragen."
-                                    }
-                                )
-                                if (!started && peerScanning) {
-                                    peerScanning = false
-                                    peerScanMessage = "WLAN-Suche konnte nicht gestartet werden."
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text(if (peerScanning) "Suche beenden" else "KlimaPilot-Geräte suchen") }
-                    Text(peerScanMessage, color = Muted, fontSize = 12.sp)
-                    discoveredPeers.values.forEach { peer ->
-                        Text("${peer.instanceName} · ${peer.hostAddress}:${peer.port}", color = TextMain, fontSize = 12.sp)
-                        Text("Unbestätigte Dienstankündigung · noch nicht authentifiziert", color = Muted, fontSize = 10.sp)
-                        OutlinedButton(
-                            onClick = {
-                                authenticatingPeers[peer.instanceName] = true
-                                val queued = peerDiscovery.authenticatePeer(peer) { _, message ->
-                                    authenticatingPeers[peer.instanceName] = false
-                                    peerScanMessage = message
-                                }
-                                if (!queued) {
-                                    authenticatingPeers[peer.instanceName] = false
-                                    peerScanMessage = "Authentifizierung konnte nicht gestartet werden. Bitte die WLAN-Suche prüfen."
-                                }
-                            },
-                            enabled = peerScanning && authenticatingPeers[peer.instanceName] != true,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (authenticatingPeers[peer.instanceName] == true) "Authentifizierung läuft …" else "Gekoppeltes Gerät authentifizieren")
-                        }
-                    }
-                }
-            }
-            ClimatePairingSettingsCard()
-    
-        }
+        ClimatePairingSettingsCard()
         GithubUpdateCard(appVersion)
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
             Text("Zurück zur Klimaübersicht")

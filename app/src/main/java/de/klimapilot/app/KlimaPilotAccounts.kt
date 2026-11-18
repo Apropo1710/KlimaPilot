@@ -259,6 +259,31 @@ internal class KlimaPilotAccountRepository(context: Context) {
         prefs.edit().putString(LOCAL_STATE_KEY, registry.toJson().toString()).commit()
     }
 
+    /**
+     * Merges the registry of a paired phone. The higher revision wins; for equal revisions with
+     * different content a content digest decides, so both phones converge on the same registry.
+     * Damaged local data is never overwritten. Returns true if the local registry changed.
+     */
+    fun mergeFromPeer(remote: KlimaPilotAccountRegistry): Boolean = synchronized(lock) {
+        if (remote.accounts.isEmpty()) return@synchronized false
+        val take = when (val local = load()) {
+            KlimaPilotAccountLoadResult.Missing -> true
+            is KlimaPilotAccountLoadResult.Invalid -> false
+            is KlimaPilotAccountLoadResult.Loaded -> {
+                val current = local.registry
+                when {
+                    current.accounts.isEmpty() -> true
+                    remote.revision > current.revision -> true
+                    remote.revision < current.revision -> false
+                    remote.toJson().toString() == current.toJson().toString() -> false
+                    else -> ClimatePeerDataSync.registryDigest(remote) > ClimatePeerDataSync.registryDigest(current)
+                }
+            }
+        }
+        if (!take) return@synchronized false
+        prefs.edit().putString(LOCAL_STATE_KEY, remote.toJson().toString()).commit()
+    }
+
     fun save(expectedRevision: Long, registry: KlimaPilotAccountRegistry, callback: (Boolean, String?) -> Unit) {
         val result = synchronized(lock) {
             when (val loaded = load()) {

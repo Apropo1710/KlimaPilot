@@ -9,7 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Uses its own native ioBroker WebSocket and never touches the main app connection. */
 internal class InvalidRemoteProfileEventException(message: String, cause: Throwable) : RuntimeException(message, cause)
 
-internal class ClimateProfileSyncClient {
+/** [peerLog] collects every event seen here so paired phones receive them as well. */
+internal class ClimateProfileSyncClient(private val peerLog: ClimatePeerEventLog? = null) {
     private val main = Handler(Looper.getMainLooper())
 
     fun syncNow(
@@ -49,11 +50,13 @@ internal class ClimateProfileSyncClient {
                         finish("ioBroker ist nicht als aktiv bestätigt; Synchronisierung wurde abgebrochen.")
                         return@aliveCallback
                     }
+                    runCatching { peerLog?.remember(store.pendingEvents()) }
                     uploadPending(socket, store) { uploaded, uploadError ->
                         if (uploadError != null) { finish(uploadError); return@uploadPending }
                         readRemoteEvents(socket) { events, readError ->
                             try {
                                 if (readError != null) { finish(readError); return@readRemoteEvents }
+                                runCatching { peerLog?.remember(events) }
                                 store.observeRemoteClock(events.maxOfOrNull { it.optLong("logicalClock", 0L) } ?: 0L)
                                 val deviceMap = devices.filter { it.syncDeviceKey.isNotBlank() }
                                     .groupBy { it.syncDeviceKey }.filterValues { it.size == 1 }

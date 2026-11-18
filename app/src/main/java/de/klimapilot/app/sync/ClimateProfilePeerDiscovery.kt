@@ -141,7 +141,10 @@ internal object ClimatePeerNetworkPolicy {
         currentAddress == expectedAddress
 }
 
-internal class ClimateProfilePeerDiscovery(context: Context) {
+internal class ClimateProfilePeerDiscovery(
+    context: Context,
+    private val sessionHandler: ClimatePeerSessionHandler? = null,
+) {
     private val appContext = context.applicationContext
     private val nsd = appContext.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val wifi = appContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -224,6 +227,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
             tcpSessions = ClimatePeerTcpConnectionManager(
                 ClimatePeerIdentityStore(),
                 ClimateTrustedPeerStore(appContext),
+                sessionHandler = sessionHandler,
             )
             startAuthenticatedAcceptLoop(socket, run)
             registerWifiNetworkCallback(run)
@@ -547,6 +551,8 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         val network = activeWifiNetwork ?: return false
         return tcpSessions?.authenticate(peer, network.socketFactory, onResult) ?: false
     }
+
+    val isRunning: Boolean get() = active
 
     @Synchronized
     fun stop() {

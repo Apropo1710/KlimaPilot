@@ -27,3 +27,11 @@ internal fun peerIdMatchesPublicKey(peerId: String, publicKeyBase64: String): Bo
 internal fun interface ClimatePeerTrust {
     fun isTrusted(peerId: String, publicKeyBase64: String): Boolean
 }
+
+/**
+ * Runs on a mutually authenticated socket before it is closed (application data exchange).
+ * Returns a short status text; exceptions mark the session as failed.
+ */
+internal fun interface ClimatePeerSessionHandler {
+    fun onAuthenticated(socket: java.net.Socket, asServer: Boolean): String?
+}

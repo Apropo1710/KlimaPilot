@@ -13,13 +13,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.net.SocketFactory
 
 /**
- * Bounded handshake-only sessions for the local discovery listener.
- * All sockets are closed immediately after authentication; this class has no payload API.
+ * Bounded sessions for the local discovery listener. After mutual authentication the
+ * optional [sessionHandler] may exchange application data; the socket is closed afterwards.
  */
 internal class ClimatePeerTcpConnectionManager(
     private val identityStore: ClimatePeerSigner,
     private val trustedPeers: ClimatePeerTrust,
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    private val sessionHandler: ClimatePeerSessionHandler? = null,
 ) : AutoCloseable {
     private val closed = AtomicBoolean(false)
     private val socketLock = Any()
@@ -58,6 +59,7 @@ internal class ClimatePeerTcpConnectionManager(
                     if (!closed.get()) {
                         ClimatePeerTcp.authenticateAsServer(socket, identityStore, trustedPeers)
                         authenticated = true
+                        if (!closed.get()) sessionHandler?.onAuthenticated(socket, true)
                     }
                 } catch (_: Exception) {
                     // Unknown, untrusted, or malformed peers are rejected without UI noise.
@@ -92,8 +94,9 @@ internal class ClimatePeerTcpConnectionManager(
                     if (!trackSocket(connectedSocket)) return@execute
                     connectedSocket.connect(InetSocketAddress(peer.hostAddress, peer.port), CONNECT_TIMEOUT_MS)
                     ClimatePeerTcp.authenticateAsClient(connectedSocket, identityStore, trustedPeers)
+                    message = sessionHandler?.onAuthenticated(connectedSocket, false)
+                        ?: "Gekoppeltes Gerät erfolgreich authentifiziert. Verbindung geschlossen; keine Nutzdaten übertragen."
                     success = true
-                    message = "Gekoppeltes Gerät erfolgreich authentifiziert. Verbindung geschlossen; keine Nutzdaten übertragen."
                 } catch (error: Exception) {
                     message = error.message ?: message
                 } finally {
