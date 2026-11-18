@@ -16,11 +16,11 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD: `84a555d0d226c4505d0136ad0b208b5197bbdf67` (Server-Callback erfolgt erst nach Socket-Cleanup).
+- Aktueller `test`-HEAD: `ab3f0c1a1169db9a9f10342d0db954e5aede5230` (Statusdokumentation zur Handshake-Integration). Letzter Code-Commit: `84a555d0d226c4505d0136ad0b208b5197bbdf67`.
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
-- Die Branches sind weiterhin divergent; `test` liegt vor `main` und ist zugleich 10 Commits dahinter; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Kein Rebase oder Merge im Rahmen der Dokumentationspflege.
+- Die Branches sind weiterhin divergent; `test` liegt 207 Commits vor und 10 Commits hinter `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Kein Rebase oder Merge im Rahmen der Dokumentationspflege.
 - PR #6 umfasst den WLAN-/Pairing-Arbeitsstrang. Vor einer späteren Integration ist ein vollständiger Diff-Review gegen den dann aktuellen `main` erforderlich.
 
 ## 3. Letzte Codeänderung
@@ -55,7 +55,7 @@ Betroffene Dateien: `ClimateProfilePeerDiscovery.kt`, `ClimatePeerTcpConnectionM
 - Discovery-Metadaten bleiben unverifiziert. Der ausgehende Authentifizierungsversuch wird nur nach ausdrücklichem UI-Klick gestartet und verwendet die SocketFactory des ausgewählten WLAN-Netzes (auch wenn Mobilfunk Android-Defaultnetz ist).
 - Eingehende und ausgehende Handshake-Sessions laufen in begrenzten ThreadPools (Server: 1–2 Threads/4 Wartende; Client: 1 Thread/4 Wartende). Stop/Cleanup schließt aktive Sockets und beendet die Executor-Queues.
 - Nach dem Handshake werden beide Seitenverbindungen sofort geschlossen. Es existiert weiterhin keine API zum Übertragen von Profil-, Outbox- oder sonstigen App-Nutzdaten.
-- `ClimateProfileSyncEngine` wird vom bestehenden ioBroker-Sync-Pfad verwendet; die lokale Peer-Transportintegration fehlt.
+- `ClimateProfileSyncEngine` wird vom bestehenden ioBroker-Sync-Pfad verwendet; die lokale Peer-Nutzdaten-Transportintegration fehlt; bisher ist nur die Handshake-Stufe angeschlossen.
 
 ## 5. CI- und Testnachweise
 
@@ -70,7 +70,7 @@ Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als 
 - TCP-Emulatorlauf **#63**, Commit `725fe3109aa4712abda0a4f500cb6433c8a49e19` (Workflow-only-Abzweig vom identischen App-/Teststand `1a1d9df...`): API 26 erfolgreich; Gradle-Build erfolgreich und Instrumentierungstests **3/3 bestanden**. API 35 im selben Lauf fehlgeschlagen, weil der Emulator/Package-Manager nicht rechtzeitig verfügbar war; keine bestandenen API-35-App-Tests.
 - Optionale API-35-Wiederholungen #66, #67 und #68 fehlgeschlagen; #64 und #65 wurden während der Workflow-Konfigurationskorrektur abgebrochen. Lauf #68 enthielt zusätzliche KVM-Berechtigungs- und Emulator-Readiness-Prüfungen, endete aber weiterhin mit Fehler im API-35-Job. API 35 bleibt ausdrücklich optional und ist kein Freigabekriterium. Keine weiteren API-35-Wiederholungen, solange kein konkreter neuer technischer Ansatz vorliegt.
 - Kein Zwei-Smartphone-Praxistest bestätigt. Die neue Handshake-Integration wurde noch nicht auf realen Geräten geprüft.
-- Der erfolgreiche WLAN-Lauf #203 deckt den aktuellen `test`-HEAD `1a1d9df...` ab. Der API-26-Instrumentierungslauf #63 verwendet einen separaten Workflow-only-Commit, dessen App-/Testbaum identisch zum `test`-HEAD ist.
+- Der erfolgreiche WLAN-Lauf #203 deckte den damaligen App-/Teststand `1a1d9df...` ab, nicht die neue Handshake-Integration. Der API-26-Instrumentierungslauf #63 verwendet einen separaten Workflow-only-Commit, dessen App-/Testbaum identisch zum `test`-HEAD ist.
 - Die elf Netzwerk-Policy-Fälle wurden im WLAN-Workflow #203 auf dem aktuellen App-/Teststand durch `testDebugUnitTest` ausgeführt; der gesamte Workflow war erfolgreich. Zusätzlich wurden sie zuvor mit einem separaten Kotlin-Smoke-Harness 11/11 bestanden. Der Smoke-Harness ist kein Ersatz für Gradle, Android-Kompilierung oder Emulator-/Gerätetests.
 
 Workflows:
@@ -95,7 +95,7 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Die neue Handshake-Integration auf aktuellem `test`-HEAD `17a1dff...` durch Gradle-Unit-Tests, Debug-/Release-Kompilierung und API-26-Instrumentierung prüfen. Für den neuen Commit ist noch kein Actions-Lauf/Check vorhanden.
+1. Die neue Handshake-Integration (Code-Stand `84a555d...`, aktueller Branch-HEAD `ab3f0c1...`) durch Gradle-Unit-Tests, Debug-/Release-Kompilierung und API-26-Instrumentierung prüfen. Für den neuen Commit ist noch kein Actions-Lauf/Check vorhanden.
 2. Anschließend die explizite Authentifizierung zwischen zwei realen Smartphones prüfen: beidseitig gekoppelte Peers erfolgreich, unbekannter Peer abgewiesen, WLAN-Socket-Bindung bei mobilem Defaultnetz, Abbruch während Handshake und Cleanup beim Stop.
 3. Falls CI und Geräteprüfung erfolgreich sind, Nachrichtenframing, Größen-/Schema-/Gerätevalidierung, Replay-/Duplikaterkennung und idempotente Wiederaufnahme spezifizieren.
 4. Regressionstests für den bestehenden ioBroker-Sync-Pfad ergänzen.
