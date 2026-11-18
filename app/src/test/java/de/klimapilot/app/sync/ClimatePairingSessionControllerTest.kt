@@ -57,7 +57,7 @@ class ClimatePairingSessionControllerTest {
         val responsePayload = controllerB.confirmIncomingInvitation(
             reviewA!!, "Telefon A", now + 1
         )
-        assertEquals(peerId(pairA), storeB.trustedPeers().single().peerId)
+        assertTrue("Responder darf vor Speicher-ACK nicht vertrauen", storeB.trustedPeers().isEmpty())
         assertTrue(storeA.trustedPeers().isEmpty())
 
         val reviewB = controllerA.prepareOutgoingResponse(responsePayload, now + 2)
@@ -66,11 +66,45 @@ class ClimatePairingSessionControllerTest {
 
         val trustedB = controllerA.confirmOutgoingResponse(reviewB!!, "Telefon B", now + 3)
         assertEquals(peerId(pairB), trustedB.peerId)
+        assertTrue(storeB.trustedPeers().isEmpty())
+        controllerB.acknowledgeIncomingInvitation(
+            sessionId = reviewB!!.sessionId,
+            inviterPeerId = peerId(pairA),
+            nowMillis = now + 4
+        )
         assertEquals(setOf(peerId(pairA)), storeB.trustedPeers().map { it.peerId }.toSet())
         assertEquals(setOf(peerId(pairB)), storeA.trustedPeers().map { it.peerId }.toSet())
 
         assertNull(controllerA.prepareOutgoingResponse(responsePayload, now + 4))
         assertNull(controllerB.prepareIncomingInvitation(invitationPayload, now + 4))
+    }
+
+    @Test
+    fun responderDoesNotTrustOnWrongAckOrAfterCancellation() {
+        val now = 1_800_000_000_000L
+        val invitationPayload = controllerA.createOutgoingInvitation(now)
+        val pending = controllerB.prepareIncomingInvitation(invitationPayload, now)!!
+        controllerB.confirmIncomingInvitation(pending, "Telefon A", now + 1)
+
+        assertTrue(storeB.trustedPeers().isEmpty())
+        assertFalse(runCatching {
+            controllerB.acknowledgeIncomingInvitation(
+                sessionId = pending.sessionId,
+                inviterPeerId = peerId(pairB),
+                nowMillis = now + 2
+            )
+        }.isSuccess)
+        assertTrue(storeB.trustedPeers().isEmpty())
+
+        controllerB.cancel()
+        assertFalse(runCatching {
+            controllerB.acknowledgeIncomingInvitation(
+                sessionId = pending.sessionId,
+                inviterPeerId = peerId(pairA),
+                nowMillis = now + 3
+            )
+        }.isSuccess)
+        assertTrue(storeB.trustedPeers().isEmpty())
     }
 
     @Test
