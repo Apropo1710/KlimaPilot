@@ -17,22 +17,20 @@
 
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
-**Zuletzt abgeglichen:** 17.11.2026, 12:25 Uhr MEZ  
+**Zuletzt abgeglichen:** 18.11.2026, 03:09 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`  
 **Produktionsversion:** **0.4.64 / versionCode 94**
 
 ## Aktueller GitHub-, Build- und Release-Stand
 
-- Maßgeblicher `main`-Stand vor der Versionsanhebung: `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`; anschließende Statuspflege erfolgte auf `main`.
-- PR #3 „Absicherung der Klimaprofil-Synchronisation durch dauerhaftes Änderungsjournal“ wurde am 17.11.2026 um 12:14:49 Uhr MEZ gemergt.
-- Merge-Commit: `ee65841387824bca7d2b07ca80f71501540af157`; der Merge-Commit ist von GitHub kryptografisch als gültig verifiziert.
-- GitHub Actions [Produktionsbuild #227](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073072643): **completed / success** für den Versionscommit `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`. Signierter Release-Build, Keystore-Prüfung, APK-Manifestprüfung und Signaturprüfung erfolgreich.
+- Aktueller `main`-HEAD: `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd` (Dokumentationscommit vom 17.11.2026, 11:29:12 UTC).
+- Letzter funktionaler Merge: PR #3, Merge-Commit `ee65841387824bca7d2b07ca80f71501540af157`; Versionscommit für 0.4.64 / 94: `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`.
+- GitHub Actions [Produktionsbuild #229](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073807709): **completed / success** für APK-Build-Quellcommit `a87e0d8e2cfed5e1d2c3399466e1edaef1a66d00`.
 - Produktionsversion aus `app/build.gradle.kts`: **0.4.64 / versionCode 94**. Application-ID `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
-- Build-Zeit: 17.11.2026, 12:23:51 Uhr MEZ (11:23:51 UTC).
-- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `758773122`, 11.370.135 Bytes; aktualisiert 17.11.2026, 11:23:58 UTC.
-- APK-SHA-256: `945dd9bacebbb16482e7acf352ccd58d91649349ebc02360102e093ccc92f3c4`; Signaturprüfung im Produktionsworkflow erfolgreich.
-- Git-Tag `latest` zeigt auf den Versionscommit `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`.
+- Build-Zeit: 17.11.2026, 11:29:06 UTC.
+- Release `latest`: Asset `KlimaPilot.apk`, Asset-ID `758790648`, 11.370.135 Bytes; aktualisiert 17.11.2026, 11:29:11 UTC.
+- APK-SHA-256: `1553402f6baebe028d6876581aef235aa3abf89a7047150e4b47a429ef1730e2`; Signaturprüfung im Produktionsworkflow erfolgreich.
 - APK: https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
 
 ## Abgeschlossene Profil-Synchronisations-PR
@@ -47,10 +45,15 @@
 
 ## Branches außerhalb des Produktionsstands
 
-- `feature/direct-wf-rac-wlan`: Der ursprüngliche PR #1 wurde am 15.11.2026 gemergt; danach folgten weitere 23 Commits. Der Branch liegt **23 ahead / 235 behind** gegenüber `main`, ohne offenen PR. Sein aktueller Diff umfasst u. a. WLAN-Diagnostik, separaten Test-Updatekanal, Workflow-/Build- und App-Dateien. Diese Nachfolgeänderungen sind nicht automatisch in `main` enthalten; vor einer Wiederverwendung einzeln prüfen.
-- `docs/status-refresh-2026-11-16`: PR #2 geschlossen und nicht gemergt; **1 ahead / 61 behind**, eine abweichende `STATUS.md`, kein offener PR.
-- `docs/status-reconcile-2026-11-15`: **0 ahead / 235 behind**, kein eigener Dateidiff.
-- Keine dieser Branches wird automatisch gemergt oder gelöscht. `main` bleibt der Produktionsbranch.
+- `test`: [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen und Draft, **139 ahead / 0 behind**; Head `5175c47d3eb743fdb31a50e9d8c674b17dd2ff00`. WLAN Branch Validation #190 / Run `44193818224` und Local TCP Peer Authentication #51 / Run `44193818323` sind für exakt diesen Head erfolgreich. Der vorherige Fehler #50 betraf den älteren Commit `982a6e25` und ist durch den späteren erfolgreichen Stand abgelöst.
+- `feature/local-wifi-pairing`: **101 ahead / 0 behind**, kein eigener offener PR; aktueller Head `de214bca54195534b3b14735242052ba05046886`.
+- `feature/local-wifi-profile-sync`: **58 ahead / 0 behind**, kein eigener offener PR; aktueller Head `f2ff6072e38d94ae6faf93bc06d78be9de415a1f`.
+- Die drei WLAN-/Pairing-Branches sind getrennte Arbeitsstände. Keine automatische Übernahme oder Zusammenführung.
+- `feature/direct-wf-rac-wlan`: PR #1 am 15.11.2026 gemergt; danach 23 weitere Commits. Aktueller Vergleich **23 ahead / 316 behind**, kein offener PR. Der Diff enthält WLAN-Diagnostik, separaten Test-Updatekanal sowie Änderungen an Build-/App-Dateien und ist nicht Bestandteil von `main`.
+- `fix/durable-profile-change-journal`: PR #3 gemergt; **0 ahead / 15 behind**, keine zusätzlichen Commits gegenüber `main`.
+- `docs/status-refresh-2026-11-16`: PR #2 geschlossen, nicht gemergt; abweichende Statusdatei, nicht ungeprüft übernehmen.
+- `docs/status-reconcile-2026-11-15`: historischer Dokumentationsbranch ohne offenen PR.
+- Keine Nebenbranch wird automatisch gemergt oder gelöscht. `main` bleibt der Produktionsbranch.
 
 ## 2. Letzter Funktionsumfang / UI-Änderungen
 
@@ -93,14 +96,15 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - **0.4.53 M4:** Profil wird erst nach erfolgreicher Geräteübertragung als aktiv markiert. Hardware-/Laufzeittest offen.
 - **0.4.53 M5:** automatische `wfrac:`-Kennung und Migration ausstehender Outbox-Events bei eindeutiger Zuordnung umgesetzt. Test mit zwei Smartphones und realem ioBroker offen.
 - **Hardwareabhängig:** WF-RAC-Kopplung, Befehlsannahme, Firmwarekompatibilität, Messwerte, Klappen-/3D-Funktion und Verbindungsstabilität erst nach Installation prüfbar.
-- **0.4.59:** Nutzer-Endtest auf dem Gerät noch nicht bestätigt.
+- **0.4.64:** Nutzer-Endtest der aktuellen Release-APK auf dem Gerät noch nicht bestätigt.
 - Der Updater ist ausdrücklich keine offene Aufgabe.
 
 ## 6. Letzte Builds
 
 | Run | Version | Ergebnis |
 |---|---:|---|
-| [#227](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073072643) | **0.4.64 / 94** | **success** – aktueller Produktionsrelease |
+| [#229](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073807709) | **0.4.64 / 94** | **success** – aktueller Produktionsrelease |
+| [#227](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073072643) | 0.4.64 / 94 | success – vorheriger Produktionslauf |
 | [#226](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073032166) | 0.4.63 / 93 | **success** – Zwischenrelease vor Versionsanhebung |
 | [#225](https://github.com/Apropo1710/KlimaPilot/actions/runs/44072272599) | 0.4.63 / 93 | **success** – Merge-Stand |
 | #211 | 0.4.59 / 89 | **success** |
