@@ -42,7 +42,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Automatisch im Vordergrund, sobald mindestens ein Gerät gekoppelt ist: DNS-SD-Suche, Abgleich beim Finden und alle 30 s; Neustart direkt nach einer Kopplung. Die Kopplungskarte ist jetzt auch in der Produktions-App sichtbar; die Debug-Karte „Lokales WLAN“ entfällt.
 - Anmeldung: gespeicherte ioBroker-Adresse, sonst `ws://192.168.178.54:8084` (keine Netzwerksuche).
 - Unit-Tests `ClimatePeerDataSyncTest` (Kontenrevision, Konvergenz, Ereignisprotokoll, Snapshot-Roundtrip, Konfigurationsübernahme). Test-APK 0.4.77 SHA-256 `ba789c2de2c4012f69e06b8e38d6b7e67259459673283bb846daed892a7c6f41`.
-- **Noch offen:** Zwei-Geräte-Test; erst danach Übernahme nach `main`.
+- **Gerätetest 18.11.2026, 20:45 Uhr (Testversion 0.4.77, Smartphone + Tablet):** angelegter Raum erschien kurz darauf auf dem anderen Gerät; automatische Anmeldung und Kopplung funktionierten. Danach Übernahme nach `main` (Produktionsrelease 0.4.77).
 
 ## 2h. Play-Protect-Blockade von 0.4.74 und Korrektur der Updater-Doku (18.11.2026)
 
