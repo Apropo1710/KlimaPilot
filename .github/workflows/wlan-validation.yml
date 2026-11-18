@@ -12,7 +12,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # write is needed only to publish the test APK to the separate
+  # pre-release tag "klimapilot-test-latest" (never the production tag "latest").
+  contents: write
 
 # Test-only debug signing. Only the keystore itself is secret
 # (KLIMAPILOT_TEST_KEYSTORE_BASE64); the password is useless without it.
@@ -105,3 +107,33 @@ jobs:
             debug-apk.sha256
           if-no-files-found: error
           retention-days: 7
+
+      - name: Test-APK als Direktdownload veröffentlichen (Pre-Release, nicht "latest")
+        if: github.ref == 'refs/heads/test'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: klimapilot-test-latest
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk KlimaPilot-test.apk
+          cat > release-notes.md <<NOTES
+          KlimaPilot Testversion 0.4.69-debug (versionCode 99)
+
+          - Paketkennung: de.klimapilot.app.debug
+          - Quellcommit: ${GITHUB_SHA}
+          - Workflow: #${GITHUB_RUN_NUMBER} (Run-ID ${GITHUB_RUN_ID})
+          - Prüfsummen:
+
+          \`\`\`
+          $(cat debug-apk.sha256)
+          \`\`\`
+
+          Nur für Tests. Das produktive Release "latest" und der Updater sind davon nicht betroffen.
+          NOTES
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --prerelease --latest=false \
+              --title "KlimaPilot Test – neueste APK" --notes-file release-notes.md
+          else
+            gh release create "$TAG" --prerelease --latest=false --target "$GITHUB_SHA" \
+              --title "KlimaPilot Test – neueste APK" --notes-file release-notes.md
+          fi
+          gh release upload "$TAG" KlimaPilot-test.apk debug-apk.sha256 --clobber
