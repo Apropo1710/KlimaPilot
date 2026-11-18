@@ -230,7 +230,6 @@ internal fun ClimatePairingSettingsCard() {
     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Geräte koppeln", color = colors.onSurface, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            Text("Einmaliger QR-Scan mit signiertem WLAN-Rückkanal. Die signierten Nachrichten sind im lokalen WLAN nicht verschlüsselt. Es werden keine Klimaprofile übertragen.", color = colors.onSurfaceVariant, fontSize = 11.sp)
             if (localFingerprint != null) Text("Fingerprint dieses Geräts: $localFingerprint", color = colors.onSurfaceVariant, fontSize = 10.sp)
             OutlinedTextField(value = displayName, onValueChange = { displayName = it.take(48) }, label = { Text("Name dieses Geräts") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             if (pending != null) {
@@ -246,7 +245,7 @@ internal fun ClimatePairingSettingsCard() {
                 OutlinedButton(onClick = { cancelSession("Pairing abgebrochen.") }, modifier = Modifier.fillMaxWidth()) { Text("Pairing abbrechen") }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { startInvitation() }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Einladung anzeigen") }
+                    Button(onClick = { startInvitation() }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("QR-Code anzeigen", textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                     OutlinedButton(onClick = { startScan() }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("QR-Code scannen") }
                 }
             }
