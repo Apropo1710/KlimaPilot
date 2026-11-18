@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 028cce3dc6b3f6cc0448775939e0e12e90448d99
-- App-Version / versionCode: **0.4.75 / 105**
-- Build-Zeit: 2026-11-18 18:48:00 UTC
+- Quellcommit des APK-Builds: daafe2ae7d9760d7f9a455ccafcac1d1a1f36708
+- App-Version / versionCode: **0.4.77 / 107**
+- Build-Zeit: 2026-11-18 19:48:18 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 222e040c4ca1b95cd4c9491123ed18713abe97d90fb0002b0fd455ba69fe12db
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: ba13f9386ca6a9b4026dc9491125ed5ec0b5d99834e45600303e28abbef5c836
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
           - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
@@ -254,4 +254,4 @@ Die frühere Datei `STATUS.md` wurde entfernt. Ihr Übergabe-/Statusinhalt ist i
 4. Fachkonzepte nur dann ändern, wenn sich deren Architektur, Entscheidung oder technische Anforderungen ändern – nicht für jede Statuswiederholung.
 5. README nur bei Änderungen an Projektbeschreibung, Einstieg oder festen Grundregeln aktualisieren.
 6. Nach dem Commit alle geänderten Dateien erneut von GitHub lesen und Links, Status, Commit-Hashes sowie Querverweise auf Konsistenz prüfen.
-7. Produktions-HEAD, letzter erfolgreicher Build und Release-Stand immer getrennt ausweisen.\n\n
+7. Produktions-HEAD, letzter erfolgreicher Build und Release-Stand immer getrennt ausweisen.\n\n\n
