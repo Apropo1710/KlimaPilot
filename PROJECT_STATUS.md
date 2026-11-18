@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 12:10 Uhr MEZ (Live-Prüfung und CI-Trigger-Anpassung)  
+**Letzter Abgleich:** 18.11.2026, 12:25 Uhr MEZ (WLAN-CI #205 erfolgreich; API-26-Workflow isoliert)  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -16,7 +16,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD: Dokumentationscommit `2242b2f0a728a3a1ee3d8e44a48e55a60688377c` auf CI-Konfigurationscommit `9c1f7ff0cbedfa60e501045d87fc61bedb4a61dd` und dem letzten Code-/Teststand `63d53bb07a55bfb0207659749f8e6624d78215a7` (Socket-Cleanup-Fix `334308e40ea17b2e57a6c640ca49c20e83d22e8b` plus gezielter Regressionstest).
+- Aktueller `test`-HEAD nach der CI-Workflow-Anpassung: `e01cc74b3375297c0435e44d5c41aace341469ef`. Der getestete App-/Code-Stand des WLAN-Laufs #205 ist `f99ffb0a48a77afcd03c38950927369288fcfc5e`; der Workflow-Commit ändert ausschließlich die CI-Konfiguration. Der letzte Code-/Teststand davor bleibt `63d53bb07a55bfb0207659749f8e6624d78215a7` (Socket-Cleanup-Fix `334308e40ea17b2e57a6c640ca49c20e83d22e8b` plus gezielter Regressionstest).
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
@@ -67,7 +67,7 @@ Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als 
 - WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
 - Separater TCP-Emulatorlauf **#62**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26.
 - WLAN-Workflow **#203**, erfolgreich per `workflow_dispatch` auf `test` mit Commit `1a1d9df06492b45b89d537ac2844d76c789280a6`: `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin` erfolgreich. Damit sind die elf Netzwerk-Policy-Tests auf diesem Stand über Gradle/JUnit ausgeführt.
-- Für den letzten Code-/Teststand `63d53bb...` lagen bei der Prüfung um 12:08 Uhr MEZ kein Actions-Run und kein Check-Run vor. Daher wurde `.github/workflows/wlan-validation.yml` angepasst: Der Workflow startet jetzt automatisch bei jedem Push auf `test`; reine `PROJECT_STATUS.md`-Commits sind über `paths-ignore` ausgeschlossen. Der Workflow wurde mit Commit `9c1f7ff...` auf `test` übertragen. Auch nach dem Push ist über die GitHub-Schnittstelle noch kein zugehöriger Actions-Lauf sichtbar; die automatische Auslösung durch API-Pushes ist damit nicht bestätigt. Die CI-Validierung der neuen Integration bleibt bis zum erfolgreichen Lauf **offen**.
+- WLAN-Workflow **#205**, manuell gestartet auf `test` mit HEAD `f99ffb0a48a77afcd03c38950927369288fcfc5e`, erfolgreich abgeschlossen. `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin` liefen im Schritt „Unit-Tests und Debug-Kompilierung“ erfolgreich. Dies bestätigt JVM-Unit-Tests und Kompilierung auf diesem App-Stand, ersetzt aber keinen Android-Instrumentierungstest.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
 - TCP-Emulatorlauf **#63**, Commit `725fe3109aa4712abda0a4f500cb6433c8a49e19` (Workflow-only-Abzweig vom identischen App-/Teststand `1a1d9df...`): API 26 erfolgreich; Gradle-Build erfolgreich und Instrumentierungstests **3/3 bestanden**. API 35 im selben Lauf fehlgeschlagen, weil der Emulator/Package-Manager nicht rechtzeitig verfügbar war; keine bestandenen API-35-App-Tests.
 - Optionale API-35-Wiederholungen #66, #67 und #68 fehlgeschlagen; #64 und #65 wurden während der Workflow-Konfigurationskorrektur abgebrochen. Lauf #68 enthielt zusätzliche KVM-Berechtigungs- und Emulator-Readiness-Prüfungen, endete aber weiterhin mit Fehler im API-35-Job. API 35 bleibt ausdrücklich optional und ist kein Freigabekriterium. Keine weiteren API-35-Wiederholungen, solange kein konkreter neuer technischer Ansatz vorliegt.
@@ -77,7 +77,7 @@ Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als 
 
 Workflows:
 - `.github/workflows/wlan-validation.yml`: Push-Trigger für `test` (Statusdatei-only-Commits ausgeschlossen) sowie `workflow_dispatch`; führt Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35 aus.
-- `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; der Workflow validiert inzwischen TCP-Peer-Authentifizierung und ist nur manuell startbar. Die API-35-Experimente liefen ausschließlich auf temporären `validation/*`-Branches; sie wurden nicht in `main`, `test` oder PR #6 übernommen.
+- `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; der Workflow validiert TCP-Peer-Authentifizierung und ist nur manuell startbar. Seit Commit `e01cc74...` enthält er ausschließlich den Pflichtlauf auf API 26. Der optionale API-35-Job wurde entfernt, damit ein manueller Start nicht erneut beide Emulatorjobs ausführt. Frühere API-35-Experimente liefen ausschließlich auf temporären `validation/*`-Branches und wurden nicht in `main`, `test` oder PR #6 übernommen.
 
 ## 6. Verbindliche Freigabesperren
 
@@ -97,7 +97,7 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Prüfen, ob GitHub den WLAN-Workflow für den Push-Trigger startet; falls nicht, einen unterstützten Dispatch-Weg herstellen; Gradle-Unit-Tests, Debug-/Release-Kompilierung und API-26-Instrumentierung bleiben zu prüfen. Für API-26 ist weiterhin ein separater Instrumentierungslauf erforderlich.
+1. Den jetzt auf API 26 begrenzten Workflow `.github/workflows/pairing-tls-validation.yml` manuell starten und den Instrumentierungstest `connectedDebugAndroidTest` prüfen. WLAN-Workflow #205 hat JVM-Unit-Tests sowie Debug-/Release-Kompilierung auf dem damaligen App-Stand erfolgreich bestätigt.
 2. Anschließend die explizite Authentifizierung zwischen zwei realen Smartphones prüfen: beidseitig gekoppelte Peers erfolgreich, unbekannter Peer abgewiesen, WLAN-Socket-Bindung bei mobilem Defaultnetz, Abbruch während Handshake und Cleanup beim Stop.
 3. Falls CI und Geräteprüfung erfolgreich sind, Nachrichtenframing, Größen-/Schema-/Gerätevalidierung, Replay-/Duplikaterkennung und idempotente Wiederaufnahme spezifizieren.
 4. Regressionstests für den bestehenden ioBroker-Sync-Pfad ergänzen.
