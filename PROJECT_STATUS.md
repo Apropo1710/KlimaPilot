@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 08:44 Uhr MEZ  
+**Letzter Abgleich:** 18.11.2026, 08:54 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -16,7 +16,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD: dieser Lifecycle-Code-/Dokumentationscommit.
+- Aktueller `test`-HEAD: gezielter Test-Erweiterungscommit für die WLAN-Snapshot-Policy.
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
@@ -37,7 +37,7 @@ Datei: `app/src/main/java/de/klimapilot/app/sync/ClimateProfilePeerDiscovery.kt`
 - Beide Callbacks werden beim Cleanup abgemeldet.
 - **Review-Fund vom 18.11.2026:** Zwischen dem initialen Lesen des ausgewählten WLANs und der Registrierung der NetworkCallbacks bestand ein Race-Fenster. Ein bereits vor der Callback-Registrierung verlorenes Netzwerk muss nicht nachträglich über `onLost` gemeldet werden.
 - **Gezielte Absicherung:** Nach Registrierung beider Callbacks wird der ausgewählte Network-/LinkProperties-Snapshot erneut gelesen. Die Discovery wird vor der DNS-SD-Ankündigung abgebrochen, wenn der ausgewählte Transport, das Interface oder die gewählte Adresse nicht mehr übereinstimmen oder bereits ein anderes WLAN das Defaultnetz ist.
-- Die Defaultnetz- und Snapshot-Entscheidungen sind als reine Policy-Funktionen ausgelagert und durch neun neue JVM-Fälle abgedeckt (noch nicht als ausgeführt bestätigt).
+- Die Defaultnetz- und Snapshot-Entscheidungen sind als reine Policy-Funktionen ausgelagert und durch elf gezielte JVM-Fälle abgedeckt (noch nicht als ausgeführt bestätigt).
 - Die erneute Snapshot-Prüfung liest LinkProperties null-sicher; bei fehlendem Netzwerk, Interface oder geeigneter Adresse wird der Start fail-closed abgebrochen.
 - Der TCP-Listener bleibt reject-only: eingehende Verbindungen werden angenommen und unmittelbar geschlossen. Es gibt keinen integrierten authentifizierten Handshake und keinen Nutzdatentransfer.
 
@@ -63,7 +63,7 @@ Die folgenden Nachweise sind die zuletzt konkret dokumentierten Ergebnisse; sie 
 - WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
 - Separater TCP-Emulatorlauf **#62**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26.
 - Für den vorherigen App-Code-Commit `bba8969...` ist kein zugehöriger erfolgreicher Android-Build oder Testlauf bestätigt.
-- Für die aktuelle Lifecycle-Snapshot-Absicherung und ihre neun neuen Policy-Testfälle ist ebenfalls noch kein Android-Build/Unit-Testlauf bestätigt.
+- Für die aktuelle Lifecycle-Snapshot-Absicherung und ihre elf Policy-Testfälle ist ebenfalls noch kein Android-Build/Unit-Testlauf bestätigt.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
 - Kein API-35-Emulatornachweis und kein Zwei-Smartphone-Praxistest bestätigt.
 - Der aktuelle Actions-Abgleich enthält keinen Lauf für den Lifecycle-Härtungscommit. Der letzte erfolgreiche WLAN-Lauf #202 liegt vor dem Codecommit `bba8969...`; der letzte TCP-Emulatorlauf #62 ebenfalls. Es wird kein aktueller CI-Erfolg behauptet.
@@ -90,7 +90,7 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Android-Unit-Tests und Debug-Kompilierung für den Lifecycle-Snapshot-Fix auf dem aktuellen Commit nachweisen.
+1. Den durch die PR-Aktualisierung ausgelösten WLAN-Validierungslauf für den aktuellen Commit kontrollieren; Unit-Tests und Debug-Kompilierung müssen erfolgreich sein.
 2. Danach gezielte Geräte-/Emulatortests für WLAN-Verlust, Wechsel des Standardnetzes, parallele WLAN-Verfügbarkeit und einen Netzwechsel während des Discovery-Starts durchführen.
 3. Erst nach erfolgreicher Validierung die Integration des TCP-Handshakes planen.
 4. Bis zur vollständigen Protokollhärtung und zum erfolgreichen Zwei-Smartphone-Test bleibt Peer-Nutzdatentransfer gesperrt.

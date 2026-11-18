@@ -121,4 +121,32 @@ class ClimatePeerNetworkPolicyTest {
             )
         )
     }
+
+    @Test
+    fun rejectsSnapshotWhenInterfaceIsUnavailable() {
+        assertFalse(
+            ClimatePeerNetworkPolicy.isSelectedWifiSnapshotValid(
+                selectedNetworkIsWifi = true,
+                currentInterfaceName = null,
+                currentAddress = selectedAddress,
+                expectedInterfaceName = "wlan0",
+                expectedAddress = selectedAddress,
+                defaultNetworkIsDifferentWifi = false,
+            )
+        )
+    }
+
+    @Test
+    fun rejectsSnapshotWhenLinkAddressIsUnavailable() {
+        assertFalse(
+            ClimatePeerNetworkPolicy.isSelectedWifiSnapshotValid(
+                selectedNetworkIsWifi = true,
+                currentInterfaceName = "wlan0",
+                currentAddress = null,
+                expectedInterfaceName = "wlan0",
+                expectedAddress = selectedAddress,
+                defaultNetworkIsDifferentWifi = false,
+            )
+        )
+    }
 }
