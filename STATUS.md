@@ -6,14 +6,15 @@
 **Produktionsversion:** **0.4.64 / versionCode 94**  
 **Arbeitsbranch:** `test` – App-Code-/Test-Commits `4f35e1f` und `fc29e1f`; Statusdokumentation wird in den nachfolgenden Commits ergänzt.
 
-### Neueste Änderung – WLAN-Interface-Bindung (18.11.2026)
+### Neuester Arbeitsstand – WLAN-Callback und IPv6-Scope (18.11.2026, 07:41 Uhr MEZ)
 
-- Discovery ermittelt das WLAN über `ConnectivityManager.allNetworks`; das Default-Netz wird nur bevorzugt, wenn es WLAN ist. `LinkProperties` liefert Interface-Name und Interface-Adressen.
-- Listener wird ausschließlich an lokale WLAN-Adressen gebunden: private IPv4 bevorzugt, IPv4-Link-Local, IPv6-ULA oder IPv6-Link-Local als Fallback. Öffentliche Adressen werden abgelehnt. DNS-SD veröffentlicht dieselbe Adresse.
-- Änderungen an Interface/IP oder Verlust des WLANs beenden die Discovery fail-closed. Der Listener wird geschlossen und der Accept-Thread begrenzt beendet; Neustart erzeugt einen frischen Socket.
-- Fünf JVM-Tests für Adressauswahl; Pairing-Controller-Test nutzt getrennte Trust-Speicher für Gerät A und B.
-- App-Code-Commit: `9cb2599ab714f71b9f0334ecc85678e31b489ed2`. **CI/Unit-Tests/Android-Build für diesen Commit noch nicht bestätigt.** Kein Emulatorlauf auf diesem Stand.
-- Discovery bleibt reject-only; Handshake und Profiltransfer wurden nicht integriert.
+- Discovery wählt weiterhin ein lokales WLAN und bindet den Listener explizit an dessen lokale Adresse. Öffentliche IP-Adressen werden ausgeschlossen.
+- Ein zusätzlich verfügbares WLAN beendet die laufende Suche nicht mehr pauschal. Abbruch erfolgt bei einem neu verfügbaren WLAN nur dann, wenn es zugleich Androids aktives Standardnetz wird. Verlust oder Adresswechsel des ursprünglich ausgewählten WLANs bleiben fail-closed.
+- IPv6-Link-Local-Adressen werden mit Interface-Scope gebunden. Die Scope-Erzeugung ist separat kapselt und der Test ruft den vollständigen Selector auf.
+- Sieben JVM-Testfälle sind in der Adressauswahl-Testdatei vorhanden. **Sie sind für den aktuellen Stand noch nicht ausgeführt/bestätigt.**
+- App-Code-Commit: `4f35e1feb60e0f46eac360fee51a58d024bfc6bb`; Test-Commit: `d91b00b8c4c20535b97795e5db7fc54a735a5fad`. Anschließende Dokumentationscommits halten diesen Stand fest.
+- CI/Unit-Tests/Android-Build/Emulator für diese Commits nicht bestätigt. Discovery bleibt reject-only; keine Handshake-Integration und keine Profilübertragung.
+
 ## Produktionsstand
 
 - `main` ist alleiniger Produktionsbranch; PR #6 ist nicht gemergt.
@@ -24,7 +25,7 @@
 
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen/Draft, nicht gemergt.
 - `main...test`: **divergent (kein Merge/Rebase)**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
-- Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246): **success** auf älterem App-Code-HEAD `ae1bdc03`. Für den aktuellen App-Code-HEAD `7cd8001` gibt es noch keinen CI-Lauf; die GitHub-API hat nach dem Commit keinen PR-Run erzeugt.
+- Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246): **success** auf älterem App-Code-HEAD `ae1bdc03`. Für den aktuellen WLAN-/IPv6-Code-HEAD `4f35e1f` und den Test-HEAD `d91b00b` gibt es noch keinen CI-Lauf; die GitHub-API hat nach dem Commit keinen PR-Run erzeugt.
 - TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) erfolgreich auf älterem Commit `41b9a3ab`, API 26. Für aktuellen HEAD kein Emulatornachweis; API 35 nicht bestätigt.
 - TCP-Emulatorworkflow nur manuell (`workflow_dispatch`); WLAN-Workflow bei PR-Updates. Keine doppelten automatischen Emulatorläufe.
 - QR-Pairing, lokale Bestätigung, Keystore-Identität, Trusted-Peer-Speicher und TCP-Challenge-Response sind implementiert. TLS/mTLS wurde nach Nutzerfreigabe verworfen; TCP ist unverschlüsselt.
