@@ -46,8 +46,9 @@ class ClimatePairingInvitationTest {
         assertTrue(json.has("peerId"))
         assertTrue(json.has("publicKey"))
         assertFalse(json.has("profile"))
-        assertFalse(json.has("host"))
-        assertFalse(json.has("address"))
+        assertTrue(json.has("pairingHost"))
+        assertTrue(json.has("pairingPort"))
+        assertFalse(json.has("profile"))
     }
 
     private fun signedInvitation(now: Long): String {
