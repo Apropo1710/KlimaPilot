@@ -2,6 +2,7 @@
 
 **Fachlicher Stand:** 18.11.2026  
 **Produktions-/Branch-/PR-Status:** ausschließlich in `PROJECT_STATUS.md`.
+
 ## 1. Ziel
 
 Profiländerungen sollen dauerhaft gespeichert, bei Verbindungsunterbrechungen nachgeliefert und über mehrere Transportwege zuverlässig abgeglichen werden. Lokale Daten dürfen bei Ausfällen nicht verloren gehen. Cloud-Abhängigkeit ist nicht vorgesehen.
@@ -64,13 +65,9 @@ Discovery bleibt reject-only; es werden keine Profile über Peer-TCP übertragen
 
 Build-, CI- und Geräte-Testnachweise für den aktuellen Stand werden ausschließlich in `PROJECT_STATUS.md` geführt. Ältere erfolgreiche Testläufe sind kein Nachweis für den jeweils neuesten Codecommit.
 
-## 8. Nächste Schritte
+## 8. Weiteres Vorgehen
 
-1. WLAN-Lifecycle-Code reviewen und aktuellen PR-Workflow prüfen.
-2. Android-Unit-Tests und Build für den aktuellen Stand bestätigen.
-3. Bei Erfolg gezielte Discovery-/Netzwerkwechseltests auf Geräten durchführen.
-4. Danach Handshake-Integration planen.
-5. Erst nach Protokollhärtung und Zwei-Smartphone-Test die Peer-Outbox anbinden.
+Die nächsten Arbeitsschritte und ihre Freigabestatus werden ausschließlich in `PROJECT_STATUS.md` gepflegt.
 
 ## 9. Produktionsschutz
 
