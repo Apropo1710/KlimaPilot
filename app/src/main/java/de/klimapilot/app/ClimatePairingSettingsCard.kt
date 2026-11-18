@@ -52,6 +52,7 @@ internal fun ClimatePairingSettingsCard() {
     var localFingerprint by remember { mutableStateOf<String?>(null) }
     var displayName by remember { mutableStateOf("KlimaPilot-Gerät") }
     var qrPayload by remember { mutableStateOf<String?>(null) }
+    var scannedInvitationPayload by remember { mutableStateOf<String?>(null) }
     var pending by remember { mutableStateOf<ClimatePairingSessionController.PendingConfirmation?>(null) }
     var pendingIsIncoming by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Geräte können per QR-Code gekoppelt werden. Beide Seiten müssen den Fingerprint bestätigen.") }
@@ -72,6 +73,7 @@ internal fun ClimatePairingSettingsCard() {
     fun cancelSession(message: String) {
         controller?.cancel()
         qrPayload = null
+        scannedInvitationPayload = null
         pending = null
         pendingIsIncoming = false
         status = message
