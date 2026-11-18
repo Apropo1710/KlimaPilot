@@ -44,6 +44,15 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Der zuvor bereits gestartete API-26-Lauf #90 (Run ID `44323759302`) war zum letzten Abruf noch aktiv. Die Workflow-Änderung verhindert neue automatische Starts, beendet aber keinen bereits laufenden Run.
 - WLAN-Workflow #225 (Run ID `44323759391`) auf Commit `b5f890248b3128a504fc5e48af6bdb9b2d26944c` erfolgreich: Unit-Tests, Debug-Kompilierung, APK-Prüfung und Artefaktbereitstellung abgeschlossen. Dieser Lauf enthält die Pairing-Controller-/Teständerungen, aber noch keinen echten WLAN-Rückkanal.
 
+## 2c. Kryptografisches Speicher-ACK (18.11.2026)
+
+- Commit `f7f6eaf220b671f9a5b624ac5efe2110dd5866a9`: Neue Klasse `ClimatePairingAcknowledgement`. Das ACK ist eine ECDSA-signierte Nachricht mit Sitzungs-ID, Einladenden-ID, Responder-ID, Responder-Nonce und Zeitstempel.
+- Commit `b0e430e38f6fa8a645b1041b878d16db2b4aa1ce`: `ClimatePairingSessionController.acknowledgeIncomingInvitation` nimmt jetzt das ACK-Payload entgegen und verifiziert dessen Signatur gegen den öffentlichen Schlüssel der ursprünglichen Einladung. Eine bloße Übergabe von Sitzungs-ID und Peer-ID reicht nicht mehr.
+- Commit `5dcc6ed7cd102d2aaf46800a2a966ffb3aed3d55`: Controller-Methode für den Einladenden erzeugt das signierte ACK nach erfolgreicher lokaler Bestätigung und Peer-Speicherung.
+- Commit `aa633a1a4a29e2233bbb8a5d95d5ce9194c945c2`: Controller-Tests verwenden den signierten ACK-Ablauf und prüfen eine gefälschte Signatur sowie ACK nach Abbruch.
+- WLAN-Workflow Run `44326084183` auf Commit `aa633a1a4a29e2233bbb8a5d95d5ce9194c945c2` ist zum Dokumentationszeitpunkt **queued**. Noch kein bestätigtes Testergebnis.
+- **Noch nicht implementiert:** Einladungs-QR mit signiertem WLAN-Endpunkt, zeitlich begrenzter TCP-Rückkanal, automatische Zustellung von Antwort und ACK sowie Ein-Scan-UI. Der aktuelle QR-Ablauf bleibt unverändert und kann den neuen signierten ACK noch nicht verwenden. Keine Freigabe für Smartphone-Praxistest.
+
 ## 3. Letzte Codeänderung
 
 Code-/Integrations-Commit: `3ea93c97a7db0de2a5c287d6666713e40af76cf7`  
