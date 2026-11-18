@@ -161,6 +161,32 @@ internal class ClimatePairingSessionController(
         return trusted
     }
 
+    /**
+     * Stores the responder and creates the signed ACK that must be returned over the
+     * invitation's one-shot transport channel. ACK creation is completed before the
+     * local trust write so a signing failure cannot leave a partial local operation.
+     */
+    @Synchronized
+    fun confirmOutgoingResponseAndCreateAcknowledgement(
+        confirmation: PendingConfirmation,
+        displayName: String,
+        createAcknowledgement: (ClimatePairingResponse.Response, Long) -> String,
+        nowMillis: Long = System.currentTimeMillis()
+    ): String {
+        val invitation = outgoingInvitation
+            ?: throw IllegalStateException("Keine aktive ausgehende Pairing-Sitzung.")
+        check(outgoingConfirmation === confirmation) { "Die Bestätigung gehört nicht zur aktiven Sitzung." }
+        check(nowMillis <= invitation.expiresAtMillis) { "Die Pairing-Einladung ist abgelaufen." }
+        val response = pendingResponsePeer
+            ?: throw IllegalStateException("Die geprüfte Geräteidentität fehlt.")
+        val acknowledgementPayload = createAcknowledgement(response, nowMillis)
+        trustedPeerStore.trustPeer(response.responderPublicKeyBase64, displayName)
+        outgoingInvitation = null
+        outgoingConfirmation = null
+        pendingResponsePeer = null
+        return acknowledgementPayload
+    }
+
     /** Cancels the current local pairing attempt without changing existing trust. */
     @Synchronized
     fun cancel() {
