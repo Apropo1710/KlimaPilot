@@ -25,6 +25,8 @@ internal class ClimatePairingInvitation(
         val publicKeyBase64: String,
         val fingerprint: String,
         val nonceBase64: String,
+        val pairingHost: String,
+        val pairingPort: Int,
         val signatureBase64: String
     ) {
         fun toQrPayload(): String = JSONObject()
@@ -36,6 +38,8 @@ internal class ClimatePairingInvitation(
             .put("publicKey", publicKeyBase64)
             .put("fingerprint", fingerprint)
             .put("nonce", nonceBase64)
+            .put("pairingHost", pairingHost)
+            .put("pairingPort", pairingPort)
             .put("signature", signatureBase64)
             .toString()
 
@@ -48,11 +52,18 @@ internal class ClimatePairingInvitation(
             peerId,
             publicKeyBase64,
             fingerprint,
-            nonceBase64
+            nonceBase64,
+            pairingHost,
+            pairingPort.toString()
         ).joinToString("\n").toByteArray(StandardCharsets.UTF_8)
     }
 
-    fun create(nowMillis: Long = System.currentTimeMillis()): Invitation {
+    fun create(
+        pairingHost: String,
+        pairingPort: Int,
+        nowMillis: Long = System.currentTimeMillis()
+    ): Invitation {
+        require(ClimatePairingEndpoint.isAllowed(pairingHost, pairingPort)) { "Ungültiger lokaler Pairing-Endpunkt." }
         val identity = identityStore.getOrCreateIdentity()
         val sessionId = randomBytes(SESSION_ID_BYTES).toHex()
         val nonce = randomBytes(NONCE_BYTES)
@@ -65,6 +76,8 @@ internal class ClimatePairingInvitation(
             publicKeyBase64 = identity.publicKeyBase64,
             fingerprint = identity.fingerprint,
             nonceBase64 = Base64.encodeToString(nonce, Base64.NO_WRAP),
+            pairingHost = pairingHost,
+            pairingPort = pairingPort,
             signatureBase64 = ""
         )
         val signature = identityStore.sign(unsigned.signingBytes())
@@ -89,7 +102,7 @@ internal class ClimatePairingInvitation(
             if (payload.isBlank() || payload.length > MAX_QR_PAYLOAD_CHARS) return null
             return runCatching {
                 val json = JSONObject(payload)
-                require(json.length() == 9)
+                require(json.length() == 11)
                 require(json.getInt("v") == PROTOCOL_VERSION)
                 val invitation = Invitation(
                     sessionId = json.getString("sid"),
@@ -99,6 +112,8 @@ internal class ClimatePairingInvitation(
                     publicKeyBase64 = json.getString("publicKey"),
                     fingerprint = json.getString("fingerprint"),
                     nonceBase64 = json.getString("nonce"),
+                    pairingHost = json.getString("pairingHost"),
+                    pairingPort = json.getInt("pairingPort"),
                     signatureBase64 = json.getString("signature")
                 )
                 require(invitation.sessionId.matches(Regex("[a-f0-9]{32}")))
@@ -107,6 +122,7 @@ internal class ClimatePairingInvitation(
                 require(invitation.expiresAtMillis - invitation.createdAtMillis == INVITATION_LIFETIME_MS)
                 require(nowMillis >= invitation.createdAtMillis - MAX_CLOCK_SKEW_MS)
                 require(nowMillis <= invitation.expiresAtMillis)
+                require(ClimatePairingEndpoint.isAllowed(invitation.pairingHost, invitation.pairingPort))
                 val nonce = Base64.decode(invitation.nonceBase64, Base64.NO_WRAP)
                 require(nonce.size == NONCE_BYTES)
                 val publicKeyBytes = Base64.decode(invitation.publicKeyBase64, Base64.NO_WRAP)
