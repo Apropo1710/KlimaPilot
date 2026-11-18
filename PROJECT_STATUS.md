@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 08:55 Uhr MEZ  
+**Letzter Abgleich:** 18.11.2026, 08:56 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -25,8 +25,10 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 3. Letzte Codeänderung
 
-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`  
-Datei: `app/src/main/java/de/klimapilot/app/sync/ClimateProfilePeerDiscovery.kt`
+Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`  
+Datei: `app/src/main/java/de/klimapilot/app/sync/ClimateProfilePeerDiscovery.kt`  
+Letzter Test-Commit: `e55a92e1aba0961088af92d6013de2ba960ea03d`  
+Datei: `app/src/test/java/de/klimapilot/app/sync/ClimatePeerNetworkPolicyTest.kt` (zwei zusätzliche Fälle für fehlendes Interface und fehlende Link-Adresse).
 
 - Zusätzlich zum WLAN-spezifischen `registerNetworkCallback` wird `registerDefaultNetworkCallback` verwendet.
 - Der Default-Callback erkennt einen Wechsel des Android-Standardnetzes zu einem anderen WLAN.
@@ -37,7 +39,7 @@ Datei: `app/src/main/java/de/klimapilot/app/sync/ClimateProfilePeerDiscovery.kt`
 - Beide Callbacks werden beim Cleanup abgemeldet.
 - **Review-Fund vom 18.11.2026:** Zwischen dem initialen Lesen des ausgewählten WLANs und der Registrierung der NetworkCallbacks bestand ein Race-Fenster. Ein bereits vor der Callback-Registrierung verlorenes Netzwerk muss nicht nachträglich über `onLost` gemeldet werden.
 - **Gezielte Absicherung:** Nach Registrierung beider Callbacks wird der ausgewählte Network-/LinkProperties-Snapshot erneut gelesen. Die Discovery wird vor der DNS-SD-Ankündigung abgebrochen, wenn der ausgewählte Transport, das Interface oder die gewählte Adresse nicht mehr übereinstimmen oder bereits ein anderes WLAN das Defaultnetz ist.
-- Die Defaultnetz- und Snapshot-Entscheidungen sind als reine Policy-Funktionen ausgelagert und durch elf gezielte JVM-Fälle abgedeckt (noch nicht als ausgeführt bestätigt).
+- Die Defaultnetz- und Snapshot-Entscheidungen sind als reine Policy-Funktionen ausgelagert und durch elf gezielte JVM-Fälle abgedeckt. Die Gradle-/JUnit-Ausführung ist noch nicht bestätigt.
 - Die erneute Snapshot-Prüfung liest LinkProperties null-sicher; bei fehlendem Netzwerk, Interface oder geeigneter Adresse wird der Start fail-closed abgebrochen.
 - Der TCP-Listener bleibt reject-only: eingehende Verbindungen werden angenommen und unmittelbar geschlossen. Es gibt keinen integrierten authentifizierten Handshake und keinen Nutzdatentransfer.
 
@@ -62,11 +64,11 @@ Die folgenden Nachweise sind die zuletzt konkret dokumentierten Ergebnisse; sie 
 - WLAN-Workflow **#202**, erfolgreich auf älterem Commit `ae1bdc03c78624ff640505b4bd255bfd885b05c5`.
 - WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
 - Separater TCP-Emulatorlauf **#62**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26.
-- Für den vorherigen App-Code-Commit `bba8969...` ist kein zugehöriger erfolgreicher Android-Build oder Testlauf bestätigt.
-- Für die aktuelle Lifecycle-Snapshot-Absicherung und ihre elf Policy-Testfälle ist ebenfalls noch kein Android-Build/Unit-Testlauf bestätigt.
+- Für den App-Code-Commit `bba8969...` und den anschließenden Test-Commit `e55a92e...` ist kein erfolgreicher Android-Build oder Gradle-/JUnit-Lauf bestätigt.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
 - Kein API-35-Emulatornachweis und kein Zwei-Smartphone-Praxistest bestätigt.
-- Für den aktuellen `test`-HEAD `e55a92e...` wurde trotz aktualisiertem PR-Kopf kein Actions-Lauf angelegt; die commitbezogene Workflow-Abfrage und der kombinierte Commit-Status liefern keine Runs/Checks. Der letzte erfolgreiche WLAN-Lauf #202 liegt vor dem Codecommit `bba8969...`; der letzte TCP-Emulatorlauf #62 ebenfalls.\n- Die elf reinen Netzwerk-Policy-Fälle wurden zusätzlich mit dem lokalen Kotlin-Compiler in einem separaten Smoke-Harness ausgeführt: **11/11 bestanden**. Das ist ausdrücklich kein Ersatz für `testDebugUnitTest`, Android-Kompilierung oder Emulator-/Gerätetests. In der verfügbaren lokalen Umgebung sind weder Gradle noch Android SDK/ADB eingerichtet.
+- Für den aktuellen `test`-HEAD `e55a92e...` wurde trotz aktualisiertem PR-Kopf kein Actions-Lauf angelegt; die commitbezogene Workflow-Abfrage und der kombinierte Commit-Status liefern keine Runs/Checks. Der letzte erfolgreiche WLAN-Lauf #202 liegt vor dem Codecommit `bba8969...`; der letzte TCP-Emulatorlauf #62 ebenfalls.
+- Die elf reinen Netzwerk-Policy-Fälle wurden zusätzlich mit dem lokalen Kotlin-Compiler in einem separaten Smoke-Harness ausgeführt: **11/11 bestanden**. Das ist ausdrücklich kein Ersatz für `testDebugUnitTest`, Android-Kompilierung oder Emulator-/Gerätetests. In der verfügbaren lokalen Umgebung sind weder Gradle noch Android SDK/ADB eingerichtet.
 
 Workflows:
 - `.github/workflows/wlan-validation.yml`: PR-Trigger sowie `workflow_dispatch`; laut Workflowdefinition Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35.
