@@ -197,7 +197,7 @@ private fun KlimaPilotApp(appVersion: String) {
             runCatching { withContext(Dispatchers.IO) { controller.read(device) } }
                 .onSuccess { state -> currentAirconState = state; airconConnected = true; controlStatus = "" }
                 .onFailure { error -> airconConnected = false; controlStatus = error.message ?: "Gerätestatus konnte nicht gelesen werden." }
-            delay(if (device.demoMode) 3_000L else 15_000L)
+            delay(if (device.demoMode) 3_000L else 10_000L)
         }
     }
 

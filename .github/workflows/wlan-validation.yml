@@ -75,7 +75,7 @@ jobs:
         env:
           KLIMAPILOT_TEST_KEYSTORE_PATH: ${{ runner.temp }}/klimapilot-test-debug.p12
           KLIMAPILOT_TEST_KEY_PASSWORD: ${{ env.KLIMAPILOT_TEST_STORE_PASSWORD }}
-        run: gradle --no-daemon testDebugUnitTest assembleDebug compileReleaseKotlin
+        run: gradle --no-daemon testDebugUnitTest assembleDebug compileReleaseKotlin lintVitalRelease
 
       - name: Debug-APK für Smartphone-Praxistest prüfen
         run: |
