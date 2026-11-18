@@ -215,3 +215,13 @@ Diese Punkte sind Review-Ergebnisse und offene Integrationsanforderungen, keine 
 - Ein isolierter lokaler JDK-Smoketest der `Inet6Address`-Interface-Scope-API war mit einer tatsächlich zugewiesenen IPv6-Link-Local-Adresse erfolgreich. Das ist kein Android-App-Build und ersetzt keinen CI-Test.
 - CI/Build noch nicht bestätigt. Die Testfälle sind ergänzt, aber nicht als ausgeführt oder bestanden zu werten.
 - Keine Änderung an Pairing-Kryptografie, TCP-Handshake, Nutzdatenübertragung, Updater, `main` oder Produktionsrelease.
+
+
+## 16. Netzwerk-Lifecycle-Review: Default-WLAN-Wechsel (18.11.2026, 08:10 Uhr MEZ)
+
+- Review-Befund: Ein ausschließlich mit `registerNetworkCallback(NetworkRequest mit TRANSPORT_WIFI)` registrierter Callback beobachtet passende WLAN-Netze, nicht zuverlässig jede Änderung des Android-Standardnetzes. Wenn ein zweites WLAN bereits verfügbar ist und später zum Defaultnetz wird, muss dafür kein neues `onAvailable` des WLAN-Callbacks eintreffen. Die bisherige Prüfung von `connectivity.activeNetwork` nur in `onAvailable` konnte diesen Übergang deshalb verpassen.
+- Korrektur auf `test`: separater `registerDefaultNetworkCallback(callback, mainHandler)`. Sowohl `onAvailable` als auch `onCapabilitiesChanged` prüfen das Defaultnetz. Ein anderes WLAN als das für den Listener ausgewählte WLAN beendet die Discovery fail-closed.
+- Mobilfunk als Defaultnetz bleibt zulässig; der ausgewählte WLAN-Link wird weiterhin separat auf Verlust und Link-/Adressänderungen überwacht.
+- Der Cleanup meldet beide Netzwerk-Callbacks ab. Discovery bleibt weiterhin reject-only; kein Handshake und keine Nutzdatenübertragung.
+- Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`. Noch kein Android-Build, Unit-Test, Emulator- oder Hardwaretest für diese Änderung bestätigt.
+- Keine Änderung an `main`, Updater, Manifest, Release, Pairing-Kryptografie oder bestehendem WF-RAC-/ioBroker-Steuerpfad.

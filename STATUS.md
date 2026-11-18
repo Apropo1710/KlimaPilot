@@ -1,19 +1,21 @@
 # KlimaPilot – aktueller Projekt- und Übergabestatus
 
-**Abgleich:** 18.11.2026, 07:44 Uhr MEZ  
+**Abgleich:** 18.11.2026, 08:10 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Produktionsbranch:** `main` – HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`  
 **Produktionsversion:** **0.4.64 / versionCode 94**  
-**Arbeitsbranch:** `test` – App-Code-/Test-Commits `4f35e1f` und `305fc0e`; Statusdokumentation wird in den nachfolgenden Commits ergänzt.
+**Arbeitsbranch:** `test` – App-Code-Commit `bba8969ba4306d159ba388753f85c6638bf32f7f`; PR #6 offen/Draft, nicht gemergt.
 
-### Neuester Arbeitsstand – WLAN-Callback und IPv6-Scope (18.11.2026, 07:44 Uhr MEZ)
+### Neuester Arbeitsstand – WLAN-Defaultnetz-Überwachung (18.11.2026, 08:10 Uhr MEZ)
 
-- Discovery wählt weiterhin ein lokales WLAN und bindet den Listener explizit an dessen lokale Adresse. Öffentliche IP-Adressen werden ausgeschlossen.
-- Ein zusätzlich verfügbares WLAN beendet die laufende Suche nicht mehr pauschal. Abbruch erfolgt bei einem neu verfügbaren WLAN nur dann, wenn es zugleich Androids aktives Standardnetz wird. Verlust oder Adresswechsel des ursprünglich ausgewählten WLANs bleiben fail-closed.
-- IPv6-Link-Local-Adressen werden mit Interface-Scope gebunden. Die Scope-Erzeugung ist separat gekapselt und der Test ruft den vollständigen Selector auf.
-- Sieben JVM-Testfälle sind in der Adressauswahl-Testdatei vorhanden. **Sie sind für den aktuellen Stand noch nicht ausgeführt/bestätigt.**
-- App-Code-Commit: `4f35e1feb60e0f46eac360fee51a58d024bfc6bb`; Test-Commit: `305fc0e03df09ae2c7ff8e8511a88bc2abaeaea4`. Anschließende Dokumentationscommits halten diesen Stand fest.
-- CI/Unit-Tests/Android-Build/Emulator für diese Commits nicht bestätigt. Discovery bleibt reject-only; keine Handshake-Integration und keine Profilübertragung.
+- Der vorherige Callback war an eine WLAN-`NetworkRequest` gebunden. Damit war ein Wechsel des Android-Standardnetzes zu einem bereits verfügbaren zweiten WLAN nicht zuverlässig erkennbar: beide WLANs konnten verfügbar bleiben, ohne dass für das neue Standardnetz ein neues `onAvailable` ausgelöst wurde.
+- Korrektur auf `test`: zusätzlicher `registerDefaultNetworkCallback`. Er prüft sowohl `onAvailable` als auch `onCapabilitiesChanged`, damit auch die nachgelieferte WLAN-Transportinformation ausgewertet wird.
+- Ein Wechsel des Defaultnetzes zu einem anderen WLAN beendet die Discovery fail-closed. Ein Mobilfunk-Defaultnetz wird nicht als Fehler gewertet, solange das ausgewählte WLAN selbst verfügbar bleibt.
+- Der bestehende WLAN-Callback überwacht weiterhin Verlust und Link-/Adressänderungen des ausgewählten WLANs. Beide Callbacks werden im zentralen Cleanup abgemeldet.
+- Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`. Vorherige WLAN-/IPv6-Commits: `4f35e1feb60e0f46eac360fee51a58d024bfc6bb` und `305fc0e03df09ae2c7ff8e8511a88bc2abaeaea4`.
+- **Validierung offen:** Für den neuen Callback-Code wurden noch keine Android-Unit-Tests, Android-Builds oder Emulatorläufe bestätigt. Der vorherige PR-HEAD `b91706c686350c356754001a31f407e1fc705057` hatte keine zugehörigen Actions-Runs. Kein erfolgreicher Test wird behauptet.
+- Die sieben Adressauswahl-/IPv6-Scope-JVM-Testfälle sind vorhanden, aber nicht ausgeführt/bestätigt. Der isolierte JDK-Smoketest belegt nur die Java-Scope-API.
+- Discovery bleibt reject-only; TCP-Handshake-Integration, Profil-/Outbox-Transfer und automatische Peer-Synchronisierung sind nicht umgesetzt.
 
 ## Produktionsstand
 

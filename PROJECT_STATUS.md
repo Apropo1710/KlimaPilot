@@ -1,25 +1,26 @@
 
-## Verbindliche Statuskorrektur – 18.11.2026
+## Verbindliche Statuskorrektur – 18.11.2026, 08:10 Uhr MEZ
 
-Dieser Abschnitt ist der aktuelle operative Status und ersetzt abweichende ältere Branch-/CI-Angaben in den nachfolgenden chronologischen Einträgen.
+Dieser Abschnitt ist der aktuelle operative Status und ersetzt abweichende ältere Branch-/CI-Angaben in der nachfolgenden chronologischen Dokumentation.
 
-- Produktionsbranch `main`: HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`; Produktionsversion **0.4.64 / versionCode 94**. Produktionsbuild #233 ist erfolgreich (Build-Quellcommit `b88ff7e9709bc1ea5aafd673e26bb1d4efee9c16`); Release-Tag `latest` zeigt auf diesen Build-Commit und enthält die aktualisierte `KlimaPilot.apk`.
-- Dieser Testbranch `test`: aktueller App-Code-HEAD `9cb2599ab714f71b9f0334ecc85678e31b489ed2` (nachfolgender Dokumentationscommit aktualisiert die Statusdateien).
-- Vergleich `main...test` nach App-Code-Commit: **159 ahead / 10 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Divergente Branches; keine automatische Zusammenführung.
-- [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen und Draft, nicht gemergt. Keine Produktionsfreigabe.
-- Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246) war erfolgreich auf älterem App-Code-HEAD `ae1bdc03`. Für `7cd800141a3b16b9f00c91669a0a922eddb509e1` liegt noch kein CI-Ergebnis vor; nach dem Commit wurde kein automatischer PR-Run erzeugt.
-- Letzter erfolgreicher TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) lief auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26. Für den aktuellen HEAD liegt kein bestätigter Emulatorlauf vor. API 35 ist nicht als bestanden bestätigt.
-- `.github/workflows/pairing-tls-validation.yml` wird ausschließlich manuell per `workflow_dispatch` gestartet. `.github/workflows/wlan-validation.yml` validiert PR-Updates. Dadurch kein automatischer Emulatorlauf bei jedem Commit.
-- TCP-Peer-Authentifizierung: gegenseitiger ECDSA-Challenge-Response-Handshake mit frischen Nonces, Peer-ID-/Rollenbindung, Limits und Socket-Timeouts. TLS/mTLS wurde nach ausdrücklicher Nutzerfreigabe verworfen. TCP ist unverschlüsselt; passives Mitlesen ist möglich, aktive Manipulation nicht vollständig ausgeschlossen.
-- Pairing-UI/QR, Keystore-Identität, Trusted-Peer-Speicher und JVM-Negativtests sind vorhanden. Die UI ist durch `BuildConfig.DEBUG` auf die Debug-App mit separater Application-ID `de.klimapilot.app.debug` begrenzt. Release-UI bleibt getrennt; Updater wurde nicht verändert.
-- **Nicht fertig:** TCP-Handshake ist nicht in Discovery integriert; Discovery nimmt Verbindungen weiterhin nur an und schließt sie (reject-only). Es gibt keinen Profil-/Outbox-Transfer und keine automatische Peer-Synchronisierung.
-- **Freigabesperre:** keine Nutzdatenübertragung vor Integration, strikter Empfänger-Validierung und erfolgreichem Zwei-Smartphone-Test. Kein Merge nach `main`, keine Produktionsversionserhöhung und kein Produktionsrelease.
-- Nächster Schritt: Discovery-, TCP-, Session-Controller- und Trusted-Peer-Pfade vollständig prüfen und ein Integrationsdesign mit Negativtests festlegen.
+- Produktionsbranch `main`: HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`; Produktionsversion **0.4.64 / versionCode 94**. Produktionsbuild #233 ist erfolgreich auf Build-Quellcommit `b88ff7e9709bc1ea5aafd673e26bb1d4efee9c16`; Release `latest` enthält die signierte `KlimaPilot.apk`.
+- Testbranch `test`: aktueller App-Code-Commit `bba8969ba4306d159ba388753f85c6638bf32f7f` (Default-WLAN-Wechselüberwachung); die drei Status-/Entscheidungsdateien werden in einem nachfolgenden Dokumentationscommit aktualisiert.
+- Vor dem Dokumentationscommit: Vergleich `main...test` **180 ahead / 10 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die Branches sind divergent; kein Merge/Rebase.
+- [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) ist offen, Draft und nicht gemergt. Keine Produktionsfreigabe.
+- Für die aktuellen Code-/Dokumentationscommits wurde kein Actions-Lauf gemeldet. Die Abfrage für den vorherigen Dokumentations-HEAD `b91706c686350c356754001a31f407e1fc705057` lieferte keine PR-Workflow-Runs. Der aktuelle Commit benötigt weiterhin einen bestätigten WLAN-Validierungslauf.
+- Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246) war erfolgreich auf älterem App-Code `ae1bdc03`; kein aktueller Nachweis.
+- Letzter erfolgreicher TCP-Emulatorlauf [Run 44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) lief auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26. Kein Emulatornachweis für den aktuellen Stand; API 35 nicht bestätigt.
+- `.github/workflows/wlan-validation.yml` reagiert auf PR-Updates und kann manuell gestartet werden. `.github/workflows/pairing-tls-validation.yml` ist ausschließlich `workflow_dispatch`; für diese manuelle Aktion steht hier kein Dispatch-Werkzeug zur Verfügung. Keine manuellen Nutzeraktionen oder unnötigen Doppelstarts veranlassen.
+- WLAN-Discovery bindet den Reject-only-TCP-Listener an eine lokale Adresse des ausgewählten WLAN-Interfaces. Private IPv4 wird bevorzugt; IPv4-Link-Local, IPv6-ULA und scoped IPv6-Link-Local sind Fallbacks. Öffentliche Adressen werden abgelehnt.
+- Netzwerküberwachung: ein WLAN-spezifischer Callback beobachtet Verlust und Link-/Adressänderungen des ausgewählten WLANs. Ein zusätzlicher Default-Network-Callback erkennt auch den Wechsel des Android-Standardnetzes zu einem anderen WLAN, selbst wenn beide WLANs gleichzeitig verfügbar bleiben. Ein Mobilfunk-Defaultnetz ist zulässig, solange das ausgewählte WLAN verfügbar bleibt. Beide Callbacks werden beim Cleanup abgemeldet.
+- IPv6-Link-Local-Scope wird an das ausgewählte Interface gebunden. Sieben JVM-Testfälle sind im Quellcode vorhanden; sie wurden für den aktuellen Stand nicht ausgeführt oder bestätigt. Ein isolierter JDK-Smoketest war erfolgreich, ersetzt aber keinen Android-Build oder Unit-Test.
+- TCP-Peer-Authentifizierung ist implementiert, aber nicht in Discovery integriert. Discovery bleibt **reject-only**; kein Profil-/Outbox-Transfer und keine automatische Peer-Synchronisierung.
+- TLS/mTLS wurde nach ausdrücklicher Nutzerfreigabe verworfen. TCP ist unverschlüsselt und kann passiv mitgelesen werden; aktive Manipulation ist nicht vollständig ausgeschlossen.
+- Pairing-UI/QR, Keystore-Identität und Trusted-Peer-Speicher sind auf die separate Debug-App `de.klimapilot.app.debug` begrenzt.
+- **Freigabesperre:** keine Nutzdatenübertragung vor sicherer Integration, strikter Empfänger-/Schema-/Wertebereichsvalidierung und erfolgreichem Zwei-Smartphone-Test. Kein Merge nach `main`, keine Produktionsversionserhöhung und kein Produktionsrelease.
+- Updater, Manifest, Produktionsbranch `main`, Release und bestehender WF-RAC-/ioBroker-Steuerpfad wurden durch diese Arbeit nicht verändert.
 
-
-
-
-## WLAN-Bindung – Implementierungsstand 18.11.2026, 07:33 Uhr MEZ
+## Historischer WLAN-Bindungsstand – 18.11.2026, 07:33 Uhr MEZ (durch die operative Statuskorrektur oben ergänzt)
 
 Auf Testbranch `test`, App-Code-Commit `9cb2599ab714f71b9f0334ecc85678e31b489ed2`: 
 
