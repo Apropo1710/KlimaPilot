@@ -15,6 +15,8 @@ import java.net.Socket
 import java.util.concurrent.Executors
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import javax.net.SocketFactory
 
 @RunWith(AndroidJUnit4::class)
 class ClimatePeerTcpCompatibilityTest {
@@ -179,6 +181,58 @@ class ClimatePeerTcpCompatibilityTest {
             executor.shutdownNow()
             clientTrust.revokePeer(serverIdentity.peerId)
             serverTrust.revokePeer(clientIdentity.peerId)
+        }
+    }
+
+    @Test
+    fun clientSocketCreatedDuringShutdownIsClosedBeforeConnect() {
+        val identityStore = ClimatePeerIdentityStore("klimapilot.test.shutdown.identity")
+        val trustStore = freshTrustStore("tcp_shutdown_race")
+        val manager = ClimatePeerTcpConnectionManager(identityStore, trustStore)
+        val createEntered = CountDownLatch(1)
+        val allowCreateToReturn = CountDownLatch(1)
+        val createdSocket = AtomicReference<Socket?>()
+        val blockingFactory = object : SocketFactory() {
+            override fun createSocket(): Socket {
+                createEntered.countDown()
+                var released = false
+                while (!released) {
+                    try {
+                        allowCreateToReturn.await()
+                        released = true
+                    } catch (_: InterruptedException) {
+                        // Simulate a SocketFactory that finishes socket creation despite shutdown.
+                    }
+                }
+                return Socket().also(createdSocket::set)
+            }
+
+            override fun createSocket(host: String, port: Int): Socket = createSocket()
+            override fun createSocket(host: String, port: Int, localHost: InetAddress, localPort: Int): Socket = createSocket()
+            override fun createSocket(host: InetAddress, port: Int): Socket = createSocket()
+            override fun createSocket(address: InetAddress, port: Int, localAddress: InetAddress, localPort: Int): Socket = createSocket()
+        }
+        val peer = UnverifiedClimatePeer(
+            instanceName = "KlimaPilot-01234567",
+            hostAddress = "127.0.0.1",
+            port = 9,
+            protocolMajor = 1,
+            discoveryId = "0123456789abcdef0123456789abcdef",
+        )
+        try {
+            assertTrue(manager.authenticate(peer, blockingFactory) { _, _ -> })
+            assertTrue("SocketFactory was not entered", createEntered.await(5, TimeUnit.SECONDS))
+            manager.close()
+            allowCreateToReturn.countDown()
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (createdSocket.get() == null && System.nanoTime() < deadline) Thread.sleep(10)
+            val socket = createdSocket.get()
+            assertTrue("SocketFactory did not return its socket", socket != null)
+            assertTrue("Socket created after shutdown must be closed before connect", socket!!.isClosed)
+        } finally {
+            allowCreateToReturn.countDown()
+            manager.close()
+            trustStore.trustedPeers().forEach { trustStore.revokePeer(it.peerId) }
         }
     }
 
