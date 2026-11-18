@@ -62,6 +62,29 @@ jobs:
           disable-spellchecker: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           script: set +e; gradle --no-daemon testDebugUnitTest connectedDebugAndroidTest; result=$?; adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/tcp-api26-logcat.txt"; adb shell dumpsys activity > "$GITHUB_WORKSPACE/tcp-api26-activity.txt" 2>&1; adb shell dumpsys cpuinfo > "$GITHUB_WORKSPACE/tcp-api26-cpuinfo.txt" 2>&1; adb shell dumpsys package de.klimapilot.app.debug > "$GITHUB_WORKSPACE/tcp-api26-package.txt" 2>&1; adb root >/dev/null 2>&1 || true; adb shell ls -la /data/anr > "$GITHUB_WORKSPACE/tcp-api26-anr-list.txt" 2>&1; adb pull /data/anr "$GITHUB_WORKSPACE/tcp-api26-anr" >/dev/null 2>&1 || true; exit $result
+      - name: Debug-APK für Smartphone-Praxistest prüfen
+        if: success()
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          APP_ID=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK" )
+          VERSION_CODE=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK" )
+          VERSION_NAME=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK" )
+          test "$APP_ID" = "de.klimapilot.app.debug"
+          test "$VERSION_CODE" = "94"
+          test "$VERSION_NAME" = "0.4.64-debug"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          sha256sum "$APK" | tee tcp-api26-debug-apk.sha256
+      - name: Debug-APK als Testartefakt bereitstellen
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: KlimaPilot-debug-api26-test
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            tcp-api26-debug-apk.sha256
+          if-no-files-found: error
+          retention-days: 7
       - name: API-26-Diagnose sichern
         if: always()
         uses: actions/upload-artifact@v4
