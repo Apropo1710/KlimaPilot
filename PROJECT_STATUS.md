@@ -14,10 +14,10 @@
 
 ## 2. Testbranch und PR
 
-- `test` HEAD nach dem aktuellen Dokumentationsabgleich: wird durch den unmittelbar folgenden Doku-Commit aktualisiert.
+- `test` HEAD: aktueller Dokumentationsabgleich-Commit dieses Dokuments; der unmittelbar vorausgehende App-Code-Commit ist `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - App-Code-Commit mit der neuesten Netzwerkänderung: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
-- Vor dem aktuellen Doku-Commit: `test` **181 Commits ahead / 10 behind** gegenüber `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches divergent; kein Rebase/Merge.
+- Nach dem aktuellen Doku-Commit: `test` **182 Commits ahead / 10 behind** gegenüber `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches divergent; kein Rebase/Merge.
 - PR #6 umfasst den gesamten WLAN-/Pairing-Arbeitsstrang. Der Branch enthält Änderungen an Manifest, Build-Konfiguration, Pairing-UI und Sync-Code; deshalb vor jeder späteren Integration vollständiger Diff-Review gegen den aktuellen `main` erforderlich.
 
 ## 3. Letzter Code-Arbeitsschritt – Netzwerk-Lifecycle
@@ -74,7 +74,7 @@ Vorherige Netzwerk-/Adress-Commits:
 - Letzter bestätigter WLAN-Workflow: [Run #202](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246), erfolgreich, aber auf älterem Code `ae1bdc03c78624ff640505b4bd255bfd885b05c5`.
 - Letzter bestätigter TCP-Emulatorlauf: [Run #201](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356478), erfolgreich auf älterem Code `41b9a3ab513e7d48daa09ee21298fe718748363b`; API 26.
 - Beide Runs liegen zeitlich vor dem aktuellen Netzwerk-Codecommit `bba8969...`.
-- Für `bba8969...` und den anschließenden Doku-Commit wurde kein passender PR-Workflow-Lauf nachgewiesen.
+- Die Actions-Abfrage nach dem Doku-Commit ergab weiterhin keinen neuen PR-Workflow-Lauf für `bba8969...` oder den aktuellen Doku-HEAD. Die jüngsten sichtbaren Runs #202/#201 liegen davor.
 - `.github/workflows/wlan-validation.yml`: PR-Trigger gegen `main`, zusätzlich `workflow_dispatch`; führt `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin) mit Java 17/Android SDK 35 aus.
 - `.github/workflows/pairing-tls-validation.yml` heißt historisch noch so, führt aber TCP-Peer-Authentifizierung aus. Ausschließlich manueller `workflow_dispatch`; API 26 verpflichtend und API 35 manuell. Es steht in dieser Arbeitsumgebung kein Workflow-Dispatch-Werkzeug zur Verfügung.
 - Die sieben Tests in `ClimateWifiListenerAddressSelectorTest.kt` sind vorhanden, aber für den aktuellen Stand nicht als ausgeführt/bestanden bestätigt.

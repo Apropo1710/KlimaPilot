@@ -15,7 +15,7 @@
 
 - `test` ist der einzige Arbeitsbranch für WLAN-Pairing.
 - PR #6 offen, Draft, nicht gemergt: https://github.com/Apropo1710/KlimaPilot/pull/6
-- Letzter App-Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f)
+- Letzter App-Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`
 - Letzter Doku-Abgleich wird als eigener Commit direkt auf `test` abgelegt.
 - Branches `main` und `test` sind divergent; vor dem Doku-Commit 181 ahead / 10 behind. Kein Rebase oder Merge.
 
