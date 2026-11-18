@@ -18,7 +18,7 @@ import java.security.spec.X509EncodedKeySpec
 internal class ClimateTrustedPeerStore(
     context: Context,
     prefsName: String = PREFS_NAME
-) {
+) : ClimatePeerTrust {
     data class TrustedPeer(
         val peerId: String,
         val publicKeyBase64: String,
@@ -88,7 +88,7 @@ internal class ClimateTrustedPeerStore(
     }
 
     @Synchronized
-    fun isTrusted(peerId: String, publicKeyBase64: String): Boolean {
+    override fun isTrusted(peerId: String, publicKeyBase64: String): Boolean {
         val candidate = runCatching { peerFromPublicKey(publicKeyBase64, "peer") }.getOrNull() ?: return false
         if (candidate.peerId != peerId) return false
         return trustedPeers().any { it.peerId == peerId && it.publicKeyBase64 == candidate.publicKeyBase64 }

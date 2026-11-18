@@ -30,8 +30,8 @@ internal object ClimatePeerTcp {
     fun connectAndAuthenticate(
         host: String,
         port: Int,
-        identityStore: ClimatePeerIdentityStore,
-        trustedPeers: ClimateTrustedPeerStore
+        identityStore: ClimatePeerSigner,
+        trustedPeers: ClimatePeerTrust
     ): Socket {
         require(port in 1..65535) { "Ungültiger KlimaPilot-Port." }
         val socket = Socket()

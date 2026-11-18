@@ -24,15 +24,9 @@ import java.security.spec.X509EncodedKeySpec
  */
 internal class ClimatePeerIdentityStore(
     private val keyAlias: String = KEY_ALIAS
-) {
-    data class Identity(
-        val peerId: String,
-        val publicKeyBase64: String,
-        val fingerprint: String
-    )
-
+) : ClimatePeerSigner {
     @Synchronized
-    fun getOrCreateIdentity(): Identity {
+    override fun getOrCreateIdentity(): ClimatePeerIdentity {
         val keyStore = loadKeyStore()
         if (!keyStore.containsAlias(keyAlias)) {
             val generator = java.security.KeyPairGenerator.getInstance(
@@ -56,7 +50,7 @@ internal class ClimatePeerIdentityStore(
             ?: throw IllegalStateException("Geräteschlüssel besitzt kein Zertifikat.")
         val encoded = certificate.publicKey.encoded
         val fingerprintBytes = MessageDigest.getInstance("SHA-256").digest(encoded)
-        return Identity(
+        return ClimatePeerIdentity(
             peerId = fingerprintBytes.toHex(),
             publicKeyBase64 = Base64.encodeToString(encoded, Base64.NO_WRAP),
             fingerprint = fingerprintBytes.toHexGrouped()
@@ -64,7 +58,7 @@ internal class ClimatePeerIdentityStore(
     }
 
     @Synchronized
-    fun sign(challenge: ByteArray): ByteArray {
+    override fun sign(challenge: ByteArray): ByteArray {
         require(challenge.isNotEmpty() && challenge.size <= MAX_CHALLENGE_BYTES) {
             "Ungültige Länge der Geräte-Challenge."
         }
