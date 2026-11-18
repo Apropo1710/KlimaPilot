@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 18:10 Uhr MEZ (automatische ioBroker-Einrichtung und QR-Kontoübernahme; WLAN-Workflow #246 erfolgreich; Test-APK 0.4.70)
+**Letzter Abgleich:** 18.11.2026, 18:30 Uhr MEZ (Test-Updater liest Test-Release; WLAN-Workflow #247 erfolgreich; Test-APK 0.4.71)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -14,7 +14,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-Code-Commit: `7f266a766d483d5c5ab267fd1ccd96e133655e78` – Version **0.4.70 / versionCode 100**, Debug `0.4.70-debug`, Paket `de.klimapilot.app.debug`. Testsignatur siehe 2e, automatische Einrichtung siehe 2f. Ältere Hash-/Build-Angaben in den Abschnitten 2a–2d und 5 sind historische Nachweise.
+- Aktueller `test`-Code-Commit: `febef438f6e9ab0d601231cdcecea2b46b055489` – Version **0.4.71 / versionCode 101**, Debug `0.4.71-debug`, Paket `de.klimapilot.app.debug`. Testsignatur siehe 2e, automatische Einrichtung siehe 2f, Test-Updater siehe 2g. Ältere Hash-/Build-Angaben in den Abschnitten 2a–2d und 5 sind historische Nachweise.
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
@@ -100,6 +100,15 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - CI liest erwartete Version jetzt aus `app/build.gradle.kts`.
 - WLAN-Workflow **#246** (Run `44353514087`, Commit `7f266a766d483d5c5ab267fd1ccd96e133655e78`): **erfolgreich**. Artefakt `KlimaPilot-debug-test-0.4.70`, ID `14450381008`, läuft am 25.11.2026 ab. Pre-Release `klimapilot-test-latest` aktualisiert; APK-SHA-256 `6863f57439676dda5d33977508ab8357b4fefeafc0012790a1e2212dc1ce488a`, unabhängig nachgeprüft (Paket, 0.4.70-debug/100, ohne `REQUEST_INSTALL_PACKAGES`, Test-Zertifikat `230865b9…65ecfb`).
 - **Noch offen:** Praxistest auf dem Smartphone (automatisches Finden, manuelle Adresse, QR-Übernahme). Der Updater und `main` sind unverändert.
+
+## 2g. Updater der Testversion (18.11.2026, mit ausdrücklicher Nutzerfreigabe nur für Testbuilds)
+
+- Befund in 0.4.69-debug: Der Updater fragte das Produktions-Release `latest` (0.4.67) ab und hielt es für neuer, weil `0.4.69-debug` beim Vergleich als 0.4.0 gelesen wurde. Installiert hätte er es nicht (Paketkennung passt nicht).
+- Commit `febef43`: Update-Quelle über `BuildConfig.UPDATE_RELEASE_TAG` / `UPDATE_ASSET_NAME`. Release: unverändert `latest` / `KlimaPilot.apk`. Debug: `klimapilot-test-latest` / `KlimaPilot-test.apk`. Versionsvergleich ignoriert das Suffix `-debug`.
+- Debug-Builds deklarieren kein `REQUEST_INSTALL_PACKAGES`; „Update laden“ öffnet dort den Test-APK-Download im Browser. Der Produktions-Installationsablauf (Download, Paketprüfung, FileProvider, `ACTION_VIEW`, ClipData) ist unverändert.
+- Release-Notizen des Test-Pre-Release enthalten `KlimaPilot-Version: <versionName>` für die Versionsprüfung.
+- WLAN-Workflow **#247** (Run `44356354091`, Commit `febef438f6e9ab0d601231cdcecea2b46b055489`): **erfolgreich**. Artefakt `KlimaPilot-debug-test-0.4.71`, ID `14453886779`, läuft am 25.11.2026 ab. APK-SHA-256 `d68a8b96e68bf5f9fa02748a97af1437c06220944ebdd2cd6b6e12ec2007b07e`, unabhängig nachgeprüft (0.4.71-debug/101, ohne `REQUEST_INSTALL_PACKAGES`, Test-Zertifikat `230865b9…65ecfb`). Produktions-Release `latest` unverändert.
+- **Noch offen:** Gerätetest, dass der Test-Updater eine neuere Testversion erkennt (frühestens mit 0.4.72 prüfbar).
 
 ## 3. Letzte Codeänderung
 
