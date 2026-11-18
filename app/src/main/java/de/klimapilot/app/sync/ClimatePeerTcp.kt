@@ -50,16 +50,20 @@ internal object ClimatePeerTcp {
         val deadline = deadlineAfter(HANDSHAKE_TIMEOUT_MS)
         try {
             val input = DataInputStream(socket.getInputStream())
-        val output = DataOutputStream(socket.getOutputStream())
-        output.writeInt(MAGIC)
-        val clientNonce = randomNonce()
-        output.write(clientNonce)
-        output.flush()
-        require(readInt(input, socket, deadline) == MAGIC) { "Ungültige KlimaPilot-Gegenstelle." }
-        val serverNonce = readBytes(input, socket, deadline, NONCE_BYTES)
-        exchangeAndVerify(input, output, socket, deadline, identityStore, trustedPeers,
-            CLIENT_ROLE, clientNonce, serverNonce)
-        require(readByte(input, socket, deadline) == 1) { "Die Gegenstelle hat dieses Gerät nicht akzeptiert." }
+            val output = DataOutputStream(socket.getOutputStream())
+            output.writeInt(MAGIC)
+            val clientNonce = randomNonce()
+            output.write(clientNonce)
+            output.flush()
+            require(readInt(input, socket, deadline) == MAGIC) { "Ungültige KlimaPilot-Gegenstelle." }
+            val serverNonce = readBytes(input, socket, deadline, NONCE_BYTES)
+            exchangeAndVerify(
+                input, output, socket, deadline, identityStore, trustedPeers,
+                CLIENT_ROLE, clientNonce, serverNonce
+            )
+            require(readByte(input, socket, deadline) == 1) {
+                "Die Gegenstelle hat dieses Gerät nicht akzeptiert."
+            }
             socket.soTimeout = previousTimeout
         } catch (error: Exception) {
             throw error
@@ -78,8 +82,10 @@ internal object ClimatePeerTcp {
         output.write(serverNonce)
         output.flush()
         try {
-            exchangeAndVerify(input, output, socket, deadline, identityStore, trustedPeers,
-                SERVER_ROLE, serverNonce, clientNonce)
+            exchangeAndVerify(
+                input, output, socket, deadline, identityStore, trustedPeers,
+                SERVER_ROLE, serverNonce, clientNonce
+            )
             output.writeByte(1)
             output.flush()
             socket.soTimeout = previousTimeout
