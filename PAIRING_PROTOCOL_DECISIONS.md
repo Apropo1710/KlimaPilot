@@ -47,7 +47,8 @@
 - WLAN-Callback beobachtet Verlust und Linkänderungen des ausgewählten WLANs.
 - Default-Network-Callback erkennt den Wechsel zu einem anderen WLAN, auch wenn dieses bereits verfügbar ist. Mobilfunk als Defaultnetz ist zulässig, solange das ausgewählte WLAN bestehen bleibt.
 - Beide Callbacks werden beim Stop/Cleanup entfernt.
-- Aktueller Lifecycle-Fix: Commit `bba8969ba4306d159ba388753f85c6638bf32f7f`.
+- WLAN-/Defaultnetz-Lifecycle-Fix: Commit `bba8969ba4306d159ba388753f85c6638bf32f7f`.
+- Socket-Shutdown-Race-Fix: Commit `334308e40ea17b2e57a6c640ca49c20e83d22e8b`. Socket-Registrierung und Manager-Cleanup sind synchronisiert; ein nach Shutdown zurückgegebener Socket wird sofort geschlossen und nicht verbunden. Der gezielte Instrumentierungstest liegt in Commit `63d53bb07a55bfb0207659749f8e6624d78215a7`, seine Ausführung ist noch nicht bestätigt.
 
 ## 6. TCP-Authentifizierung – bewusst ohne TLS
 
