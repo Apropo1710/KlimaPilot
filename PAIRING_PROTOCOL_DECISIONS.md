@@ -198,7 +198,7 @@ Diese Punkte sind Review-Ergebnisse und offene Integrationsanforderungen, keine 
 - Discovery bleibt reject-only. Keine Handshake-Integration, keine Profil-/Outbox-Übertragung. main, Updater und Produktionsrelease wurden nicht verändert.
 
 
-## Ergänzung zur WLAN-Auswahl (18.11.2026, 07:35 Uhr MEZ)
+## Ergänzung zur WLAN-Auswahl (18.11.2026, 07:33 Uhr MEZ)
 
 - Die Auswahl des WLAN-Netzes hängt nicht mehr ausschließlich von `activeNetwork` ab. `ConnectivityManager.allNetworks` wird geprüft; das Default-Netz wird priorisiert, wenn es selbst WLAN ist. Damit wird auch ein verbundenes WLAN gefunden, wenn Mobilfunk das Default-Netz ist.
 - Die Listener-Adressauswahl ist auf lokale Adressen begrenzt: private IPv4, IPv4-Link-Local, IPv6-ULA und IPv6-Link-Local mit Interface-Scope. Öffentliche IPv4-/IPv6-Adressen werden nicht als Listener-Adresse verwendet.
