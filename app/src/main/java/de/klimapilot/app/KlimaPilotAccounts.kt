@@ -282,7 +282,7 @@ internal fun KlimaPilotAccountLoginScreen(
     passwordConfirmation: String, onPasswordConfirmation: (String) -> Unit,
     displayName: String, onDisplayName: (String) -> Unit,
     loading: Boolean, status: String,
-    ioBrokerAddress: String, onIoBrokerAddress: (String) -> Unit,
+    importText: String, onImportText: (String) -> Unit,
     onImportAccounts: () -> Unit,
     onReload: () -> Unit, onSubmit: () -> Unit
 ) {
@@ -349,23 +349,24 @@ internal fun KlimaPilotAccountLoginScreen(
                 Spacer(Modifier.height(10.dp))
                 Text("Bereits vorhandenes Konto verwenden", fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Übernimm zuerst die bisherige Kontenliste aus deinem ioBroker. Danach kannst du dich mit deinem bestehenden Benutzerkonto anmelden.",
+                    "Exportiere auf deinem bisherigen Gerät die Kontenliste und füge den Inhalt hier ein. Danach kannst du dich mit deinem vorhandenen Benutzerkonto anmelden.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
                 )
                 OutlinedTextField(
-                    value = ioBrokerAddress,
-                    onValueChange = onIoBrokerAddress,
-                    label = { Text("ioBroker-WebSocket-Adresse") },
-                    placeholder = { Text("ws://192.168.178.54:8084") },
-                    singleLine = true,
+                    value = importText,
+                    onValueChange = onImportText,
+                    label = { Text("Übertragene Kontenliste") },
+                    placeholder = { Text("JSON-Inhalt hier einfügen") },
+                    minLines = 3,
+                    maxLines = 6,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedButton(
                     onClick = onImportAccounts,
-                    enabled = !loading && ioBrokerAddress.isNotBlank(),
+                    enabled = !loading && importText.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (loading) "Konten werden übernommen …" else "Vorhandene Konten übernehmen")
+                    Text(if (loading) "Konten werden übernommen …" else "Kontenliste importieren")
                 }
             }
         }
@@ -385,7 +386,8 @@ internal fun KlimaPilotAccountSettingsScreen(
     onSwitchAccount: () -> Unit,
     onAddAccount: (String, String, String, String) -> Unit,
     onResetPassword: (String, String) -> Unit,
-    onDeleteAccount: (String) -> Unit
+    onDeleteAccount: (String) -> Unit,
+    onExportAccounts: () -> Unit
 ) {
     var showAdd by remember { mutableStateOf(false) }
     var newUsername by remember { mutableStateOf("") }
@@ -427,6 +429,9 @@ internal fun KlimaPilotAccountSettingsScreen(
         }
         if (account.role == KlimaPilotAccount.ADMIN) {
             Text("Benutzerverwaltung · ${accounts.size} Konten", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            OutlinedButton(onClick = onExportAccounts, modifier = Modifier.fillMaxWidth()) {
+                Text("Kontenliste für anderes Gerät exportieren")
+            }
             accounts.forEach { item ->
                 Card(shape = RoundedCornerShape(14.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
