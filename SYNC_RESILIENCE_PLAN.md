@@ -1,9 +1,7 @@
 # KlimaPilot – ausfallsichere Synchronisation
 
-**Dokumentationsabgleich:** 18.11.2026, 08:16 Uhr MEZ  
-**Produktionsversion:** 0.4.64 / versionCode 94  
-**Lokaler Peer-Arbeitszweig:** `test`, PR #6 offen/Draft
-
+**Fachlicher Stand:** 18.11.2026  
+**Produktions-/Branch-/PR-Status:** ausschließlich in `PROJECT_STATUS.md`.
 ## 1. Ziel
 
 Profiländerungen sollen dauerhaft gespeichert, bei Verbindungsunterbrechungen nachgeliefert und über mehrere Transportwege zuverlässig abgeglichen werden. Lokale Daten dürfen bei Ausfällen nicht verloren gehen. Cloud-Abhängigkeit ist nicht vorgesehen.
@@ -62,13 +60,9 @@ Discovery bleibt reject-only; es werden keine Profile über Peer-TCP übertragen
 - Keine Synchronisation über SENEC/`energyfluss`.
 - Keine Änderungen am WF-RAC-Steuerpfad oder Updater für dieses Vorhaben.
 
-## 7. Validierungsstand 18.11.2026, 08:16 Uhr MEZ
+## 7. Validierung
 
-- Produktionsbuild #233 erfolgreich auf `main`, Version 0.4.64 / 94.
-- WLAN-Run #202 erfolgreich auf älterem Code `ae1bdc03...`.
-- TCP-Emulator-Run #201 erfolgreich auf älterem Code `41b9a3ab...`, API 26.
-- Für den aktuellen WLAN-Lifecycle-Commit `bba8969...` kein bestätigter Android-Build/Testlauf.
-- Kein API-35-Emulator- oder Zwei-Smartphone-Test bestätigt.
+Build-, CI- und Geräte-Testnachweise für den aktuellen Stand werden ausschließlich in `PROJECT_STATUS.md` geführt. Ältere erfolgreiche Testläufe sind kein Nachweis für den jeweils neuesten Codecommit.
 
 ## 8. Nächste Schritte
 
