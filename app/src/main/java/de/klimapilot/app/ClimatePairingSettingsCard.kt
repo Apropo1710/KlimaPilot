@@ -6,6 +6,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,7 +64,8 @@ internal fun ClimatePairingSettingsCard() {
     var pending by remember { mutableStateOf<ClimatePairingSessionController.PendingConfirmation?>(null) }
     var listener by remember { mutableStateOf<ClimatePairingTcpChannel.Listener?>(null) }
     var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("Ein Gerät zeigt die Einladung. Das zweite Gerät scannt einmal und bestätigt die Kopplung.") }
+    var status by remember { mutableStateOf("Ein Gerät zeigt den QR-Code, das andere scannt ihn.") }
+    var expanded by remember { mutableStateOf(false) }
 
     fun getController(): ClimatePairingSessionController {
         controller?.let { return it }
@@ -117,7 +119,7 @@ internal fun ClimatePairingSettingsCard() {
             qrPayload = active.startOutgoingInvitation(invitation)
             pending = null
             busy = true
-            status = "Einladung aktiv. Warte auf die signierte Antwort im lokalen WLAN."
+            status = "Warte auf das andere Gerät …"
             Thread({
                 @Suppress("UNUSED_VARIABLE") val selectedWifiNetwork = network
                 try {
@@ -134,7 +136,7 @@ internal fun ClimatePairingSettingsCard() {
                     }
                     busy = false
                     qrPayload = null
-                    status = "Gerät erfolgreich gekoppelt. Die signierte Speicherbestätigung wurde übertragen."
+                    status = "Gerät erfolgreich gekoppelt."
                 PeerSyncSignals.pairingRevision++
                     closeListener()
                 } catch (error: Exception) {
@@ -176,7 +178,7 @@ internal fun ClimatePairingSettingsCard() {
                     } else {
                         pending = confirmation
                         qrPayload = null
-                        status = "Einladung kryptografisch geprüft. Tippe auf „Koppeln“, um die signierte Antwort direkt über WLAN zu senden."
+                        status = "Tippe auf „Koppeln“, um die Geräte zu verbinden."
                     }
                 }.addOnCanceledListener {
                     busy = false
@@ -195,7 +197,7 @@ internal fun ClimatePairingSettingsCard() {
     fun confirmPairing() {
         val confirmation = pending ?: return
         busy = true
-        status = "Sende signierte Antwort und warte auf die Speicherbestätigung …"
+        status = "Geräte werden gekoppelt …"
         Thread({
             try {
                 val (network, _) = findWifi()
@@ -210,7 +212,7 @@ internal fun ClimatePairingSettingsCard() {
                 active.acknowledgeIncomingInvitation(acknowledgement)
                 pending = null
                 busy = false
-                status = "Gerät erfolgreich gekoppelt. Die signierte Speicherbestätigung wurde geprüft."
+                status = "Gerät erfolgreich gekoppelt."
                 PeerSyncSignals.pairingRevision++
             } catch (error: Exception) {
                 getController().cancel()
@@ -229,21 +231,32 @@ internal fun ClimatePairingSettingsCard() {
         qrPayload?.let { payload -> runCatching { ClimatePairingQrCode.encode(payload, 640).toBitmap() }.getOrNull() }
     }
     val colors = MaterialTheme.colorScheme
-    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant)) {
+    val panel = androidx.compose.ui.graphics.Color(0xFFE3EEF7)
+    val muted = androidx.compose.ui.graphics.Color(0xFF63748A)
+    val textMain = androidx.compose.ui.graphics.Color(0xFF172334)
+    val pairedCount = trustedStore.trustedPeers().size
+    // Keep the card open while a pairing session is running.
+    val open = expanded || pending != null || qrBitmap != null || busy
+    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = panel)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Geräte koppeln", color = colors.onSurface, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            if (localFingerprint != null) Text("Fingerprint dieses Geräts: $localFingerprint", color = colors.onSurfaceVariant, fontSize = 10.sp)
+            Row(Modifier.fillMaxWidth().clickable { expanded = !open }, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Geräte koppeln", color = textMain, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Gekoppelte Geräte: $pairedCount", color = muted, fontSize = 11.sp)
+                }
+                Text(if (open) "⌃" else "⌄", color = muted, fontSize = 20.sp)
+            }
+            if (open) {
             OutlinedTextField(value = displayName, onValueChange = { displayName = it.take(48) }, label = { Text("Name dieses Geräts") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             if (pending != null) {
-                Text("Einladender Fingerprint", color = colors.onSurface, fontSize = 12.sp)
-                Text(pending!!.fingerprint, color = colors.onSurface, fontSize = 13.sp)
+                Text("Mit diesem Gerät koppeln?", color = textMain, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { confirmPairing() }, enabled = !busy && displayName.isNotBlank(), modifier = Modifier.weight(1f)) { Text(if (busy) "Kopple …" else "Koppeln") }
                     OutlinedButton(onClick = { cancelSession("Pairing abgebrochen. Es wurde kein Gerät gespeichert.") }) { Text("Abbrechen") }
                 }
             } else if (qrBitmap != null) {
                 Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "KlimaPilot-Pairing-QR-Code", modifier = Modifier.size(240.dp).align(Alignment.CenterHorizontally), contentScale = ContentScale.Fit)
-                Text("QR-Code 120 Sekunden gültig. Rückkanal wartet auf die signierte Antwort.", color = colors.onSurfaceVariant, fontSize = 11.sp)
+                Text("Mit dem anderen Gerät scannen. Gültig 2 Minuten.", color = muted, fontSize = 11.sp)
                 OutlinedButton(onClick = { cancelSession("Pairing abgebrochen.") }, modifier = Modifier.fillMaxWidth()) { Text("Pairing abbrechen") }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -251,8 +264,8 @@ internal fun ClimatePairingSettingsCard() {
                     OutlinedButton(onClick = { startScan() }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("QR-Code scannen") }
                 }
             }
-            Text(status, color = if (status.contains("ungültig") || status.contains("fehlgeschlagen") || status.contains("abgebrochen")) MaterialTheme.colorScheme.error else colors.onSurfaceVariant, fontSize = 11.sp)
-            Text("Gekoppelte Geräte: ${trustedStore.trustedPeers().size}", color = colors.onSurfaceVariant, fontSize = 11.sp)
+            Text(status, color = if (status.contains("ungültig") || status.contains("fehlgeschlagen") || status.contains("abgebrochen")) MaterialTheme.colorScheme.error else muted, fontSize = 11.sp)
+            }
         }
     }
 }

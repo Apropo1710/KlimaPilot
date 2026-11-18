@@ -120,14 +120,14 @@ internal fun GithubUpdateCard(appVersion: String) {
                 } else {
                     OutlinedButton(
                         enabled = !busy,
-                        modifier = Modifier.widthIn(min = 220.dp).height(48.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                         onClick = { scope.launch { checkForUpdates() } }
                     ) { Text("Nach Updates suchen", maxLines = 1, softWrap = false) }
                 }
                 if (newerVersion != null && assetId != null) {
                     Button(
                         enabled = !busy,
-                        modifier = Modifier.widthIn(min = 220.dp).height(48.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         onClick = {
                             scope.launch {
