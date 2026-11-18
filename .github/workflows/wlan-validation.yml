@@ -8,6 +8,7 @@ on:
       - test
     paths-ignore:
       - PROJECT_STATUS.md
+      - 'app/src/debug/**'
       - '.github/workflows/**'
   workflow_dispatch:
 
