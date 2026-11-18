@@ -1,227 +1,108 @@
-# KlimaPilot – Pairing-Entscheidungen für lokale WLAN-Synchronisation
+# KlimaPilot – Pairing- und Protokollentscheidungen
+
+**Aktueller Stand:** 18.11.2026, 08:16 Uhr MEZ  
+**Arbeitsbranch:** `test`, PR #6 offen/Draft, nicht gemergt  
+**Produktionsbranch:** `main`, unverändert
+
+## 1. Verbindliche Architekturgrenzen
+
+- Pairing verbindet zwei KlimaPilot-Installationen; es ist unabhängig vom WF-RAC-Pairing zur Klimaanlage.
+- Discovery ist kein Vertrauensnachweis.
+- QR-Pairing, TCP-Authentifizierung und Nutzdatentransfer sind getrennte Protokollstufen.
+- Kein Profil-/Outbox-Transfer über Peer-TCP, solange Handshake-Integration, Nachrichtenhärtung und Zwei-Smartphone-Test fehlen.
+- PR #6 bleibt Draft; kein Merge ohne ausdrückliche Freigabe.
+
+## 2. Identität
+
+- ECDSA P-256-Schlüsselpaar im Android Keystore.
+- Privater Schlüssel bleibt nicht exportierbar.
+- Peer-ID ist SHA-256-abgeleitet aus dem öffentlichen Schlüssel.
+- Fingerprint wird aus demselben Schlüsselmaterial abgeleitet.
+- Identität ist installationsbezogen, nicht an IP-Adresse, MAC-Adresse oder Kontonamen gebunden.
+
+## 3. QR-Pairing
+
+- Einladung ist signiert und 120 Sekunden gültig.
+- Enthält Protokollversion, Sitzungs-ID, Erstellungs-/Ablaufzeit, Peer-ID, öffentlichen Schlüssel, Fingerprint, Nonce und Signatur.
+- Antwort ist ebenfalls signiert und an Sitzungs-ID sowie Einladungs-Nonce gebunden.
+- Parser prüfen Payloadgröße, Version, Zeitfenster, Nonces, Schlüssel-/Fingerprint-Konsistenz und Signatur.
+- Beide Seiten bestätigen den Peer und Fingerprint ausdrücklich.
+- Erst nach der lokalen Bestätigung darf der Peer gespeichert werden.
+- Wiederverwendung bereits konsumierter Sitzungen wird abgelehnt.
+- Pairing-UI ist auf die Debug-App `de.klimapilot.app.debug` begrenzt.
+
+## 4. Trusted-Peer-Speicher
+
+- Enthält nur explizit bestätigte Peers.
+- Discovery-Ergebnisse dürfen niemals direkt als vertraut gespeichert werden.
+- Öffentlicher Schlüssel und Peer-ID müssen konsistent sein.
+- Anzahl und Anzeigenamen gespeicherter Peers sind begrenzt.
+- Peer kann widerrufen werden.
+
+## 5. Lokale Discovery
+
+- DNS-SD-Diensttyp `_klimapilot-sync._tcp.`.
+- TXT-Felder: Protokollversion und zufällige Discovery-ID; keine Profil-, Konto- oder Schlüsselmaterialien.
+- Entdeckte Geräte bleiben `UnverifiedClimatePeer`.
+- Lokale Listener-Adresse: private IPv4 bevorzugt, IPv4-Link-Local Fallback, danach IPv6-ULA oder scoped IPv6-Link-Local. Öffentliche Adressen sind ausgeschlossen.
+- WLAN-Callback beobachtet Verlust und Linkänderungen des ausgewählten WLANs.
+- Default-Network-Callback erkennt den Wechsel zu einem anderen WLAN, auch wenn dieses bereits verfügbar ist. Mobilfunk als Defaultnetz ist zulässig, solange das ausgewählte WLAN bestehen bleibt.
+- Beide Callbacks werden beim Stop/Cleanup entfernt.
+- Aktueller Lifecycle-Fix: Commit `bba8969ba4306d159ba388753f85c6638bf32f7f`.
+
+## 6. TCP-Authentifizierung – bewusst ohne TLS
+
+TLS/mTLS wurde nach ausdrücklicher Nutzerentscheidung verworfen. Der Transport ist unverschlüsseltes TCP im lokalen WLAN.
+
+Handshake-Merkmale:
+- 32-Byte-Client- und Server-Nonce,
+- Rollenbindung im signierten Transkript,
+- Peer-ID/Public-Key-Konsistenzprüfung,
+- Prüfung des Gegenübers im lokalen Trusted-Peer-Speicher,
+- gegenseitige ECDSA-Signaturprüfung,
+- Connect-Timeout 5 Sekunden, Handshake-Deadline 10 Sekunden,
+- begrenzte Handshake-Feldgrößen.
+
+**Sicherheitsgrenze:** Andere Teilnehmer desselben WLANs können den TCP-Verkehr passiv mitlesen. Die Signaturen authentifizieren die Geräte und erschweren aktive Manipulation, bieten aber keine Vertraulichkeit.
+
+## 7. Implementierungsstand – strikt getrennte Stufen
+
+| Stufe | Status |
+|---|---|
+| Keystore-Identität | Implementiert |
+| Signierte QR-Einladung | Implementiert |
+| Signierte QR-Antwort | Implementiert |
+| Gegenseitige Nutzerbestätigung | Implementiert |
+| Trusted-Peer-Speicher | Implementiert |
+| DNS-SD-Discovery | Implementiert |
+| WLAN-Interface-Bindung | Implementiert |
+| WLAN-/Defaultnetz-Lifecycle-Überwachung | Implementiert, aktuelle CI-Prüfung offen |
+| TCP-Peer-Handshake-Klasse | Implementiert, separat getestet auf älteren Ständen |
+| Handshake in Discovery-Listener integriert | **Nicht umgesetzt** |
+| Profil-/Outbox-Transfer über Peer-TCP | **Nicht umgesetzt** |
+| Zwei-Smartphone-Praxistest | **Nicht durchgeführt** |
+
+Discovery bleibt ausdrücklich reject-only: der angekündigte TCP-Port nimmt Verbindungen nur an, um sie sofort zu schließen.
+
+## 8. Offene technische Anforderungen vor Nutzdaten
+
+- Authentifizierten Handshake in Listener und Client integrieren, ohne unautorisierte Daten vor erfolgreichem Abschluss anzunehmen.
+- Framing mit Protokollversion, Nachrichtentyp und festen Größenobergrenzen definieren.
+- Schema-/Typ-/Wertebereichs- und Gerätezuordnungsvalidierung auf Empfängerseite.
+- Replay-/Duplikaterkennung und idempotente Wiederaufnahme.
+- Empfangsbestätigung erst nach dauerhafter Speicherung.
+- Fehler-/Timeout-/Abbruchpfade, parallele Verbindungen und Ressourcen-Cleanup testen.
+- Bestehenden ioBroker-Transport und dessen Event-Engine regressionsprüfen.
+- Zwei reale Smartphones testen.
+
+## 9. Aktueller Validierungsstand
+
+- WLAN-Run #202 erfolgreich auf älterem Commit `ae1bdc03...`.
+- TCP-Emulator-Run #201 erfolgreich auf älterem Commit `41b9a3ab...`, API 26.
+- Der aktuelle Lifecycle-Codecommit `bba8969...` hat keinen bestätigten Android-Build oder Testlauf.
+- API 35 und Zwei-Smartphone-Test sind nicht bestätigt.
+- Die sieben JVM-Adress-/IPv6-Tests sind vorhanden, aber nicht als aktuell ausgeführt bestätigt.
 
-**Branch:** `feature/local-wifi-pairing`  
-**Basis:** `3b0c4a8969c36dbf46de8369f9f87add3ad87b27`  
-**Stand:** 17.11.2026  
-**Status:** Pairing-Controller und QR-Anzeige/-Scan implementiert; CI erfolgreich. Kein Netzwerktransport und keine Profilübertragung.
+## 10. Historische Entscheidung
 
-## 1. Ziel
-
-Smartphones werden einmalig bewusst miteinander gekoppelt. Danach dürfen sie bekannte Geräte im selben WLAN automatisch wiederfinden und Profile synchronisieren. Der Vorgang soll verständlich bleiben und keine unnötigen Sicherheitsdialoge erzeugen.
-
-## 2. Festgelegter Pairing-Ablauf
-
-1. Gerät A zeigt eine kurzlebige QR-Einladung (120 Sekunden) mit seiner bereits vorhandenen signierten Installationsidentität.
-2. Gerät B scannt die Einladung und prüft Signatur, Ablaufzeit und Identität. B zeigt den Gerätenamen/Fingerprint von A an.
-3. Der Nutzer bestätigt A auf Gerät B. Erst danach erzeugt B die bereits vorgesehene signierte Antwort.
-4. Gerät B zeigt die Antwort als QR-Code. Gerät A scannt sie und prüft Sitzungs-ID, Einladungs-Nonce, Identität und Signatur.
-5. Gerät A zeigt den Fingerprint von B an. Der Nutzer bestätigt B auf Gerät A.
-6. Jedes Gerät speichert den jeweils anderen Peer erst nach seiner eigenen ausdrücklichen Bestätigung.
-
-Die beiden lokalen Bestätigungen sind unabhängig. Ein zusätzlicher finaler Bestätigungs-/ACK-Rundlauf ist nicht vorgesehen: Ein Peer darf Daten nur austauschen, wenn **beide Seiten** den jeweils anderen Schlüssel in ihrer lokalen Trusted-Peer-Liste haben. Ist nur eine Seite bestätigt, scheitert der Verbindungsaufbau ohne Datenübertragung; nach der zweiten Bestätigung funktioniert er.
-
-## 3. Sitzungs- und Replay-Verhalten
-
-- Es gibt jeweils nur eine aktive Pairing-Sitzung pro Gerät.
-- Einladungen bleiben 120 Sekunden gültig.
-- Eine Einladung wird nach lokaler Bestätigung oder bewusstem Abbruch für die laufende App-Sitzung als verbraucht behandelt.
-- Der aktive Sitzungszustand bleibt nur im Arbeitsspeicher. Nach Prozessende muss eine neue Einladung erstellt werden; die kurze Gültigkeit macht eine persistente Replay-Datenbank unnötig.
-- Eine Antwort ist an Sitzungs-ID und Einladungs-Nonce gebunden. Eine Antwort aus einer anderen oder bereits verbrauchten Sitzung wird abgelehnt.
-- Keine dauerhafte Speicherung von QR-Payloads, Nonces oder temporären Sitzungsgeheimnissen.
-- Die vorhandenen ECDSA-/Keystore-, Invitation-, Response- und TrustedPeer-Bausteine werden wiederverwendet; keine eigene Kryptografie.
-
-## 4. Identität und Vertrauensspeicherung
-
-- Bestehende Installationsidentität: ECDSA auf secp256r1, privater Schlüssel im Android Keystore.
-- Peer-ID und Fingerprint bleiben SHA-256-basierte Kennungen des öffentlichen Schlüssels.
-- Der Nutzer sieht beim Bestätigen den vollständigen gruppierten Fingerprint der Gegenstelle.
-- Ein Gerätename ist nur eine Anzeigehilfe, niemals ein Identitätsnachweis.
-- Unbekannte oder widerrufene Peers erhalten keine Profil- oder Kontodaten.
-- Vor jedem Datenaustausch müssen beide Seiten den gegenseitigen Peer-Schlüssel lokal als vertrauenswürdig erkennen.
-- Widerruf entfernt den Peer aus der lokalen Vertrauensliste. Die Gegenseite kann dann keine neue Verbindung mehr erfolgreich authentifizieren.
-
-## 5. Lokaler TCP-Transport ohne Transportverschlüsselung
-
-TLS und mTLS werden nicht weiterverfolgt. Die Emulatorläufe zeigten wiederholt Keystore-/Conscrypt-Probleme oder Emulatorabbrüche; für die lokale Profil-Synchronisation wird deshalb bewusst auf Transportverschlüsselung verzichtet. Das ist eine bewusste Abwägung zugunsten einer einfachen, kompatiblen WLAN-Verbindung und keine Hochsicherheitslösung.
-
-Verbindliche Schutzmaßnahmen auf Anwendungsebene:
-
-- Der Transport verwendet einen normalen TCP-Socket im lokalen WLAN. Der Datenverkehr ist **nicht verschlüsselt** und kann von anderen Teilnehmern desselben Netzwerks mitgelesen werden.
-- Vor jeder späteren Nutzdatenübertragung müssen sich beide Geräte gegenseitig authentifizieren. Beide Seiten beweisen den Besitz ihres nicht exportierbaren Android-Keystore-Schlüssels mit ECDSA auf secp256r1.
-- Jede Verbindung verwendet zwei frische zufällige 32-Byte-Nonces. Die Signaturen binden eine Protokollkennung, die jeweilige Rolle, beide Nonces sowie Client- und Server-Peer-ID ein; aufgezeichnete Handshakes können nicht unverändert wiederverwendet werden.
-- Jede Seite prüft Peer-ID und Public Key gegen ihre eigene lokale Trusted-Peer-Liste. Eine einseitige Freigabe reicht nicht: Der Server bestätigt die Verbindung erst nach erfolgreicher Prüfung des Clients; der Client wartet auf diese Bestätigung.
-- Unbekannte, widerrufene oder nicht gegenseitig bestätigte Geräte erhalten keine Nutzdaten.
-- Handshake-Felder sind längenbegrenzt. Der Client-Verbindungsaufbau hat ein Connect-Timeout von fünf Sekunden; der gesamte Handshake ist pro Verbindung auf zehn Sekunden begrenzt (nicht zehn Sekunden je Lesevorgang).
-- Pairing/QR, Peer-ID, Fingerprint und bestehende Trusted-Peer-Speicherung bleiben unverändert.
-
-Implementiert ist zunächst die eigenständige Klasse ClimatePeerTcp mit Instrumentierungstests für erfolgreiche gegenseitige Authentifizierung sowie Ablehnung eines nicht vertrauten Clients und Servers. Sie ist noch nicht in den Discovery-Socket oder einen Profil-Datentransfer eingebunden. **Es werden derzeit noch keine Profile über TCP übertragen.**
-
-## 6. Bewusste Begrenzung
-
-Nicht Teil dieses Arbeitspakets sind:
-- zusätzliche Final-Acks oder mehrstufige Challenge-Kaskaden,
-- eine persistente Datenbank für kurzlebige Pairing-Sitzungen,
-- MAC-Adressen oder IP-Adressen als Geräteidentität,
-- Hintergrunddienst oder dauerhafter WLAN-Scan,
-- Profil-/Konten-/ioBroker-Zugangsdaten im Pairing,
-- Änderungen am Updater, WF-RAC-Steuerpfad oder bestehenden ioBroker-Sync.
-
-## 7. Nächste Umsetzungsschritte
-
-1. Pairing-Session-Controller für den beschriebenen Ablauf ergänzen und mit Tests für Ablauf, falsche Sitzung, Wiederverwendung und beidseitige lokale Freigabe absichern: **implementiert**; Controller- und Session-Tests sind in CI erfolgreich.
-2. QR-Anzeige/-Scan: **implementiert** mit ZXing Core für QR-Erzeugung und Google Code Scanner über Google Play Services für den Scan. CI-Unit-Test für QR-Payload-Roundtrip erfolgreich.
-3. TCP-Handshake auf API 26 und 35 in CI prüfen und anschließend mit zwei realen Smartphones testen.
-4. Erst nach erfolgreichem gegenseitigem Pairing und TCP-Handshake den Discovery-Socket anbinden; Profilübertragung bleibt bis zum Praxistest gesperrt.
-
-**Freigabegrenze:** Bis Pairing und gegenseitige TCP-Authentifizierung auf zwei realen Geräten erfolgreich geprüft sind, werden über den Peer-Kanal keine Profilinhalte übertragen.
-
-
-## 8. Implementierungsstand QR-Integration (17.11.2026)
-
-- `ClimatePairingQrCode` erzeugt QR-Matrizen aus den bereits signierten Pairing-Payloads; ZXing Core 3.5.4 wird verwendet.
-- `ClimatePairingSettingsCard` stellt Einladung/Antwort dar, startet den QR-Scan und zeigt vor der lokalen Bestätigung den vollständigen Fingerprint der Gegenstelle an.
-- Der Scan läuft über Google Code Scanner / Google Play Services 16.1.0; keine eigene Kamera-Berechtigung wird durch diese Integration angefordert.
-- `ClimatePairingQrCodeTest` dekodiert einen erzeugten QR-Code wieder und vergleicht den UTF-8-Payload exakt.
-- GitHub Actions #122 (Push) und #123 (PR) für Head `2657dbb99e65cbaff107737ecd040edcf401bbd4`: beide erfolgreich; Unit-Tests und Debug-Kompilierung bestanden.
-- Noch kein Zwei-Smartphone-Praxistest, kein TLS, kein Netzwerktransport und keine Profilübertragung. Pairing-UI/QR-Codes allein geben keine Synchronisierung frei.
-
-## 9. TLS-Testdiagnose (17.11.2026)
-
-- Der erste Emulatorlauf [#2](https://github.com/Apropo1710/KlimaPilot/actions/runs/44131206603) schlug auf API 26 und API 35 fehl.
-- API 26 führte den Test aus, meldete aber `SSLHandshakeException: Connection closed by peer`. Der Test wurde angepasst, damit ein Fehler des Server-Endpunkts künftig zusammen mit dem Clientfehler ausgegeben wird; ein Socket-Timeout verhindert unbegrenztes Warten.
-- API 35 startete zeitweise mit einer `offline`-ADB-Verbindung; anschließend stürzte der Instrumentierungsprozess ab, bevor ein Test ausgeführt wurde. Der Workflow sichert deshalb nun nach dem Testlauf die Emulator-Logcat-Ausgabe als Actions-Artefakt.
-- Diese Anpassungen verbessern ausschließlich die Diagnose. Sie sind kein Nachweis, dass mTLS bereits funktioniert.
-- Nächster Schritt: neuen automatischen CI-Lauf vollständig auswerten und anhand der Server-Ausnahme bzw. Logcat gezielt korrigieren. Bis dahin bleiben Transport und Profilübertragung gesperrt.
-- Claude-Review wird nach Wiederverfügbarkeit des Nutzerlimits vor Beginn weiterer Transportarbeiten nachgeholt.
-
-
-## 10. Vereinfachte TLS-/Peer-Authentifizierung (17.11.2026)
-
-- Neue Klasse `ClimatePeerTls`: TLS-Serverkontext aus dem Android Keystore; TLS-Clientkontext mit Pinning des erwarteten secp256r1-Public-Keys.
-- Der TLS-Server verlangt kein Clientzertifikat. Nach TLS-Handshake sendet er eine frische 32-Byte-Challenge; der Client antwortet mit Peer-ID, Public Key und ECDSA-Signatur aus der bestehenden Installationidentität.
-- Serverseitig werden Peer-ID/Public-Key gegen `ClimateTrustedPeerStore.isTrusted` geprüft und die Signatur verifiziert. Längenfelder sind begrenzt.
-- Instrumentierungstest ersetzt den bisherigen mTLS-Test: TLS-Pinning plus signierte Client-Challenge und Ablehnung eines falschen Server-Pins.
-- API-26/API-35-CI muss den neuen Ansatz noch ausführen. Ein bestandener Unit-/Kompilierungslauf ist kein Nachweis des Android-Keystore-TLS-Verhaltens.
-- Noch kein produktiver Peer-Transport und keine Profilübertragung. Der Discovery-Socket bleibt weiterhin reject-only.
-- Kein Updater-, Manifest-, Berechtigungs-, ioBroker- oder WF-RAC-Eingriff.
-
-
-## 11. Wechsel auf TCP ohne Transportverschlüsselung (17.11.2026)
-
-- Entscheidung nach ausdrücklicher Nutzerfreigabe: TLS/mTLS vollständig verwerfen; lokaler TCP-Transport ohne Transportverschlüsselung.
-- ClimatePeerTls.kt und der TLS-Instrumentierungstest wurden entfernt. Die Keystore-Identität benötigt nur noch SHA-256 für Anwendungssignaturen; die TLS-spezifische Freigabe von DIGEST_NONE ist zurückgenommen.
-- Neue Klasse ClimatePeerTcp.kt implementiert beidseitige Challenge-Response-Authentifizierung mit zwei frischen 32-Byte-Nonces, Rollenbindung, ECDSA-Signaturen, lokalen Trusted-Peer-Prüfungen, begrenzten Feldern und Socket-Timeout.
-- Der Server sendet eine explizite Annahme/Ablehnung zurück. Der Client gilt erst nach positiver Bestätigung als authentifiziert.
-- Neuer API-26/API-35-Instrumentierungstest prüft gegenseitig vertraute Peers sowie die Ablehnung eines nicht vertrauten Clients.
-- Noch nicht umgesetzt: Anbindung des Handshakes an den Discovery-Server/Client und Profilübertragung. Bis zum Zwei-Smartphone-Test bleibt Nutzdatentransfer gesperrt.
-- Sicherheitsgrenze: TCP-Daten sind unverschlüsselt und im lokalen Netz mitlesbar. Authentifizierung verhindert nicht das passive Mitlesen durch andere WLAN-Teilnehmer.
-- main, Updater, WF-RAC-Steuerung und bestehender ioBroker-Sync bleiben unangetastet.
-
-
-## 12. TCP-Härtung und CI-Ergebnis (17.11.2026, 23:xx MEZ)
-
-- Commit `cc42e9bd49e464a665557a005877eac93a13a72d` ergänzt eine feste Gesamtfrist von zehn Sekunden für den Handshake und einen Connect-Timeout von fünf Sekunden.
-- Das signierte Transkript bindet zusätzlich die Protokollkennung `KlimaPilot.LocalPeerAuth.v1` sowie Client- und Server-Peer-ID ein. Die Rollenbindung und beide frischen Nonces bleiben erhalten.
-- Ein zusätzlicher Instrumentierungstest prüft die Ablehnung eines Servers, der auf dem Client nicht in der lokalen Trusted-Peer-Liste steht.
-- [TCP-Peer-Authentifizierung #49](https://github.com/Apropo1710/KlimaPilot/actions/runs/44191379738): API 26 und API 35 Jobs melden grün. **Die Detailprotokolle zeigen jedoch unterschiedliche Ergebnisse:** API 26 startete drei Instrumentierungstests und schloss `connectedDebugAndroidTest` erfolgreich ab. API 35 meldete weiterhin `Starting 0 tests`; der Testschritt schlug fehl, wurde im damaligen Workflow aber durch `continue-on-error` und die optionale Job-Einstellung als grüner Job dargestellt.
-- [WLAN-Branch-Validierung #49](https://github.com/Apropo1710/KlimaPilot/actions/runs/44191379609): erfolgreich.
-- Daher gilt derzeit nur API 26 als tatsächlich bestandener Instrumentierungstest. API 35 ist nicht bestanden und wird im PR-Workflow bis zu einem Runner mit nutzbarem KVM nicht mehr als grüner Schein-Erfolg dargestellt; es kann manuell über `workflow_dispatch` geprüft werden.
-- Die API-26-Prüfung belegt den Emulator-/Keystore-Handshake auf dieser Android-Version, aber keinen Zwei-Smartphone-Praxistest.
-- Weiterhin nicht umgesetzt: Integration in Discovery und Profilübertragung. TCP-Nutzdaten bleiben bis zum realen Zwei-Geräte-Test gesperrt.
-- Sicherheitsgrenze: Die Authentifizierung verhindert nicht das aktive Einschleusen oder Verändern von TCP-Daten durch einen Angreifer, der den WLAN-Verkehr umleiten kann. Vor einer späteren Profilübertragung sind daher strikte Größen-, Schema- und Wertebereichsprüfungen auf Empfängerseite erforderlich. Die unverschlüsselte Übertragung bleibt zudem passiv mitlesbar.
-- Updater, WF-RAC-Steuerweg, ioBroker-Synchronisation und Produktionsbranch `main` wurden nicht verändert.
-
-
-## 13. JVM-Testschicht für TCP-Peer-Authentifizierung (18.11.2026)
-
-- Die TCP-Authentifizierung hängt nun an den kleinen Verträgen `ClimatePeerSigner` und `ClimatePeerTrust`. Produktion verwendet weiterhin `ClimatePeerIdentityStore` (Android Keystore) und `ClimateTrustedPeerStore` (SharedPreferences); die produktiven Implementierungen und Standard-Aliasse bleiben erhalten.
-- JVM-Tests können Software-ECDSA-Schlüssel und eine isolierte Vertrauensentscheidung injizieren. Der produktive Android-Keystore wird dadurch nicht ersetzt oder verändert.
-- Neue Tests decken erfolgreiche gegenseitige Authentifizierung, manipulierte Signatur, falsche Peer-ID zum öffentlichen Schlüssel und überlange Handshake-Felder ab.
-- Der CI-Pflichtlauf führt nun zusätzlich `testDebugUnitTest` vor dem API-26-Instrumentierungstest aus. API 35 bleibt manuell.
-- Die Tests müssen im neuen CI-Lauf erst erfolgreich durchlaufen; dieser Commit allein ist kein Testergebnis.
-
-
-## 14. Erfolgreiche JVM-/API-26-Prüfung (18.11.2026)
-
-- Workflow [TCP-Peer-Authentifizierung](https://github.com/Apropo1710/KlimaPilot/actions/runs/44236730128) ist erfolgreich. `testDebugUnitTest` und `connectedDebugAndroidTest` liefen im selben Gradle-Aufruf mit `BUILD SUCCESSFUL`.
-- API 26 startete drei Instrumentierungstests. API 35 wurde im PR-Lauf erwartungsgemäß übersprungen; daraus folgt keine Aussage über Android-15-Kompatibilität.
-- Der vorherige Unit-Test-Fehler war auf einen doppelten Lesezugriff im Test für überlange Felder zurückzuführen. Das Testprotokoll wurde korrigiert.
-- Nächster Schritt sind zusätzliche JVM-Negativtests für einen abgebrochenen Handshake und ein nicht antwortendes Gegenüber. Danach folgt der praktische Test mit zwei Smartphones.
-
-
-## 15. Korrekturen nach unabhängiger Prüfung (18.11.2026)
-
-- Nach erfolgreichem Handshake muss der TCP-Socket sein ursprüngliches `soTimeout` zurückerhalten, damit das Handshake-Limit nicht spätere Nutzdaten-Reads begrenzt.
-- Die Peer-ID wird zusätzlich direkt im TCP-Handshake gegen SHA-256 des empfangenen öffentlichen Schlüssels geprüft, unabhängig von der jeweiligen `ClimatePeerTrust`-Implementierung.
-- JVM-Tests prüfen die tatsächliche Ablehnung einer manipulierten Peer-ID/Schlüssel-Kombination, Wiederherstellung des Socket-Timeouts und einen Slow-Drip-Peer, dessen einzelne Bytes innerhalb eines frischen Read-Timeouts, aber außerhalb der Gesamtfrist eintreffen.
-- Emulator-Runner-Skript wird als einzelner Shell-Befehl ausgeführt; vor dem ANR-Datei-Pull wird `adb root` versucht.
-- Debug-Test-Icon-Badge wird innerhalb der adaptiven Launcher-Safe-Zone platziert.
-- Diese Änderungen müssen durch CI verifiziert werden. Keine Discovery-Integration, kein Nutzdatentransfer und keine Profilübertragung.
-
-
-## 16. Trennung der WLAN-Testoberfläche vom Release (18.11.2026)
-
-- Die UI für lokale WLAN-Suche und QR-Pairing ist im Einstellungsbildschirm an `BuildConfig.DEBUG` gebunden. Sie erscheint ausschließlich in der separat installierbaren Debug-App.
-- Die Release-Kompilierung wird in CI zusätzlich mit `compileReleaseKotlin` geprüft.
-- Keine Änderung am Updater und keine Freigabe von TCP-Nutzdaten oder Profilübertragung.
-
-
-## 17. Code-Review der TCP-/Discovery-Integration (18.11.2026)
-
-### Geprüfter Ist-Zustand
-
-- `ClimatePeerTcp` führt einen gegenseitigen Challenge-Response-Handshake aus. Beide Seiten senden Peer-ID und Public Key, prüfen Peer-ID/Public-Key-Konsistenz, prüfen den Peer lokal als vertrauenswürdig und signieren ein rollen- und noncegebundenes Transkript.
-- Die Handshake-Frist ist eine absolute Gesamtfrist von zehn Sekunden; nach erfolgreichem Abschluss wird das zuvor konfigurierte Socket-Timeout wiederhergestellt.
-- Vorhandene JVM-Tests decken Erfolg, manipulierte Signatur, falsche Peer-ID/Public-Key-Kombination, übergroße Felder, abgebrochenen Client-Hello, Timeout und Slow-Drip ab. Android-Instrumentierungstests prüfen Client- und Server-Trust-Ablehnung.
-- `ClimateProfilePeerDiscovery` bleibt reject-only. Es nimmt Verbindungen an und schließt sie unmittelbar; kein Handshake und kein Nutzdatentransfer ist angebunden.
-- Die Pairing-UI beendet Discovery beim Wechsel in den App-Hintergrund und beim Verlassen der Composable-Oberfläche.
-
-### Vor einer späteren Integration zwingend zu klären
-
-1. **Interface-Bindung:** Der Discovery-Listener erzeugt derzeit `ServerSocket(0)` ohne explizite Bindung an das aktive WLAN-Interface. Das ist standardmäßig eine Wildcard-Bindung auf lokalen Interfaces. Der spätere authentifizierende Listener muss vor Annahme von Peer-Verbindungen an das aktive WLAN-Netz gebunden oder gleichwertig auf dieses begrenzt werden. WLAN-/Netzwerkwechsel müssen den Listener schließen und sauber neu initialisieren.
-2. **Getrennte Trust-Speicher testen:** `ClimatePairingSessionControllerTest` verwendet denselben `ClimateTrustedPeerStore` für beide simulierten Geräte. Ein zusätzlicher Test muss zwei getrennte Stores verwenden und bestätigen, dass die Verbindung erst nach unabhängiger lokaler Bestätigung auf beiden Geräten möglich ist.
-3. **Server-Lifecycle:** Bei Integration müssen parallele/überlastende Verbindungen begrenzt, Handshake-Fehler pro Verbindung geschlossen und der Listener beim Stoppen/Netzwerkwechsel zuverlässig beendet werden.
-4. **Nutzdaten bleiben gesperrt:** Wegen unverschlüsseltem TCP und möglicher aktiver Manipulation dürfen Profil-Events erst nach festgelegter Frame-Struktur, Größenlimits, Schema-/Wertebereichsvalidierung, Replay-/Duplikatbehandlung und erfolgreichem Zwei-Smartphone-Test übertragen werden.
-
-Diese Punkte sind Review-Ergebnisse und offene Integrationsanforderungen, keine bereits implementierten Änderungen. Am Code wurde bei dieser Prüfung nichts geändert; kein neuer CI-Lauf wurde gestartet.
-
-
-## 18. WLAN-Interface-Bindung und unabhängige Trust-Speicher (18.11.2026)
-
-- Android-API-Prüfung bestätigt: LinkProperties.getInterfaceName() und getLinkAddresses() sowie ConnectivityManager.getLinkProperties(Network) sind ab API 21 verfügbar und damit mit minSdk 26 kompatibel.
-- Network.bindSocket() besitzt keine ServerSocket-Überladung. Dokumentiert sind Socket, DatagramSocket und FileDescriptor. Für den Listener wird deshalb ServerSocket.bind(InetSocketAddress) mit einer konkreten WLAN-Adresse verwendet.
-- DNS-SD wird mit NsdServiceInfo.setHost(InetAddress) auf dieselbe gebundene Adresse gesetzt. setHost ist ab API 16 vorhanden; setHostAddresses wäre erst ab API 34 verfügbar und wird für minSdk 26 nicht benötigt.
-- Adressstrategie: private IPv4 bevorzugen; ohne IPv4 IPv6-ULA, globale IPv6 und zuletzt eine an das WLAN-Interface gebundene Link-Local-IPv6-Adresse verwenden. Fehlen Interface oder geeignete Adresse, wird nicht auf Wildcard zurückgefallen.
-- Netzwerk- oder Adresswechsel beenden die laufende Discovery fail-closed. Der Listener wird geschlossen und der Accept-Thread begrenzt beendet; ein erneuter Start erzeugt einen neuen Socket und eine neue DNS-SD-Anmeldung.
-- Implementierung auf test, App-Code-Commit 7cd800141a3b16b9f00c91669a0a922eddb509e1. Drei JVM-Tests für Adressauswahl und ein Pairing-Test mit zwei getrennten Preferences/TrustedPeerStores wurden ergänzt.
-- CI für diesen Commit ist noch nicht bestätigt. Es wurden weder Unit-Tests noch Android-Builds oder Emulatorläufe als erfolgreich gewertet.
-- Discovery bleibt reject-only. Keine Handshake-Integration, keine Profil-/Outbox-Übertragung. main, Updater und Produktionsrelease wurden nicht verändert.
-
-
-## Ergänzung zur WLAN-Auswahl (18.11.2026, 07:33 Uhr MEZ)
-
-- Die Auswahl des WLAN-Netzes hängt nicht mehr ausschließlich von `activeNetwork` ab. `ConnectivityManager.allNetworks` wird geprüft; das Default-Netz wird priorisiert, wenn es selbst WLAN ist. Damit wird auch ein verbundenes WLAN gefunden, wenn Mobilfunk das Default-Netz ist.
-- Die Listener-Adressauswahl ist auf lokale Adressen begrenzt: private IPv4, IPv4-Link-Local, IPv6-ULA und IPv6-Link-Local mit Interface-Scope. Öffentliche IPv4-/IPv6-Adressen werden nicht als Listener-Adresse verwendet.
-- Zusätzliche Tests prüfen die Ablehnung öffentlicher Adressen und IPv4-Link-Local-Fallback. Damit sind fünf JVM-Tests für die Adressauswahl vorhanden.
-- Aktualisierter App-Code-Commit: `9cb2599ab714f71b9f0334ecc85678e31b489ed2`. Weiterhin kein CI-Nachweis auf diesem Commit; keine Tests oder Builds als erfolgreich bestätigt.
-
-
-## 19. Mehrere WLAN-Netze und IPv6-Link-Local-Scope (18.11.2026)
-
-- Ein zusätzliches WLAN-Netz beendet die Discovery nicht mehr automatisch. `onAvailable` bricht nur ab, wenn das neu verfügbare WLAN zugleich `ConnectivityManager.activeNetwork` ist. Ein Verlust des ursprünglich ausgewählten WLANs wird weiterhin über `onLost` erkannt; Änderungen an dessen Interface oder ausgewählter Adresse bleiben fail-closed.
-- Die Scope-Erzeugung für IPv6-Link-Local-Adressen wurde in eine separat prüfbare Funktion ausgelagert. Sie akzeptiert ausschließlich Link-Local-IPv6 und bindet die Adresse über `Inet6Address.getByAddress(..., NetworkInterface)` an das angegebene Interface.
-- Zwei zusätzliche JVM-Tests prüfen die Scope-Bindung an einem Linux-Interface mit zugewiesener IPv6-Link-Local-Adresse und die Ablehnung einer IPv6-ULA-Adresse durch die Scope-Funktion.
-- Implementierungscommits auf `test`: `4f35e1f` (Discovery/Selector) und `305fc0e` (Tests). Insgesamt sieben Adressauswahl-/Scope-Testfälle sind im Quellcode vorhanden.
-- Ein isolierter lokaler JDK-Smoketest der `Inet6Address`-Interface-Scope-API war mit einer tatsächlich zugewiesenen IPv6-Link-Local-Adresse erfolgreich. Das ist kein Android-App-Build und ersetzt keinen CI-Test.
-- CI/Build noch nicht bestätigt. Die Testfälle sind ergänzt, aber nicht als ausgeführt oder bestanden zu werten.
-- Keine Änderung an Pairing-Kryptografie, TCP-Handshake, Nutzdatenübertragung, Updater, `main` oder Produktionsrelease.
-
-
-## 16. Netzwerk-Lifecycle-Review: Default-WLAN-Wechsel (18.11.2026, 08:10 Uhr MEZ)
-
-- Review-Befund: Ein ausschließlich mit `registerNetworkCallback(NetworkRequest mit TRANSPORT_WIFI)` registrierter Callback beobachtet passende WLAN-Netze, nicht zuverlässig jede Änderung des Android-Standardnetzes. Wenn ein zweites WLAN bereits verfügbar ist und später zum Defaultnetz wird, muss dafür kein neues `onAvailable` des WLAN-Callbacks eintreffen. Die bisherige Prüfung von `connectivity.activeNetwork` nur in `onAvailable` konnte diesen Übergang deshalb verpassen.
-- Korrektur auf `test`: separater `registerDefaultNetworkCallback(callback, mainHandler)`. Sowohl `onAvailable` als auch `onCapabilitiesChanged` prüfen das Defaultnetz. Ein anderes WLAN als das für den Listener ausgewählte WLAN beendet die Discovery fail-closed.
-- Mobilfunk als Defaultnetz bleibt zulässig; der ausgewählte WLAN-Link wird weiterhin separat auf Verlust und Link-/Adressänderungen überwacht.
-- Der Cleanup meldet beide Netzwerk-Callbacks ab. Discovery bleibt weiterhin reject-only; kein Handshake und keine Nutzdatenübertragung.
-- Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`. Noch kein Android-Build, Unit-Test, Emulator- oder Hardwaretest für diese Änderung bestätigt.
-- Keine Änderung an `main`, Updater, Manifest, Release, Pairing-Kryptografie oder bestehendem WF-RAC-/ioBroker-Steuerpfad.
+Am 17.11.2026 wurde TLS/mTLS nach wiederholten Keystore-/Conscrypt-/Emulatorproblemen verworfen und der Nutzer stimmte einem einfacheren, signaturbasierten TCP-Handshake ohne Transportverschlüsselung zu. Diese Entscheidung gilt weiterhin. Eine spätere Änderung der Transport-Sicherheitsentscheidung benötigt eine ausdrückliche neue Abstimmung.
