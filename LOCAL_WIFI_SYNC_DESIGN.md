@@ -2,6 +2,7 @@
 
 **Fachlicher Stand:** 18.11.2026  
 **Aktueller Branch-/PR-/CI-Status:** ausschließlich in `PROJECT_STATUS.md`.
+
 ## 1. Ziel und Grenzen
 
 Zwei KlimaPilot-Installationen sollen nach bewusster gegenseitiger Kopplung Profile/Ereignisse lokal über WLAN austauschen können. Der Weg ist unabhängig von Cloud-Diensten und vom direkten WF-RAC-Steuerpfad.
@@ -84,10 +85,6 @@ Vor jeglicher Peer-Nutzdatenübertragung sind mindestens umzusetzen und zu prüf
 
 Build-, CI- und Geräte-Testnachweise für den aktuellen Stand werden ausschließlich in `PROJECT_STATUS.md` geführt. Die dort dokumentierten älteren erfolgreichen Läufe sind kein Nachweis für den jeweils neuesten Codecommit.
 
-## 8. Nächste Schritte
+## 8. Weiteres Vorgehen
 
-1. Netzwerk-Lifecycle-Änderung unabhängig reviewen.
-2. Aktuellen PR-WLAN-Workflow auf dem neuen Commit prüfen.
-3. Bei erfolgreicher Validierung gezielte Lifecycle-/DNS-SD-Tests erweitern.
-4. Erst danach die Integration des TCP-Handshakes planen.
-5. Nutzdatenübertragung bleibt bis zu den Freigabegates gesperrt.
+Die Reihenfolge der nächsten Arbeitsschritte und deren Freigabestatus werden ausschließlich in `PROJECT_STATUS.md` gepflegt.
