@@ -9,11 +9,16 @@ on:
     paths-ignore:
       - PROJECT_STATUS.md
       - 'app/src/debug/**'
-      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Test-only debug signing. Only the keystore itself is secret
+# (KLIMAPILOT_TEST_KEYSTORE_BASE64); the password is useless without it.
+env:
+  KLIMAPILOT_TEST_KEY_ALIAS: klimapilot-test
+  KLIMAPILOT_TEST_STORE_PASSWORD: ctFyRrvQZrieAoPS2g6hMVaePLMYPsgW
 
 concurrency:
   group: klimapilot-wlan-validation-${{ github.ref }}
@@ -46,12 +51,10 @@ jobs:
       - name: Test-Signaturschlüssel bereitstellen
         env:
           KEYSTORE_BASE64: ${{ secrets.KLIMAPILOT_TEST_KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.KLIMAPILOT_TEST_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KLIMAPILOT_TEST_KEY_ALIAS }}
+          STORE_PASSWORD: ${{ env.KLIMAPILOT_TEST_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ env.KLIMAPILOT_TEST_KEY_ALIAS }}
         run: |
           test -n "$KEYSTORE_BASE64" || { echo "Secret KLIMAPILOT_TEST_KEYSTORE_BASE64 fehlt"; exit 1; }
-          test -n "$STORE_PASSWORD" || { echo "Secret KLIMAPILOT_TEST_STORE_PASSWORD fehlt"; exit 1; }
-          test -n "$KEY_ALIAS" || { echo "Secret KLIMAPILOT_TEST_KEY_ALIAS fehlt"; exit 1; }
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/klimapilot-test-debug.p12"
           keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/klimapilot-test-debug.p12" \
             -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
@@ -59,9 +62,7 @@ jobs:
       - name: Unit-Tests und Debug-Kompilierung
         env:
           KLIMAPILOT_TEST_KEYSTORE_PATH: ${{ runner.temp }}/klimapilot-test-debug.p12
-          KLIMAPILOT_TEST_STORE_PASSWORD: ${{ secrets.KLIMAPILOT_TEST_STORE_PASSWORD }}
-          KLIMAPILOT_TEST_KEY_ALIAS: ${{ secrets.KLIMAPILOT_TEST_KEY_ALIAS }}
-          KLIMAPILOT_TEST_KEY_PASSWORD: ${{ secrets.KLIMAPILOT_TEST_KEY_PASSWORD }}
+          KLIMAPILOT_TEST_KEY_PASSWORD: ${{ env.KLIMAPILOT_TEST_STORE_PASSWORD }}
         run: gradle --no-daemon testDebugUnitTest assembleDebug compileReleaseKotlin
 
       - name: Debug-APK für Smartphone-Praxistest prüfen
