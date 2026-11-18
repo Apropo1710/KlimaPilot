@@ -4,8 +4,8 @@
 Dieser Abschnitt ist der aktuelle operative Status und ersetzt abweichende ältere Branch-/CI-Angaben in den nachfolgenden chronologischen Einträgen.
 
 - Produktionsbranch `main`: HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`; Produktionsversion **0.4.64 / versionCode 94**. Produktionsbuild #233 ist erfolgreich (Build-Quellcommit `b88ff7e9709bc1ea5aafd673e26bb1d4efee9c16`); Release-Tag `latest` zeigt auf diesen Build-Commit und enthält die aktualisierte `KlimaPilot.apk`.
-- Dieser Testbranch `test`: aktueller App-Code-HEAD `7cd800141a3b16b9f00c91669a0a922eddb509e1` (nachfolgender Dokumentationscommit aktualisiert die Statusdateien).
-- Vergleich `main...test` nach App-Code-Commit: **157 ahead / 10 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Divergente Branches; keine automatische Zusammenführung.
+- Dieser Testbranch `test`: aktueller App-Code-HEAD `9cb2599ab714f71b9f0334ecc85678e31b489ed2` (nachfolgender Dokumentationscommit aktualisiert die Statusdateien).
+- Vergleich `main...test` nach App-Code-Commit: **159 ahead / 10 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Divergente Branches; keine automatische Zusammenführung.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen und Draft, nicht gemergt. Keine Produktionsfreigabe.
 - Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246) war erfolgreich auf älterem App-Code-HEAD `ae1bdc03`. Für `7cd800141a3b16b9f00c91669a0a922eddb509e1` liegt noch kein CI-Ergebnis vor; nach dem Commit wurde kein automatischer PR-Run erzeugt.
 - Letzter erfolgreicher TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) lief auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26. Für den aktuellen HEAD liegt kein bestätigter Emulatorlauf vor. API 35 ist nicht als bestanden bestätigt.
@@ -19,16 +19,16 @@ Dieser Abschnitt ist der aktuelle operative Status und ersetzt abweichende älte
 
 
 
-## WLAN-Bindung – Implementierungsstand 18.11.2026, 07:25 Uhr MEZ
+## WLAN-Bindung – Implementierungsstand 18.11.2026, 07:35 Uhr MEZ
 
-Auf Testbranch `test`, App-Code-Commit `7cd800141a3b16b9f00c91669a0a922eddb509e1`: 
+Auf Testbranch `test`, App-Code-Commit `9cb2599ab714f71b9f0334ecc85678e31b489ed2`: 
 
-- `ClimateProfilePeerDiscovery` liest das aktive WLAN-Netz über `ConnectivityManager.activeNetwork`, prüft `TRANSPORT_WIFI` und wertet `LinkProperties.interfaceName` sowie `linkAddresses` aus.
-- `ClimateWifiListenerAddressSelector` wählt eine konkrete Adresse des WLAN-Links: private IPv4 bevorzugt, andernfalls IPv6 (ULA, globale Adresse, zuletzt Link-Local mit Interface-Scope). Ohne Interface oder geeignete Adresse wird fail-closed abgebrochen.
+- `ClimateProfilePeerDiscovery` sucht das WLAN über `ConnectivityManager.allNetworks` und bevorzugt das Default-Netz nur dann, wenn es selbst WLAN ist. So funktioniert die Suche auch, wenn Mobilfunk das Default-Netz ist. `LinkProperties.interfaceName` und `linkAddresses` liefern Interface und Adressen.
+- `ClimateWifiListenerAddressSelector` wählt ausschließlich lokale Adressen: private IPv4 bevorzugt, IPv4-Link-Local als Fallback, IPv6-ULA und zuletzt IPv6-Link-Local mit Interface-Scope. Öffentliche IPv4-/IPv6-Adressen werden verworfen. Ohne lokale Adresse wird fail-closed abgebrochen.
 - Der `ServerSocket` wird explizit an `InetSocketAddress(hostAddress, 0)` gebunden. `NsdServiceInfo.host` wird auf dieselbe Adresse gesetzt, damit DNS-SD nicht eine andere lokale Adresse als erreichbares Ziel veröffentlicht.
 - `onLinkPropertiesChanged` erkennt Interface-/Adressänderungen. Bei WLAN-Netzwerkverlust oder geänderter Adresse wird die Discovery beendet; der alte Listener wird geschlossen und der Accept-Thread mit begrenztem Join beendet. Ein erneuter Start erzeugt einen neuen Listener.
-- Neue JVM-Tests prüfen IPv4-Priorität, IPv6-Fallback und die Ablehnung ungeeigneter Adressen. `ClimatePairingSessionControllerTest` verwendet jetzt zwei getrennte `ClimateTrustedPeerStore`-Instanzen mit getrennten Preferences.
-- **Validierung offen:** Für Commit `7cd8001` wurden noch keine Unit-Tests oder Android-Builds ausgeführt. Es existiert kein zugehöriger Actions-Run/Check-Run. Der letzte bestätigte WLAN-Lauf bleibt #202 auf `ae1bdc03`; kein Emulatorlauf auf dem neuen Code.
+- Neue JVM-Tests prüfen IPv4-Priorität, IPv6-Fallback, Ablehnung ungeeigneter/öffentlicher Adressen und IPv4-Link-Local-Fallback. `ClimatePairingSessionControllerTest` verwendet jetzt zwei getrennte `ClimateTrustedPeerStore`-Instanzen mit getrennten Preferences.
+- **Validierung offen:** Für Commit `9cb2599` wurden noch keine Unit-Tests oder Android-Builds ausgeführt. Es existiert kein zugehöriger Actions-Run/Check-Run. Der letzte bestätigte WLAN-Lauf bleibt #202 auf `ae1bdc03`; kein Emulatorlauf auf dem neuen Code.
 - Discovery bleibt reject-only. TCP-Handshake-Integration und Profiltransfer sind weiterhin ausdrücklich nicht Teil dieser Änderung.
 
 ## Code-Review-Zwischenstand – 18.11.2026, 07:21 Uhr MEZ

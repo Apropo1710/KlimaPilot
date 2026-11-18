@@ -1,18 +1,18 @@
 # KlimaPilot – aktueller Projekt- und Übergabestatus
 
-**Abgleich:** 18.11.2026, 07:25 Uhr MEZ  
+**Abgleich:** 18.11.2026, 07:35 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
 **Produktionsbranch:** `main` – HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`  
 **Produktionsversion:** **0.4.64 / versionCode 94**  
-**Arbeitsbranch:** `test` – App-Code-HEAD `7cd800141a3b16b9f00c91669a0a922eddb509e1` (anschließender Doku-Commit)
+**Arbeitsbranch:** `test` – App-Code-HEAD `9cb2599ab714f71b9f0334ecc85678e31b489ed2` (anschließender Doku-Commit)
 
 ### Neueste Änderung – WLAN-Interface-Bindung (18.11.2026)
 
-- Discovery ermittelt das aktive WLAN über `ConnectivityManager` und `LinkProperties` (Interface-Name und Interface-Adressen).
-- Listener wird an eine konkrete WLAN-Adresse gebunden; IPv4 wird bevorzugt, IPv6 ist Fallback. Die gleiche Adresse wird für DNS-SD als Host gesetzt.
+- Discovery ermittelt das WLAN über `ConnectivityManager.allNetworks`; das Default-Netz wird nur bevorzugt, wenn es WLAN ist. `LinkProperties` liefert Interface-Name und Interface-Adressen.
+- Listener wird ausschließlich an lokale WLAN-Adressen gebunden: private IPv4 bevorzugt, IPv4-Link-Local, IPv6-ULA oder IPv6-Link-Local als Fallback. Öffentliche Adressen werden abgelehnt. DNS-SD veröffentlicht dieselbe Adresse.
 - Änderungen an Interface/IP oder Verlust des WLANs beenden die Discovery fail-closed. Der Listener wird geschlossen und der Accept-Thread begrenzt beendet; Neustart erzeugt einen frischen Socket.
-- Drei neue JVM-Tests für Adressauswahl; Pairing-Controller-Test nutzt getrennte Trust-Speicher für Gerät A und B.
-- App-Code-Commit: `7cd800141a3b16b9f00c91669a0a922eddb509e1`. **CI/Unit-Tests/Android-Build für diesen Commit noch nicht bestätigt.** Kein Emulatorlauf auf diesem Stand.
+- Fünf JVM-Tests für Adressauswahl; Pairing-Controller-Test nutzt getrennte Trust-Speicher für Gerät A und B.
+- App-Code-Commit: `9cb2599ab714f71b9f0334ecc85678e31b489ed2`. **CI/Unit-Tests/Android-Build für diesen Commit noch nicht bestätigt.** Kein Emulatorlauf auf diesem Stand.
 - Discovery bleibt reject-only; Handshake und Profiltransfer wurden nicht integriert.
 ## Produktionsstand
 
@@ -23,7 +23,7 @@
 ## WLAN-/Pairing-Arbeitsstand
 
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen/Draft, nicht gemergt.
-- `main...test`: **157 ahead / 10 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
+- `main...test`: **159 ahead / 10 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
 - Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246): **success** auf älterem App-Code-HEAD `ae1bdc03`. Für den aktuellen App-Code-HEAD `7cd8001` gibt es noch keinen CI-Lauf; die GitHub-API hat nach dem Commit keinen PR-Run erzeugt.
 - TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) erfolgreich auf älterem Commit `41b9a3ab`, API 26. Für aktuellen HEAD kein Emulatornachweis; API 35 nicht bestätigt.
 - TCP-Emulatorworkflow nur manuell (`workflow_dispatch`); WLAN-Workflow bei PR-Updates. Keine doppelten automatischen Emulatorläufe.

@@ -196,3 +196,11 @@ Diese Punkte sind Review-Ergebnisse und offene Integrationsanforderungen, keine 
 - Implementierung auf test, App-Code-Commit 7cd800141a3b16b9f00c91669a0a922eddb509e1. Drei JVM-Tests für Adressauswahl und ein Pairing-Test mit zwei getrennten Preferences/TrustedPeerStores wurden ergänzt.
 - CI für diesen Commit ist noch nicht bestätigt. Es wurden weder Unit-Tests noch Android-Builds oder Emulatorläufe als erfolgreich gewertet.
 - Discovery bleibt reject-only. Keine Handshake-Integration, keine Profil-/Outbox-Übertragung. main, Updater und Produktionsrelease wurden nicht verändert.
+
+
+## Ergänzung zur WLAN-Auswahl (18.11.2026, 07:35 Uhr MEZ)
+
+- Die Auswahl des WLAN-Netzes hängt nicht mehr ausschließlich von `activeNetwork` ab. `ConnectivityManager.allNetworks` wird geprüft; das Default-Netz wird priorisiert, wenn es selbst WLAN ist. Damit wird auch ein verbundenes WLAN gefunden, wenn Mobilfunk das Default-Netz ist.
+- Die Listener-Adressauswahl ist auf lokale Adressen begrenzt: private IPv4, IPv4-Link-Local, IPv6-ULA und IPv6-Link-Local mit Interface-Scope. Öffentliche IPv4-/IPv6-Adressen werden nicht als Listener-Adresse verwendet.
+- Zusätzliche Tests prüfen die Ablehnung öffentlicher Adressen und IPv4-Link-Local-Fallback. Damit sind fünf JVM-Tests für die Adressauswahl vorhanden.
+- Aktualisierter App-Code-Commit: `9cb2599ab714f71b9f0334ecc85678e31b489ed2`. Weiterhin kein CI-Nachweis auf diesem Commit; keine Tests oder Builds als erfolgreich bestätigt.
