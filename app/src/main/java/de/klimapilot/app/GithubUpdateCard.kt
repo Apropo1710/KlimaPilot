@@ -52,7 +52,7 @@ internal fun GithubUpdateCard(appVersion: String) {
             val release = GithubPrivateUpdates.latestRelease(context)
             latestVersion = release.version
             assetId = release.assetId
-            val current = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
+            val current = appVersion.substringBefore("-").split(".").map { it.toIntOrNull() ?: 0 }
             val latest = release.version.split(".").map { it.toIntOrNull() ?: 0 }
             var comparison = 0
             for (i in 0 until maxOf(current.size, latest.size)) {
@@ -130,6 +130,17 @@ internal fun GithubUpdateCard(appVersion: String) {
                         modifier = Modifier.widthIn(min = 220.dp).height(48.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         onClick = {
+                            if (BuildConfig.DEBUG) {
+                                // Test builds do not declare REQUEST_INSTALL_PACKAGES, so they cannot
+                                // start the installer themselves. Open the test APK in the browser instead.
+                                val url = "https://github.com/Apropo1710/KlimaPilot/releases/download/" +
+                                    BuildConfig.UPDATE_RELEASE_TAG + "/" + BuildConfig.UPDATE_ASSET_NAME
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                    status = "Download im Browser gestartet. Danach die Datei öffnen und installieren."
+                                }.onFailure { status = "Browser konnte nicht geöffnet werden: " + (it.message ?: "") }
+                                return@Button
+                            }
                             scope.launch {
                                 busy = true
                                 status = "APK wird sicher heruntergeladen …"

@@ -127,6 +127,7 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk KlimaPilot-test.apk
           cat > release-notes.md <<NOTES
           KlimaPilot Testversion ${{ steps.version.outputs.name }}-debug (versionCode ${{ steps.version.outputs.code }})
+          KlimaPilot-Version: ${{ steps.version.outputs.name }}
 
           - Paketkennung: de.klimapilot.app.debug
           - Quellcommit: ${GITHUB_SHA}
