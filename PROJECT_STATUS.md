@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 15:11 Uhr MEZ (Login-Komfort teilweise implementiert; direkte Ein-Schritt-Gerätekopplung in technischer Umsetzung; noch kein neuer Build)
+**Letzter Abgleich:** 18.11.2026, 15:35 Uhr MEZ (Pairing-ACK-Grundlage committed; Emulatorworkflow auf manuell umgestellt; kein neuer App-Build)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -35,6 +35,14 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - **Login-Komfort – teilweise auf `test` implementiert (18.11.2026):** Die gespeicherte ioBroker-Adresse wird aus `klimapilot_iobroker_address` beziehungsweise als Rückfall aus `iobroker_server` gelesen. Bei fehlender lokaler Registry wird die gespeicherte Adresse automatisch für die Kontoübernahme verwendet. Die Adresse wird nach erfolgreichem Import in beiden Schlüsseln vereinheitlicht gespeichert. Solange keine Registry geladen werden konnte, zeigt der Login die Adressangabe und eine erneute Verbindungs-/Ladeaktion; bei laufender Verbindung erscheint ein Ladezustand. Änderungen: `77c91053901967851c9c684b9448d2679bfe626e` und `0dccd771732b414c85259dce80dcc25c2be7e3f3`. Noch nicht gebaut oder auf Geräten geprüft. Der Versionsstand bleibt bis zum gebündelten Abschluss bei 0.4.68 / versionCode 98.
 - **Geplanter Fallback (noch nicht getestet):** Wenn ioBroker nicht erreichbar ist, soll zusätzlich eine direkte Smartphone-zu-Smartphone-Übernahme per QR-Code angeboten werden. Vor Umsetzung/Praxisfreigabe sind Ablauf und Sicherheit zu prüfen; Zugangsdaten dürfen nicht ungeschützt im QR-Code stehen. Dieser Fallback ist ausdrücklich noch nicht als funktionsfähig bestätigt.
 - `main` und der produktive Updater bleiben unverändert.
+
+## 2b. Pairing-ACK und CI-Steuerung (18.11.2026)
+
+- Commits `308f3f80c1f8d005f0b0976260ea0ceee601dd4f` und `b5f890248b3128a504fc5e48af6bdb9b2d26944c`: Der Responder speichert den Einladenden nicht mehr unmittelbar nach Zustimmung. Die Controller-Grundlage verlangt eine nachgelagerte Speicherbestätigung; Tests decken falsche ACK-Daten und Abbruch ab.
+- **Wichtig: Das ist noch kein vollständiger Pairing-Ablauf.** Der reale WLAN-Rückkanal, eine kryptografisch signierte ACK-Nachricht und die Ein-Scan-Oberfläche fehlen. Die bestehende UI zeigt weiterhin den alten Antwort-QR-Ablauf. Bis zur Fertigstellung ist der neue Ablauf nicht praxistestfähig.
+- Commit `2e6a8170eedc318e7c33977c6b7ae2364e743116`: `.github/workflows/pairing-tls-validation.yml` startet nicht mehr bei Pushes auf `test`; nur noch `workflow_dispatch` ist eingetragen. Reguläre Validierung erfolgt über `.github/workflows/wlan-validation.yml`. Damit werden weitere normale Code-Pushes nicht mehr automatisch den API-26-Emulator starten.
+- Der zuvor bereits gestartete API-26-Lauf #90 (Run ID `44323759302`) war zum letzten Abruf noch aktiv. Die Workflow-Änderung verhindert neue automatische Starts, beendet aber keinen bereits laufenden Run.
+- WLAN-Workflow #225 (Run ID `44323759391`) auf Commit `b5f890248b3128a504fc5e48af6bdb9b2d26944c` erfolgreich: Unit-Tests, Debug-Kompilierung, APK-Prüfung und Artefaktbereitstellung abgeschlossen. Dieser Lauf enthält die Pairing-Controller-/Teständerungen, aber noch keinen echten WLAN-Rückkanal.
 
 ## 3. Letzte Codeänderung
 
@@ -97,7 +105,7 @@ Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als 
 
 Workflows:
 - `.github/workflows/wlan-validation.yml`: Push-Trigger für `test`; reine `PROJECT_STATUS.md`- und `.github/workflows/**`-Änderungen sind ausgeschlossen, damit Workflow-Konfigurationspflege keinen zweiten redundanten Build auslöst. Zusätzlich `workflow_dispatch`; führt Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35 aus.
-- `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; der Workflow validiert TCP-Peer-Authentifizierung und ist nur manuell startbar. Seit Commit `e01cc74...` enthält er ausschließlich den Pflichtlauf auf API 26. Da die Workflow-Datei nicht auf dem Default-Branch `main` liegt, bietet GitHub in der Actions-Ansicht keinen manuellen `Run workflow`-Start an. Stattdessen wird der Workflow seit Commit `3fbe06d...` bei relevanten Pushes auf `test` automatisch gestartet (Pfadfilter für App-/Gradle-/Workflow-Dateien). Statusdokumentationsänderungen lösen ihn nicht aus. Commit `e685389...` ergänzt die verifizierte Debug-APK-Ausgabe als Artefakt nach erfolgreichem Test. Frühere API-35-Experimente liefen ausschließlich auf temporären `validation/*`-Branches und wurden nicht in `main`, `test` oder PR #6 übernommen.
+- `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; API-26-Emulator-/Instrumentierungstest. Seit Commit `2e6a817...` kein Push-Trigger mehr; nur `workflow_dispatch` ist konfiguriert. Reguläre Änderungen auf `test` lösen diesen Emulatorworkflow nicht mehr aus. Manuelle Auslösung bleibt aufgrund der Workflow-Datei nur auf `test` möglicherweise nicht über die GitHub-Oberfläche verfügbar. Der WLAN-Workflow bleibt der reguläre Prüfweg.
 
 ## 6. Verbindliche Freigabesperren
 
