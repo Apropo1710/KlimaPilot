@@ -392,8 +392,7 @@ internal fun KlimaPilotAccountSettingsScreen(
     onSwitchAccount: () -> Unit,
     onAddAccount: (String, String, String, String) -> Unit,
     onResetPassword: (String, String) -> Unit,
-    onDeleteAccount: (String) -> Unit,
-    onExportAccounts: () -> Unit
+    onDeleteAccount: (String) -> Unit
 ) {
     var showAdd by remember { mutableStateOf(false) }
     var newUsername by remember { mutableStateOf("") }
@@ -435,9 +434,6 @@ internal fun KlimaPilotAccountSettingsScreen(
         }
         if (account.role == KlimaPilotAccount.ADMIN) {
             Text("Benutzerverwaltung · ${accounts.size} Konten", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            OutlinedButton(onClick = onExportAccounts, modifier = Modifier.fillMaxWidth()) {
-                Text("Kontenliste für anderes Gerät exportieren")
-            }
             accounts.forEach { item ->
                 Card(shape = RoundedCornerShape(14.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
