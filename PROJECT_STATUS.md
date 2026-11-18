@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 08:54 Uhr MEZ  
+**Letzter Abgleich:** 18.11.2026, 08:55 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -16,11 +16,11 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD: gezielter Test-Erweiterungscommit für die WLAN-Snapshot-Policy.
+- Aktueller `test`-HEAD: `e55a92e1aba0961088af92d6013de2ba960ea03d` (gezielte Erweiterung der WLAN-Snapshot-Policy-Tests).
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
-- Branchvergleich nach dieser Bereinigung: **196 Commits ahead / 10 behind** gegenüber `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die Branches sind divergent; kein Rebase oder Merge im Rahmen der Dokumentationspflege.
+- Branchvergleich nach dieser Bereinigung: **197 Commits ahead / 10 behind** gegenüber `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die Branches sind divergent; kein Rebase oder Merge im Rahmen der Dokumentationspflege.
 - PR #6 umfasst den WLAN-/Pairing-Arbeitsstrang. Vor einer späteren Integration ist ein vollständiger Diff-Review gegen den dann aktuellen `main` erforderlich.
 
 ## 3. Letzte Codeänderung
@@ -66,7 +66,7 @@ Die folgenden Nachweise sind die zuletzt konkret dokumentierten Ergebnisse; sie 
 - Für die aktuelle Lifecycle-Snapshot-Absicherung und ihre elf Policy-Testfälle ist ebenfalls noch kein Android-Build/Unit-Testlauf bestätigt.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
 - Kein API-35-Emulatornachweis und kein Zwei-Smartphone-Praxistest bestätigt.
-- Der aktuelle Actions-Abgleich enthält keinen Lauf für den Lifecycle-Härtungscommit. Der letzte erfolgreiche WLAN-Lauf #202 liegt vor dem Codecommit `bba8969...`; der letzte TCP-Emulatorlauf #62 ebenfalls. Es wird kein aktueller CI-Erfolg behauptet.
+- Für den aktuellen `test`-HEAD `e55a92e...` wurde trotz aktualisiertem PR-Kopf kein Actions-Lauf angelegt; die commitbezogene Workflow-Abfrage und der kombinierte Commit-Status liefern keine Runs/Checks. Der letzte erfolgreiche WLAN-Lauf #202 liegt vor dem Codecommit `bba8969...`; der letzte TCP-Emulatorlauf #62 ebenfalls.\n- Die elf reinen Netzwerk-Policy-Fälle wurden zusätzlich mit dem lokalen Kotlin-Compiler in einem separaten Smoke-Harness ausgeführt: **11/11 bestanden**. Das ist ausdrücklich kein Ersatz für `testDebugUnitTest`, Android-Kompilierung oder Emulator-/Gerätetests. In der verfügbaren lokalen Umgebung sind weder Gradle noch Android SDK/ADB eingerichtet.
 
 Workflows:
 - `.github/workflows/wlan-validation.yml`: PR-Trigger sowie `workflow_dispatch`; laut Workflowdefinition Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35.
@@ -90,7 +90,7 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Den durch die PR-Aktualisierung ausgelösten WLAN-Validierungslauf für den aktuellen Commit kontrollieren; Unit-Tests und Debug-Kompilierung müssen erfolgreich sein.
+1. Die manuelle GitHub-Actions-Validierung für den aktuellen Commit auslösen, sobald ein Actions-Dispatch-Zugang verfügbar ist; anschließend Unit-Tests und Debug-Kompilierung prüfen. Bis dahin keinen CI-Erfolg behaupten.
 2. Danach gezielte Geräte-/Emulatortests für WLAN-Verlust, Wechsel des Standardnetzes, parallele WLAN-Verfügbarkeit und einen Netzwechsel während des Discovery-Starts durchführen.
 3. Erst nach erfolgreicher Validierung die Integration des TCP-Handshakes planen.
 4. Bis zur vollständigen Protokollhärtung und zum erfolgreichen Zwei-Smartphone-Test bleibt Peer-Nutzdatentransfer gesperrt.
