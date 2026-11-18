@@ -349,7 +349,7 @@ internal fun KlimaPilotAccountLoginScreen(
                 Spacer(Modifier.height(10.dp))
                 Text("Bereits vorhandenes Konto verwenden", fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Exportiere auf deinem bisherigen Gerät die Kontenliste und füge den Inhalt hier ein. Danach kannst du dich mit deinem vorhandenen Benutzerkonto anmelden.",
+                    "Exportiere auf deinem bisherigen Gerät die Kontenliste und füge den Inhalt hier ein. Die Datei enthält Passwort-Prüfwerte: Übertrage sie nur direkt an dein eigenes Gerät und gib sie nicht weiter.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
                 )
                 OutlinedTextField(
