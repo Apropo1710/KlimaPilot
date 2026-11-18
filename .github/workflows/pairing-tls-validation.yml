@@ -1,16 +1,10 @@
 name: KlimaPilot Local TCP Peer Authentication
 
+# Dieser Emulator-/Instrumentierungsworkflow wird nicht automatisch ausgeführt.
+# Er bleibt als manuell auslösbarer Diagnoseworkflow dokumentiert; reguläre
+# Entwicklung auf test nutzt ausschließlich wlan-validation.yml.
 on:
-  push:
-    branches:
-      - test
-    paths:
-      - 'app/src/**'
-      - 'app/build.gradle.kts'
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
-      - 'gradle/**'
-      - '.github/workflows/pairing-tls-validation.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,7 +15,7 @@ concurrency:
 
 jobs:
   peer-authentication-api26:
-    name: Android Keystore TCP Peer Auth (API 26 – Pflicht)
+    name: Android Keystore TCP Peer Auth (API 26 – manuell)
     runs-on: ubuntu-latest
     steps:
       - name: Quellcode auschecken
