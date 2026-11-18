@@ -43,3 +43,13 @@ Die aktuelle Prüfung der Dateien auf `test` ergab:
 - Die Compose-UI koppelt nur QR-Pairing; der Text weist zutreffend darauf hin, dass noch keine Klimaprofile übertragen werden. Discovery wird bei App-Hintergrund und Composable-Dispose beendet.
 - Dies ist eine Codeprüfung, kein neuer Testlauf. Keine Codeänderung, kein CI-Start und keine Freigabe für Profiltransfer.
 
+
+
+## WLAN-Callback und IPv6-Scope-Korrektur (18.11.2026, 07:41 Uhr MEZ)
+
+- Zusätzliche verfügbare WLAN-Netze beenden die laufende Discovery nicht mehr pauschal. Ein neuer WLAN-Callback führt nur dann zum Abbruch, wenn dieses Netz zugleich Androids aktives Standardnetz ist. Verlust des ursprünglich ausgewählten WLANs und Änderungen seiner Interface-Adresse bleiben fail-closed.
+- Die IPv6-Link-Local-Scope-Erzeugung ist in `ClimateWifiListenerAddressSelector.scopeLinkLocalAddress` gekapselt. Nicht-Link-Local-Adressen werden von dieser Funktion abgelehnt.
+- Zwei weitere JVM-Tests prüfen die Bindung einer IPv6-Link-Local-Adresse an das ausgewählte Interface sowie die Ablehnung einer ULA-Adresse durch die Scope-Funktion. Damit enthält die Adressauswahl-Testdatei sieben Testfälle.
+- Code-Commit: `4f35e1feb60e0f46eac360fee51a58d024bfc6bb`; Test-Commit: `fc29e1f71a8a047b2623b946de5ca6c5a6c29b90`.
+- Diese Änderungen sind noch nicht durch CI, Android-Build oder reale Geräte geprüft. Es wird kein Testerfolg behauptet.
+- Discovery bleibt reject-only. Keine TCP-Handshake-Integration und keine Profil-/Outbox-Übertragung. `main`, Updater, Release und bestehender ioBroker-/WF-RAC-Pfad bleiben unverändert.
