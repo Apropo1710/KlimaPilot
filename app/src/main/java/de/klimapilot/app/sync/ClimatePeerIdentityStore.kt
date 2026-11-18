@@ -72,6 +72,9 @@ internal class ClimatePeerIdentityStore(
         }
     }
 
+    override fun verify(publicKeyBase64: String, challenge: ByteArray, signatureBytes: ByteArray): Boolean =
+        Companion.verify(publicKeyBase64, challenge, signatureBytes)
+
     private fun loadKeyStore(): KeyStore =
         KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
 

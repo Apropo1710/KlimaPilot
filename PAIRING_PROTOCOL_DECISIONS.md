@@ -130,3 +130,12 @@ Nicht Teil dieses Arbeitspakets sind:
 - Weiterhin nicht umgesetzt: Integration in Discovery und Profilübertragung. TCP-Nutzdaten bleiben bis zum realen Zwei-Geräte-Test gesperrt.
 - Sicherheitsgrenze: Die Authentifizierung verhindert nicht das aktive Einschleusen oder Verändern von TCP-Daten durch einen Angreifer, der den WLAN-Verkehr umleiten kann. Vor einer späteren Profilübertragung sind daher strikte Größen-, Schema- und Wertebereichsprüfungen auf Empfängerseite erforderlich. Die unverschlüsselte Übertragung bleibt zudem passiv mitlesbar.
 - Updater, WF-RAC-Steuerweg, ioBroker-Synchronisation und Produktionsbranch `main` wurden nicht verändert.
+
+
+## 13. JVM-Testschicht für TCP-Peer-Authentifizierung (18.11.2026)
+
+- Die TCP-Authentifizierung hängt nun an den kleinen Verträgen `ClimatePeerSigner` und `ClimatePeerTrust`. Produktion verwendet weiterhin `ClimatePeerIdentityStore` (Android Keystore) und `ClimateTrustedPeerStore` (SharedPreferences); die produktiven Implementierungen und Standard-Aliasse bleiben erhalten.
+- JVM-Tests können Software-ECDSA-Schlüssel und eine isolierte Vertrauensentscheidung injizieren. Der produktive Android-Keystore wird dadurch nicht ersetzt oder verändert.
+- Neue Tests decken erfolgreiche gegenseitige Authentifizierung, manipulierte Signatur, falsche Peer-ID zum öffentlichen Schlüssel und überlange Handshake-Felder ab.
+- Der CI-Pflichtlauf führt nun zusätzlich `testDebugUnitTest` vor dem API-26-Instrumentierungstest aus. API 35 bleibt manuell.
+- Die Tests müssen im neuen CI-Lauf erst erfolgreich durchlaufen; dieser Commit allein ist kein Testergebnis.

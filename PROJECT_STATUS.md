@@ -261,3 +261,11 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Der TCP-Handshake ist nicht in Discovery integriert; Profilübertragung und Zwei-Smartphone-Test stehen aus. Keine Nutzdaten über den Peer-Kanal freigegeben.
 - Bekannte Sicherheitsgrenze: Unverschlüsseltes TCP kann mitgelesen und bei aktiver Verkehrsmanipulation auch verändert werden. Vor einer Profilintegration sind strikte Empfänger-Validierungen für Größe, Schema und Wertebereiche zwingend.
 - Manifestvergleich: `REQUEST_INSTALL_PACKAGES` war bereits auf `main` vorhanden und wurde auf `test` nicht hinzugefügt. Das Manifest wird im Rahmen dieser Härtung nicht verändert. Updater-Code und Installationsablauf bleiben unangetastet.
+
+
+## JVM-Testschicht TCP-Peer-Authentifizierung (18.11.2026)
+
+- Neuer Test-Branch-Commit ergänzt die injizierbaren Verträge `ClimatePeerSigner` und `ClimatePeerTrust`. Die Produktionsadapter bleiben Android Keystore und SharedPreferences.
+- JVM-Testfälle: erfolgreicher Software-Key-Handshake, manipulierte Signatur, nicht zum Schlüssel passende Peer-ID sowie überlange Handshake-Felder.
+- Der TCP-CI-Pflichtlauf führt jetzt `testDebugUnitTest` und anschließend den API-26-Instrumentierungstest aus. Ergebnis für den neuen Commit steht noch aus.
+- Updater, Manifest, `main` und Produktionsversion bleiben unangetastet.

@@ -117,7 +117,7 @@ internal object ClimatePeerTcp {
             remoteRole, localSecondNonce, localFirstNonce, clientId, serverId
         )
         val peerSignature = readField(input, socket, deadline)
-        require(ClimatePeerIdentityStore.verify(publicKey, remoteTranscript, peerSignature)) {
+        require(identityStore.verify(publicKey, remoteTranscript, peerSignature)) {
             "Die Geräteauthentifizierung ist fehlgeschlagen."
         }
     }

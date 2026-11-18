@@ -57,7 +57,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           script: |
             set +e
-            gradle --no-daemon connectedDebugAndroidTest
+            gradle --no-daemon testDebugUnitTest connectedDebugAndroidTest
             result=$?
             adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/tcp-api26-logcat.txt"
             adb shell dumpsys activity > "$GITHUB_WORKSPACE/tcp-api26-activity.txt" 2>&1

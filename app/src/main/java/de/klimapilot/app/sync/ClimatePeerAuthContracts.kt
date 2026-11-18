@@ -11,6 +11,7 @@ internal data class ClimatePeerIdentity(
 internal interface ClimatePeerSigner {
     fun getOrCreateIdentity(): ClimatePeerIdentity
     fun sign(challenge: ByteArray): ByteArray
+    fun verify(publicKeyBase64: String, challenge: ByteArray, signatureBytes: ByteArray): Boolean
 }
 
 /** Trust decision boundary shared by persistent Android storage and JVM tests. */

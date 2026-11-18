@@ -71,11 +71,27 @@ class ClimatePeerTcpJvmTest {
         val client = SoftwareSigner()
         val server = SoftwareSigner()
         val wrongIdTrust = ClimatePeerTrust { peerId, publicKey ->
-            peerId == "0".repeat(64) && peerId == server.identity.peerId &&
-                publicKey == server.identity.publicKeyBase64
+            peerId == "0".repeat(64) && publicKey == server.identity.publicKeyBase64
         }
-        assertFalse(wrongIdTrust.isTrusted(server.identity.peerId, server.identity.publicKeyBase64))
-        assertTrue(trust(server).isTrusted(server.identity.peerId, server.identity.publicKeyBase64))
+        val listener = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val serverResult = executor.submit<Boolean> {
+                listener.accept().use {
+                    runCatching { ClimatePeerTcp.authenticateAsServer(it, server, wrongIdTrust) }.isSuccess
+                }
+            }
+            val clientAccepted = runCatching {
+                Socket(InetAddress.getLoopbackAddress(), listener.localPort).use {
+                    ClimatePeerTcp.authenticateAsClient(it, client, trust(server))
+                }
+            }.isSuccess
+            assertFalse(clientAccepted)
+            assertFalse(serverResult.get(15, TimeUnit.SECONDS))
+        } finally {
+            listener.close()
+            executor.shutdownNow()
+        }
     }
 
     @Test
@@ -133,7 +149,18 @@ class ClimatePeerTcpJvmTest {
 
         override fun getOrCreateIdentity() = identity
 
-        override fun sign(challenge: ByteArray): ByteArray {
+        override fun verify(publicKeyBase64: String, challenge: ByteArray, signatureBytes: ByteArray): Boolean = runCatching {
+        val key = java.security.KeyFactory.getInstance("EC").generatePublic(
+            java.security.spec.X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyBase64))
+        )
+        Signature.getInstance("SHA256withECDSA").run {
+            initVerify(key)
+            update(challenge)
+            verify(signatureBytes)
+        }
+    }.getOrDefault(false)
+
+    override fun sign(challenge: ByteArray): ByteArray {
             val signature = Signature.getInstance("SHA256withECDSA").run {
                 initSign(pair.private)
                 update(challenge)
