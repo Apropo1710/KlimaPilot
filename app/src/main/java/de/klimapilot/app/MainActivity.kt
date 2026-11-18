@@ -66,6 +66,7 @@ import de.klimapilot.app.wfrac.AirconState
 import de.klimapilot.app.wfrac.Mode
 import de.klimapilot.app.wfrac.Codec
 import de.klimapilot.app.sync.ClimateProfilePeerDiscovery
+import de.klimapilot.app.sync.UnverifiedClimatePeer
 
 private val AppBg = Color(0xFFF3F6FA)
 private val Panel = Color(0xFFFFFFFF)
@@ -1304,13 +1305,15 @@ private fun SettingsScreen(
     val lifecycleOwner = context as? LifecycleOwner
     var peerScanning by remember { mutableStateOf(false) }
     var peerScanMessage by remember { mutableStateOf("Noch keine lokale WLAN-Suche gestartet.") }
-    val discoveredPeers = remember { mutableStateMapOf<String, String>() }
+    val discoveredPeers = remember { mutableStateMapOf<String, UnverifiedClimatePeer>() }
+    val authenticatingPeers = remember { mutableStateMapOf<String, Boolean>() }
     DisposableEffect(peerDiscovery, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 peerDiscovery.stop()
                 peerScanning = false
                 discoveredPeers.clear()
+                authenticatingPeers.clear()
                 peerScanMessage = "WLAN-Suche wegen App-Hintergrund beendet."
             }
         }
@@ -1320,6 +1323,7 @@ private fun SettingsScreen(
             peerDiscovery.stop()
             peerScanning = false
             discoveredPeers.clear()
+            authenticatingPeers.clear()
         }
     }
     Column(
@@ -1437,6 +1441,7 @@ private fun SettingsScreen(
                                 peerDiscovery.stop()
                                 peerScanning = false
                                 discoveredPeers.clear()
+                                authenticatingPeers.clear()
                                 peerScanMessage = "WLAN-Suche beendet."
                             } else {
                                 discoveredPeers.clear()
@@ -1444,7 +1449,7 @@ private fun SettingsScreen(
                                 peerScanning = true
                                 val started = peerDiscovery.start(
                                     onPeerFound = { peer ->
-                                        discoveredPeers[peer.instanceName] = "${peer.instanceName} · ${peer.hostAddress}:${peer.port}"
+                                        discoveredPeers[peer.instanceName] = peer
                                         peerScanMessage = "Unbestätigte Dienstankündigung gefunden."
                                     },
                                     onPeerLost = { instanceName ->
@@ -1453,7 +1458,11 @@ private fun SettingsScreen(
                                     onError = { message ->
                                         peerScanning = false
                                         discoveredPeers.clear()
+                                        authenticatingPeers.clear()
                                         peerScanMessage = message
+                                    },
+                                    onPeerAuthenticated = {
+                                        peerScanMessage = "Eingehendes gekoppeltes Gerät erfolgreich authentifiziert; Verbindung geschlossen, keine Nutzdaten übertragen."
                                     }
                                 )
                                 if (!started && peerScanning) {
@@ -1466,8 +1475,25 @@ private fun SettingsScreen(
                     ) { Text(if (peerScanning) "Suche beenden" else "KlimaPilot-Geräte suchen") }
                     Text(peerScanMessage, color = Muted, fontSize = 12.sp)
                     discoveredPeers.values.forEach { peer ->
-                        Text(peer, color = TextMain, fontSize = 12.sp)
-                        Text("Nicht gekoppelt · keine Datenübertragung", color = Muted, fontSize = 10.sp)
+                        Text("${peer.instanceName} · ${peer.hostAddress}:${peer.port}", color = TextMain, fontSize = 12.sp)
+                        Text("Unbestätigte Dienstankündigung · noch nicht authentifiziert", color = Muted, fontSize = 10.sp)
+                        OutlinedButton(
+                            onClick = {
+                                authenticatingPeers[peer.instanceName] = true
+                                val queued = peerDiscovery.authenticatePeer(peer) { _, message ->
+                                    authenticatingPeers[peer.instanceName] = false
+                                    peerScanMessage = message
+                                }
+                                if (!queued) {
+                                    authenticatingPeers[peer.instanceName] = false
+                                    peerScanMessage = "Authentifizierung konnte nicht gestartet werden. Bitte die WLAN-Suche prüfen."
+                                }
+                            },
+                            enabled = peerScanning && authenticatingPeers[peer.instanceName] != true,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (authenticatingPeers[peer.instanceName] == true) "Authentifizierung läuft …" else "Gekoppeltes Gerät authentifizieren")
+                        }
                     }
                 }
             }

@@ -20,7 +20,6 @@ import java.net.InetSocketAddress
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicBoolean
 
 const val KLIMAPILOT_PEER_SERVICE_TYPE = "_klimapilot-sync._tcp."
 private const val PEER_PROTOCOL_MAJOR = "1"
@@ -158,11 +157,13 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
     private var activeWifiAddress: InetAddress? = null
     private var serverSocket: ServerSocket? = null
     private var acceptThread: Thread? = null
+    private var tcpSessions: ClimatePeerTcpConnectionManager? = null
     private var ownServiceName: String? = null
     private var ownDiscoveryId = ""
     private var onPeerFound: ((UnverifiedClimatePeer) -> Unit)? = null
     private var onPeerLost: ((String) -> Unit)? = null
     private var onError: ((String) -> Unit)? = null
+    private var onPeerAuthenticated: (() -> Unit)? = null
     private val pending = ArrayDeque<NsdServiceInfo>()
     private val seenNames = mutableSetOf<String>()
     private val resolveRetries = mutableMapOf<String, Int>()
@@ -177,6 +178,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         onPeerFound: (UnverifiedClimatePeer) -> Unit,
         onPeerLost: (String) -> Unit,
         onError: (String) -> Unit,
+        onPeerAuthenticated: (() -> Unit)? = null,
     ): Boolean {
         if (active) return false
         active = true
@@ -185,6 +187,7 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         this.onPeerFound = onPeerFound
         this.onPeerLost = onPeerLost
         this.onError = onError
+        this.onPeerAuthenticated = onPeerAuthenticated
         ownDiscoveryId = UUID.randomUUID().toString().replace("-", "").lowercase(Locale.ROOT)
         ownServiceName = "KlimaPilot-${ownDiscoveryId.take(8)}"
         pending.clear()
@@ -216,7 +219,11 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
                 soTimeout = 1000
             }
             serverSocket = socket
-            startRejectOnlyAcceptLoop(socket, run)
+            tcpSessions = ClimatePeerTcpConnectionManager(
+                ClimatePeerIdentityStore(),
+                ClimateTrustedPeerStore(appContext),
+            )
+            startAuthenticatedAcceptLoop(socket, run)
             registerWifiNetworkCallback(run)
             registerDefaultNetworkCallback(run)
 
@@ -502,27 +509,46 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         }, 750L * retries)
     }
 
-    private fun startRejectOnlyAcceptLoop(socket: ServerSocket, run: Long) {
-        val running = AtomicBoolean(true)
+    /**
+     * Accepts only the bounded mutual-authentication handshake. Application payloads
+     * are never read or written; each socket is closed as soon as authentication ends.
+     */
+    private fun startAuthenticatedAcceptLoop(socket: ServerSocket, run: Long) {
+        val sessions = tcpSessions ?: throw IllegalStateException("TCP-Peer-Sitzungsverwaltung fehlt.")
         acceptThread = Thread({
-            while (running.get() && !socket.isClosed) {
+            while (isCurrent(run) && !socket.isClosed) {
                 try {
-                    socket.accept().use { /* No reads, writes, or application protocol in discovery phase. */ }
+                    val incoming = socket.accept()
+                    val accepted = sessions.acceptIncoming(incoming) {
+                        if (isCurrent(run)) onPeerAuthenticated?.invoke()
+                    }
+                    if (!accepted) runCatching { incoming.close() }
                 } catch (_: java.net.SocketTimeoutException) {
-                    if (!isCurrent(run)) running.set(false)
+                    // Periodically re-check the discovery generation.
                 } catch (_: IOException) {
-                    running.set(false)
+                    if (isCurrent(run)) fail(run, "Der lokale TCP-Peer-Listener wurde unterbrochen.")
                 }
             }
-        }, "KlimaPilot-Peer-Reject-$run").apply {
+        }, "KlimaPilot-Peer-Auth-Accept-$run").apply {
             isDaemon = true
             start()
         }
     }
 
+    /** A discovered announcement is only a locator; authentication is always explicit. */
+    @Synchronized
+    fun authenticatePeer(
+        peer: UnverifiedClimatePeer,
+        onResult: (Boolean, String) -> Unit,
+    ): Boolean {
+        if (!active) return false
+        val network = activeWifiNetwork ?: return false
+        return tcpSessions?.authenticate(peer, network.socketFactory, onResult) ?: false
+    }
+
     @Synchronized
     fun stop() {
-        if (!active && registrationListener == null && discoveryListener == null && serverSocket == null) return
+        if (!active && registrationListener == null && discoveryListener == null && serverSocket == null && tcpSessions == null) return
         generation += 1
         cleanupLocked()
     }
@@ -558,6 +584,8 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         val listener = serverSocket
         serverSocket = null
         runCatching { listener?.close() }
+        tcpSessions?.close()
+        tcpSessions = null
         val listenerThread = acceptThread
         acceptThread = null
         listenerThread?.interrupt()
@@ -581,5 +609,6 @@ internal class ClimateProfilePeerDiscovery(context: Context) {
         onPeerFound = null
         onPeerLost = null
         onError = null
+        onPeerAuthenticated = null
     }
 }

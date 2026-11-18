@@ -13,6 +13,7 @@ import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.Executors
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
@@ -129,6 +130,54 @@ class ClimatePeerTcpCompatibilityTest {
         } finally {
             server.close()
             executor.shutdownNow()
+            serverTrust.revokePeer(clientIdentity.peerId)
+        }
+    }
+
+    @Test
+    fun boundedSessionManagerAuthenticatesTrustedPeerAndClosesBothSockets() {
+        val clientIdentityStore = ClimatePeerIdentityStore("klimapilot.test.manager.client.identity")
+        val serverIdentityStore = ClimatePeerIdentityStore("klimapilot.test.manager.server.identity")
+        val clientIdentity = clientIdentityStore.getOrCreateIdentity()
+        val serverIdentity = serverIdentityStore.getOrCreateIdentity()
+        val clientTrust = freshTrustStore("tcp_manager_client")
+        val serverTrust = freshTrustStore("tcp_manager_server")
+        clientTrust.trustPeer(serverIdentity.publicKeyBase64, "Testserver")
+        serverTrust.trustPeer(clientIdentity.publicKeyBase64, "Testclient")
+
+        val clientManager = ClimatePeerTcpConnectionManager(clientIdentityStore, clientTrust)
+        val serverManager = ClimatePeerTcpConnectionManager(serverIdentityStore, serverTrust)
+        val listener = ServerSocket(0, 2, InetAddress.getByName("127.0.0.1"))
+        val executor = Executors.newSingleThreadExecutor()
+        val clientFinished = CountDownLatch(1)
+        val serverFinished = CountDownLatch(1)
+        var clientAccepted = false
+        try {
+            val serverTask = executor.submit {
+                val incoming = listener.accept()
+                assertTrue(serverManager.acceptIncoming(incoming) { serverFinished.countDown() })
+            }
+            val peer = UnverifiedClimatePeer(
+                instanceName = "KlimaPilot-01234567",
+                hostAddress = "127.0.0.1",
+                port = listener.localPort,
+                protocolMajor = 1,
+                discoveryId = "0123456789abcdef0123456789abcdef",
+            )
+            assertTrue(clientManager.authenticate(peer, javax.net.SocketFactory.getDefault()) { success, _ ->
+                clientAccepted = success
+                clientFinished.countDown()
+            })
+            assertTrue("Client handshake callback timed out", clientFinished.await(15, TimeUnit.SECONDS))
+            assertTrue("Server handshake callback timed out", serverFinished.await(15, TimeUnit.SECONDS))
+            serverTask.get(5, TimeUnit.SECONDS)
+            assertTrue("Both paired identities must authenticate", clientAccepted)
+        } finally {
+            clientManager.close()
+            serverManager.close()
+            listener.close()
+            executor.shutdownNow()
+            clientTrust.revokePeer(serverIdentity.peerId)
             serverTrust.revokePeer(clientIdentity.peerId)
         }
     }
