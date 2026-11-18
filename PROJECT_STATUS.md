@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 15:35 Uhr MEZ (Pairing-ACK-Grundlage committed; Emulatorworkflow auf manuell umgestellt; kein neuer App-Build)
+**Letzter Abgleich:** 18.11.2026, 16:10 Uhr MEZ (Ein-Scan-WLAN-Pairing integriert; WLAN-Workflow #240 erfolgreich; Debug-Test-APK bereitgestellt)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -39,7 +39,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 ## 2b. Pairing-ACK und CI-Steuerung (18.11.2026)
 
 - Commits `308f3f80c1f8d005f0b0976260ea0ceee601dd4f` und `b5f890248b3128a504fc5e48af6bdb9b2d26944c`: Der Responder speichert den Einladenden nicht mehr unmittelbar nach Zustimmung. Die Controller-Grundlage verlangt eine nachgelagerte Speicherbestätigung; Tests decken falsche ACK-Daten und Abbruch ab.
-- **Wichtig: Das ist noch kein vollständiger Pairing-Ablauf.** Der reale WLAN-Rückkanal, eine kryptografisch signierte ACK-Nachricht und die Ein-Scan-Oberfläche fehlen. Die bestehende UI zeigt weiterhin den alten Antwort-QR-Ablauf. Bis zur Fertigstellung ist der neue Ablauf nicht praxistestfähig.
+- Der nachfolgende Pairing-Arbeitsstand ergänzt den realen WLAN-Rückkanal, das signierte ACK und die Ein-Scan-Oberfläche; Details und Grenzen siehe Abschnitt 2d. Ein erfolgreicher CI-Lauf ersetzt weiterhin keinen Zwei-Smartphone-Praxistest.
 - Commit `2e6a8170eedc318e7c33977c6b7ae2364e743116`: `.github/workflows/pairing-tls-validation.yml` startet nicht mehr bei Pushes auf `test`; nur noch `workflow_dispatch` ist eingetragen. Reguläre Validierung erfolgt über `.github/workflows/wlan-validation.yml`. Damit werden weitere normale Code-Pushes nicht mehr automatisch den API-26-Emulator starten.
 - Der zuvor bereits gestartete API-26-Lauf #90 (Run ID `44323759302`) war zum letzten Abruf noch aktiv. Die Workflow-Änderung verhindert neue automatische Starts, beendet aber keinen bereits laufenden Run.
 - WLAN-Workflow #225 (Run ID `44323759391`) auf Commit `b5f890248b3128a504fc5e48af6bdb9b2d26944c` erfolgreich: Unit-Tests, Debug-Kompilierung, APK-Prüfung und Artefaktbereitstellung abgeschlossen. Dieser Lauf enthält die Pairing-Controller-/Teständerungen, aber noch keinen echten WLAN-Rückkanal.
@@ -50,8 +50,27 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Commit `b0e430e38f6fa8a645b1041b878d16db2b4aa1ce`: `ClimatePairingSessionController.acknowledgeIncomingInvitation` nimmt jetzt das ACK-Payload entgegen und verifiziert dessen Signatur gegen den öffentlichen Schlüssel der ursprünglichen Einladung. Eine bloße Übergabe von Sitzungs-ID und Peer-ID reicht nicht mehr.
 - Commit `5dcc6ed7cd102d2aaf46800a2a966ffb3aed3d55`: Controller-Methode für den Einladenden erzeugt das signierte ACK nach erfolgreicher lokaler Bestätigung und Peer-Speicherung.
 - Commit `aa633a1a4a29e2233bbb8a5d95d5ce9194c945c2`: Controller-Tests verwenden den signierten ACK-Ablauf und prüfen eine gefälschte Signatur sowie ACK nach Abbruch.
-- WLAN-Workflow Run `44326084183` auf Commit `aa633a1a4a29e2233bbb8a5d95d5ce9194c945c2` ist zum Dokumentationszeitpunkt **queued**. Noch kein bestätigtes Testergebnis.
-- **Noch nicht implementiert:** Einladungs-QR mit signiertem WLAN-Endpunkt, zeitlich begrenzter TCP-Rückkanal, automatische Zustellung von Antwort und ACK sowie Ein-Scan-UI. Der aktuelle QR-Ablauf bleibt unverändert und kann den neuen signierten ACK noch nicht verwenden. Keine Freigabe für Smartphone-Praxistest.
+- WLAN-Workflow #230 (Run `44326084183`) auf Commit `aa633a1a4a29e2233bbb8a5d95d5ce9194c945c2` erfolgreich. Der neuere Stand ist in Abschnitt 2d dokumentiert.
+
+
+## 2d. Ein-Scan-Pairing über lokalen WLAN-Rückkanal (18.11.2026)
+
+- Implementiert auf Branch `test` in PR #6; aktueller Code-Commit: `07a774c92d19579ad0d0f53f9cefd55c4894de47`.
+- Einladungsgerät wählt ein privates IPv4-WLAN, öffnet einen One-shot-TCP-Listener und bindet Host/Port in die signierte QR-Einladung ein.
+- Zweites Gerät scannt den QR-Code einmal, prüft die Einladung und zeigt nur die Nutzerentscheidung „Koppeln“ oder „Abbrechen“. Nach Zustimmung wird die signierte Antwort über die SocketFactory des ausgewählten WLAN-Netzes übertragen.
+- Einladungsgerät prüft die Antwort, erstellt über den Controller ein signiertes Speicher-ACK und speichert den Peer. Das ACK geht über dieselbe TCP-Verbindung zurück; das zweite Gerät speichert den Einladenden erst nach erfolgreicher ACK-Prüfung.
+- Der Rückkanal verwendet längenpräfixierte Frames, eine maximale Nachrichtengröße von 4 KiB und begrenzte Listener-/Connect-/Read-Zeiten. Der Endpoint-Parser akzeptiert nur numerische lokale IPv4-/IPv6-Adressen und gültige Ports; DNS-Namen aus dem QR werden abgewiesen.
+- **Transport-Sicherheit:** TCP im lokalen WLAN ist unverschlüsselt. Die Pairing-Nachrichten sind signiert, aber nicht vertraulich; andere Teilnehmer desselben WLANs können sie passiv mitlesen. Die UI weist ausdrücklich darauf hin. TLS/mTLS bleibt entsprechend Nutzerentscheidung verworfen.
+- Es werden keine Profile oder sonstigen Nutzdaten übertragen. Der bestehende Updater, `main`, Produktionsrelease `latest` und PR-Merge bleiben unangetastet.
+- Korrektur des Kotlin-Aufrufs der ACK-Factory: Commit `07a774c9` verwendet benannte Parameter entsprechend der tatsächlichen Controller-Signatur.
+
+### CI-Nachweis des Ein-Scan-Pairings
+
+- WLAN-Workflow **#239** (Run `44330933413`) auf Commit `bec8b59629eaeb6f304123b4590c6af40f2fe69b`: fehlgeschlagen wegen falsch positionierter `createAcknowledgement`-Lambda in `ClimatePairingSettingsCard.kt`. Keine APK bereitgestellt.
+- WLAN-Workflow **#240** (Run `44331588695`) auf Commit `07a774c92d19579ad0d0f53f9cefd55c4894de47`: **erfolgreich**. `testDebugUnitTest`, Debug-/Release-Kotlin-Kompilierung, Debug-APK-Prüfung und Artefakt-Upload erfolgreich.
+- Artefakt: `KlimaPilot-debug-test-0.4.68`, ID `14438439474`, 18.188.574 Bytes, verfügbar bis 25.11.2026. SHA-256 der APK: `c3fb5f9e9ffb4d44136a53a8bdbfbdb4502654c169e8d603ce61cab57ee7c6fe`; SHA-256 des Artifact-ZIP: `f9a8678d9534668e3c218ba1e40ac67e18f579eb0a7bb721657eb460567bddd6`.
+- APK-Signaturprüfung mit `apksigner` erfolgreich (v2). CI prüfte außerdem Paketkennung/Version und das Fehlen von `REQUEST_INSTALL_PACKAGES`. Der Debug-Build bleibt ausschließlich ein Testartefakt, kein Produktionsrelease.
+- **Noch offen:** Installation und echter Test mit zwei Smartphones. Insbesondere erfolgreicher Ablauf, Abbruch, Timeout, Verbindungsverlust, beidseitige Speicherung und Verhalten bei ungültigen/gefälschten Nachrichten müssen praktisch geprüft werden. Bis dahin keine Freigabe für Profil-/Nutzdatentransfer und kein Merge.
 
 ## 3. Letzte Codeänderung
 
