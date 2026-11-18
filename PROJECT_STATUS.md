@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 17:40 Uhr MEZ (feste Test-Signatur über CI-Secret; WLAN-Workflow #245 erfolgreich; Test-APK 0.4.69 als Pre-Release `klimapilot-test-latest` bereitgestellt)
+**Letzter Abgleich:** 18.11.2026, 18:10 Uhr MEZ (automatische ioBroker-Einrichtung und QR-Kontoübernahme; WLAN-Workflow #246 erfolgreich; Test-APK 0.4.70)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -14,7 +14,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD (Code/CI): `2bcbffa94997ad5219e8a5d432ea18431313f6e1` – Version **0.4.69 / versionCode 99**, Debug `0.4.69-debug`, Paket `de.klimapilot.app.debug`. Details zur Testsignatur und zum Build siehe Abschnitt 2e. Ältere Hash-/Build-Angaben in den Abschnitten 2a–2d und 5 sind historische Nachweise.
+- Aktueller `test`-Code-Commit: `7f266a766d483d5c5ab267fd1ccd96e133655e78` – Version **0.4.70 / versionCode 100**, Debug `0.4.70-debug`, Paket `de.klimapilot.app.debug`. Testsignatur siehe 2e, automatische Einrichtung siehe 2f. Ältere Hash-/Build-Angaben in den Abschnitten 2a–2d und 5 sind historische Nachweise.
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
@@ -86,6 +86,19 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - **Direkter Download:** https://github.com/Apropo1710/KlimaPilot/releases/download/klimapilot-test-latest/KlimaPilot-test.apk (18.813.180 Bytes), APK-SHA-256 `c5fa0649e94371950c9a56477e4540ed7196dbb5d239ad96a80df682f2d1072c`. Unabhängig nachgeprüft: heruntergeladen, Hash identisch mit CI, Manifest `de.klimapilot.app.debug` / `0.4.69-debug` / 99, minSdk 26, targetSdk 35, ohne `REQUEST_INSTALL_PACKAGES`, ein v2-Signierer mit obigem Zertifikat.
 - **Migration:** Bereits installierte ältere Testversionen (z. B. aus #221/#240) tragen eine andere Signatur und lassen sich nicht direkt aktualisieren. Einmalige Neuinstallation der Testversion nötig; davor lokale Daten prüfen. Alle künftigen Testbuilds verwenden dieselbe Signatur und sind als Update installierbar.
 - **Noch offen:** Zwei-Smartphone-Praxistest des Ein-Scan-Pairings (siehe 2d). Kein Merge, kein Nutzdatentransfer.
+
+## 2f. Automatische ioBroker-Einrichtung und QR-Kontoübernahme (18.11.2026)
+
+- Anlass: Bei Neuinstallation zeigte 0.4.69 sofort die Adresseingabe (doppelte Fehlermeldung). Zusätzlich speicherte die Einstellungskarte in `klimapilot_iobroker_address` nur den Host, der Login erwartete dort eine vollständige URL.
+- Neu in `IoBrokerAutoSetup.kt` (Commit `7f266a7`):
+  - `IoBrokerAddress`: einheitliche Ablage (`iobroker_server` = ws-URL, dazu Host/Port/Protokoll), tolerantes Lesen alter Formate, Eingaben wie `192.168.178.54` oder `host:port` werden zu `ws://…:8084`.
+  - `IoBrokerAutoSetup`: ohne Nutzereingabe zuerst gespeicherte Adresse, dann Suche im eigenen WLAN-/24 nach Port 8084 (48 parallele Proben, 500 ms). Jeder Treffer gilt erst nach der regulären Verbindungs- und Alive-Prüfung als ioBroker (10 s Timeout je Kandidat). Danach automatischer Import aus `0_userdata.0.KlimaPilot.accounts`.
+  - Login zeigt währenddessen nur einen Ladekreis. Adresseingabe, „Automatisch erneut suchen“ und QR-Fallback erscheinen nur, wenn nichts gefunden wurde.
+  - `KlimaPilotSetupTransfer`: Administratoren können unter Einstellungen → Benutzerkonto → „Anderes Smartphone einrichten“ einen 10 Minuten gültigen QR-Code anzeigen (Kontenliste mit PBKDF2-Hashes, keine Klartextpasswörter, plus ioBroker-Adresse). Das neue Smartphone scannt ihn auf dem Anmelde- oder Ersteinrichtungsbildschirm. Vorhandene lokale Konten werden nie überschrieben. Bewusst einfache Lösung nach Nutzervorgabe (Heimnetz, zwei Personen).
+- Unit-Tests `IoBrokerAutoSetupTest` (Adressnormalisierung, Altformate, Subnetzbereich, QR-Roundtrip, abgelaufene/fremde/leere Codes).
+- CI liest erwartete Version jetzt aus `app/build.gradle.kts`.
+- WLAN-Workflow **#246** (Run `44353514087`, Commit `7f266a766d483d5c5ab267fd1ccd96e133655e78`): **erfolgreich**. Artefakt `KlimaPilot-debug-test-0.4.70`, ID `14450381008`, läuft am 25.11.2026 ab. Pre-Release `klimapilot-test-latest` aktualisiert; APK-SHA-256 `6863f57439676dda5d33977508ab8357b4fefeafc0012790a1e2212dc1ce488a`, unabhängig nachgeprüft (Paket, 0.4.70-debug/100, ohne `REQUEST_INSTALL_PACKAGES`, Test-Zertifikat `230865b9…65ecfb`).
+- **Noch offen:** Praxistest auf dem Smartphone (automatisches Finden, manuelle Adresse, QR-Übernahme). Der Updater und `main` sind unverändert.
 
 ## 3. Letzte Codeänderung
 
