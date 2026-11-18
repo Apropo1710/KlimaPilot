@@ -70,11 +70,12 @@ internal class ClimatePeerTcpConnectionManager(
         if (closed.get()) return false
         return try {
             clientExecutor.execute {
-                val socket = socketFactory.createSocket()
-                activeSockets.add(socket)
+                var socket: Socket? = null
                 var success = false
                 var message = "Authentifizierung fehlgeschlagen."
                 try {
+                    socket = socketFactory.createSocket()
+                    activeSockets.add(socket)
                     socket.connect(InetSocketAddress(peer.hostAddress, peer.port), CONNECT_TIMEOUT_MS)
                     ClimatePeerTcp.authenticateAsClient(socket, identityStore, trustedPeers)
                     success = true
@@ -82,8 +83,10 @@ internal class ClimatePeerTcpConnectionManager(
                 } catch (error: Exception) {
                     message = error.message ?: message
                 } finally {
-                    activeSockets.remove(socket)
-                    runCatching { socket.close() }
+                    socket?.let {
+                        activeSockets.remove(it)
+                        runCatching { it.close() }
+                    }
                 }
                 val result = success
                 val resultMessage = message
