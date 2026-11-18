@@ -164,3 +164,23 @@ Nicht Teil dieses Arbeitspakets sind:
 - Die UI für lokale WLAN-Suche und QR-Pairing ist im Einstellungsbildschirm an `BuildConfig.DEBUG` gebunden. Sie erscheint ausschließlich in der separat installierbaren Debug-App.
 - Die Release-Kompilierung wird in CI zusätzlich mit `compileReleaseKotlin` geprüft.
 - Keine Änderung am Updater und keine Freigabe von TCP-Nutzdaten oder Profilübertragung.
+
+
+## 17. Code-Review der TCP-/Discovery-Integration (18.11.2026)
+
+### Geprüfter Ist-Zustand
+
+- `ClimatePeerTcp` führt einen gegenseitigen Challenge-Response-Handshake aus. Beide Seiten senden Peer-ID und Public Key, prüfen Peer-ID/Public-Key-Konsistenz, prüfen den Peer lokal als vertrauenswürdig und signieren ein rollen- und noncegebundenes Transkript.
+- Die Handshake-Frist ist eine absolute Gesamtfrist von zehn Sekunden; nach erfolgreichem Abschluss wird das zuvor konfigurierte Socket-Timeout wiederhergestellt.
+- Vorhandene JVM-Tests decken Erfolg, manipulierte Signatur, falsche Peer-ID/Public-Key-Kombination, übergroße Felder, abgebrochenen Client-Hello, Timeout und Slow-Drip ab. Android-Instrumentierungstests prüfen Client- und Server-Trust-Ablehnung.
+- `ClimateProfilePeerDiscovery` bleibt reject-only. Es nimmt Verbindungen an und schließt sie unmittelbar; kein Handshake und kein Nutzdatentransfer ist angebunden.
+- Die Pairing-UI beendet Discovery beim Wechsel in den App-Hintergrund und beim Verlassen der Composable-Oberfläche.
+
+### Vor einer späteren Integration zwingend zu klären
+
+1. **Interface-Bindung:** Der Discovery-Listener erzeugt derzeit `ServerSocket(0)` ohne explizite Bindung an das aktive WLAN-Interface. Das ist standardmäßig eine Wildcard-Bindung auf lokalen Interfaces. Der spätere authentifizierende Listener muss vor Annahme von Peer-Verbindungen an das aktive WLAN-Netz gebunden oder gleichwertig auf dieses begrenzt werden. WLAN-/Netzwerkwechsel müssen den Listener schließen und sauber neu initialisieren.
+2. **Getrennte Trust-Speicher testen:** `ClimatePairingSessionControllerTest` verwendet denselben `ClimateTrustedPeerStore` für beide simulierten Geräte. Ein zusätzlicher Test muss zwei getrennte Stores verwenden und bestätigen, dass die Verbindung erst nach unabhängiger lokaler Bestätigung auf beiden Geräten möglich ist.
+3. **Server-Lifecycle:** Bei Integration müssen parallele/überlastende Verbindungen begrenzt, Handshake-Fehler pro Verbindung geschlossen und der Listener beim Stoppen/Netzwerkwechsel zuverlässig beendet werden.
+4. **Nutzdaten bleiben gesperrt:** Wegen unverschlüsseltem TCP und möglicher aktiver Manipulation dürfen Profil-Events erst nach festgelegter Frame-Struktur, Größenlimits, Schema-/Wertebereichsvalidierung, Replay-/Duplikatbehandlung und erfolgreichem Zwei-Smartphone-Test übertragen werden.
+
+Diese Punkte sind Review-Ergebnisse und offene Integrationsanforderungen, keine bereits implementierten Änderungen. Am Code wurde bei dieser Prüfung nichts geändert; kein neuer CI-Lauf wurde gestartet.
