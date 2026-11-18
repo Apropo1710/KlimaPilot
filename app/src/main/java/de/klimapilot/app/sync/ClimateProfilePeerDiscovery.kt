@@ -82,9 +82,11 @@ internal object ClimatePeerAnnouncement {
 }
 
 /**
- * Foreground-only DNS-SD discovery. It never exchanges application data.
- * The announced TCP socket accepts connections only to close them immediately.
- * The owner must call stop() when the visible diagnostic surface is left or the app stops.
+ * Foreground-only DNS-SD discovery. The TCP listener performs only the bounded,
+ * mutual-authentication handshake for peers already trusted on both devices.
+ * Every accepted or initiated socket is closed immediately after that handshake;
+ * this class never transfers application data. The owner must call stop() when
+ * the diagnostic surface is left or the app stops.
  */
 /**
  * Selects one address that belongs to the active Wi-Fi link. IPv4 is preferred

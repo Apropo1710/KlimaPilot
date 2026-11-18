@@ -74,10 +74,11 @@ internal class ClimatePeerTcpConnectionManager(
                 var success = false
                 var message = "Authentifizierung fehlgeschlagen."
                 try {
-                    socket = socketFactory.createSocket()
-                    activeSockets.add(socket)
-                    socket.connect(InetSocketAddress(peer.hostAddress, peer.port), CONNECT_TIMEOUT_MS)
-                    ClimatePeerTcp.authenticateAsClient(socket, identityStore, trustedPeers)
+                    val connectedSocket = socketFactory.createSocket()
+                    socket = connectedSocket
+                    activeSockets.add(connectedSocket)
+                    connectedSocket.connect(InetSocketAddress(peer.hostAddress, peer.port), CONNECT_TIMEOUT_MS)
+                    ClimatePeerTcp.authenticateAsClient(connectedSocket, identityStore, trustedPeers)
                     success = true
                     message = "Gekoppeltes Gerät erfolgreich authentifiziert. Verbindung geschlossen; keine Nutzdaten übertragen."
                 } catch (error: Exception) {
