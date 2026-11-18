@@ -33,6 +33,19 @@
 - APK-SHA-256: `1553402f6baebe028d6876581aef235aa3abf89a7047150e4b47a429ef1730e2`; Signaturprüfung im Produktionsworkflow erfolgreich.
 - APK: https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk
 
+## WLAN-/Pairing-Testzweig – Stand 18.11.2026
+
+- Produktionsbranch `main`: App-Version **0.4.64 / versionCode 94**, letzter bestätigter Produktionsbuild #229 und Release `latest`. Keine Produktions-App-Änderung durch diese Dokumentationspflege.
+- Testbranch: letzter fachlich geprüfter App-Code-Stand `ae1bdc03c78624ff640505b4bd255bfd885b05c5`; danach wurden auf `test` ausschließlich Statusdokumente aktualisiert (Dokumentationscommit `4d3c1fbfdae32bcd22527d1e2408d24dc48def88`).
+- PR #6 bleibt offen/Draft und nicht gemergt. `main` bleibt Produktionsquelle.
+- Vor den reinen Dokumentationsaktualisierungen betrug der Vergleich `main...test` 151 ahead / 2 behind; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die Branches sind divergent; die Dokumentationscommits ändern diese fachliche Aussage nicht.
+- WLAN-Validierung für App-Code-HEAD `ae1bdc03`: [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246) erfolgreich (Unit-Tests, Debug-Assembly, `compileReleaseKotlin`).
+- TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) erfolgreich auf älterem Commit `41b9a3ab`, API 26. Kein Emulatornachweis für `ae1bdc03`; API 35 nicht bestätigt.
+- TCP-Workflow ausschließlich manuell (`workflow_dispatch`); WLAN-Validierung über PR-Updates.
+- Pairing/QR und TCP-Challenge-Response sind implementiert; TLS/mTLS wurde nach Nutzerfreigabe verworfen. TCP ist unverschlüsselt. Discovery bleibt reject-only, TCP ist nicht integriert, kein Profil-/Outbox-Transfer.
+- Vor Nutzdatentransfer zwingend: sichere Discovery-Integration, strikte Empfänger-Validierung und erfolgreicher Zwei-Smartphone-Praxistest. Keine Merge-/Release-Freigabe.
+- Debug-Pairing-UI ist durch `BuildConfig.DEBUG` auf die separate Debug-App begrenzt. Updater unverändert.
+
 ## Abgeschlossene Profil-Synchronisations-PR
 
 - [PR #3](https://github.com/Apropo1710/KlimaPilot/pull/3) – dauerhaftes Änderungsjournal – **geschlossen und gemergt** am 17.11.2026, 12:14:49 Uhr MEZ.
