@@ -45,7 +45,7 @@ internal object ClimatePeerTcp {
         }
     }
 
-    fun authenticateAsClient(socket: Socket, identityStore: ClimatePeerIdentityStore, trustedPeers: ClimateTrustedPeerStore) {
+    fun authenticateAsClient(socket: Socket, identityStore: ClimatePeerSigner, trustedPeers: ClimatePeerTrust) {
         val deadline = deadlineAfter(HANDSHAKE_TIMEOUT_MS)
         val input = DataInputStream(socket.getInputStream())
         val output = DataOutputStream(socket.getOutputStream())
@@ -60,7 +60,7 @@ internal object ClimatePeerTcp {
         require(readByte(input, socket, deadline) == 1) { "Die Gegenstelle hat dieses Gerät nicht akzeptiert." }
     }
 
-    fun authenticateAsServer(socket: Socket, identityStore: ClimatePeerIdentityStore, trustedPeers: ClimateTrustedPeerStore) {
+    fun authenticateAsServer(socket: Socket, identityStore: ClimatePeerSigner, trustedPeers: ClimatePeerTrust) {
         val deadline = deadlineAfter(HANDSHAKE_TIMEOUT_MS)
         val input = DataInputStream(socket.getInputStream())
         val output = DataOutputStream(socket.getOutputStream())
@@ -86,8 +86,8 @@ internal object ClimatePeerTcp {
         output: DataOutputStream,
         socket: Socket,
         deadline: Long,
-        identityStore: ClimatePeerIdentityStore,
-        trustedPeers: ClimateTrustedPeerStore,
+        identityStore: ClimatePeerSigner,
+        trustedPeers: ClimatePeerTrust,
         localRole: Int,
         localFirstNonce: ByteArray,
         localSecondNonce: ByteArray
