@@ -48,6 +48,7 @@ Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen
 - Ein ausgehender Handshake wird ausschließlich durch eine ausdrückliche Nutzeraktion gestartet. Der Client-Socket wird über die `SocketFactory` des ausgewählten WLAN-Netzes erstellt, auch wenn Android Mobilfunk als Defaultnetz verwendet.
 - Serverseitige Sessions sind auf 1–2 Worker mit vier wartenden Verbindungen begrenzt; clientseitig läuft ein Worker mit vier Wartenden. Überlast wird abgewiesen.
 - Verbindungen werden nach dem Handshake geschlossen. Stop/Cleanup schließt aktive Sockets und beendet die Session-Executor.
+- Socket-Erzeugung und Aufnahme in die aktive Socket-Verwaltung sind atomar gegen `close()` abgesichert. Liefert eine SocketFactory einen Socket erst nach Beginn des Stop-Vorgangs zurück, wird er unmittelbar geschlossen und nicht mehr verbunden. Ein gezielter Instrumentierungstest deckt dieses Race ab; die Ausführung auf dem aktuellen Stand steht noch aus.
 - Es werden weiterhin keine Profil-/Outbox- oder sonstigen App-Nutzdaten übertragen.
 
 ## 4. Identität und QR-Pairing
