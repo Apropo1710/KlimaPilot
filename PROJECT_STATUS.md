@@ -17,14 +17,14 @@
 
 # KlimaPilot – verifizierter Projekt- und Produktionsstatus
 
-**Zuletzt abgeglichen:** 18.11.2026, 03:09 Uhr MEZ  
+**Zuletzt abgeglichen:** 18.11.2026, 21:00 Uhr MEZ  
 **Repository:** [Apropo1710/KlimaPilot](https://github.com/Apropo1710/KlimaPilot)  
 **Maßgeblicher Branch:** `main`  
 **Produktionsversion:** **0.4.64 / versionCode 94**
 
 ## Aktueller GitHub-, Build- und Release-Stand
 
-- Aktueller `main`-HEAD: `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd` (Dokumentationscommit vom 17.11.2026, 11:29:12 UTC).
+- Aktueller `main`-HEAD: `356842b20acbc042a21cb4d06e664dbd45654d98` (Dokumentationscommit vom 17.11.2026, 11:29:12 UTC).
 - Letzter funktionaler Merge: PR #3, Merge-Commit `ee65841387824bca7d2b07ca80f71501540af157`; Versionscommit für 0.4.64 / 94: `1a1d7834c22a2ac0726331fc9f49995cc253dc4a`.
 - GitHub Actions [Produktionsbuild #229](https://github.com/Apropo1710/KlimaPilot/actions/runs/44073807709): **completed / success** für APK-Build-Quellcommit `a87e0d8e2cfed5e1d2c3399466e1edaef1a66d00`.
 - Produktionsversion aus `app/build.gradle.kts`: **0.4.64 / versionCode 94**. Application-ID `de.klimapilot.app`; minSdk 26; compileSdk/targetSdk 35; Java/Kotlin JVM target 17.
@@ -110,6 +110,23 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 | #211 | 0.4.59 / 89 | **success** |
 | #210 | 0.4.58 / 88 | **success** |
 | #209 | 0.4.57 / 87 | **success** |
+
+
+## Aktualisierung WLAN-/Pairing-Arbeitsstand (18.11.2026)
+
+- Aktueller Produktionsbranch `main`: `356842b20acbc042a21cb4d06e664dbd45654d98`. Die vorherige Kopfzeile mit `c7f1d57...` war veraltet.
+- Aktueller Testbranch `test`: `ae1bdc03c78624ff640505b4bd255bfd885b05c5`.
+- Vergleich `main...test`: **151 Commits voraus / 2 zurück**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die beiden nachfolgenden Main-Commits sind Dokumentationsänderungen. Branches bleiben divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
+- [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) ist offen und Draft, nicht gemergt. `main` bleibt unverändert und alleiniger Produktionsbranch.
+- Letzter Testbranch-Commit: `ae1bdc03`, Workflow-Steuerung: WLAN-Validierung läuft über PR-Updates; TCP-Emulatorvalidierung ausschließlich manuell (`workflow_dispatch`), damit PR-Updates keine doppelten/alten Emulatorläufe starten.
+- WLAN-Validierung für `ae1bdc03`: [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246) **completed / success** (Unit-Tests, Debug-Assembly und `compileReleaseKotlin`).
+- Letzter erfolgreicher TCP-Emulatorlauf: [Run 44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`; API 26 erfolgreich. Daraus folgt kein Emulatornachweis für `ae1bdc03`. API 35 bleibt manuell/ohne bestätigten Erfolg.
+- Implementiert auf `test`: QR-basiertes beidseitig bestätigtes Pairing, Android-Keystore-Identität und gegenseitiger TCP-Challenge-Response-Handshake mit ECDSA, Nonces, Rollen-/Peer-ID-Bindung, Zeit-/Feldlimits sowie JVM-Negativtests.
+- TLS/mTLS wurde nach Nutzerfreigabe verworfen. TCP ist **nicht verschlüsselt**: lokaler Netzwerkverkehr kann passiv mitgelesen werden; die Authentifizierung verhindert außerdem nicht jede aktive Manipulation. Vor Nutzdatentransfer sind strikte Empfänger-Validierung und ein Zwei-Smartphone-Test zwingend.
+- Discovery-Server ist noch reject-only; `ClimatePeerTcp` ist noch nicht in Discovery integriert. Es findet **keine Profil-/Outbox-Übertragung** statt. Keine Sync-Freigabe.
+- Die WLAN-/Pairing-Oberfläche ist durch `BuildConfig.DEBUG` auf die separate Debug-App mit Application-ID-Suffix `.debug` beschränkt. Release-UI bleibt davon getrennt. Updater liegt außerhalb des Debug-Guards und wurde nicht geändert.
+- Nächste Schritte: fachliche Prüfung der Discovery-/Session-/Trust-Integration und Sicherheitsgrenzen; danach erst ein kleines Integrationspaket planen. Kein Merge und kein Produktionsbuild im Rahmen dieses Testzweigs.
+
 
 ## 7. Verbindliche Arbeitsregeln
 
