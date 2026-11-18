@@ -2,46 +2,51 @@
 
 Android-App zur Steuerung und Überwachung von Mitsubishi-Heavy-Klimaanlagen über ioBroker und den WF-RAC-Adapter.
 
-## Aktueller Stand
+## Projekt
 
-- **Produktive Version:** 0.4.64 (versionCode 94)
-- **Produktionsbranch:** `main`
-- **Arbeitsbranch für lokale Smartphone-Synchronisation:** `test`
-- **Dokumentationsabgleich:** 18.11.2026, 08:16 Uhr MEZ
-- **Produktions-App-ID:** `de.klimapilot.app`
-- **Debug-App-ID:** `de.klimapilot.app.debug`
+- Produktive Android-App mit Kotlin und Jetpack Compose
+- Kommunikation mit ioBroker über WebSocket
+- Direkte lokale Verbindung zum WF-RAC-Modul
+- Geplante lokale Profil-Synchronisation zwischen KlimaPilot-Installationen
 
-Die Klimaanlage ist noch nicht installiert. Deshalb sind reale Geräte-, Firmware- und Steuerungsfunktionen erst nach einem Hardwaretest bestätigt.
+Die produktive Quelle ist der Git-Branch `main`. Entwicklungsarbeiten am lokalen WLAN-Pairing erfolgen getrennt auf `test`; PR #6 ist der zugehörige Review- und Integrations-PR.
 
 ## Technische Basis
 
 - Kotlin, Jetpack Compose, Java 17
 - minSdk 26, compileSdk/targetSdk 35
+- Application-ID der Produktiv-App: `de.klimapilot.app`
+- Application-ID der Debug-App: `de.klimapilot.app.debug`
 - ioBroker-WebSocket über `ws.0`, Port 8084
-- Verbindung gilt erst nach erfolgreicher Alive-Prüfung von `system.adapter.admin.0.alive` als verbunden
-- Lokale Profil-Synchronisation über einen separaten ioBroker-WebSocket und ein dauerhaftes Outbox-/Ereignismodell
+- Die App gilt erst nach erfolgreicher Alive-Prüfung von `system.adapter.admin.0.alive` als verbunden
 
-## Entwicklungsregeln
+Die Klimaanlage ist noch nicht installiert. Reale Geräte-, Firmware- und Steuerungsfunktionen müssen deshalb am konkreten Gerät geprüft werden.
+
+## Verbindliche Projektregeln
 
 - `main` ist die alleinige Quelle der produktiven App.
-- WLAN-Pairing und Peer-Synchronisation werden ausschließlich auf `test` entwickelt. PR #6 bleibt Draft und wird nicht ohne ausdrückliche Freigabe gemergt.
-- Updater und Installationsablauf sind abgeschlossen und tabu.
+- WLAN-Pairing und Peer-Synchronisation werden ausschließlich auf `test` entwickelt.
+- PR #6 bleibt Draft und wird nicht ohne ausdrückliche Freigabe gemergt.
+- Updater und Installationsablauf sind abgeschlossen und dürfen nicht verändert werden.
 - Keine Produktionsversionserhöhung oder Veröffentlichung im WLAN-Pairing-Arbeitsstrang.
-- Vor Änderungen GitHub-Stand und betroffene Dateien prüfen; danach alle relevanten Dokumente aktualisieren.
-- Keine Funktion als hardwarebestätigt darstellen, solange kein entsprechender Gerätetest erfolgt ist.
+- Vor Änderungen GitHub-Stand und betroffene Dateien prüfen; danach die maßgeblichen Status- und Fachunterlagen synchron halten.
+- Nicht hardwarebestätigte Funktionen nicht als am realen Gerät getestet darstellen.
 
 ## Dokumentation
 
-- [Aktueller Projektstatus](STATUS.md)
-- [Verbindlicher Projektstatus und technische Details](PROJECT_STATUS.md)
-- [Lokale WLAN-Synchronisation – Design und Implementierung](LOCAL_WIFI_SYNC_DESIGN.md)
+**Maßgeblicher aktueller Projektstatus:** [PROJECT_STATUS.md](PROJECT_STATUS.md)
+
+Technische Fachkonzepte:
+- [Direkte WF-RAC-Verbindung](DIRECT_WLAN_MIGRATION.md)
+- [Lokale WLAN-Synchronisation](LOCAL_WIFI_SYNC_DESIGN.md)
 - [Pairing- und Sicherheitsentscheidungen](PAIRING_PROTOCOL_DECISIONS.md)
 - [Ausfallsichere Synchronisation](SYNC_RESILIENCE_PLAN.md)
-- [Direkte WF-RAC-WLAN-Verbindung](DIRECT_WLAN_MIGRATION.md)
+
+Der aktuelle Branch-, PR-, Build- und Validierungsstand wird ausschließlich in `PROJECT_STATUS.md` gepflegt. Die Fachkonzepte beschreiben Architektur, Entscheidungen und technische Anforderungen und sollen keine konkurrierenden Statusübersichten führen.
 
 ## GitHub
 
 - [Repository](https://github.com/Apropo1710/KlimaPilot)
-- [Actions](https://github.com/Apropo1710/KlimaPilot/actions)
+- [GitHub Actions](https://github.com/Apropo1710/KlimaPilot/actions)
 - [PR #6 – WLAN-Pairing (Draft)](https://github.com/Apropo1710/KlimaPilot/pull/6)
 - [Produktions-APK](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
