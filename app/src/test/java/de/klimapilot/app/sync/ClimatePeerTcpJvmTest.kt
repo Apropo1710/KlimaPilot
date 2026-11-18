@@ -43,8 +43,8 @@ class ClimatePeerTcpJvmTest {
 
     @Test
     fun rejectsTamperedSignature() {
-        val client = SoftwareSigner()
-        val server = SoftwareSigner(tamperSignature = true)
+        val client = SoftwareSigner(tamperSignature = true)
+        val server = SoftwareSigner()
         val listener = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
         val executor = Executors.newSingleThreadExecutor()
         try {
