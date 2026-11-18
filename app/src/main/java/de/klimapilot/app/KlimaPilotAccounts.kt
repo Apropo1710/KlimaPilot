@@ -324,8 +324,8 @@ internal fun KlimaPilotAccountLoginScreen(
                 CircularProgressIndicator()
             } else {
                 Text(
-                    "KlimaPilot konnte ioBroker weder unter der gespeicherten Adresse noch im WLAN finden. " +
-                        "Falls sich die Adresse geändert hat, gib sie hier ein.",
+                    "KlimaPilot konnte ioBroker nicht erreichen. " +
+                        "Falls sich die Adresse geändert hat oder noch keine hinterlegt ist, gib sie hier ein.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp
                 )
                 Spacer(Modifier.height(8.dp))
@@ -344,7 +344,7 @@ internal fun KlimaPilotAccountLoginScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Verbinden") }
                 OutlinedButton(onClick = onReload, modifier = Modifier.fillMaxWidth()) {
-                    Text("Automatisch erneut suchen")
+                    Text("Erneut verbinden")
                 }
                 Spacer(Modifier.height(18.dp))
                 HorizontalDivider()

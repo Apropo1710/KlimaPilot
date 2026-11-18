@@ -116,16 +116,16 @@ internal object GithubPrivateUpdates {
     }
 
     suspend fun latestRelease(context: Context): Release = withContext(Dispatchers.IO) {
-        val json = get("https://api.github.com/repos/Apropo1710/KlimaPilot/releases/tags/" + BuildConfig.UPDATE_RELEASE_TAG, accessToken(context))
+        val json = get("https://api.github.com/repos/Apropo1710/KlimaPilot/releases/tags/latest", accessToken(context))
         val version = Regex("KlimaPilot-Version:\\s*([0-9]+(?:\\.[0-9]+)*)")
             .find(json.optString("body"))?.groupValues?.get(1) ?: error("Release-Version konnte nicht gelesen werden.")
         val assets = json.optJSONArray("assets") ?: error("Keine Release-Dateien gefunden.")
         var assetId = -1L
         for (i in 0 until assets.length()) {
             val asset = assets.getJSONObject(i)
-            if (asset.optString("name") == BuildConfig.UPDATE_ASSET_NAME) { assetId = asset.getLong("id"); break }
+            if (asset.optString("name") == "KlimaPilot.apk") { assetId = asset.getLong("id"); break }
         }
-        if (assetId < 0) error(BuildConfig.UPDATE_ASSET_NAME + " fehlt im privaten Release.")
+        if (assetId < 0) error("KlimaPilot.apk fehlt im privaten Release.")
         Release(version, assetId)
     }
 

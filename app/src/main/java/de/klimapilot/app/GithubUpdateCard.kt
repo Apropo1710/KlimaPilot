@@ -52,7 +52,7 @@ internal fun GithubUpdateCard(appVersion: String) {
             val release = GithubPrivateUpdates.latestRelease(context)
             latestVersion = release.version
             assetId = release.assetId
-            val current = appVersion.substringBefore("-").split(".").map { it.toIntOrNull() ?: 0 }
+            val current = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
             val latest = release.version.split(".").map { it.toIntOrNull() ?: 0 }
             var comparison = 0
             for (i in 0 until maxOf(current.size, latest.size)) {

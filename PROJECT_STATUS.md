@@ -17,7 +17,7 @@
 
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 19:25 Uhr MEZ (`test` nach `main` übernommen; Produktion 0.4.74 / 104 veröffentlicht)
+**Letzter Abgleich:** 18.11.2026, 19:50 Uhr MEZ (0.4.74 von Play Protect blockiert; 0.4.75 mit Updater-Code exakt wie 0.4.67 und ohne WLAN-Adresssuche)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -34,6 +34,15 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 - Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur). Übernahme nach `main` nach Gerätetest.
 - Nächstes Ziel: Synchronisation von Konten und Klimaprofilen direkt zwischen gekoppelten Smartphones, damit alles ohne ioBroker weiterläuft. Der aktuelle Zustand der Klimaanlage wird bereits von jedem Smartphone direkt per WF-RAC gelesen (kein ioBroker nötig).
+
+## 2h. Play-Protect-Blockade von 0.4.74 und Korrektur der Updater-Doku (18.11.2026)
+
+- **Befund:** Produktions-APK 0.4.74 wurde beim Update per In-App-Updater von Google Play Protect als „Schädliche App blockiert“ abgewiesen (kein Hinweis, keine Option zum Installieren). 0.4.67 ließ sich zuvor problemlos aktualisieren.
+- **Testversion ohne `REQUEST_INSTALL_PACKAGES`:** „Update laden“ öffnet keinen Installationsdialog (Gerätetest 18.11.2026). Die Berechtigung ist für den bestehenden `ACTION_VIEW`-Updater also nötig.
+- **Korrektur der bisherigen Doku:** Der Abschnitt „Bewährte Updater-Lösung – Gerätetest 05.11.2026“ behauptete, `REQUEST_INSTALL_PACKAGES` werde nicht verwendet. Das ist falsch. 0.4.23 (bestätigter Gerätetest) wurde mit `ACTION_VIEW` + FileProvider + ClipData **und** `REQUEST_INSTALL_PACKAGES` gebaut. Hintergrund: Commit `65c1250` hat die Berechtigung wieder eingebaut, `19a6028` stellte auf `ACTION_INSTALL_PACKAGE` um, der automatische Doku-Commit `467c280` des Release-Workflows hat diese Code-Umstellung drei Minuten später unbeabsichtigt wieder auf `ACTION_VIEW` zurückgedreht. Seit 0.4.23 enthielt jede Produktionsversion die Berechtigung.
+- **Verbindlich:** Produktions-Updater = `ACTION_VIEW` + `application/vnd.android.package-archive` + FileProvider + URI-Leseberechtigung + ClipData + `REQUEST_INSTALL_PACKAGES` im Manifest. Nicht ändern.
+- **Maßnahme 0.4.75:** `GithubPrivateUpdates.kt` und `GithubUpdateCard.kt` byte-identisch mit dem 0.4.67-Build (`608912f`); die Test-Updater-Anpassung aus 2g ist damit vollständig zurückgenommen (Testversionen fragen wieder `latest` ab). Zusätzlich wurde die automatische Suche aller WLAN-Adressen auf Port 8084 (Abschnitt 2f) entfernt, weil dieses Verhalten am ehesten einer Malware-Heuristik entspricht. Die automatische Anmeldung nutzt nur noch die gespeicherte Adresse; sonst Adressfeld oder QR-Übernahme.
+- Ob Play Protect 0.4.75 akzeptiert, kann nur der Gerätetest zeigen; die Bewertung erfolgt durch Google und ist nicht vollständig vorhersagbar.
 
 ## 2a. Kontenübernahme direkt aus ioBroker (18.11.2026)
 

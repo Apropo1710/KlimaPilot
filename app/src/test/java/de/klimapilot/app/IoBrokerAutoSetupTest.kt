@@ -48,17 +48,6 @@ class IoBrokerAutoSetupTest {
         assertEquals("ws://10.0.0.9:8084", IoBrokerAddress.saved(prefs))
     }
 
-    @Test
-    fun subnetScanCoversOwnSlash24WithoutOwnAddress() {
-        val hosts = IoBrokerAutoSetup.subnetHosts(byteArrayOf(192.toByte(), 168.toByte(), 178.toByte(), 20), 24)
-        assertEquals(253, hosts.size)
-        assertEquals("192.168.178.1", hosts.first().hostAddress)
-        assertEquals("192.168.178.254", hosts.last().hostAddress)
-        assertTrue(hosts.none { it.hostAddress == "192.168.178.20" })
-        // Größere Netze werden auf das eigene /24 begrenzt.
-        assertEquals(253, IoBrokerAutoSetup.subnetHosts(byteArrayOf(10, 1, 2, 3), 16).size)
-    }
-
     private fun registry(): KlimaPilotAccountRegistry {
         val admin = KlimaPilotAccount.create("admin", "Admin", "sicheresPasswort1".toCharArray(), KlimaPilotAccount.ADMIN)
         val user = KlimaPilotAccount.create("partner", "Partner", "sicheresPasswort2".toCharArray(), KlimaPilotAccount.USER)

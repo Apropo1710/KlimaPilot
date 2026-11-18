@@ -13,11 +13,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 104
-        versionName = "0.4.74"
-        // Update source: production keeps the release tag "latest" with KlimaPilot.apk.
-        buildConfigField("String", "UPDATE_RELEASE_TAG", "\"latest\"")
-        buildConfigField("String", "UPDATE_ASSET_NAME", "\"KlimaPilot.apk\"")
+        versionCode = 105
+        versionName = "0.4.75"
     }
 
     signingConfigs {
@@ -50,9 +47,6 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            // Test builds look for updates in the separate test pre-release.
-            buildConfigField("String", "UPDATE_RELEASE_TAG", "\"klimapilot-test-latest\"")
-            buildConfigField("String", "UPDATE_ASSET_NAME", "\"KlimaPilot-test.apk\"")
             signingConfigs.findByName("testDebug")?.let { signingConfig = it }
         }
     }

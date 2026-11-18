@@ -3,18 +3,10 @@ package de.klimapilot.app
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import com.google.zxing.common.BitMatrix
 import org.json.JSONObject
-import java.net.Inet4Address
-import java.net.InetAddress
-import java.net.InetSocketAddress
-import java.util.concurrent.Callable
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 /**
  * Einheitliche Ablage der ioBroker-Adresse.
@@ -87,41 +79,22 @@ internal object IoBrokerAddress {
 }
 
 /**
- * Findet ioBroker ohne Nutzereingabe: zuerst die gespeicherte Adresse, danach alle Geräte
- * im eigenen WLAN-Subnetz mit offenem WebSocket-Port 8084. Jeder Kandidat wird erst als
- * gefunden gewertet, wenn die reguläre Verbindungsprüfung (inkl. Alive-Test) erfolgreich war.
+ * Verbindet ohne Nutzereingabe mit der gespeicherten ioBroker-Adresse. Ein Kandidat gilt erst
+ * als gefunden, wenn die reguläre Verbindungsprüfung (inkl. Alive-Test) erfolgreich war.
  */
 internal object IoBrokerAutoSetup {
     private val mainHandler = Handler(Looper.getMainLooper())
     private const val CANDIDATE_TIMEOUT_MS = 10_000L
-    private const val PORT_PROBE_TIMEOUT_MS = 500
-    private const val MAX_SCANNED_CANDIDATES = 8
 
     /**
      * Ergebnis auf dem Main-Thread: verbundene URL (die Verbindung bleibt offen) oder null
      * mit einer kurzen Fehlerbeschreibung.
      */
     fun connect(context: Context, preferred: List<String>, scanNetwork: Boolean, callback: (String?, String) -> Unit) {
-        val appContext = context.applicationContext
-        val first = preferred.mapNotNull { IoBrokerAddress.normalize(it) }.distinct()
-        tryCandidates(first, lastError = null) { url, error ->
-            if (url != null || !scanNetwork) {
-                callback(url, error ?: "ioBroker wurde nicht gefunden.")
-                return@tryCandidates
-            }
-            Thread {
-                val scanned = runCatching { scanLocalNetwork(appContext) }.getOrDefault(emptyList())
-                    .filterNot { it in first }
-                mainHandler.post {
-                    if (scanned.isEmpty()) {
-                        callback(null, error ?: "Im WLAN wurde kein ioBroker gefunden.")
-                    } else {
-                        tryCandidates(scanned, error) { found, scanError ->
-                            callback(found, scanError ?: "Im WLAN wurde kein ioBroker gefunden.")
-                        }
-                    }
-                }
-            }.apply { name = "klimapilot-iobroker-scan"; isDaemon = true }.start()
+        // Keine Netzwerksuche: es wird ausschließlich die gespeicherte bzw. eingegebene Adresse geprüft.
+        val candidates = preferred.mapNotNull { IoBrokerAddress.normalize(it) }.distinct()
+        tryCandidates(candidates, lastError = null) { url, error ->
+            callback(url, error ?: "ioBroker wurde nicht gefunden.")
         }
     }
 
@@ -149,51 +122,6 @@ internal object IoBrokerAutoSetup {
                 IoBrokerClient.disconnect()
                 tryCandidates(candidates.drop(1), message, done)
             }
-        }
-    }
-
-    /** Blockierend; nicht auf dem Main-Thread aufrufen. */
-    private fun scanLocalNetwork(context: Context): List<String> {
-        val connectivity = context.getSystemService(ConnectivityManager::class.java) ?: return emptyList()
-        @Suppress("DEPRECATION")
-        val wifi = connectivity.allNetworks.firstOrNull { network ->
-            connectivity.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        } ?: return emptyList()
-        val link = connectivity.getLinkProperties(wifi) ?: return emptyList()
-        val own = link.linkAddresses.firstOrNull { it.address is Inet4Address && it.address.isSiteLocalAddress }
-            ?: return emptyList()
-        val hosts = subnetHosts(own.address.address, own.prefixLength)
-        val pool = Executors.newFixedThreadPool(48)
-        try {
-            val probes = hosts.map { host ->
-                pool.submit(Callable {
-                    runCatching {
-                        wifi.socketFactory.createSocket().use { socket ->
-                            socket.connect(InetSocketAddress(host, IoBrokerAddress.DEFAULT_PORT), PORT_PROBE_TIMEOUT_MS)
-                        }
-                        host
-                    }.getOrNull()
-                })
-            }
-            return probes.mapNotNull { runCatching { it.get(5, TimeUnit.SECONDS) }.getOrNull() }
-                .take(MAX_SCANNED_CANDIDATES)
-                .map { "ws://${it.hostAddress}:${IoBrokerAddress.DEFAULT_PORT}" }
-        } finally {
-            pool.shutdownNow()
-        }
-    }
-
-    /** Alle Hosts des eigenen Subnetzes; größere Netze werden auf das eigene /24 begrenzt. */
-    internal fun subnetHosts(ownAddress: ByteArray, prefixLength: Int): List<InetAddress> {
-        val prefix = prefixLength.coerceIn(24, 30)
-        val own = ownAddress.fold(0L) { acc, b -> (acc shl 8) or (b.toLong() and 0xFF) }
-        val mask = (0xFFFFFFFFL shl (32 - prefix)) and 0xFFFFFFFFL
-        val network = own and mask
-        val size = 1L shl (32 - prefix)
-        return (1L until size - 1).map { network + it }.filter { it != own }.map { value ->
-            InetAddress.getByAddress(byteArrayOf(
-                (value shr 24).toByte(), (value shr 16).toByte(), (value shr 8).toByte(), value.toByte()
-            ))
         }
     }
 }
