@@ -17,26 +17,23 @@
 
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 18:35 Uhr MEZ (Browser-Abzweigung im Test-Updater zurückgenommen; WLAN-Workflow #248 erfolgreich; Test-APK 0.4.72)
+**Letzter Abgleich:** 18.11.2026, 19:25 Uhr MEZ (`test` nach `main` übernommen; Produktion 0.4.74 / 104 veröffentlicht)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
 
 ## 1. Produktivstand – `main`
 
-- Produktionsstand zuletzt separat bestätigt: **0.4.67 / versionCode 97**, Build #238 erfolgreich auf Commit `608912f99e2653d271104aa2f620d2c64cdef651`. Dieser Test-Branch-Arbeitsgang verändert `main` nicht.
-- Release `latest` enthält die signierte APK dieses Builds. Der aktuelle `main`-HEAD ist ein späterer Dokumentationscommit; Build-Commit und aktueller Branch-HEAD sind daher ausdrücklich zu unterscheiden.
+- **18.11.2026, auf ausdrücklichen Wunsch des Nutzers:** Der komplette Stand von `test` wurde nach `main` übernommen. Vorgehen: `main` (19 eigene Commits, u. a. Konten-Fixes 0.4.66/0.4.67) per Merge-Commit `12096f3a545b17403ffb83c1c75a226d8f7150ef` in `test` geholt, Konflikte zugunsten von `test` gelöst (Konten-, Profil- und Gerätespeicher verwenden auf beiden Branches identische Schlüssel, Produktionsdaten bleiben lesbar), WLAN-Workflow **#250** inkl. `lintVitalRelease` erfolgreich, danach `main` per Fast-Forward auf `12096f3` gesetzt.
+- Produktionsbuild **#239** (Run `44368187182`) erfolgreich; Release `latest` enthält **0.4.74 / versionCode 104**, `de.klimapilot.app`, APK-SHA-256 `a8f82d14475a5e4497a4941fb43a08c0d5b2314ee54260dd072fbd3e3b5237fe`. Unabhängig nachgeprüft: gleiches Produktionszertifikat wie bisherige Releases (`d3402444a8fd284f…`), Manifest-Berechtigungen wie bisher in Produktion. Updater-Installationsablauf unverändert.
+- Neu in Produktion gegenüber 0.4.67: automatische ioBroker-Einrichtung und QR-Kontoübernahme (2f), Ein-Scan-Pairing (2d), Abfrage der Klimaanlage alle 10 s statt 15 s, Pairing-Karte ohne Infotext mit „QR-Code anzeigen“.
+- PR #6 ist damit inhaltlich in `main` enthalten. `test` wurde danach auf `main` (`f5bfba9`) gesetzt; beide Branches sind identisch.
 - [Direkter APK-Download](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
-- `main` wurde bei der hier dokumentierten Bereinigung nicht verändert.
 
-## 2. Entwicklungsstand – `test` und PR #6
+## 2. Entwicklungsstand – `test`
 
-- Aktueller `test`-Code-Commit: `e8cb6f7` (siehe 2g) – Version **0.4.72 / versionCode 102**, Debug `0.4.72-debug`, Paket `de.klimapilot.app.debug`. Testsignatur siehe 2e, automatische Einrichtung siehe 2f, Test-Updater siehe 2g. Ältere Hash-/Build-Angaben in den Abschnitten 2a–2d und 5 sind historische Nachweise.
-- Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
-- Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
-- [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
-- Die Branches sind weiterhin divergent; `test` liegt 217 Commits vor und 10 Commits hinter `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Kein Rebase oder Merge im Rahmen der Dokumentationspflege.
-- PR #6 umfasst den WLAN-/Pairing-Arbeitsstrang. Vor einer späteren Integration ist ein vollständiger Diff-Review gegen den dann aktuellen `main` erforderlich.
+- Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur). Übernahme nach `main` nach Gerätetest.
+- Nächstes Ziel: Synchronisation von Konten und Klimaprofilen direkt zwischen gekoppelten Smartphones, damit alles ohne ioBroker weiterläuft. Der aktuelle Zustand der Klimaanlage wird bereits von jedem Smartphone direkt per WF-RAC gelesen (kein ioBroker nötig).
 
 ## 2a. Kontenübernahme direkt aus ioBroker (18.11.2026)
 
