@@ -45,7 +45,7 @@ Die aktuelle Prüfung der Dateien auf `test` ergab:
 
 
 
-## WLAN-Callback und IPv6-Scope-Korrektur (18.11.2026, 07:41 Uhr MEZ)
+## WLAN-Callback und IPv6-Scope-Korrektur (18.11.2026, 07:44 Uhr MEZ)
 
 - Zusätzliche verfügbare WLAN-Netze beenden die laufende Discovery nicht mehr pauschal. Ein neuer WLAN-Callback führt nur dann zum Abbruch, wenn dieses Netz zugleich Androids aktives Standardnetz ist. Verlust des ursprünglich ausgewählten WLANs und Änderungen seiner Interface-Adresse bleiben fail-closed.
 - Die IPv6-Link-Local-Scope-Erzeugung ist in `ClimateWifiListenerAddressSelector.scopeLinkLocalAddress` gekapselt. Nicht-Link-Local-Adressen werden von dieser Funktion abgelehnt.
