@@ -24,6 +24,8 @@ internal class ClimatePairingSessionController(
     private var pendingResponsePeer: ClimatePairingResponse.Response? = null
     private var incomingInvitation: ClimatePairingInvitation.Invitation? = null
     private var incomingConfirmation: PendingConfirmation? = null
+    private var pendingIncomingResponse: ClimatePairingResponse.Response? = null
+    private var pendingIncomingDisplayName: String? = null
     private val consumedIncomingSessions = mutableMapOf<String, Long>()
 
     @Synchronized
@@ -62,8 +64,10 @@ internal class ClimatePairingSessionController(
     }
 
     /**
-     * Completes the responder side after local user confirmation. The response is
-     * created first; trust is persisted only if response creation also succeeds.
+     * Prepares the responder's signed answer after local consent. No trust is
+     * persisted here: the inviter must first acknowledge that it has durably stored
+     * this responder. The caller must deliver the returned payload and invoke
+     * acknowledgeIncomingInvitation only after receiving the matching signed ACK.
      */
     @Synchronized
     fun confirmIncomingInvitation(
@@ -82,11 +86,41 @@ internal class ClimatePairingSessionController(
             response.invitationPeerId == invitation.peerId &&
             response.invitationNonceBase64 == invitation.nonceBase64
         ) { "Die Pairing-Antwort passt nicht zur aktiven Geräteidentität oder Sitzung." }
-        trustedPeerStore.trustPeer(invitation.publicKeyBase64, displayName)
+        pendingIncomingResponse = response
+        pendingIncomingDisplayName = displayName.trim()
+        return response.toPayload()
+    }
+
+    /**
+     * Finalizes responder-side trust only after the inviter confirms durable storage.
+     * A mismatched or stale ACK leaves the session pending and stores nothing.
+     */
+    @Synchronized
+    fun acknowledgeIncomingInvitation(
+        sessionId: String,
+        inviterPeerId: String,
+        nowMillis: Long = System.currentTimeMillis()
+    ): ClimateTrustedPeerStore.TrustedPeer {
+        val invitation = incomingInvitation
+            ?: throw IllegalStateException("Keine aktive eingehende Pairing-Sitzung.")
+        val response = pendingIncomingResponse
+            ?: throw IllegalStateException("Es liegt keine bestätigte Pairing-Antwort vor.")
+        check(sessionId == invitation.sessionId && sessionId == response.sessionId) {
+            "Die Speicherbestätigung gehört zu einer anderen Sitzung."
+        }
+        check(inviterPeerId == invitation.peerId && inviterPeerId == response.invitationPeerId) {
+            "Die Speicherbestätigung stammt nicht vom Einladungsgerät."
+        }
+        check(nowMillis <= invitation.expiresAtMillis) { "Die Pairing-Einladung ist abgelaufen." }
+        val name = pendingIncomingDisplayName
+            ?: throw IllegalStateException("Der Gerätename für die Speicherung fehlt.")
+        val trusted = trustedPeerStore.trustPeer(invitation.publicKeyBase64, name)
         consumedIncomingSessions[invitation.sessionId] = invitation.expiresAtMillis
         incomingInvitation = null
         incomingConfirmation = null
-        return response.toPayload()
+        pendingIncomingResponse = null
+        pendingIncomingDisplayName = null
+        return trusted
     }
 
     /** Validates the response and exposes the responder fingerprint without trusting it. */
@@ -138,5 +172,7 @@ internal class ClimatePairingSessionController(
         pendingResponsePeer = null
         incomingInvitation = null
         incomingConfirmation = null
+        pendingIncomingResponse = null
+        pendingIncomingDisplayName = null
     }
 }
