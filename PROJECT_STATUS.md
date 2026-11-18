@@ -17,3 +17,17 @@ Dieser Abschnitt ist der aktuelle operative Status und ersetzt abweichende älte
 - Nächster Schritt: Discovery-, TCP-, Session-Controller- und Trusted-Peer-Pfade vollständig prüfen und ein Integrationsdesign mit Negativtests festlegen.
 
 
+
+
+## Code-Review-Zwischenstand – 18.11.2026, 07:21 Uhr MEZ
+
+Die aktuelle Prüfung der Dateien auf `test` ergab:
+
+- `ClimatePeerTcp`: gegenseitige ECDSA-Challenge-Response-Authentifizierung, frische Nonces, Rollen-/Peer-ID-Bindung, lokale Trust-Prüfung auf beiden Seiten, Größenlimits und absolute Handshake-Frist sind im Code vorhanden. Nach erfolgreichem Handshake wird das vorherige Socket-Timeout wiederhergestellt.
+- JVM-Tests decken gegenseitig vertrauenswürdige Peers, manipulierte Signatur, falsche Peer-ID/Schlüssel-Kombination, übergroße Felder, abgebrochenen Client-Hello, Timeout und Slow-Drip ab. Android-Instrumentierungstests prüfen zusätzlich beide Trust-Richtungen und einen kleinen Datenaustausch nach erfolgreicher Authentifizierung.
+- `ClimateProfilePeerDiscovery` ist weiterhin ausdrücklich reject-only. Es liest/schreibt keine Nutzdaten. Der TCP-Handshake ist nicht integriert.
+- **Integrationsrisiko vor Umsetzung:** `ServerSocket(0)` wird aktuell ohne explizite lokale Interface-Bindung erzeugt und bindet damit standardmäßig an alle lokalen Interfaces. Der Listener darf bei einer späteren Integration nicht unbeabsichtigt auf Mobilfunk-/anderen Interfaces erreichbar sein. Vor Freigabe muss der Socket an das aktive WLAN-Netzwerk gebunden oder gleichwertig auf dieses Interface begrenzt werden; Netzwerkwechsel müssen den Listener sicher beenden und neu starten.
+- **Testlücke:** `ClimatePairingSessionControllerTest` simuliert beide Geräte mit demselben `ClimateTrustedPeerStore`/SharedPreferences-Namen. Das prüft den Ablauf, modelliert aber nicht zwei unabhängige lokale Trust-Speicher. Ein Test mit getrennten Stores pro Gerät ist vor Integrationsfreigabe erforderlich.
+- Die Compose-UI koppelt nur QR-Pairing; der Text weist zutreffend darauf hin, dass noch keine Klimaprofile übertragen werden. Discovery wird bei App-Hintergrund und Composable-Dispose beendet.
+- Dies ist eine Codeprüfung, kein neuer Testlauf. Keine Codeänderung, kein CI-Start und keine Freigabe für Profiltransfer.
+
