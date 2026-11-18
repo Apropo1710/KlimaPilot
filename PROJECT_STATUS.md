@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 11:06 Uhr MEZ  
+**Letzter Abgleich:** 18.11.2026, 11:44 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -16,17 +16,19 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD: dieser Dokumentationscommit auf dem letzten Code-Commit `84a555d0d226c4505d0136ad0b208b5197bbdf67`.
+- Aktueller `test`-HEAD: Dokumentationscommit auf dem letzten Code-/Teststand `63d53bb07a55bfb0207659749f8e6624d78215a7` (Socket-Cleanup-Fix `334308e40ea17b2e57a6c640ca49c20e83d22e8b` plus gezielter Regressionstest).
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
-- Die Branches sind weiterhin divergent; `test` liegt 210 Commits vor und 10 Commits hinter `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Kein Rebase oder Merge im Rahmen der Dokumentationspflege.
+- Die Branches sind weiterhin divergent; `test` liegt 213 Commits vor und 10 Commits hinter `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Kein Rebase oder Merge im Rahmen der Dokumentationspflege.
 - PR #6 umfasst den WLAN-/Pairing-Arbeitsstrang. Vor einer späteren Integration ist ein vollständiger Diff-Review gegen den dann aktuellen `main` erforderlich.
 
 ## 3. Letzte Codeänderung
 
 Code-/Integrations-Commit: `3ea93c97a7db0de2a5c287d6666713e40af76cf7`  
-Aktueller Cleanup-Fix: `84a555d0d226c4505d0136ad0b208b5197bbdf67`  
+Vorheriger Cleanup-Fix: `84a555d0d226c4505d0136ad0b208b5197bbdf67`  
+Socket-Lifecycle-Fix: `334308e40ea17b2e57a6c640ca49c20e83d22e8b`  
+Regressionstest: `63d53bb07a55bfb0207659749f8e6624d78215a7`  
 Betroffene Dateien: `ClimateProfilePeerDiscovery.kt`, `ClimatePeerTcpConnectionManager.kt`, `MainActivity.kt` und `ClimatePeerTcpCompatibilityTest.kt`.
 
 - Zusätzlich zum WLAN-spezifischen `registerNetworkCallback` wird `registerDefaultNetworkCallback` verwendet.
@@ -65,7 +67,7 @@ Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als 
 - WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
 - Separater TCP-Emulatorlauf **#62**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26.
 - WLAN-Workflow **#203**, erfolgreich per `workflow_dispatch` auf `test` mit Commit `1a1d9df06492b45b89d537ac2844d76c789280a6`: `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin` erfolgreich. Damit sind die elf Netzwerk-Policy-Tests auf diesem Stand über Gradle/JUnit ausgeführt.
-- Für die neue Handshake-Integration (`3ea93c9...` bis `84a555d...`) liegt derzeit kein Actions-Run und kein Check-Run vor. Die CI-Validierung der neuen Integration ist daher **offen**.
+- Für die neue Handshake-Integration einschließlich Lifecycle-Fix und Regressionstest (`3ea93c9...` bis `63d53bb...`) liegt derzeit kein Actions-Run und kein Check-Run vor. Die CI-Validierung der neuen Integration ist daher **offen**.
 - Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
 - TCP-Emulatorlauf **#63**, Commit `725fe3109aa4712abda0a4f500cb6433c8a49e19` (Workflow-only-Abzweig vom identischen App-/Teststand `1a1d9df...`): API 26 erfolgreich; Gradle-Build erfolgreich und Instrumentierungstests **3/3 bestanden**. API 35 im selben Lauf fehlgeschlagen, weil der Emulator/Package-Manager nicht rechtzeitig verfügbar war; keine bestandenen API-35-App-Tests.
 - Optionale API-35-Wiederholungen #66, #67 und #68 fehlgeschlagen; #64 und #65 wurden während der Workflow-Konfigurationskorrektur abgebrochen. Lauf #68 enthielt zusätzliche KVM-Berechtigungs- und Emulator-Readiness-Prüfungen, endete aber weiterhin mit Fehler im API-35-Job. API 35 bleibt ausdrücklich optional und ist kein Freigabekriterium. Keine weiteren API-35-Wiederholungen, solange kein konkreter neuer technischer Ansatz vorliegt.
@@ -95,7 +97,7 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Die neue Handshake-Integration (Code-Stand `84a555d...`, aktueller Branch-HEAD `ab3f0c1...`) durch Gradle-Unit-Tests, Debug-/Release-Kompilierung und API-26-Instrumentierung prüfen. Für den neuen Commit ist noch kein Actions-Lauf/Check vorhanden.
+1. Die neue Handshake-Integration (Code-/Teststand `63d53bb...`, einschließlich Socket-Cleanup-Race-Fix) durch Gradle-Unit-Tests, Debug-/Release-Kompilierung und API-26-Instrumentierung prüfen. Für diesen Stand ist noch kein Actions-Lauf/Check vorhanden.
 2. Anschließend die explizite Authentifizierung zwischen zwei realen Smartphones prüfen: beidseitig gekoppelte Peers erfolgreich, unbekannter Peer abgewiesen, WLAN-Socket-Bindung bei mobilem Defaultnetz, Abbruch während Handshake und Cleanup beim Stop.
 3. Falls CI und Geräteprüfung erfolgreich sind, Nachrichtenframing, Größen-/Schema-/Gerätevalidierung, Replay-/Duplikaterkennung und idempotente Wiederaufnahme spezifizieren.
 4. Regressionstests für den bestehenden ioBroker-Sync-Pfad ergänzen.
