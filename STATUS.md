@@ -1,22 +1,30 @@
 # KlimaPilot – aktueller Projekt- und Übergabestatus
 
-**Abgleich:** 18.11.2026, 21:00 Uhr MEZ  
+**Abgleich:** 18.11.2026, 07:25 Uhr MEZ  
 **Repository:** https://github.com/Apropo1710/KlimaPilot  
-**Produktionsbranch:** `main` – HEAD `356842b20acbc042a21cb4d06e664dbd45654d98`  
+**Produktionsbranch:** `main` – HEAD `b82433038a3ced3de3ff908788fde4ef36d58f66`  
 **Produktionsversion:** **0.4.64 / versionCode 94**  
-**Arbeitsbranch:** `test` – HEAD `ae1bdc03c78624ff640505b4bd255bfd885b05c5`
+**Arbeitsbranch:** `test` – App-Code-HEAD `7cd800141a3b16b9f00c91669a0a922eddb509e1` (anschließender Doku-Commit)
 
+### Neueste Änderung – WLAN-Interface-Bindung (18.11.2026)
+
+- Discovery ermittelt das aktive WLAN über `ConnectivityManager` und `LinkProperties` (Interface-Name und Interface-Adressen).
+- Listener wird an eine konkrete WLAN-Adresse gebunden; IPv4 wird bevorzugt, IPv6 ist Fallback. Die gleiche Adresse wird für DNS-SD als Host gesetzt.
+- Änderungen an Interface/IP oder Verlust des WLANs beenden die Discovery fail-closed. Der Listener wird geschlossen und der Accept-Thread begrenzt beendet; Neustart erzeugt einen frischen Socket.
+- Drei neue JVM-Tests für Adressauswahl; Pairing-Controller-Test nutzt getrennte Trust-Speicher für Gerät A und B.
+- App-Code-Commit: `7cd800141a3b16b9f00c91669a0a922eddb509e1`. **CI/Unit-Tests/Android-Build für diesen Commit noch nicht bestätigt.** Kein Emulatorlauf auf diesem Stand.
+- Discovery bleibt reject-only; Handshake und Profiltransfer wurden nicht integriert.
 ## Produktionsstand
 
 - `main` ist alleiniger Produktionsbranch; PR #6 ist nicht gemergt.
-- Letzter bestätigter Produktionsbuild: #229, **success**; Release `latest` enthält die signierte APK 0.4.64 / 94. Dokumentationsänderungen erzeugen keinen neuen App-Build.
+- Letzter bestätigter Produktionsbuild: #233, **success** auf `b88ff7e9709bc1ea5aafd673e26bb1d4efee9c16`; Release `latest` zeigt auf diesen Build-Commit und enthält die aktualisierte signierte `KlimaPilot.apk` (0.4.64 / 94). Der aktuelle `main`-HEAD `b8243303` ist ein nachfolgender Dokumentationscommit.
 - Updater ist abgeschlossen und vom Nutzer bestätigt. **Nicht verändern.**
 
 ## WLAN-/Pairing-Arbeitsstand
 
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6) offen/Draft, nicht gemergt.
-- `main...test`: **151 ahead / 2 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
-- WLAN-Validierung auf exakt `ae1bdc03c78624ff640505b4bd255bfd885b05c5`: [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246) **success** (Unit-Tests, Debug-Assembly, `compileReleaseKotlin`).
+- `main...test`: **157 ahead / 10 behind**, Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Branches sind divergent; kein Rebase/Merge ohne gesonderte Prüfung und Freigabe.
+- Letzter bestätigter WLAN-Lauf [Run 44248243246](https://github.com/Apropo1710/KlimaPilot/actions/runs/44248243246): **success** auf älterem App-Code-HEAD `ae1bdc03`. Für den aktuellen App-Code-HEAD `7cd8001` gibt es noch keinen CI-Lauf; die GitHub-API hat nach dem Commit keinen PR-Run erzeugt.
 - TCP-Emulatorlauf [44247356481](https://github.com/Apropo1710/KlimaPilot/actions/runs/44247356481) erfolgreich auf älterem Commit `41b9a3ab`, API 26. Für aktuellen HEAD kein Emulatornachweis; API 35 nicht bestätigt.
 - TCP-Emulatorworkflow nur manuell (`workflow_dispatch`); WLAN-Workflow bei PR-Updates. Keine doppelten automatischen Emulatorläufe.
 - QR-Pairing, lokale Bestätigung, Keystore-Identität, Trusted-Peer-Speicher und TCP-Challenge-Response sind implementiert. TLS/mTLS wurde nach Nutzerfreigabe verworfen; TCP ist unverschlüsselt.

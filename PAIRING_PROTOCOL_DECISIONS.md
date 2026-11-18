@@ -184,3 +184,15 @@ Nicht Teil dieses Arbeitspakets sind:
 4. **Nutzdaten bleiben gesperrt:** Wegen unverschlüsseltem TCP und möglicher aktiver Manipulation dürfen Profil-Events erst nach festgelegter Frame-Struktur, Größenlimits, Schema-/Wertebereichsvalidierung, Replay-/Duplikatbehandlung und erfolgreichem Zwei-Smartphone-Test übertragen werden.
 
 Diese Punkte sind Review-Ergebnisse und offene Integrationsanforderungen, keine bereits implementierten Änderungen. Am Code wurde bei dieser Prüfung nichts geändert; kein neuer CI-Lauf wurde gestartet.
+
+
+## 18. WLAN-Interface-Bindung und unabhängige Trust-Speicher (18.11.2026)
+
+- Android-API-Prüfung bestätigt: LinkProperties.getInterfaceName() und getLinkAddresses() sowie ConnectivityManager.getLinkProperties(Network) sind ab API 21 verfügbar und damit mit minSdk 26 kompatibel.
+- Network.bindSocket() besitzt keine ServerSocket-Überladung. Dokumentiert sind Socket, DatagramSocket und FileDescriptor. Für den Listener wird deshalb ServerSocket.bind(InetSocketAddress) mit einer konkreten WLAN-Adresse verwendet.
+- DNS-SD wird mit NsdServiceInfo.setHost(InetAddress) auf dieselbe gebundene Adresse gesetzt. setHost ist ab API 16 vorhanden; setHostAddresses wäre erst ab API 34 verfügbar und wird für minSdk 26 nicht benötigt.
+- Adressstrategie: private IPv4 bevorzugen; ohne IPv4 IPv6-ULA, globale IPv6 und zuletzt eine an das WLAN-Interface gebundene Link-Local-IPv6-Adresse verwenden. Fehlen Interface oder geeignete Adresse, wird nicht auf Wildcard zurückgefallen.
+- Netzwerk- oder Adresswechsel beenden die laufende Discovery fail-closed. Der Listener wird geschlossen und der Accept-Thread begrenzt beendet; ein erneuter Start erzeugt einen neuen Socket und eine neue DNS-SD-Anmeldung.
+- Implementierung auf test, App-Code-Commit 7cd800141a3b16b9f00c91669a0a922eddb509e1. Drei JVM-Tests für Adressauswahl und ein Pairing-Test mit zwei getrennten Preferences/TrustedPeerStores wurden ergänzt.
+- CI für diesen Commit ist noch nicht bestätigt. Es wurden weder Unit-Tests noch Android-Builds oder Emulatorläufe als erfolgreich gewertet.
+- Discovery bleibt reject-only. Keine Handshake-Integration, keine Profil-/Outbox-Übertragung. main, Updater und Produktionsrelease wurden nicht verändert.
