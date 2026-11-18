@@ -16,10 +16,10 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD vor dieser Dokumentationsbereinigung: `942fcc8bce9e2bd5e36be7c4ebf97de064d781bd`.
+- Aktueller `test`-HEAD: dieser abschließende Dokumentationscommit.
 - Letzter App-Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
-- Branchvergleich unmittelbar vor dieser Bereinigung: **183 Commits ahead / 10 behind** gegenüber `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die Branches sind divergent; kein Rebase oder Merge im Rahmen der Dokumentationspflege.
+- Branchvergleich nach dieser Bereinigung: **194 Commits ahead / 10 behind** gegenüber `main`; Merge-Base `c7f1d57e4a4661d1492e5dca42ec9a9841d3e5fd`. Die Branches sind divergent; kein Rebase oder Merge im Rahmen der Dokumentationspflege.
 - PR #6 umfasst den WLAN-/Pairing-Arbeitsstrang. Vor einer späteren Integration ist ein vollständiger Diff-Review gegen den dann aktuellen `main` erforderlich.
 
 ## 3. Letzte Codeänderung
@@ -82,7 +82,15 @@ Workflows:
 - SENEC/`energyfluss` nicht als Datenquelle einplanen.
 - Produktionsverbindung zu ioBroker: WebSocket `ws.0`, Port 8084; Alive-Prüfung über `system.adapter.admin.0.alive`.
 
-## 8. Dokumentationsstruktur und Pflege
+## 8. Nächste Schritte
+
+1. Den aktuellen Netzwerk-Lifecycle-Code unabhängig reviewen.
+2. Einen erfolgreichen Android-Build und die vorgesehenen Unit-Tests exakt auf dem aktuellen Codecommit nachweisen.
+3. Danach gezielte Tests für WLAN-Verlust, Wechsel des Standardnetzes und parallele WLAN-Verfügbarkeit durchführen.
+4. Erst nach erfolgreicher Validierung die Integration des TCP-Handshakes planen.
+5. Bis zur vollständigen Protokollhärtung und zum erfolgreichen Zwei-Smartphone-Test bleibt Peer-Nutzdatentransfer gesperrt.
+
+## 9. Dokumentationsstruktur und Pflege
 
 ### Einstieg
 - `README.md`: kurze Projektbeschreibung, technische Basis, feste Grundregeln und Links. Keine zweite Statusübersicht.
@@ -96,7 +104,7 @@ Workflows:
 - `PAIRING_PROTOCOL_DECISIONS.md`: Identität, Pairing, Trust und Sicherheitsentscheidungen.
 - `SYNC_RESILIENCE_PLAN.md`: Outbox, Konfliktbehandlung, Wiederanlauf und Zuverlässigkeitsanforderungen.
 
-Die frühere Datei `STATUS.md` wird entfernt. Ihr Übergabe-/Statusinhalt ist in diese Datei übernommen. Es darf keine neue parallele Statusdatei angelegt werden, solange kein konkreter, nicht anders lösbarer Bedarf besteht.
+Die frühere Datei `STATUS.md` wurde entfernt. Ihr Übergabe-/Statusinhalt ist in diese Datei übernommen. Es darf keine neue parallele Statusdatei angelegt werden, solange kein konkreter, nicht anders lösbarer Bedarf besteht.
 
 ### Verbindliche Aktualisierungsroutine
 1. Vor jeder Änderung den aktuellen GitHub-Stand von `main`, `test`, PR und relevanten Actions prüfen.
