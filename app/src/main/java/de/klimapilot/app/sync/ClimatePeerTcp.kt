@@ -46,7 +46,9 @@ internal object ClimatePeerTcp {
     }
 
     fun authenticateAsClient(socket: Socket, identityStore: ClimatePeerSigner, trustedPeers: ClimatePeerTrust) {
+        val previousTimeout = socket.soTimeout
         val deadline = deadlineAfter(HANDSHAKE_TIMEOUT_MS)
+        try {
         val input = DataInputStream(socket.getInputStream())
         val output = DataOutputStream(socket.getOutputStream())
         output.writeInt(MAGIC)
@@ -58,10 +60,16 @@ internal object ClimatePeerTcp {
         exchangeAndVerify(input, output, socket, deadline, identityStore, trustedPeers,
             CLIENT_ROLE, clientNonce, serverNonce)
         require(readByte(input, socket, deadline) == 1) { "Die Gegenstelle hat dieses Gerät nicht akzeptiert." }
+            socket.soTimeout = previousTimeout
+        } catch (error: Exception) {
+            throw error
+        }
     }
 
     fun authenticateAsServer(socket: Socket, identityStore: ClimatePeerSigner, trustedPeers: ClimatePeerTrust) {
+        val previousTimeout = socket.soTimeout
         val deadline = deadlineAfter(HANDSHAKE_TIMEOUT_MS)
+        try {
         val input = DataInputStream(socket.getInputStream())
         val output = DataOutputStream(socket.getOutputStream())
         require(readInt(input, socket, deadline) == MAGIC) { "Ungültige KlimaPilot-Gegenstelle." }
@@ -75,9 +83,11 @@ internal object ClimatePeerTcp {
                 SERVER_ROLE, serverNonce, clientNonce)
             output.writeByte(1)
             output.flush()
+            socket.soTimeout = previousTimeout
         } catch (error: Exception) {
             runCatching { output.writeByte(0); output.flush() }
             throw error
+        }
         }
     }
 
@@ -101,6 +111,7 @@ internal object ClimatePeerTcp {
         val publicKey = readField(input, socket, deadline).toString(Charsets.US_ASCII)
         require(peerId.matches(Regex("[a-f0-9]{64}"))) { "Ungültige Peer-ID." }
         require(publicKey.length in 1..MAX_PUBLIC_KEY_BASE64_CHARS) { "Ungültiger Peer-Schlüssel." }
+        require(peerIdMatchesPublicKey(peerId, publicKey)) { "Peer-ID passt nicht zum öffentlichen Schlüssel." }
         require(trustedPeers.isTrusted(peerId, publicKey)) { "Gerät ist auf diesem Smartphone nicht gekoppelt." }
 
         val clientId = if (localRole == CLIENT_ROLE) identity.peerId else peerId

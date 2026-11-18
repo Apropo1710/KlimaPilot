@@ -277,3 +277,10 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Der vorherige fehlgeschlagene Unit-Test war ein fehlerhaftes Test-Frame (die Länge des öffentlichen Schlüssels wurde im Test doppelt gelesen). Das Test-Frame wurde korrigiert; der korrigierte Lauf ist grün.
 - Nächste Ergänzung: JVM-Negativtests für abgebrochenen Client-Hello und ein hängendes Gegenüber, um EOF und die 10-Sekunden-Gesamtfrist abzudecken.
 - Weiterhin kein Zwei-Smartphone-Test, keine Discovery-Integration und keine Profilübertragung.
+
+
+## Claude-Review-Korrekturen (18.11.2026)
+
+- Unabhängige Codeprüfung bestätigte: TCP-Socket-Timeout wurde nach erfolgreichem Handshake nicht auf den vorherigen Wert zurückgesetzt; JVM-Test für Peer-ID/Schlüssel-Abweichung war nicht aussagekräftig; Slow-Drip-Test fehlte; Workflow verwendete mehrzeiliges Emulator-Skript; Debug-Launcher-Badge lag außerhalb der Safe-Zone.
+- Geplante Korrekturen im Test-Branch: Socket-Timeout nach erfolgreicher Client- und Server-Authentifizierung wiederherstellen; SHA-256-Peer-ID/Public-Key-Bindung zusätzlich im TCP-Protokoll erzwingen; echte Protokolltests für manipulierte ID/Key-Kombination, Timeout-Wiederherstellung und Slow-Drip; Emulator-Skript einzeilig ausführen und adb root vor ANR-Pull versuchen; TEST-Badge in die Icon-Safe-Zone verschieben.
+- Kein Zwei-Smartphone-Test und keine Profilübertragung freigegeben. Updater bleibt unangetastet.

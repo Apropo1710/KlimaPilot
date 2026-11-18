@@ -12,10 +12,10 @@
     <path android:fillColor="#4DD0E1" android:pathData="M70,60 C64,67 78,69 71,77 C67,81 71,86 76,87 C71,81 82,77 78,70 C76,66 72,65 70,60 Z"/>
     <path android:fillColor="#1769AA" android:pathData="M90,18 L93,25 L100,28 L93,31 L90,38 L87,31 L80,28 L87,25 Z"/>
     <!-- Test ribbon -->
-    <path android:fillColor="#00B8D9" android:pathData="M18,78 Q18,75 22,75 L86,75 Q90,75 90,79 L90,96 Q90,100 86,100 L22,100 Q18,100 18,96 Z"/>
+    <path android:fillColor="#00B8D9" android:pathData="M20,68 Q20,66 23,66 L85,66 Q88,66 88,69 L88,88 Q88,90 85,90 L23,90 Q20,90 20,88 Z"/>
     <!-- TEST lettering -->
-    <path android:fillColor="#FFFFFF" android:pathData="M25,81 L36,81 L36,84 L32,84 L32,94 L29,94 L29,84 L25,84 Z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M39,81 L49,81 L49,84 L42,84 L42,86 L48,86 L48,89 L42,89 L42,91 L49,91 L49,94 L39,94 Z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M52,84 C52,82 54,81 57,81 C60,81 62,82 62,84 L59,84 C59,83 58,83 57,83 C56,83 55,83 55,84 C55,85 56,85 58,86 C61,87 62,88 62,90 C62,93 60,94 57,94 C54,94 52,93 52,91 L55,91 C55,92 56,92 57,92 C58,92 59,92 59,90 C59,89 58,89 56,88 C53,87 52,86 52,84 Z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M65,81 L76,81 L76,84 L72,84 L72,94 L69,94 L69,84 L65,84 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M25,70 L36,70 L36,73 L32,73 L32,85 L29,85 L29,73 L25,73 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M39,70 L49,70 L49,73 L42,73 L42,76 L48,76 L48,79 L42,79 L42,82 L49,82 L49,85 L39,85 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M52,73 C52,71 54,70 57,70 C60,70 62,71 62,73 L59,73 C59,72 58,72 57,72 C56,72 55,72 55,73 C55,74 56,75 58,76 C61,77 62,78 62,81 C62,84 60,85 57,85 C54,85 52,84 52,82 L55,82 C55,83 56,83 57,83 C58,83 59,82 59,81 C59,80 58,79 56,78 C53,77 52,76 52,73 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M65,70 L76,70 L76,73 L72,73 L72,85 L69,85 L69,73 L65,73 Z"/>
 </vector>

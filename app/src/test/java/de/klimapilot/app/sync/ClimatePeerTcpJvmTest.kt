@@ -67,27 +67,38 @@ class ClimatePeerTcpJvmTest {
     }
 
     @Test
-    fun rejectsPeerIdThatDoesNotMatchPublicKey() {
-        val client = SoftwareSigner()
+    fun rejectsPeerIdThatDoesNotMatchPublicKeyEvenIfTrustStoreAcceptsIt() {
         val server = SoftwareSigner()
-        val wrongIdTrust = ClimatePeerTrust { peerId, publicKey ->
-            peerId == "0".repeat(64) && publicKey == server.identity.publicKeyBase64
-        }
+        val fakePeerId = "0".repeat(64)
+        assertFalse(peerIdMatchesPublicKey(fakePeerId, server.identity.publicKeyBase64))
+        assertTrue(peerIdMatchesPublicKey(server.identity.peerId, server.identity.publicKeyBase64))
         val listener = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
         val executor = Executors.newSingleThreadExecutor()
         try {
-            val serverResult = executor.submit<Boolean> {
+            val rejected = executor.submit<Boolean> {
                 listener.accept().use {
-                    runCatching { ClimatePeerTcp.authenticateAsServer(it, server, wrongIdTrust) }.isSuccess
+                    runCatching {
+                        ClimatePeerTcp.authenticateAsServer(it, SoftwareSigner(),
+                            ClimatePeerTrust { _, _ -> true })
+                    }.isFailure
                 }
             }
-            val clientAccepted = runCatching {
-                Socket(InetAddress.getLoopbackAddress(), listener.localPort).use {
-                    ClimatePeerTcp.authenticateAsClient(it, client, trust(server))
-                }
-            }.isSuccess
-            assertFalse(clientAccepted)
-            assertFalse(serverResult.get(15, TimeUnit.SECONDS))
+            Socket(InetAddress.getLoopbackAddress(), listener.localPort).use { socket ->
+                val data = java.io.DataOutputStream(socket.getOutputStream())
+                val input = java.io.DataInputStream(socket.getInputStream())
+                data.writeInt(0x4B505431)
+                data.write(ByteArray(32) { 7 })
+                data.flush()
+                input.readInt()
+                input.readFully(ByteArray(32))
+                data.writeInt(fakePeerId.length)
+                data.write(fakePeerId.toByteArray(Charsets.US_ASCII))
+                val key = server.identity.publicKeyBase64.toByteArray(Charsets.US_ASCII)
+                data.writeInt(key.size)
+                data.write(key)
+                data.flush()
+            }
+            assertTrue(rejected.get(5, TimeUnit.SECONDS))
         } finally {
             listener.close()
             executor.shutdownNow()
@@ -178,6 +189,71 @@ class ClimatePeerTcpJvmTest {
             accepted.get(13, TimeUnit.SECONDS)
         } finally {
             server.close()
+            executor.shutdownNow()
+        }
+    }
+
+
+    @Test
+    fun restoresClientSocketTimeoutAfterSuccessfulHandshake() {
+        val client = SoftwareSigner()
+        val server = SoftwareSigner()
+        val listener = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val accepted = executor.submit<Boolean> {
+                listener.accept().use {
+                    it.soTimeout = 3210
+                    ClimatePeerTcp.authenticateAsServer(it, server, trust(client))
+                    it.soTimeout == 3210
+                }
+            }
+            Socket(InetAddress.getLoopbackAddress(), listener.localPort).use {
+                it.soTimeout = 2345
+                ClimatePeerTcp.authenticateAsClient(it, client, trust(server))
+                assertTrue("Client timeout must be restored", it.soTimeout == 2345)
+            }
+            assertTrue("Server timeout must be restored", accepted.get(15, TimeUnit.SECONDS))
+        } finally {
+            listener.close()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun totalHandshakeDeadlineStopsSlowDripPeer() {
+        val client = SoftwareSigner()
+        val listener = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val drip = executor.submit<Boolean> {
+                listener.accept().use { socket ->
+                    val input = java.io.DataInputStream(socket.getInputStream())
+                    input.readInt()
+                    input.readFully(ByteArray(32))
+                    val output = socket.getOutputStream()
+                    // Each byte arrives well inside a fresh 10s read timeout,
+                    // but the complete 4-byte field exceeds the 10s handshake deadline.
+                    repeat(4) {
+                        Thread.sleep(3_500)
+                        output.write(if (it == 0) 0x4B else if (it == 1) 0x50 else if (it == 2) 0x54 else 0x31)
+                        output.flush()
+                    }
+                    true
+                }
+            }
+            val started = System.nanoTime()
+            val failed = runCatching {
+                Socket(InetAddress.getLoopbackAddress(), listener.localPort).use {
+                    ClimatePeerTcp.authenticateAsClient(it, client, ClimatePeerTrust { _, _ -> false })
+                }
+            }.isFailure
+            val elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+            assertTrue("Slow-drip peer must be rejected", failed)
+            assertTrue("Total deadline should stop the slow drip around 10s: ${elapsed}ms", elapsed in 9_000..12_500)
+            drip.get(15, TimeUnit.SECONDS)
+        } finally {
+            listener.close()
             executor.shutdownNow()
         }
     }

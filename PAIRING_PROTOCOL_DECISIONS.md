@@ -147,3 +147,13 @@ Nicht Teil dieses Arbeitspakets sind:
 - API 26 startete drei Instrumentierungstests. API 35 wurde im PR-Lauf erwartungsgemäß übersprungen; daraus folgt keine Aussage über Android-15-Kompatibilität.
 - Der vorherige Unit-Test-Fehler war auf einen doppelten Lesezugriff im Test für überlange Felder zurückzuführen. Das Testprotokoll wurde korrigiert.
 - Nächster Schritt sind zusätzliche JVM-Negativtests für einen abgebrochenen Handshake und ein nicht antwortendes Gegenüber. Danach folgt der praktische Test mit zwei Smartphones.
+
+
+## 15. Korrekturen nach unabhängiger Prüfung (18.11.2026)
+
+- Nach erfolgreichem Handshake muss der TCP-Socket sein ursprüngliches `soTimeout` zurückerhalten, damit das Handshake-Limit nicht spätere Nutzdaten-Reads begrenzt.
+- Die Peer-ID wird zusätzlich direkt im TCP-Handshake gegen SHA-256 des empfangenen öffentlichen Schlüssels geprüft, unabhängig von der jeweiligen `ClimatePeerTrust`-Implementierung.
+- JVM-Tests prüfen die tatsächliche Ablehnung einer manipulierten Peer-ID/Schlüssel-Kombination, Wiederherstellung des Socket-Timeouts und einen Slow-Drip-Peer, dessen einzelne Bytes innerhalb eines frischen Read-Timeouts, aber außerhalb der Gesamtfrist eintreffen.
+- Emulator-Runner-Skript wird als einzelner Shell-Befehl ausgeführt; vor dem ANR-Datei-Pull wird `adb root` versucht.
+- Debug-Test-Icon-Badge wird innerhalb der adaptiven Launcher-Safe-Zone platziert.
+- Diese Änderungen müssen durch CI verifiziert werden. Keine Discovery-Integration, kein Nutzdatentransfer und keine Profilübertragung.

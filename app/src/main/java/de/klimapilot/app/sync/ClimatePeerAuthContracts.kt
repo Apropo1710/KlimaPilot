@@ -15,6 +15,15 @@ internal interface ClimatePeerSigner {
 }
 
 /** Trust decision boundary shared by persistent Android storage and JVM tests. */
+internal fun peerIdMatchesPublicKey(peerId: String, publicKeyBase64: String): Boolean = runCatching {
+    require(peerId.matches(Regex("[a-f0-9]{64}")))
+    val encoded = java.util.Base64.getDecoder().decode(publicKeyBase64)
+    val digest = java.security.MessageDigest.getInstance("SHA-256").digest(encoded)
+    val calculated = digest.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    calculated == peerId
+}.getOrDefault(false)
+
+/** Trust decision boundary shared by persistent Android storage and JVM tests. */
 internal fun interface ClimatePeerTrust {
     fun isTrusted(peerId: String, publicKeyBase64: String): Boolean
 }
