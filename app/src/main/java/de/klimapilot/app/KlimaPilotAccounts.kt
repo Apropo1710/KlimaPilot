@@ -316,8 +316,31 @@ internal fun KlimaPilotAccountLoginScreen(
         )
         Spacer(Modifier.height(20.dp))
         if (registry == null) {
-            if (loading) CircularProgressIndicator()
-            else Button(onClick = onReload, modifier = Modifier.fillMaxWidth()) { Text("Konten erneut laden") }
+            if (loading) {
+                CircularProgressIndicator()
+                Text("Verbindung zu ioBroker wird hergestellt …", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            } else {
+                Text(
+                    "KlimaPilot verwendet automatisch die gespeicherte ioBroker-Adresse. Falls ioBroker nicht erreichbar ist oder noch keine Adresse hinterlegt wurde, kannst du sie hier eingeben.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+                )
+                OutlinedTextField(
+                    value = ioBrokerAddress,
+                    onValueChange = onIoBrokerAddress,
+                    label = { Text("ioBroker-WebSocket-Adresse") },
+                    placeholder = { Text("ws://192.168.178.54:8084") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedButton(
+                    onClick = onLoadExistingAccounts,
+                    enabled = !loading && ioBrokerAddress.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Erneut mit ioBroker verbinden und Konten laden") }
+                if (status.isNotBlank()) {
+                    Text(status, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
+            }
         } else {
             OutlinedTextField(username, onUsername, label = { Text("Benutzername") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             if (setup) {
