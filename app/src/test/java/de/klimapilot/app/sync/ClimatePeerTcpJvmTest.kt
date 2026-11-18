@@ -129,6 +129,59 @@ class ClimatePeerTcpJvmTest {
         }
     }
 
+
+    @Test
+    fun rejectsTruncatedClientHello() {
+        val server = SoftwareSigner()
+        val listener = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val rejected = executor.submit<Boolean> {
+                listener.accept().use {
+                    runCatching { ClimatePeerTcp.authenticateAsServer(it, server, trust(SoftwareSigner())) }.isFailure
+                }
+            }
+            Socket(InetAddress.getLoopbackAddress(), listener.localPort).use {
+                val data = java.io.DataOutputStream(it.getOutputStream())
+                data.writeInt(0x4B505431)
+                data.write(byteArrayOf(1, 2, 3, 4))
+                data.flush()
+            }
+            assertTrue(rejected.get(5, TimeUnit.SECONDS))
+        } finally {
+            listener.close()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun enforcesOverallHandshakeDeadlineWhenPeerStalls() {
+        val client = SoftwareSigner()
+        val server = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val accepted = executor.submit<Boolean> {
+                server.accept().use {
+                    Thread.sleep(12_000)
+                    true
+                }
+            }
+            val started = System.nanoTime()
+            val failed = runCatching {
+                Socket(InetAddress.getLoopbackAddress(), server.localPort).use {
+                    ClimatePeerTcp.authenticateAsClient(it, client, ClimatePeerTrust { _, _ -> false })
+                }
+            }.isFailure
+            val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+            assertTrue("Stalled peer must be rejected", failed)
+            assertTrue("Handshake must time out close to its 10s deadline: ${elapsedMs}ms", elapsedMs in 9_000..11_500)
+            accepted.get(13, TimeUnit.SECONDS)
+        } finally {
+            server.close()
+            executor.shutdownNow()
+        }
+    }
+
     private fun trust(signer: SoftwareSigner) = ClimatePeerTrust { id, key ->
         id == signer.identity.peerId && key == signer.identity.publicKeyBase64
     }

@@ -139,3 +139,11 @@ Nicht Teil dieses Arbeitspakets sind:
 - Neue Tests decken erfolgreiche gegenseitige Authentifizierung, manipulierte Signatur, falsche Peer-ID zum öffentlichen Schlüssel und überlange Handshake-Felder ab.
 - Der CI-Pflichtlauf führt nun zusätzlich `testDebugUnitTest` vor dem API-26-Instrumentierungstest aus. API 35 bleibt manuell.
 - Die Tests müssen im neuen CI-Lauf erst erfolgreich durchlaufen; dieser Commit allein ist kein Testergebnis.
+
+
+## 14. Erfolgreiche JVM-/API-26-Prüfung (18.11.2026)
+
+- Workflow [TCP-Peer-Authentifizierung](https://github.com/Apropo1710/KlimaPilot/actions/runs/44236730128) ist erfolgreich. `testDebugUnitTest` und `connectedDebugAndroidTest` liefen im selben Gradle-Aufruf mit `BUILD SUCCESSFUL`.
+- API 26 startete drei Instrumentierungstests. API 35 wurde im PR-Lauf erwartungsgemäß übersprungen; daraus folgt keine Aussage über Android-15-Kompatibilität.
+- Der vorherige Unit-Test-Fehler war auf einen doppelten Lesezugriff im Test für überlange Felder zurückzuführen. Das Testprotokoll wurde korrigiert.
+- Nächster Schritt sind zusätzliche JVM-Negativtests für einen abgebrochenen Handshake und ein nicht antwortendes Gegenüber. Danach folgt der praktische Test mit zwei Smartphones.

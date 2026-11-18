@@ -269,3 +269,11 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - JVM-Testfälle: erfolgreicher Software-Key-Handshake, manipulierte Signatur, nicht zum Schlüssel passende Peer-ID sowie überlange Handshake-Felder.
 - Der TCP-CI-Pflichtlauf führt jetzt `testDebugUnitTest` und anschließend den API-26-Instrumentierungstest aus. Ergebnis für den neuen Commit steht noch aus.
 - Updater, Manifest, `main` und Produktionsversion bleiben unangetastet.
+
+
+## JVM- und API-26-Prüfung erfolgreich (18.11.2026, ca. 05:29 MEZ)
+
+- Commit `04e0d0a8e822b43c74155ba422ca1aef26cc28ec`: TCP-Peer-Authentifizierungsworkflow #... erfolgreich. `testDebugUnitTest` und `connectedDebugAndroidTest` liefen gemeinsam erfolgreich durch (`BUILD SUCCESSFUL`); API 26 startete drei Instrumentierungstests. API 35 wurde wie vorgesehen übersprungen.
+- Der vorherige fehlgeschlagene Unit-Test war ein fehlerhaftes Test-Frame (die Länge des öffentlichen Schlüssels wurde im Test doppelt gelesen). Das Test-Frame wurde korrigiert; der korrigierte Lauf ist grün.
+- Nächste Ergänzung: JVM-Negativtests für abgebrochenen Client-Hello und ein hängendes Gegenüber, um EOF und die 10-Sekunden-Gesamtfrist abzudecken.
+- Weiterhin kein Zwei-Smartphone-Test, keine Discovery-Integration und keine Profilübertragung.
