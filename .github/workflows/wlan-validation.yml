@@ -61,6 +61,16 @@ jobs:
           keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/klimapilot-test-debug.p12" \
             -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
 
+      - name: Version aus app/build.gradle.kts lesen
+        id: version
+        run: |
+          CODE=$(sed -n 's/^ *versionCode = \([0-9]*\)$/\1/p' app/build.gradle.kts)
+          NAME=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' app/build.gradle.kts)
+          test -n "$CODE" && test -n "$NAME"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Erwartet: $NAME / $CODE"
+
       - name: Unit-Tests und Debug-Kompilierung
         env:
           KLIMAPILOT_TEST_KEYSTORE_PATH: ${{ runner.temp }}/klimapilot-test-debug.p12
@@ -75,8 +85,8 @@ jobs:
           VERSION_CODE=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK" )
           VERSION_NAME=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK" )
           test "$APP_ID" = "de.klimapilot.app.debug"
-          test "$VERSION_CODE" = "99"
-          test "$VERSION_NAME" = "0.4.69-debug"
+          test "$VERSION_CODE" = "${{ steps.version.outputs.code }}"
+          test "$VERSION_NAME" = "${{ steps.version.outputs.name }}-debug"
           PERMISSIONS=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest permissions "$APK" )
           if printf '%s\\n' "$PERMISSIONS" | grep -q "android.permission.REQUEST_INSTALL_PACKAGES"; then
             echo "ERROR: Debug APK still declares REQUEST_INSTALL_PACKAGES"
@@ -101,7 +111,7 @@ jobs:
       - name: Debug-APK als Testartefakt bereitstellen
         uses: actions/upload-artifact@v4
         with:
-          name: KlimaPilot-debug-test-0.4.69
+          name: KlimaPilot-debug-test-${{ steps.version.outputs.name }}
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             debug-apk.sha256
@@ -116,7 +126,7 @@ jobs:
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk KlimaPilot-test.apk
           cat > release-notes.md <<NOTES
-          KlimaPilot Testversion 0.4.69-debug (versionCode 99)
+          KlimaPilot Testversion ${{ steps.version.outputs.name }}-debug (versionCode ${{ steps.version.outputs.code }})
 
           - Paketkennung: de.klimapilot.app.debug
           - Quellcommit: ${GITHUB_SHA}

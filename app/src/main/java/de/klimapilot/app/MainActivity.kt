@@ -117,18 +117,14 @@ private fun KlimaPilotApp(appVersion: String) {
     var currentAccount by remember { mutableStateOf<KlimaPilotAccount?>(null) }
     var accountAuthenticated by remember { mutableStateOf(false) }
     var accountRegistry by remember { mutableStateOf<KlimaPilotAccountRegistry?>(null) }
-    var accountLoading by remember { mutableStateOf(false) }
+    var accountLoading by remember { mutableStateOf(true) }
     var accountStatus by remember { mutableStateOf("") }
     var accountUsername by remember { mutableStateOf("") }
     var accountPassword by remember { mutableStateOf("") }
     var accountPasswordConfirmation by remember { mutableStateOf("") }
     var accountDisplayName by remember { mutableStateOf("") }
     var accountIoBrokerAddress by remember {
-        mutableStateOf(
-            prefs.getString("klimapilot_iobroker_address", null)
-                ?: prefs.getString("iobroker_server", "")
-                ?: ""
-        )
+        mutableStateOf(IoBrokerAddress.saved(prefs).orEmpty())
     }
     val rooms = remember {
         mutableStateListOf<String>().apply {
@@ -243,6 +239,113 @@ private fun KlimaPilotApp(appVersion: String) {
         }
     }
 
+    /** Übernimmt die Kontenliste aus dem bereits verbundenen ioBroker. */
+    fun importAccountsFromConnectedIoBroker(url: String) {
+        IoBrokerClient.getJsonState(KlimaPilotAccountRepository.LEGACY_STATE_ID) { json, error ->
+            IoBrokerClient.disconnect()
+            val legacy = json?.let { KlimaPilotAccountRegistry.fromJson(it) }
+            if (legacy != null) {
+                if (accountRepository.saveInitial(legacy) || accountRepository.replaceEmptyWithImported(legacy)) {
+                    accountRegistry = legacy
+                    IoBrokerAddress.store(prefs, url)
+                    accountIoBrokerAddress = url
+                    val remembered = prefs.getString("klimapilotRememberedUsername", null)
+                    val savedAccount = remembered?.let { legacy.find(it) }
+                    if (savedAccount != null) {
+                        currentAccount = savedAccount
+                        accountAuthenticated = true
+                        accountUsername = savedAccount.username
+                    } else {
+                        currentAccount = null
+                        accountAuthenticated = false
+                    }
+                    accountStatus = ""
+                } else {
+                    accountStatus = "Die Konten wurden gelesen, konnten aber nicht lokal gespeichert werden. Vorhandene Daten bleiben erhalten."
+                }
+            } else if (error?.contains("existiert noch nicht", ignoreCase = true) == true) {
+                IoBrokerAddress.store(prefs, url)
+                accountIoBrokerAddress = url
+                val empty = KlimaPilotAccountRegistry()
+                if (accountRepository.saveInitial(empty)) {
+                    accountRegistry = empty
+                    accountStatus = ""
+                } else {
+                    accountStatus = "Lokale Konten konnten nicht initialisiert werden. Bitte erneut versuchen."
+                }
+            } else {
+                accountStatus = "ioBroker wurde gefunden, aber die Kontenliste ist nicht lesbar: ${error ?: "ungültige Daten"}. Es wurde nichts verändert."
+            }
+            accountLoading = false
+        }
+    }
+
+    /**
+     * Automatische Einrichtung ohne Nutzereingabe: gespeicherte Adresse, sonst Suche im WLAN.
+     * Erst wenn das scheitert, zeigt der Login die Adresseingabe und den QR-Fallback.
+     */
+    fun startAutomaticAccountSetup(manualUrl: String?) {
+        val saved = IoBrokerAddress.saved(prefs)
+        accountLoading = true
+        accountStatus = ""
+        val candidates = if (manualUrl != null) listOf(manualUrl) else listOfNotNull(saved)
+        IoBrokerAutoSetup.connect(context, candidates, scanNetwork = manualUrl == null) { url, error ->
+            if (url == null) {
+                accountLoading = false
+                accountIoBrokerAddress = manualUrl ?: saved ?: accountIoBrokerAddress
+                accountStatus = if (manualUrl != null) "Keine Verbindung zu $manualUrl: $error" else ""
+                return@connect
+            }
+            importAccountsFromConnectedIoBroker(url)
+        }
+    }
+
+    fun connectManualIoBrokerAddress() {
+        val url = IoBrokerAddress.normalize(accountIoBrokerAddress)
+        if (url == null) {
+            accountStatus = "Bitte eine gültige Adresse eingeben, z. B. 192.168.178.54 oder 192.168.178.54:8084."
+            return
+        }
+        startAutomaticAccountSetup(manualUrl = url)
+    }
+
+    fun scanSetupQrCode() {
+        val activity = context as? android.app.Activity
+        if (activity == null) {
+            accountStatus = "Der QR-Scanner kann hier nicht geöffnet werden."
+            return
+        }
+        val options = com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE)
+            .enableAutoZoom().build()
+        runCatching { com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(activity, options).startScan() }
+            .onSuccess { task ->
+                task.addOnSuccessListener { barcode ->
+                    val payload = KlimaPilotSetupTransfer.parse(barcode.rawValue)
+                    when {
+                        payload == null ->
+                            accountStatus = "Dieser QR-Code ist kein gültiger KlimaPilot-Einrichtungscode oder bereits abgelaufen. Bitte auf dem anderen Smartphone neu erzeugen."
+                        !accountRepository.replaceEmptyWithImported(payload.registry) ->
+                            accountStatus = "Auf diesem Smartphone sind bereits Konten vorhanden. Sie wurden nicht überschrieben."
+                        else -> {
+                            payload.ioBrokerUrl?.let { IoBrokerAddress.store(prefs, it); accountIoBrokerAddress = it }
+                            accountRegistry = payload.registry
+                            currentAccount = null
+                            accountAuthenticated = false
+                            accountUsername = ""
+                            accountPassword = ""
+                            accountStatus = ""
+                        }
+                    }
+                }.addOnCanceledListener {
+                    accountStatus = ""
+                }.addOnFailureListener { error ->
+                    accountStatus = "QR-Scanner konnte nicht gestartet werden: ${error.message ?: "unbekannter Fehler"}"
+                }
+            }
+            .onFailure { error -> accountStatus = "QR-Scanner konnte nicht gestartet werden: ${error.message ?: "unbekannter Fehler"}" }
+    }
+
     fun loadAccounts() {
         when (val local = accountRepository.load()) {
             is KlimaPilotAccountLoadResult.Loaded -> {
@@ -277,65 +380,7 @@ private fun KlimaPilotApp(appVersion: String) {
             }
             KlimaPilotAccountLoadResult.Missing -> Unit
         }
-
-        val legacyUrl = (
-            prefs.getString("klimapilot_iobroker_address", null)
-                ?: prefs.getString("iobroker_server", null)
-        )?.trim()?.trimEnd('/')
-        if (legacyUrl.isNullOrBlank()) {
-            accountRegistry = null
-            accountLoading = false
-            accountStatus = "ioBroker ist noch nicht eingerichtet. Bitte gib die WebSocket-Adresse ein, damit KlimaPilot deine vorhandenen Konten laden kann."
-            return
-        }
-        accountIoBrokerAddress = legacyUrl
-        accountLoading = true
-        accountStatus = "Verbindung zu ioBroker wird im Hintergrund hergestellt und vorhandene Konten werden geladen …"
-        IoBrokerClient.connect(legacyUrl, subscribeAll = false) { connected, message ->
-            if (!connected) {
-                IoBrokerClient.disconnect()
-                accountLoading = false
-                accountStatus = "Einmalige Kontoübernahme fehlgeschlagen: $message. Bitte ioBroker vorübergehend erreichbar machen und erneut versuchen. Es wurden keine Konten gelöscht."
-                return@connect
-            }
-            IoBrokerClient.getJsonState(KlimaPilotAccountRepository.LEGACY_STATE_ID) { json, error ->
-                IoBrokerClient.disconnect()
-                val legacy = json?.let { KlimaPilotAccountRegistry.fromJson(it) }
-                if (legacy != null) {
-                    if (accountRepository.saveInitial(legacy)) {
-                        accountRegistry = legacy
-                        prefs.edit()
-                            .putString("iobroker_server", legacyUrl)
-                            .putString("klimapilot_iobroker_address", legacyUrl)
-                            .apply()
-                        val remembered = prefs.getString("klimapilotRememberedUsername", null)
-                        val savedAccount = remembered?.let { legacy.find(it) }
-                        if (savedAccount != null) {
-                            currentAccount = savedAccount
-                            accountAuthenticated = true
-                            accountUsername = savedAccount.username
-                        } else {
-                            currentAccount = null
-                            accountAuthenticated = false
-                        }
-                        accountStatus = ""
-                    } else {
-                        accountStatus = "Die bisherigen Konten wurden gelesen, konnten aber nicht lokal gespeichert werden. Die alten Daten bleiben erhalten."
-                    }
-                } else if (error?.contains("existiert noch nicht", ignoreCase = true) == true) {
-                    val empty = KlimaPilotAccountRegistry()
-                    if (accountRepository.saveInitial(empty)) {
-                        accountRegistry = empty
-                        accountStatus = ""
-                    } else {
-                        accountStatus = "Lokale Konten konnten nicht initialisiert werden. Bitte erneut versuchen."
-                    }
-                } else {
-                    accountStatus = "Die bisherigen Konten konnten nicht sicher übernommen werden: ${error ?: "Ungültige Kontenliste"}. Die alten Daten bleiben unverändert erhalten."
-                }
-                accountLoading = false
-            }
-        }
+        startAutomaticAccountSetup(manualUrl = null)
     }
 
     fun saveRegistry(expectedRevision: Long, next: KlimaPilotAccountRegistry, onSaved: (Boolean, String?) -> Unit) {
@@ -346,9 +391,9 @@ private fun KlimaPilotApp(appVersion: String) {
     }
 
     fun loadExistingAccountsFromIoBroker() {
-        val address = accountIoBrokerAddress.trim().trimEnd('/')
-        if (!(address.startsWith("ws://") || address.startsWith("wss://"))) {
-            accountStatus = "Bitte eine vollständige WebSocket-Adresse mit ws:// oder wss:// eingeben."
+        val address = IoBrokerAddress.normalize(accountIoBrokerAddress)
+        if (address == null) {
+            accountStatus = "Bitte eine gültige Adresse eingeben, z. B. 192.168.178.54 oder 192.168.178.54:8084."
             return
         }
         accountLoading = true
@@ -379,10 +424,7 @@ private fun KlimaPilotApp(appVersion: String) {
                     }
                     else -> {
                         accountRegistry = existing
-                        prefs.edit()
-                            .putString("iobroker_server", address)
-                            .putString("klimapilot_iobroker_address", address)
-                            .apply()
+                        IoBrokerAddress.store(prefs, address)
                         accountUsername = ""
                         accountPassword = ""
                         accountPasswordConfirmation = ""
@@ -541,6 +583,8 @@ private fun KlimaPilotApp(appVersion: String) {
             ioBrokerAddress = accountIoBrokerAddress,
             onIoBrokerAddress = { accountIoBrokerAddress = it },
             onLoadExistingAccounts = { loadExistingAccountsFromIoBroker() },
+            onConnectManualAddress = { connectManualIoBrokerAddress() },
+            onScanSetupQr = { scanSetupQrCode() },
             onReload = { loadAccounts() },
             onSubmit = { submitAccountLogin() }
         )
@@ -595,6 +639,9 @@ private fun KlimaPilotApp(appVersion: String) {
             onAddAccount = { username, displayName, password, role -> addAccount(username, displayName, password, role) },
             onResetPassword = { username, password -> resetAccountPassword(username, password) },
             onDeleteAccount = { username -> deleteAccount(username) },
+            setupQrPayload = {
+                accountRegistry?.let { KlimaPilotSetupTransfer.create(it, IoBrokerAddress.saved(prefs)) }
+            },
         )
     } else if (showSettings) {
         SettingsScreen(
@@ -1274,6 +1321,9 @@ private fun IoBrokerConnectionSettingsCard(expanded: Boolean, onExpandedChange: 
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
     fun initialAddress(): String {
         val configured = prefs.getString("klimapilot_iobroker_address", null)
+        if (!configured.isNullOrBlank() && configured.contains("://")) {
+            return configured.substringAfter("://").substringBefore("/").substringBefore("?").substringBeforeLast(":")
+        }
         if (!configured.isNullOrBlank()) return configured
         val legacy = prefs.getString("iobroker_server", null)?.trim().orEmpty()
         if (legacy.startsWith("ws://") || legacy.startsWith("wss://")) {

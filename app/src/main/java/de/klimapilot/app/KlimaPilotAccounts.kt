@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -291,6 +292,8 @@ internal fun KlimaPilotAccountLoginScreen(
     loading: Boolean, status: String,
     ioBrokerAddress: String, onIoBrokerAddress: (String) -> Unit,
     onLoadExistingAccounts: () -> Unit,
+    onConnectManualAddress: () -> Unit,
+    onScanSetupQr: () -> Unit,
     onReload: () -> Unit, onSubmit: () -> Unit
 ) {
     val setup = registry?.accounts?.isEmpty() == true
@@ -308,7 +311,8 @@ internal fun KlimaPilotAccountLoginScreen(
         Spacer(Modifier.height(8.dp))
         Text(
             when {
-                registry == null -> "KlimaPilot-Konten werden geladen …"
+                registry == null && loading -> "KlimaPilot wird eingerichtet …"
+                registry == null -> "ioBroker nicht gefunden"
                 setup -> "Ersteinrichtung · Administrator erstellen"
                 else -> "Mit deinem KlimaPilot-Konto anmelden"
             },
@@ -318,28 +322,34 @@ internal fun KlimaPilotAccountLoginScreen(
         if (registry == null) {
             if (loading) {
                 CircularProgressIndicator()
-                Text("Verbindung zu ioBroker wird hergestellt …", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             } else {
                 Text(
-                    "KlimaPilot verwendet automatisch die gespeicherte ioBroker-Adresse. Falls ioBroker nicht erreichbar ist oder noch keine Adresse hinterlegt wurde, kannst du sie hier eingeben.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+                    "KlimaPilot konnte ioBroker weder unter der gespeicherten Adresse noch im WLAN finden. " +
+                        "Falls sich die Adresse geändert hat, gib sie hier ein.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp
                 )
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = ioBrokerAddress,
                     onValueChange = onIoBrokerAddress,
-                    label = { Text("ioBroker-WebSocket-Adresse") },
-                    placeholder = { Text("ws://192.168.178.54:8084") },
+                    label = { Text("ioBroker-Adresse") },
+                    placeholder = { Text("192.168.178.54") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedButton(
-                    onClick = onLoadExistingAccounts,
-                    enabled = !loading && ioBrokerAddress.isNotBlank(),
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = onConnectManualAddress,
+                    enabled = ioBrokerAddress.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Erneut mit ioBroker verbinden und Konten laden") }
-                if (status.isNotBlank()) {
-                    Text(status, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                ) { Text("Verbinden") }
+                OutlinedButton(onClick = onReload, modifier = Modifier.fillMaxWidth()) {
+                    Text("Automatisch erneut suchen")
                 }
+                Spacer(Modifier.height(18.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(10.dp))
+                SetupQrImportSection(onScanSetupQr)
             }
         } else {
             OutlinedTextField(username, onUsername, label = { Text("Benutzername") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -379,14 +389,14 @@ internal fun KlimaPilotAccountLoginScreen(
                 Spacer(Modifier.height(10.dp))
                 Text("Mit vorhandenem Benutzerkonto anmelden", fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Gib die WebSocket-Adresse deines ioBroker ein. KlimaPilot lädt die dort bereits gespeicherte Kontenliste. Anschließend kannst du dich mit deinem bisherigen Benutzernamen und Passwort anmelden.",
+                    "Gib die Adresse deines ioBroker ein. KlimaPilot lädt die dort gespeicherte Kontenliste. Anschließend kannst du dich mit deinem bisherigen Benutzernamen und Passwort anmelden.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
                 )
                 OutlinedTextField(
                     value = ioBrokerAddress,
                     onValueChange = onIoBrokerAddress,
-                    label = { Text("ioBroker-WebSocket-Adresse") },
-                    placeholder = { Text("ws://192.168.178.54:8084") },
+                    label = { Text("ioBroker-Adresse") },
+                    placeholder = { Text("192.168.178.54") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -397,6 +407,10 @@ internal fun KlimaPilotAccountLoginScreen(
                 ) {
                     Text(if (loading) "Vorhandene Konten werden geladen …" else "Vorhandene Konten laden")
                 }
+                Spacer(Modifier.height(18.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(10.dp))
+                SetupQrImportSection(onScanSetupQr)
             }
         }
         if (status.isNotBlank()) {
@@ -404,6 +418,18 @@ internal fun KlimaPilotAccountLoginScreen(
             Text(status, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
         }
     }
+}
+
+@Composable
+private fun SetupQrImportSection(onScanSetupQr: () -> Unit) {
+    Text("Von einem anderen Smartphone übernehmen", fontWeight = FontWeight.SemiBold)
+    Text(
+        "Auf dem eingerichteten Smartphone: Einstellungen → Benutzerkonto → „Anderes Smartphone einrichten“. " +
+            "Dann hier den angezeigten QR-Code scannen. Konten und ioBroker-Adresse werden übernommen.",
+        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+    )
+    Spacer(Modifier.height(6.dp))
+    OutlinedButton(onClick = onScanSetupQr, modifier = Modifier.fillMaxWidth()) { Text("QR-Code scannen") }
 }
 
 @Composable
@@ -415,8 +441,11 @@ internal fun KlimaPilotAccountSettingsScreen(
     onSwitchAccount: () -> Unit,
     onAddAccount: (String, String, String, String) -> Unit,
     onResetPassword: (String, String) -> Unit,
-    onDeleteAccount: (String) -> Unit
+    onDeleteAccount: (String) -> Unit,
+    setupQrPayload: () -> String? = { null }
 ) {
+    var setupQr by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var setupQrError by remember { mutableStateOf("") }
     var showAdd by remember { mutableStateOf(false) }
     var newUsername by remember { mutableStateOf("") }
     var newDisplayName by remember { mutableStateOf("") }
@@ -456,6 +485,23 @@ internal fun KlimaPilotAccountSettingsScreen(
             }
         }
         if (account.role == KlimaPilotAccount.ADMIN) {
+            Card(shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Anderes Smartphone einrichten", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Zeigt einen QR-Code mit allen Konten und der ioBroker-Adresse. Das neue Smartphone scannt ihn auf dem Anmeldebildschirm. Gültig 10 Minuten.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+                    )
+                    OutlinedButton(onClick = {
+                        val payload = setupQrPayload()
+                        setupQr = payload?.let {
+                            runCatching { de.klimapilot.app.sync.ClimatePairingQrCode.encode(it, 720).toSetupBitmap() }.getOrNull()
+                        }
+                        setupQrError = if (setupQr == null) "QR-Code konnte nicht erzeugt werden." else ""
+                    }, modifier = Modifier.fillMaxWidth()) { Text("QR-Code anzeigen") }
+                    if (setupQrError.isNotBlank()) Text(setupQrError, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
+            }
             Text("Benutzerverwaltung · ${accounts.size} Konten", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             accounts.forEach { item ->
                 Card(shape = RoundedCornerShape(14.dp)) {
@@ -482,6 +528,27 @@ internal fun KlimaPilotAccountSettingsScreen(
             }
         }
         if (status.isNotBlank()) Text(status, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+    }
+
+    setupQr?.let { bitmap ->
+        AlertDialog(
+            onDismissRequest = { setupQr = null },
+            title = { Text("Anderes Smartphone einrichten") },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.foundation.Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "KlimaPilot-Einrichtungs-QR-Code",
+                        modifier = Modifier.size(280.dp)
+                    )
+                    Text(
+                        "Auf dem neuen Smartphone KlimaPilot öffnen und auf dem Anmeldebildschirm „QR-Code scannen“ wählen. Nur eigenen Geräten zeigen.",
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { setupQr = null }) { Text("Fertig") } }
+        )
     }
 
     if (showOwnPassword) AlertDialog(
