@@ -73,6 +73,11 @@ jobs:
           test "$APP_ID" = "de.klimapilot.app.debug"
           test "$VERSION_CODE" = "95"
           test "$VERSION_NAME" = "0.4.65-debug"
+          PERMISSIONS=$( "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest permissions "$APK" )
+          if printf '%s\\n' "$PERMISSIONS" | grep -q "android.permission.REQUEST_INSTALL_PACKAGES"; then
+            echo "ERROR: Debug APK still declares REQUEST_INSTALL_PACKAGES"
+            exit 1
+          fi
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           sha256sum "$APK" | tee tcp-api26-debug-apk.sha256
       - name: Debug-APK als Testartefakt bereitstellen
