@@ -1,7 +1,6 @@
 # KlimaPilot – direkte WLAN-Verbindung zum WF-RAC
 
-**Dokumentationsabgleich:** 18.11.2026, 08:16 Uhr MEZ  
-**Produktionsreferenz:** 0.4.64 / versionCode 94  
+**Fachlicher Stand:** 18.11.2026  
 **Zielgerät:** Mitsubishi Heavy SRK15ZS-WF (noch nicht installiert)
 
 ## Zweck und Abgrenzung
@@ -14,7 +13,7 @@ Dieses Dokument beschreibt den direkten lokalen Kommunikationsweg der App zur Kl
 
 ## Produktiver Stand
 
-Die produktive App-Version ist 0.4.64 / versionCode 94. Der letzte bestätigte erfolgreiche Produktionsbuild ist Actions #233 auf Commit `b88ff7e9709bc1ea5aafd673e26bb1d4efee9c16`; `latest` enthält die signierte APK.
+Produktivversion, Buildnachweis und Release-Stand werden ausschließlich in `PROJECT_STATUS.md` gepflegt.
 
 Der dokumentierte Funktionsumfang umfasst gerätebezogene Kopplung, getrennte Geräte-IDs/Verbindungen und die im App-Code vorhandenen WF-RAC-Bedienfunktionen. Dazu zählen Ein/Aus, Betriebsmodus, Solltemperatur, Lüfterstufe sowie die vom jeweiligen Modell gelieferten Luftführungsoptionen. Profilanwendung und Demo-Modus sind ebenfalls Bestandteil des App-Stands.
 
@@ -39,7 +38,7 @@ Der dokumentierte Funktionsumfang umfasst gerätebezogene Kopplung, getrennte Ge
 
 - WLAN-Pairing zwischen zwei Smartphones: siehe `LOCAL_WIFI_SYNC_DESIGN.md`.
 - Pairing-Sicherheitsentscheidungen: siehe `PAIRING_PROTOCOL_DECISIONS.md`.
-- Produktions-/Branchstatus: siehe `PROJECT_STATUS.md`.
+- Produktions-/Branch-/Buildstatus: ausschließlich siehe `PROJECT_STATUS.md`.
 
 ## Updater
 
