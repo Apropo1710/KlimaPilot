@@ -28,6 +28,24 @@ internal class ClimatePairingSessionController(
     private var pendingIncomingDisplayName: String? = null
     private val consumedIncomingSessions = mutableMapOf<String, Long>()
 
+    /** Starts an outgoing session with an invitation whose WLAN listener is already bound. */
+    @Synchronized
+    fun startOutgoingInvitation(invitation: ClimatePairingInvitation.Invitation): String {
+        check(incomingInvitation == null && outgoingInvitation == null) {
+            "Es läuft bereits eine Pairing-Sitzung."
+        }
+        check(invitation.peerId == localPeerId) {
+            "Die Einladung gehört nicht zu dieser Geräteidentität."
+        }
+        check(ClimatePairingEndpoint.isAllowed(invitation.pairingHost, invitation.pairingPort)) {
+            "Der WLAN-Rückkanal ist ungültig."
+        }
+        outgoingInvitation = invitation
+        outgoingConfirmation = null
+        pendingResponsePeer = null
+        return invitation.toQrPayload()
+    }
+
     @Synchronized
     fun createOutgoingInvitation(nowMillis: Long = System.currentTimeMillis()): String {
         check(incomingInvitation == null && outgoingInvitation == null) {
