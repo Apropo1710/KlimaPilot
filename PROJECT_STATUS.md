@@ -31,8 +31,8 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Die bestehende WLAN-/Pairing-Entwicklung auf `test` wurde nicht zurückgesetzt. Der manuelle JSON-Transfer wurde in der Login-Ersteinrichtung durch den direkten ioBroker-Abruf ersetzt.
 - Gezielte Repository-Regressionstests decken fehlende, leere, bereits befüllte und beschädigte lokale Registries ab.
 - Testversion: **0.4.68 / versionCode 98** (Debug-Paketkennung `de.klimapilot.app.debug`).
-- Codeänderungen: `ab7da3a` (sichere Importlogik), `9d15852` (ioBroker-Abruf), `0ad1d42` (Versionsanhebung), `f8f4261` (Login-Oberfläche).
-- GitHub-Actions-Validierung nach den Änderungen steht aus; Smartphone-Test auf zwei Geräten steht aus.
+- Codeänderungen: `ab7da3a` (sichere Importlogik), `9d15852` (ioBroker-Abruf), `0ad1d42` (Versionsanhebung), `f8f4261` (Login-Oberfläche), `86cd86d` (Regressionstests), `7f75f4d` (manuellen Datei-Transfer aus der Oberfläche entfernt).
+- GitHub Actions: WLAN-Validierung #220 und API-26-/TCP-Validierung #85 laufen aktuell für Commit `7f75f4d`; die API-26-APK-Prüfung wurde auf versionCode 98 und `0.4.68-debug` angepasst. Smartphone-Test auf zwei Geräten steht aus.
 - `main` bleibt unverändert. Der Updater wurde nicht verändert.
 
 ## 3. Letzte Codeänderung
