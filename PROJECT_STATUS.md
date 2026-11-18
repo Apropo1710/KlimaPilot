@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 16:10 Uhr MEZ (Ein-Scan-WLAN-Pairing integriert; WLAN-Workflow #240 erfolgreich; Debug-Test-APK bereitgestellt)
+**Letzter Abgleich:** 18.11.2026, 17:40 Uhr MEZ (feste Test-Signatur über CI-Secret; WLAN-Workflow #245 erfolgreich; Test-APK 0.4.69 als Pre-Release `klimapilot-test-latest` bereitgestellt)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -14,7 +14,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test` und PR #6
 
-- Aktueller `test`-HEAD vor dem Login-Arbeitspaket: `0dccd771732b414c85259dce80dcc25c2be7e3f3`. Der Debug-only Manifest-Fix wurde in `f31380e...` ergänzt; `app/build.gradle.kts` wurde in `9ccf66f...` auf 0.4.65 / versionCode 95 angehoben. Der API-26-Workflow prüft für die neue APK `de.klimapilot.app.debug`, Version `0.4.65-debug`, versionCode 95. API-26-Lauf #73 und WLAN-Lauf #209 sind beide erfolgreich abgeschlossen. #73 hat die Debug-APK `0.4.65-debug` erstellt, Paket-/Versionsprüfung, Signaturprüfung und Artefakt-Upload bestanden. Das Artefakt wurde heruntergeladen; SHA-256 stimmt mit der im Artefakt enthaltenen Prüfsummendatei überein. Zusätzlich wurde nachträglich die CI-Prüfung ergänzt, die im APK-Manifest `REQUEST_INSTALL_PACKAGES` explizit ausschließen muss. Diese zusätzliche Prüfung läuft noch in einem Folgeworkflow. Der Workflow-Commit baut nach erfolgreicher API-26-Instrumentierung die Debug-APK, prüft Paketkennung/Version/Signatur und lädt sie als CI-Artefakt hoch. Der WLAN-Workflow ignoriert Workflow-only-Änderungen. Der getestete App-/Code-Stand des WLAN-Laufs #205 ist `f99ffb0a48a77afcd03c38950927369288fcfc5e`; die Folgecommits ändern ausschließlich CI-Konfiguration und Dokumentation. Der letzte Code-/Teststand davor bleibt `63d53bb07a55bfb0207659749f8e6624d78215a7` (Socket-Cleanup-Fix `334308e40ea17b2e57a6c640ca49c20e83d22e8b` plus gezielter Regressionstest).
+- Aktueller `test`-HEAD (Code/CI): `2bcbffa94997ad5219e8a5d432ea18431313f6e1` – Version **0.4.69 / versionCode 99**, Debug `0.4.69-debug`, Paket `de.klimapilot.app.debug`. Details zur Testsignatur und zum Build siehe Abschnitt 2e. Ältere Hash-/Build-Angaben in den Abschnitten 2a–2d und 5 sind historische Nachweise.
 - Vorheriger Defaultnetz-Codecommit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
 - Die anschließende Lifecycle-Snapshot-Absicherung und ihre Policy-Tests sind Bestandteil dieses Commits.
 - [PR #6](https://github.com/Apropo1710/KlimaPilot/pull/6): offen, Draft, nicht gemergt. Kein Merge ohne ausdrückliche Freigabe.
@@ -71,6 +71,21 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Artefakt: `KlimaPilot-debug-test-0.4.68`, ID `14438439474`, 18.188.574 Bytes, verfügbar bis 25.11.2026. SHA-256 der APK: `c3fb5f9e9ffb4d44136a53a8bdbfbdb4502654c169e8d603ce61cab57ee7c6fe`; SHA-256 des Artifact-ZIP: `f9a8678d9534668e3c218ba1e40ac67e18f579eb0a7bb721657eb460567bddd6`.
 - APK-Signaturprüfung mit `apksigner` erfolgreich (v2). CI prüfte außerdem Paketkennung/Version und das Fehlen von `REQUEST_INSTALL_PACKAGES`. Der Debug-Build bleibt ausschließlich ein Testartefakt, kein Produktionsrelease.
 - **Noch offen:** Installation und echter Test mit zwei Smartphones. Insbesondere erfolgreicher Ablauf, Abbruch, Timeout, Verbindungsverlust, beidseitige Speicherung und Verhalten bei ungültigen/gefälschten Nachrichten müssen praktisch geprüft werden. Bis dahin keine Freigabe für Profil-/Nutzdatentransfer und kein Merge.
+
+## 2e. Feste Test-Signatur und Test-APK 0.4.69 (18.11.2026)
+
+- Fehler WLAN-Workflow **#241** (Run `44339096984`, Commit `985c050`): eingecheckter `app/klimapilot-test-debug.keystore` war ungültig (PKCS12-Integritätsprüfung fehlgeschlagen). Keine APK.
+- Commit `56eb4e1`: ungültige Keystore-Datei aus dem Repository entfernt (bleibt in der Git-Historie, ist aber unbrauchbar). Lauf **#242** (Run `44344737195`) scheiterte, weil die zugehörige Gradle-Änderung erst im Folgecommit lag.
+- Commit `43526e6`: Debug-Signierung liest `KLIMAPILOT_TEST_KEYSTORE_PATH` / `KLIMAPILOT_TEST_*` aus der Umgebung; ohne diese Variablen (lokale Builds) wird der Android-Standard-Debugschlüssel verwendet. Lauf **#243** (Run `44345348385`) scheiterte erwartungsgemäß am noch fehlenden Secret.
+- Commit `695e9ab`: Nur noch **ein** Secret nötig: `KLIMAPILOT_TEST_KEYSTORE_BASE64` (vom Nutzer angelegt). Alias `klimapilot-test` und Keystore-Passwort stehen im Workflow (ohne die Schlüsseldatei wertlos). Workflow-Änderungen lösen jetzt ebenfalls einen Build aus.
+- Testschlüssel: PKCS12, RSA 2048, gültig bis 10.11.2056. **Zertifikat SHA-256: `230865b90b0c37e6a7935fd4f5e0fad0626853a44921a7a2f7d6185b9665ecfb`.** Die CI bricht ab, wenn die APK nicht genau einen Signierer mit diesem Zertifikat hat. Produktionssignierung und Produktions-Secrets unverändert. Sicherungskopie des Schlüssels liegt beim Nutzer.
+- WLAN-Workflow **#244** (Run `44346124733`, Commit `695e9ab`): erfolgreich, Zertifikat bestätigt.
+- Commit `2bcbffa`: Der Workflow veröffentlicht die geprüfte Debug-APK zusätzlich als Pre-Release unter dem separaten Tag **`klimapilot-test-latest`** (nie `latest`; der Updater liest ausschließlich `releases/tags/latest`).
+- WLAN-Workflow **#245** (Run `44348138478`, Commit `2bcbffa94997ad5219e8a5d432ea18431313f6e1`): **erfolgreich** – Unit-Tests, Debug-Build, Release-Kotlin-Kompilierung, Paket/Version, kein `REQUEST_INSTALL_PACKAGES`, Signatur und Zertifikats-Fingerprint geprüft, Artefakt und Pre-Release hochgeladen.
+- Artefakt `KlimaPilot-debug-test-0.4.69`, ID `14448245408`, läuft am 25.11.2026 ab.
+- **Direkter Download:** https://github.com/Apropo1710/KlimaPilot/releases/download/klimapilot-test-latest/KlimaPilot-test.apk (18.813.180 Bytes), APK-SHA-256 `c5fa0649e94371950c9a56477e4540ed7196dbb5d239ad96a80df682f2d1072c`. Unabhängig nachgeprüft: heruntergeladen, Hash identisch mit CI, Manifest `de.klimapilot.app.debug` / `0.4.69-debug` / 99, minSdk 26, targetSdk 35, ohne `REQUEST_INSTALL_PACKAGES`, ein v2-Signierer mit obigem Zertifikat.
+- **Migration:** Bereits installierte ältere Testversionen (z. B. aus #221/#240) tragen eine andere Signatur und lassen sich nicht direkt aktualisieren. Einmalige Neuinstallation der Testversion nötig; davor lokale Daten prüfen. Alle künftigen Testbuilds verwenden dieselbe Signatur und sind als Update installierbar.
+- **Noch offen:** Zwei-Smartphone-Praxistest des Ein-Scan-Pairings (siehe 2d). Kein Merge, kein Nutzdatentransfer.
 
 ## 3. Letzte Codeänderung
 
@@ -132,7 +147,7 @@ Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als 
 - Die elf Netzwerk-Policy-Fälle wurden im WLAN-Workflow #203 auf dem damaligen App-/Teststand durch `testDebugUnitTest` ausgeführt; der gesamte Workflow war erfolgreich. Zusätzlich wurden sie zuvor mit einem separaten Kotlin-Smoke-Harness 11/11 bestanden. Der Smoke-Harness ist kein Ersatz für Gradle, Android-Kompilierung oder Emulator-/Gerätetests.
 
 Workflows:
-- `.github/workflows/wlan-validation.yml`: Push-Trigger für `test`; reine `PROJECT_STATUS.md`- und `.github/workflows/**`-Änderungen sind ausgeschlossen, damit Workflow-Konfigurationspflege keinen zweiten redundanten Build auslöst. Zusätzlich `workflow_dispatch`; führt Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35 aus.
+- `.github/workflows/wlan-validation.yml`: Push-Trigger für `test`; nur `PROJECT_STATUS.md` und `app/src/debug/**` sind ausgeschlossen (Workflow-Änderungen bauen seit `695e9ab` neu). Zusätzlich `workflow_dispatch`; führt Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35 aus, prüft Manifest, Signatur und Test-Zertifikat und veröffentlicht die APK als Pre-Release `klimapilot-test-latest`.
 - `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; API-26-Emulator-/Instrumentierungstest. Seit Commit `2e6a817...` kein Push-Trigger mehr; nur `workflow_dispatch` ist konfiguriert. Reguläre Änderungen auf `test` lösen diesen Emulatorworkflow nicht mehr aus. Manuelle Auslösung bleibt aufgrund der Workflow-Datei nur auf `test` möglicherweise nicht über die GitHub-Oberfläche verfügbar. Der WLAN-Workflow bleibt der reguläre Prüfweg.
 
 ## 6. Verbindliche Freigabesperren
@@ -153,12 +168,11 @@ Workflows:
 
 ## 8. Nächste Schritte
 
-1. Ein-Schritt-Pairing mit beidseitig bestätigtem Speicher-ACK und Tests für Timeout, Abbruch, ungültige Antwort und Verbindungsverlust implementieren. Login-Änderungen integrieren. Danach Version erhöhen und gebündelte CI-Validierung starten.
-2. Folgeworkflow mit expliziter APK-Manifest-Prüfung abwarten. Nur wenn `apkanalyzer manifest permissions` bestätigt, dass `REQUEST_INSTALL_PACKAGES` fehlt, und Paket/Version/Signatur stimmen, die Debug-APK für den Zwei-Smartphone-Test freigeben. Noch kein Profiltransfer.
-2. Anschließend die explizite Authentifizierung zwischen zwei realen Smartphones prüfen: beidseitig gekoppelte Peers erfolgreich, unbekannter Peer abgewiesen, WLAN-Socket-Bindung bei mobilem Defaultnetz, Abbruch während Handshake und Cleanup beim Stop.
-3. Falls CI und Geräteprüfung erfolgreich sind, Nachrichtenframing, Größen-/Schema-/Gerätevalidierung, Replay-/Duplikaterkennung und idempotente Wiederaufnahme spezifizieren.
+1. Test-APK 0.4.69 (Pre-Release `klimapilot-test-latest`) auf beiden Smartphones installieren; bei alter Testinstallation einmalige Neuinstallation nach Datenprüfung.
+2. Zwei-Smartphone-Test des Ein-Scan-Pairings: erfolgreiche Kopplung mit beidseitiger Speicherung, Abbruch, Timeout, Verbindungsverlust während Antwort/ACK, ungültige/gefälschte/wiederholte Nachrichten, ungültiger WLAN-Endpunkt. Ein abgebrochener Ablauf darf nirgends als gekoppelt erscheinen.
+3. Nach bestandenem Gerätetest: Nachrichtenframing, Schema-/Größenvalidierung, Replay-/Duplikaterkennung und idempotente Wiederaufnahme für den Nutzdatentransfer spezifizieren.
 4. Regressionstests für den bestehenden ioBroker-Sync-Pfad ergänzen.
-5. Bis zur vollständigen Payload-Härtung und zum erfolgreichen Zwei-Smartphone-Test bleibt Peer-Nutzdatentransfer gesperrt.
+5. Bis dahin bleibt Peer-Nutzdatentransfer gesperrt; kein Merge von PR #6 ohne Freigabe.
 
 ## 9. Dokumentationsstruktur und Pflege
 
