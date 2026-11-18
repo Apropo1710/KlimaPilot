@@ -1,9 +1,7 @@
 # KlimaPilot – lokale Smartphone-Synchronisation
 
-**Dokumentationsabgleich:** 18.11.2026, 08:16 Uhr MEZ  
-**Arbeitsbranch:** `test`, PR #6 offen/Draft  
-**Produktionsbranch:** `main`, unverändert
-
+**Fachlicher Stand:** 18.11.2026  
+**Aktueller Branch-/PR-/CI-Status:** ausschließlich in `PROJECT_STATUS.md`.
 ## 1. Ziel und Grenzen
 
 Zwei KlimaPilot-Installationen sollen nach bewusster gegenseitiger Kopplung Profile/Ereignisse lokal über WLAN austauschen können. Der Weg ist unabhängig von Cloud-Diensten und vom direkten WF-RAC-Steuerpfad.
@@ -38,7 +36,7 @@ Bis zur abgeschlossenen Integration und einem erfolgreichen Test mit zwei realen
 - Wird ein anderes WLAN zum Standardnetz, wird fail-closed abgebrochen.
 - Mobilfunk als Standardnetz ist zulässig, solange das ausgewählte WLAN verfügbar bleibt.
 - Beide Callbacks werden beim Cleanup abgemeldet.
-- Aktueller Code-Commit: `bba8969ba4306d159ba388753f85c6638bf32f7f`.
+- Der aktuelle Code-Commit und seine Validierung werden ausschließlich in `PROJECT_STATUS.md` geführt.
 
 ### Reject-only Listener
 
@@ -82,14 +80,9 @@ Vor jeglicher Peer-Nutzdatenübertragung sind mindestens umzusetzen und zu prüf
 8. Regressionstests für den bestehenden ioBroker-Sync-Pfad.
 9. Erfolgreiche Android-CI-Validierung und Praxistest mit zwei Smartphones.
 
-## 7. Validierungsstatus am 18.11.2026, 08:16 Uhr MEZ
+## 7. Validierung
 
-- WLAN-Workflow #202 erfolgreich, aber auf älterem Code `ae1bdc03...`.
-- TCP-Emulatorlauf #201 erfolgreich, aber auf älterem Code `41b9a3ab...`, API 26.
-- Für den aktuellen Netzwerk-Codecommit `bba8969...` ist kein erfolgreicher Android-Build/Testlauf bestätigt.
-- Sieben JVM-Adress-/IPv6-Scope-Testfälle sind vorhanden, aber nicht als aktuell ausgeführt bestätigt.
-- Kein Zwei-Smartphone-Test.
-- API-35-Emulatorprüfung nicht bestätigt.
+Build-, CI- und Geräte-Testnachweise für den aktuellen Stand werden ausschließlich in `PROJECT_STATUS.md` geführt. Die dort dokumentierten älteren erfolgreichen Läufe sind kein Nachweis für den jeweils neuesten Codecommit.
 
 ## 8. Nächste Schritte
 
