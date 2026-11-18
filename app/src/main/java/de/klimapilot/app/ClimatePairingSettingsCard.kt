@@ -125,11 +125,12 @@ internal fun ClimatePairingSettingsCard() {
                         val confirmation = active.prepareOutgoingResponse(responsePayload)
                             ?: throw IllegalArgumentException("Die signierte Antwort ist ungültig oder gehört nicht zu dieser Einladung.")
                         active.confirmOutgoingResponseAndCreateAcknowledgement(
-                            confirmation,
-                            "KlimaPilot-Gerät"
-                        ) { response, now ->
-                            ClimatePairingAcknowledgement.create(identityStore, response, now).toPayload()
-                        }
+                            confirmation = confirmation,
+                            displayName = "KlimaPilot-Gerät",
+                            createAcknowledgement = { response, now ->
+                                ClimatePairingAcknowledgement.create(identityStore, response, now).toPayload()
+                            }
+                        )
                     }
                     busy = false
                     qrPayload = null
