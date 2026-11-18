@@ -1,7 +1,6 @@
 package de.klimapilot.app
 
 import android.os.Bundle
-import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
@@ -118,7 +117,9 @@ private fun KlimaPilotApp(appVersion: String) {
     var accountPassword by remember { mutableStateOf("") }
     var accountPasswordConfirmation by remember { mutableStateOf("") }
     var accountDisplayName by remember { mutableStateOf("") }
-    var accountImportText by remember { mutableStateOf("") }
+    var accountIoBrokerAddress by remember {
+        mutableStateOf(prefs.getString("iobroker_server", "") ?: "")
+    }
     val rooms = remember {
         mutableStateListOf<String>().apply {
             addAll(prefs.getStringSet("rooms", null)?.toList() ?: listOf("Wohnzimmer", "Schlafzimmer"))
@@ -331,40 +332,50 @@ private fun KlimaPilotApp(appVersion: String) {
         }
     }
 
-    fun importExistingAccounts() {
-        val imported = runCatching {
-            KlimaPilotAccountRegistry.fromJson(org.json.JSONObject(accountImportText.trim()))
-        }.getOrNull()
-        if (imported == null || imported.accounts.isEmpty()) {
-            accountStatus = "Die eingefügte Kontenliste ist ungültig oder enthält keine Benutzerkonten."
+    fun loadExistingAccountsFromIoBroker() {
+        val address = accountIoBrokerAddress.trim().trimEnd('/')
+        if (!(address.startsWith("ws://") || address.startsWith("wss://"))) {
+            accountStatus = "Bitte eine vollständige WebSocket-Adresse mit ws:// oder wss:// eingeben."
             return
         }
         accountLoading = true
-        if (!accountRepository.replaceEmptyWithImported(imported)) {
-            accountLoading = false
-            accountStatus = "Die lokale Kontenliste ist nicht mehr leer oder nicht lesbar. Sie wurde vorsichtshalber nicht überschrieben."
-            return
+        accountStatus = "Verbindung zu ioBroker wird hergestellt …"
+        IoBrokerClient.connect(address, subscribeAll = false) { connected, message ->
+            if (!connected) {
+                IoBrokerClient.disconnect()
+                accountLoading = false
+                accountStatus = "Verbindung zu ioBroker fehlgeschlagen: $message"
+                return@connect
+            }
+            accountStatus = "Vorhandene Konten werden geladen …"
+            IoBrokerClient.getJsonState(KlimaPilotAccountRepository.LEGACY_STATE_ID) { json, error ->
+                IoBrokerClient.disconnect()
+                val existing = json?.let { KlimaPilotAccountRegistry.fromJson(it) }
+                when {
+                    existing == null -> {
+                        accountLoading = false
+                        accountStatus = "Die vorhandene Kontenliste konnte nicht aus ioBroker gelesen werden: ${error ?: "Die Daten sind ungültig."} Die lokale Einrichtung wurde nicht verändert."
+                    }
+                    existing.accounts.isEmpty() -> {
+                        accountLoading = false
+                        accountStatus = "Im ioBroker wurde eine gültige, aber leere Kontenliste gefunden. Es sind dort keine vorhandenen Benutzerkonten vorhanden."
+                    }
+                    !accountRepository.replaceEmptyWithImported(existing) -> {
+                        accountLoading = false
+                        accountStatus = "Die lokale Kontenliste ist nicht mehr leer oder nicht lesbar. Sie wurde vorsichtshalber nicht überschrieben."
+                    }
+                    else -> {
+                        accountRegistry = existing
+                        prefs.edit().putString("iobroker_server", address).apply()
+                        accountUsername = ""
+                        accountPassword = ""
+                        accountPasswordConfirmation = ""
+                        accountLoading = false
+                        accountStatus = "Vorhandene Konten geladen. Du kannst dich jetzt mit deinem bisherigen Benutzerkonto anmelden."
+                    }
+                }
+            }
         }
-        accountRegistry = imported
-        accountImportText = ""
-        accountPassword = ""
-        accountPasswordConfirmation = ""
-        accountLoading = false
-        accountStatus = "Kontenliste erfolgreich übernommen. Du kannst dich jetzt mit deinem vorhandenen Benutzerkonto anmelden."
-    }
-
-    fun exportAccounts() {
-        val registry = accountRegistry
-        if (currentAccount?.role != KlimaPilotAccount.ADMIN || registry == null || registry.accounts.isEmpty()) {
-            accountStatus = "Nur ein Administrator kann die Kontenliste exportieren."
-            return
-        }
-        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "KlimaPilot-Kontenübertragung")
-            putExtra(Intent.EXTRA_TEXT, registry.toJson().toString())
-        }
-        context.startActivity(Intent.createChooser(sendIntent, "Kontenliste sicher an anderes Gerät übertragen"))
     }
 
     fun submitAccountLogin() {
@@ -511,9 +522,9 @@ private fun KlimaPilotApp(appVersion: String) {
             displayName = accountDisplayName, onDisplayName = { accountDisplayName = it },
             loading = accountLoading,
             status = accountStatus,
-            importText = accountImportText,
-            onImportText = { accountImportText = it },
-            onImportAccounts = { importExistingAccounts() },
+            ioBrokerAddress = accountIoBrokerAddress,
+            onIoBrokerAddress = { accountIoBrokerAddress = it },
+            onLoadExistingAccounts = { loadExistingAccountsFromIoBroker() },
             onReload = { loadAccounts() },
             onSubmit = { submitAccountLogin() }
         )
@@ -567,8 +578,7 @@ private fun KlimaPilotApp(appVersion: String) {
             },
             onAddAccount = { username, displayName, password, role -> addAccount(username, displayName, password, role) },
             onResetPassword = { username, password -> resetAccountPassword(username, password) },
-            onDeleteAccount = { username -> deleteAccount(username) },
-            onExportAccounts = { exportAccounts() }
+            onDeleteAccount = { username -> deleteAccount(username) }
         )
     } else if (showSettings) {
         SettingsScreen(
