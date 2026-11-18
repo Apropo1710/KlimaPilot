@@ -122,6 +122,9 @@ private fun KlimaPilotApp(appVersion: String) {
     var accountPassword by remember { mutableStateOf("") }
     var accountPasswordConfirmation by remember { mutableStateOf("") }
     var accountDisplayName by remember { mutableStateOf("") }
+    var accountIoBrokerAddress by remember {
+        mutableStateOf(prefs.getString("iobroker_server", "") ?: "")
+    }
     val rooms = remember {
         mutableStateListOf<String>().apply {
             addAll(prefs.getStringSet("rooms", null)?.toList() ?: listOf("Wohnzimmer", "Schlafzimmer"))
@@ -334,6 +337,57 @@ private fun KlimaPilotApp(appVersion: String) {
         }
     }
 
+    fun importExistingAccounts() {
+        val address = accountIoBrokerAddress.trim().trimEnd('/')
+        if (!(address.startsWith("ws://") || address.startsWith("wss://"))) {
+            accountStatus = "Bitte eine vollständige WebSocket-Adresse mit ws:// oder wss:// eingeben."
+            return
+        }
+        accountLoading = true
+        accountStatus = "Verbindung zu ioBroker wird hergestellt …"
+        IoBrokerClient.connect(address, subscribeAll = false) { connected, message ->
+            if (!connected) {
+                IoBrokerClient.disconnect()
+                accountLoading = false
+                accountStatus = "ioBroker-Verbindung fehlgeschlagen: $message"
+                return@connect
+            }
+            accountStatus = "Vorhandene Kontenliste wird gelesen …"
+            IoBrokerClient.getJsonState(KlimaPilotAccountRepository.LEGACY_STATE_ID) { json, error ->
+                IoBrokerClient.disconnect()
+                val imported = json?.let { runCatching { KlimaPilotAccountRegistry.fromJson(it) }.getOrNull() }
+                when {
+                    imported == null -> {
+                        accountLoading = false
+                        accountStatus = "Es konnte keine gültige bisherige Kontenliste aus ioBroker gelesen werden. ${error ?: "Der Datenpunkt enthält keine gültige Kontenliste."}"
+                    }
+                    imported.accounts.isEmpty() -> {
+                        accountLoading = false
+                        accountStatus = "Die gefundene Kontenliste enthält keine Benutzerkonten. Es wurde nichts verändert."
+                    }
+                    !accountRepository.replaceEmptyWithImported(imported) -> {
+                        accountLoading = false
+                        accountStatus = "Die lokale Kontenliste ist nicht mehr leer oder nicht lesbar. Sie wurde vorsichtshalber nicht überschrieben."
+                    }
+                    else -> {
+                        accountRegistry = imported
+                        prefs.edit().putString("iobroker_server", address).apply()
+                        val remembered = prefs.getString("klimapilotRememberedUsername", null)
+                        if (remembered.isNullOrBlank() || imported.find(remembered) == null) {
+                            accountUsername = ""
+                        } else {
+                            accountUsername = remembered
+                        }
+                        accountPassword = ""
+                        accountPasswordConfirmation = ""
+                        accountLoading = false
+                        accountStatus = "Konten erfolgreich übernommen. Du kannst dich jetzt mit deinem vorhandenen Benutzerkonto anmelden."
+                    }
+                }
+            }
+        }
+    }
+
     fun submitAccountLogin() {
         val registry = accountRegistry
         if (registry == null) {
@@ -478,6 +532,9 @@ private fun KlimaPilotApp(appVersion: String) {
             displayName = accountDisplayName, onDisplayName = { accountDisplayName = it },
             loading = accountLoading,
             status = accountStatus,
+            ioBrokerAddress = accountIoBrokerAddress,
+            onIoBrokerAddress = { accountIoBrokerAddress = it },
+            onImportAccounts = { importExistingAccounts() },
             onReload = { loadAccounts() },
             onSubmit = { submitAccountLogin() }
         )
