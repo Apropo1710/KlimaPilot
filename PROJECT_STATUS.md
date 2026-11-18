@@ -17,7 +17,7 @@
 
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 20:45 Uhr MEZ (Smartphone-zu-Smartphone-Synchronisation 0.4.77 auf `test`, Build #253; Produktion unverändert 0.4.75)
+**Letzter Abgleich:** 18.11.2026, 21:15 Uhr MEZ (Produktion 0.4.78: Kopplungskarte ausklappbar, ohne Fingerprint-Texte, Update-Buttons volle Breite)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -34,6 +34,12 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 - Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur). Übernahme nach `main` nach Gerätetest.
 - Nächstes Ziel: Synchronisation von Konten und Klimaprofilen direkt zwischen gekoppelten Smartphones, damit alles ohne ioBroker weiterläuft. Der aktuelle Zustand der Klimaanlage wird bereits von jedem Smartphone direkt per WF-RAC gelesen (kein ioBroker nötig).
+
+## 2j. Oberflächenpflege 0.4.78 (18.11.2026)
+
+- Kopplungskarte als Ausklappkachel (Kopfzeile zeigt Anzahl gekoppelter Geräte, bleibt während einer Kopplung offen); Fingerprints und Hinweise zu Signaturen/Speicherbestätigung aus der Oberfläche entfernt – die Prüfungen laufen unverändert im Hintergrund.
+- „Nach Updates suchen“ und „Update laden“ über die volle Breite (nur Layout-Modifier; Updater-Ablauf unverändert).
+- Test-Build #254 scheiterte an einem Maven-Netzwerkfehler; der WLAN-Workflow wiederholt Downloads jetzt bis zu fünfmal. Test-Build #255 und Produktionsbuild #242 (Commit `6be0db9`) erfolgreich; APK-SHA-256 `4af436c8eee2c65a560dba76b36c468226e92528d3f14a94d30d8de84c09fe59`, Produktionszertifikat unverändert.
 
 ## 2i. Synchronisation zwischen gekoppelten Smartphones (18.11.2026, `test`)
 
