@@ -40,4 +40,4 @@ jobs:
           gradle-version: '8.9'
 
       - name: Unit-Tests und Debug-Kompilierung
-        run: gradle --no-daemon testDebugUnitTest assembleDebug
+        run: gradle --no-daemon testDebugUnitTest assembleDebug compileReleaseKotlin

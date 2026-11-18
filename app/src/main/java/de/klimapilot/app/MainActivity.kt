@@ -1426,51 +1426,54 @@ private fun SettingsScreen(
                 )
             }
         }
-        Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
-            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Lokales WLAN", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("Sucht nach anderen KlimaPilot-Geräten im selben Netzwerk. Gefundene Geräte sind zunächst nicht vertrauenswürdig.", color = Muted, fontSize = 11.sp)
-                Button(
-                    onClick = {
-                        if (peerScanning) {
-                            peerDiscovery.stop()
-                            peerScanning = false
-                            discoveredPeers.clear()
-                            peerScanMessage = "WLAN-Suche beendet."
-                        } else {
-                            discoveredPeers.clear()
-                            peerScanMessage = "Suche im lokalen WLAN …"
-                            peerScanning = true
-                            val started = peerDiscovery.start(
-                                onPeerFound = { peer ->
-                                    discoveredPeers[peer.instanceName] = "${peer.instanceName} · ${peer.hostAddress}:${peer.port}"
-                                    peerScanMessage = "Unbestätigte Dienstankündigung gefunden."
-                                },
-                                onPeerLost = { instanceName ->
-                                    discoveredPeers.remove(instanceName)
-                                },
-                                onError = { message ->
-                                    peerScanning = false
-                                    discoveredPeers.clear()
-                                    peerScanMessage = message
-                                }
-                            )
-                            if (!started && peerScanning) {
+        if (BuildConfig.DEBUG) {
+            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("Lokales WLAN", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Sucht nach anderen KlimaPilot-Geräten im selben Netzwerk. Gefundene Geräte sind zunächst nicht vertrauenswürdig.", color = Muted, fontSize = 11.sp)
+                    Button(
+                        onClick = {
+                            if (peerScanning) {
+                                peerDiscovery.stop()
                                 peerScanning = false
-                                peerScanMessage = "WLAN-Suche konnte nicht gestartet werden."
+                                discoveredPeers.clear()
+                                peerScanMessage = "WLAN-Suche beendet."
+                            } else {
+                                discoveredPeers.clear()
+                                peerScanMessage = "Suche im lokalen WLAN …"
+                                peerScanning = true
+                                val started = peerDiscovery.start(
+                                    onPeerFound = { peer ->
+                                        discoveredPeers[peer.instanceName] = "${peer.instanceName} · ${peer.hostAddress}:${peer.port}"
+                                        peerScanMessage = "Unbestätigte Dienstankündigung gefunden."
+                                    },
+                                    onPeerLost = { instanceName ->
+                                        discoveredPeers.remove(instanceName)
+                                    },
+                                    onError = { message ->
+                                        peerScanning = false
+                                        discoveredPeers.clear()
+                                        peerScanMessage = message
+                                    }
+                                )
+                                if (!started && peerScanning) {
+                                    peerScanning = false
+                                    peerScanMessage = "WLAN-Suche konnte nicht gestartet werden."
+                                }
                             }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(if (peerScanning) "Suche beenden" else "KlimaPilot-Geräte suchen") }
-                Text(peerScanMessage, color = Muted, fontSize = 12.sp)
-                discoveredPeers.values.forEach { peer ->
-                    Text(peer, color = TextMain, fontSize = 12.sp)
-                    Text("Nicht gekoppelt · keine Datenübertragung", color = Muted, fontSize = 10.sp)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (peerScanning) "Suche beenden" else "KlimaPilot-Geräte suchen") }
+                    Text(peerScanMessage, color = Muted, fontSize = 12.sp)
+                    discoveredPeers.values.forEach { peer ->
+                        Text(peer, color = TextMain, fontSize = 12.sp)
+                        Text("Nicht gekoppelt · keine Datenübertragung", color = Muted, fontSize = 10.sp)
+                    }
                 }
             }
+            ClimatePairingSettingsCard()
+    
         }
-        ClimatePairingSettingsCard()
         GithubUpdateCard(appVersion)
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
             Text("Zurück zur Klimaübersicht")

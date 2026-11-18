@@ -284,3 +284,12 @@ Die Codeänderungen sind implementiert und erfolgreich durch CI gebaut. Das ist 
 - Unabhängige Codeprüfung bestätigte: TCP-Socket-Timeout wurde nach erfolgreichem Handshake nicht auf den vorherigen Wert zurückgesetzt; JVM-Test für Peer-ID/Schlüssel-Abweichung war nicht aussagekräftig; Slow-Drip-Test fehlte; Workflow verwendete mehrzeiliges Emulator-Skript; Debug-Launcher-Badge lag außerhalb der Safe-Zone.
 - Geplante Korrekturen im Test-Branch: Socket-Timeout nach erfolgreicher Client- und Server-Authentifizierung wiederherstellen; SHA-256-Peer-ID/Public-Key-Bindung zusätzlich im TCP-Protokoll erzwingen; echte Protokolltests für manipulierte ID/Key-Kombination, Timeout-Wiederherstellung und Slow-Drip; Emulator-Skript einzeilig ausführen und adb root vor ANR-Pull versuchen; TEST-Badge in die Icon-Safe-Zone verschieben.
 - Kein Zwei-Smartphone-Test und keine Profilübertragung freigegeben. Updater bleibt unangetastet.
+
+
+## Debug-only WLAN-Testoberfläche (18.11.2026)
+
+- Die lokale WLAN-Suche und die QR-Pairing-Karte werden in der Einstellungsansicht ausschließlich bei `BuildConfig.DEBUG` angezeigt.
+- BuildConfig-Generierung ist explizit aktiviert.
+- Die WLAN-Branch-Validierung kompiliert zusätzlich `compileReleaseKotlin`, damit die produktive Release-Variante trotz ausgeblendeter Testoberfläche geprüft wird.
+- Das Release erhält damit keine sichtbare WLAN-Test-/Pairing-Oberfläche. Der Debug-Build bleibt unter der separaten Application-ID `de.klimapilot.app.debug` mit dem TEST-Launcher-Icon installierbar.
+- Der TCP-Handshake bleibt weiterhin nicht in Discovery integriert; keine Profilübertragung.

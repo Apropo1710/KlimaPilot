@@ -157,3 +157,10 @@ Nicht Teil dieses Arbeitspakets sind:
 - Emulator-Runner-Skript wird als einzelner Shell-Befehl ausgeführt; vor dem ANR-Datei-Pull wird `adb root` versucht.
 - Debug-Test-Icon-Badge wird innerhalb der adaptiven Launcher-Safe-Zone platziert.
 - Diese Änderungen müssen durch CI verifiziert werden. Keine Discovery-Integration, kein Nutzdatentransfer und keine Profilübertragung.
+
+
+## 16. Trennung der WLAN-Testoberfläche vom Release (18.11.2026)
+
+- Die UI für lokale WLAN-Suche und QR-Pairing ist im Einstellungsbildschirm an `BuildConfig.DEBUG` gebunden. Sie erscheint ausschließlich in der separat installierbaren Debug-App.
+- Die Release-Kompilierung wird in CI zusätzlich mit `compileReleaseKotlin` geprüft.
+- Keine Änderung am Updater und keine Freigabe von TCP-Nutzdaten oder Profilübertragung.
