@@ -2,6 +2,7 @@
 
 **Fachlicher Stand:** 18.11.2026  
 **Branch-/PR-/CI-Status:** ausschließlich in `PROJECT_STATUS.md`.
+
 ## 1. Verbindliche Architekturgrenzen
 
 - Pairing verbindet zwei KlimaPilot-Installationen; es ist unabhängig vom WF-RAC-Pairing zur Klimaanlage.
