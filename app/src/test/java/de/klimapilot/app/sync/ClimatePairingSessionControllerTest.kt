@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.json.JSONObject
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,11 +68,12 @@ class ClimatePairingSessionControllerTest {
         val trustedB = controllerA.confirmOutgoingResponse(reviewB!!, "Telefon B", now + 3)
         assertEquals(peerId(pairB), trustedB.peerId)
         assertTrue(storeB.trustedPeers().isEmpty())
-        controllerB.acknowledgeIncomingInvitation(
-            sessionId = reviewB!!.sessionId,
-            inviterPeerId = peerId(pairA),
-            nowMillis = now + 4
+        val responseJson = JSONObject(responsePayload)
+        val ackPayload = signedAcknowledgement(
+            pairA, reviewB!!.sessionId, peerId(pairB),
+            responseJson.getString("nonce"), now + 4
         )
+        controllerB.acknowledgeIncomingInvitation(ackPayload, now + 4)
         assertEquals(setOf(peerId(pairA)), storeB.trustedPeers().map { it.peerId }.toSet())
         assertEquals(setOf(peerId(pairB)), storeA.trustedPeers().map { it.peerId }.toSet())
 
@@ -84,25 +86,24 @@ class ClimatePairingSessionControllerTest {
         val now = 1_800_000_000_000L
         val invitationPayload = controllerA.createOutgoingInvitation(now)
         val pending = controllerB.prepareIncomingInvitation(invitationPayload, now)!!
-        controllerB.confirmIncomingInvitation(pending, "Telefon A", now + 1)
+        val responsePayload = controllerB.confirmIncomingInvitation(pending, "Telefon A", now + 1)
+        val nonce = JSONObject(responsePayload).getString("nonce")
 
         assertTrue(storeB.trustedPeers().isEmpty())
+        val forgedAck = signedAcknowledgement(
+            pairB, pending.sessionId, peerId(pairB), nonce, now + 2
+        )
         assertFalse(runCatching {
-            controllerB.acknowledgeIncomingInvitation(
-                sessionId = pending.sessionId,
-                inviterPeerId = peerId(pairB),
-                nowMillis = now + 2
-            )
+            controllerB.acknowledgeIncomingInvitation(forgedAck, now + 2)
         }.isSuccess)
         assertTrue(storeB.trustedPeers().isEmpty())
 
         controllerB.cancel()
+        val validAckAfterCancel = signedAcknowledgement(
+            pairA, pending.sessionId, peerId(pairB), nonce, now + 3
+        )
         assertFalse(runCatching {
-            controllerB.acknowledgeIncomingInvitation(
-                sessionId = pending.sessionId,
-                inviterPeerId = peerId(pairA),
-                nowMillis = now + 3
-            )
+            controllerB.acknowledgeIncomingInvitation(validAckAfterCancel, now + 3)
         }.isSuccess)
         assertTrue(storeB.trustedPeers().isEmpty())
     }
@@ -183,6 +184,24 @@ class ClimatePairingSessionControllerTest {
             signatureBase64 = ""
         )
         return unsigned.copy(signatureBase64 = sign(pair, unsigned.signingBytes()))
+    }
+
+    private fun signedAcknowledgement(
+        pair: KeyPair,
+        sessionId: String,
+        responderPeerId: String,
+        responderNonce: String,
+        now: Long
+    ): String {
+        val unsigned = ClimatePairingAcknowledgement.Acknowledgement(
+            sessionId = sessionId,
+            inviterPeerId = peerId(pair),
+            responderPeerId = responderPeerId,
+            responderNonceBase64 = responderNonce,
+            createdAtMillis = now,
+            signatureBase64 = ""
+        )
+        return unsigned.copy(signatureBase64 = sign(pair, unsigned.signingBytes())).toPayload()
     }
 
     private fun sign(pair: KeyPair, bytes: ByteArray): String =
