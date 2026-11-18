@@ -1,6 +1,8 @@
 package de.klimapilot.app.sync
 
 import java.net.InetAddress
+import java.net.Inet6Address
+import java.net.NetworkInterface
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -56,4 +58,23 @@ class ClimateWifiListenerAddressSelectorTest {
             )
         ))
     }
+    @Test
+    fun scopesIpv6LinkLocalAddressToTheSelectedInterface() {
+        val loopback = NetworkInterface.getByName("lo")
+        org.junit.Assert.assertNotNull("Linux test runner must expose loopback", loopback)
+        val address = InetAddress.getByName("fe80::1234") as Inet6Address
+
+        val scoped = ClimateWifiListenerAddressSelector.scopeLinkLocalAddress(address, "lo")
+
+        org.junit.Assert.assertNotNull(scoped)
+        assertEquals("lo", scoped?.scopedInterface?.name)
+        org.junit.Assert.assertTrue(scoped?.scopeId ?: 0 > 0)
+    }
+
+    @Test
+    fun doesNotScopeNonLinkLocalIpv6Addresses() {
+        val address = InetAddress.getByName("fd12:3456::5") as Inet6Address
+        assertNull(ClimateWifiListenerAddressSelector.scopeLinkLocalAddress(address, "lo"))
+    }
+
 }
