@@ -3,7 +3,6 @@ package de.klimapilot.app.sync
 import java.net.InetAddress
 import java.net.Inet6Address
 import java.net.NetworkInterface
-import org.junit.Assume.assumeNotNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -71,7 +70,10 @@ class ClimateWifiListenerAddressSelectorTest {
                 linkLocal?.let { networkInterface to it }
             }
             .firstOrNull()
-        assumeNotNull("Test runner needs an interface with an assigned IPv6 link-local address", interfaceAndAddress)
+        org.junit.Assume.assumeTrue(
+            "Test runner needs an interface with an assigned IPv6 link-local address",
+            interfaceAndAddress != null
+        )
         val (networkInterface, address) = interfaceAndAddress!!
 
         val scoped = ClimateWifiListenerAddressSelector.select(
