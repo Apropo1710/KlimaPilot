@@ -1,6 +1,6 @@
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 13:xx Uhr MEZ (Test-APK-Artefaktbereitstellung ergänzt; WLAN-Workflow #221 läuft; API-26-Lauf #86 fehlgeschlagen)
+**Letzter Abgleich:** 18.11.2026, ca. 13:30 Uhr MEZ (Kontenübernahme und gewünschter Login-Ablauf dokumentiert; WLAN-Workflow #221 erfolgreich; API-26-Lauf #86 fehlgeschlagen)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -30,8 +30,10 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Codeänderungen: `ab7da3a`, `9d15852`, `0ad1d42`, `f8f4261`, `86cd86d`, `7f75f4d`. Aktueller Branch-HEAD nach CI-/Dokumentationsänderungen: siehe Branch `test`.
 - WLAN-Validierung #220 war auf Commit `7f75f4d534d646cf9f06540a7ceeef62ae2e9216` erfolgreich (Unit-Tests und Debug-Kompilierung).
 - API-26-Lauf #86 auf Commit `f1fd7af3f6ba5ff61a4ccd27bd72f8df39c37b42` ist fehlgeschlagen: 4/5 Instrumentierungstests bestanden; der Fehler war `ClimatePeerTcpCompatibilityTest.clientSocketCreatedDuringShutdownIsClosedBeforeConnect`. Die APK-Upload-Schritte wurden dadurch übersprungen. Dieser Emulatorfehler betrifft den TCP-Peer-Test, nicht den Kontenimport.
-- Zur Bereitstellung der APK wurde der WLAN-Workflow erweitert: Nach Unit-Tests und Debug-Build prüft er Paketkennung, Version, Abwesenheit von `REQUEST_INSTALL_PACKAGES` und APK-Signatur und lädt anschließend `KlimaPilot-debug-test-0.4.68` hoch. Der dazugehörige WLAN-Lauf #221 ist derzeit **queued/in Bearbeitung**. Kein neuer API-26-Lauf wurde durch diese Workflow-/README-Änderung ausgelöst.
-- Zwei-Smartphone-Test steht noch aus. Bis zur erfolgreichen Geräteprüfung bleibt Peer-Nutzdatentransfer gesperrt.
+- Zur Bereitstellung der APK wurde der WLAN-Workflow erweitert: Nach Unit-Tests und Debug-Build prüft er Paketkennung, Version, Abwesenheit von `REQUEST_INSTALL_PACKAGES` und APK-Signatur und lädt anschließend `KlimaPilot-debug-test-0.4.68` hoch. Der dazugehörige WLAN-Lauf #221 ist **erfolgreich abgeschlossen**. Das Artefakt `KlimaPilot-debug-test-0.4.68` (ID `14431108516`, 18.174.150 Bytes) wurde heruntergeladen und bereitgestellt. SHA-256: `c638579dbed18ed5de5b129cc5c5d4de72cb02cb091b01b8272825368258c816`. Das Artefakt läuft am 25.11.2026 ab. Kein neuer API-26-Lauf wurde durch diese Workflow-/README-Änderung ausgelöst.
+- Der Nutzer hat die Anmeldung auf einem zweiten Smartphone mit einem bestehenden ioBroker-Konto erfolgreich begonnen/bestätigt. Der vollständige Zwei-Smartphone-Test läuft noch; Peer-Nutzdatentransfer bleibt bis zur erfolgreichen Geräteprüfung gesperrt.
+- **Geplanter Login-Komfort (noch nicht implementiert):** Im Normalfall soll KlimaPilot die gespeicherte ioBroker-Adresse automatisch verwenden, im Hintergrund verbinden und die Konten ohne zusätzliche Zwischenseite abrufen. Das Adressfeld soll nur erscheinen, wenn ioBroker nicht erreichbar ist; dann mit Möglichkeit zum erneuten Verbindungsversuch.
+- **Geplanter Fallback (noch nicht getestet):** Wenn ioBroker nicht erreichbar ist, soll zusätzlich eine direkte Smartphone-zu-Smartphone-Übernahme per QR-Code angeboten werden. Vor Umsetzung/Praxisfreigabe sind Ablauf und Sicherheit zu prüfen; Zugangsdaten dürfen nicht ungeschützt im QR-Code stehen. Dieser Fallback ist ausdrücklich noch nicht als funktionsfähig bestätigt.
 - `main` und der produktive Updater bleiben unverändert.
 
 ## 3. Letzte Codeänderung
