@@ -49,7 +49,7 @@ internal object ClimatePeerTcp {
         val previousTimeout = socket.soTimeout
         val deadline = deadlineAfter(HANDSHAKE_TIMEOUT_MS)
         try {
-        val input = DataInputStream(socket.getInputStream())
+            val input = DataInputStream(socket.getInputStream())
         val output = DataOutputStream(socket.getOutputStream())
         output.writeInt(MAGIC)
         val clientNonce = randomNonce()
@@ -69,7 +69,6 @@ internal object ClimatePeerTcp {
     fun authenticateAsServer(socket: Socket, identityStore: ClimatePeerSigner, trustedPeers: ClimatePeerTrust) {
         val previousTimeout = socket.soTimeout
         val deadline = deadlineAfter(HANDSHAKE_TIMEOUT_MS)
-        try {
         val input = DataInputStream(socket.getInputStream())
         val output = DataOutputStream(socket.getOutputStream())
         require(readInt(input, socket, deadline) == MAGIC) { "Ungültige KlimaPilot-Gegenstelle." }
@@ -87,7 +86,6 @@ internal object ClimatePeerTcp {
         } catch (error: Exception) {
             runCatching { output.writeByte(0); output.flush() }
             throw error
-        }
         }
     }
 

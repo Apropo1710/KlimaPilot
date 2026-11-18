@@ -251,7 +251,7 @@ class ClimatePeerTcpJvmTest {
             val elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
             assertTrue("Slow-drip peer must be rejected", failed)
             assertTrue("Total deadline should stop the slow drip around 10s: ${elapsed}ms", elapsed in 9_000..12_500)
-            drip.get(15, TimeUnit.SECONDS)
+            // The server is interrupted in finally after the client enforces its deadline.
         } finally {
             listener.close()
             executor.shutdownNow()

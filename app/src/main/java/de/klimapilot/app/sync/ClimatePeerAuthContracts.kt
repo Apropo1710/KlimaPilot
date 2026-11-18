@@ -14,7 +14,7 @@ internal interface ClimatePeerSigner {
     fun verify(publicKeyBase64: String, challenge: ByteArray, signatureBytes: ByteArray): Boolean
 }
 
-/** Trust decision boundary shared by persistent Android storage and JVM tests. */
+/** Independently verifies the SHA-256 peer ID against its advertised public key. */
 internal fun peerIdMatchesPublicKey(peerId: String, publicKeyBase64: String): Boolean = runCatching {
     require(peerId.matches(Regex("[a-f0-9]{64}")))
     val encoded = java.util.Base64.getDecoder().decode(publicKeyBase64)
