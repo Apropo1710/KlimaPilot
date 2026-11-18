@@ -42,10 +42,11 @@ internal class ClimatePeerTcpConnectionManager(
         activeSockets.add(socket)
         return try {
             serverExecutor.execute {
+                var authenticated = false
                 try {
                     if (!closed.get()) {
                         ClimatePeerTcp.authenticateAsServer(socket, identityStore, trustedPeers)
-                        mainHandler.post { if (!closed.get()) onAuthenticated() }
+                        authenticated = true
                     }
                 } catch (_: Exception) {
                     // Unknown, untrusted, or malformed peers are rejected without UI noise.
@@ -53,6 +54,7 @@ internal class ClimatePeerTcpConnectionManager(
                     activeSockets.remove(socket)
                     runCatching { socket.close() }
                 }
+                if (authenticated) mainHandler.post { if (!closed.get()) onAuthenticated() }
             }
             true
         } catch (_: RejectedExecutionException) {
