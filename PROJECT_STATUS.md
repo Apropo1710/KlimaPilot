@@ -63,9 +63,9 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - 0.4.80: Speichern nach Neukopplung ist auch bei geteilter Sync-Kennung möglich; das umgekoppelte Gerät erhält seine eigene Kennung.
 - 0.4.81 (vom Nutzer als deutlich schneller bestätigt): Temperatur-Klicks werden gesammelt und nach 1,2 s Pause als ein Befehl gesendet, Bedienelemente sperren nicht; Identitätsprüfung nur einmal pro App-Sitzung und Anlage; Kontoregistrierung am Modul wird dauerhaft gemerkt; ältere Abfrageergebnisse überschreiben keine gerade gesendeten Werte.
 - 0.4.82 (Nutzerentscheidung): Profile bleiben fest, Abweichung zeigt „(geändert)“ mit ✓ zum Übernehmen; „Individuell“ speichert jede Änderung sofort; + legt ein neues Profil an; Profilauswahl wechselt sofort, der Befehl läuft im Hintergrund.
-- 0.4.83: Schalter „Selbstreinigung“ (Self Clean, Statusbyte 15 Bit 0 / Befehlsbyte 12); laut Protokoll nur für Modellkennung 1 und 2, sonst ausgegraut mit angezeigter Modellkennung. Am realen Gerät noch unbestätigt.
+- Selbstreinigung (Self Clean): Die Anlagen melden Modellkennung 0; laut Protokoll ist das Bit nur bei Modellkennung 1/2 über WLAN verfügbar, die Original-App bietet die Funktion ebenfalls nicht. Schalter aus 0.4.83 in 0.4.84 wieder entfernt; Einstellung nur über die Fernbedienung (Menütaste). KlimaPilot überschreibt das Bit bei Modellkennung 0 nicht.
 - Grenze: Das Modul verlangt rund 1 s Abstand zwischen Anfragen; ein Befehl braucht damit typischerweise 2–3 s.
-- Offen: Gerätetest 0.4.82 (Profilwechsel, ✓, Individuell) und 0.4.83 (Selbstreinigung); Modi, Lüfterstufen und Luftführung am realen Gerät gezielt prüfen; Verhalten bei Verbindungsabbruch/Neustart des Moduls.
+- Offen: Gerätetest 0.4.82 (Profilwechsel, ✓, Individuell); Modi, Lüfterstufen und Luftführung am realen Gerät gezielt prüfen; Verhalten bei Verbindungsabbruch/Neustart des Moduls.
 
 ## 6. CI und Workflows
 
