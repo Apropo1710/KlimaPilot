@@ -123,7 +123,8 @@ jobs:
           - APK-SHA-256: {os.environ['APK_SHA']}
           - GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
           - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
-          - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.\n          - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
+          - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
+          - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
 
           <!-- AUTO-PRODUCTION-STATUS:END -->"""
           if start in old and end in old:
@@ -142,7 +143,7 @@ jobs:
                   "Ältere Einzelstände werden nicht als aktueller Produktionsstand fortgeführt.\n\n"
               )
               old, _ = re.subn(pattern, note, old, count=1)
-          p.write_text(old.rstrip() + "\\n")
+          p.write_text(old.rstrip() + "\n")
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
