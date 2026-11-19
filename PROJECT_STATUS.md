@@ -46,7 +46,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
   - `feature/local-wifi-profile-sync`: 2 Commits voraus, nur Workflow-Dateien; Inhalt über `test` überholt.
   - `feature/direct-wf-rac-wlan`: nach dem Merge von PR #1 23 weitere Commits, die nicht in `main` übernommen wurden; stark veralteter Stand.
   - `validation/tcp-api26-api35-20261118`, `validation/tcp-api35-retry-20261118`, `validation/tcp-api35-device-ready-20261118`, `validation/tcp-api35-kvm-permissions-20261118`: isolierte Workflow-Prüfstände für API 35 (siehe Abschnitt 5).
-- Die früheren automatischen Dokumentationsbranches `docs/status-reconcile-2026-11-15` und `docs/status-refresh-2026-11-16` wurden am 19.11.2026 gelöscht.
+- `docs/status-reconcile-2026-11-15` und `docs/status-refresh-2026-11-16`: veraltete automatische Dokumentationsstände (PR #2 geschlossen); nicht verwenden, zum Löschen vorgesehen.
 
 ## 4. Pairing- und Synchronisationsstatus
 
