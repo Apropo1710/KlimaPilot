@@ -20,7 +20,7 @@ Die produktive Quelle ist der Git-Branch `main`. Weiterentwicklung erfolgt auf `
 - ioBroker-WebSocket über `ws.0`, Port 8084
 - Die App gilt erst nach erfolgreicher Alive-Prüfung von `system.adapter.admin.0.alive` als verbunden
 
-Die Klimaanlage ist noch nicht installiert. Reale Geräte-, Firmware- und Steuerungsfunktionen müssen deshalb am konkreten Gerät geprüft werden.
+Die Klimaanlage wird am 19.11.2026 in Betrieb genommen. Reale Geräte-, Firmware- und Steuerungsfunktionen müssen deshalb am konkreten Gerät geprüft werden.
 
 ## Verbindliche Projektregeln
 

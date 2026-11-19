@@ -15,227 +15,127 @@
 
 <!-- AUTO-PRODUCTION-STATUS:END -->
 
+
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 18.11.2026, 21:35 Uhr MEZ (Dokumentation vollständig nachgezogen; Produktion 0.4.78)
+**Letzter Abgleich:** 19.11.2026, 06:30 Uhr MEZ (Dokumentation bereinigt; Produktion 0.4.78)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
 
-## GitHub-Abgleich – 19.11.2026, 03:12 MEZ
-
-- `main` und `test` zeigen beide auf Dokumentations-HEAD `e94ecc8231e40dfd180bd9f991fdb2139c5e092c` (18.11.2026, 20:27 UTC). Der enthaltene App-Code bleibt `6be0db92978ee09980608779a5b1ef32a1fbfa9a`, Version **0.4.78 / 108**. Produktionsbuild #242 / Run [44388323331](https://github.com/Apropo1710/KlimaPilot/actions/runs/44388323331) ist erfolgreich; Release `latest` enthält `KlimaPilot.apk`, SHA-256 `4af436c8eee2c65a560dba76b36c468226e92528d3f14a94d30d8de84c09fe59`. Die Signaturprüfung war erfolgreich.
-- PR [#6](https://github.com/Apropo1710/KlimaPilot/pull/6) wurde am 18.11.2026 um 18:18 UTC gemergt. `test` und `main` sind dadurch auf demselben Code- und Dokumentationsstand; der PR ist nicht mehr Draft/offen.
-- **API-26/API-35-TCP-Validierung (isolierte Branches, 18.11.2026):**
-  - `validation/tcp-api26-api35-20261118`, HEAD `725fe310`, Run [44264080828](https://github.com/Apropo1710/KlimaPilot/actions/runs/44264080828): API-26-Pflichtjob erfolgreich. Der API-35-Job scheiterte beim Installieren des Testpakets mit `Can't find service: package`; der Emulator war zuvor gestartet.
-  - `validation/tcp-api35-retry-20261118`, HEAD `ec393af5`, Run [44267089878](https://github.com/Apropo1710/KlimaPilot/actions/runs/44267089878), sowie `validation/tcp-api35-device-ready-20261118`, HEAD `4749dbfa`, Run [44270120632](https://github.com/Apropo1710/KlimaPilot/actions/runs/44270120632), und `validation/tcp-api35-kvm-permissions-20261118`, HEAD `a59492ea`, Run [44273731606](https://github.com/Apropo1710/KlimaPilot/actions/runs/44273731606): API-35-Emulator startete, anschließend brach der Bereitschaftsschritt wegen eines Shell-Syntaxfehlers ab (`Syntax error: end of file unexpected (expecting "done")`), bevor der TCP-Test ausgeführt wurde.
-  - Diese Fehlschläge belegen **keinen App-/TCP-Kompatibilitätsfehler**. API-35-Kompatibilität ist weiterhin ungeprüft; der Workflowfehler muss separat behoben werden. Im Rahmen der Statuspflege wurde keine Workflowdatei verändert.
-- Weitere Remote-Branches:
-  - `feature/local-wifi-pairing` (`de214bca`): 0 Commits voraus / 237 zurück; keine einzigartigen Commits gegenüber `main`.
-  - `feature/local-wifi-profile-sync` (`f2ff6072`): 2 voraus / 282 zurück, kein PR; letzter Branch-Validierungslauf #44152069387 erfolgreich.
-  - `feature/direct-wf-rac-wlan` (`eb326955`): 23 voraus / 654 zurück, kein PR; stark divergenter separater Stand, nicht in Produktion übernommen.
-  - `fix/durable-profile-change-journal` (`c111d137`): 0 voraus / 353 zurück; keine einzigartigen Commits gegenüber `main`.
-- Die vier API-35-/TCP-Validierungsbranches sind isolierte Prüfstände ohne offenen PR. Kein Workflow läuft aktuell. Smartphone-Praxistests bleiben von den Emulator- und CI-Ergebnissen getrennt zu bewerten.
-
 ## 1. Produktivstand – `main`
 
-- **Aktuell in Produktion: 0.4.78 / versionCode 108** (Produktionsbuild #242, Commit `6be0db9`, Release `latest`). Konten, Klimaprofile, Räume und Geräte werden zwischen gekoppelten Smartphones abgeglichen. Updates zeigen derzeit eine Play-Protect-Warnung („Trotzdem installieren“).
-- Verlauf der Übernahme nach `main` am 18.11.2026:
-- **18.11.2026, auf ausdrücklichen Wunsch des Nutzers:** Der komplette Stand von `test` wurde nach `main` übernommen. Vorgehen: `main` (19 eigene Commits, u. a. Konten-Fixes 0.4.66/0.4.67) per Merge-Commit `12096f3a545b17403ffb83c1c75a226d8f7150ef` in `test` geholt, Konflikte zugunsten von `test` gelöst (Konten-, Profil- und Gerätespeicher verwenden auf beiden Branches identische Schlüssel, Produktionsdaten bleiben lesbar), WLAN-Workflow **#250** inkl. `lintVitalRelease` erfolgreich, danach `main` per Fast-Forward auf `12096f3` gesetzt.
-- Produktionsbuild **#239** (Run `44368187182`) erfolgreich; Release `latest` enthält **0.4.74 / versionCode 104**, `de.klimapilot.app`, APK-SHA-256 `a8f82d14475a5e4497a4941fb43a08c0d5b2314ee54260dd072fbd3e3b5237fe`. Unabhängig nachgeprüft: gleiches Produktionszertifikat wie bisherige Releases (`d3402444a8fd284f…`), Manifest-Berechtigungen wie bisher in Produktion. Updater-Installationsablauf unverändert.
-- Neu in Produktion gegenüber 0.4.67: automatische ioBroker-Einrichtung und QR-Kontoübernahme (2f), Ein-Scan-Pairing (2d), Abfrage der Klimaanlage alle 10 s statt 15 s. Danach 0.4.75 (2h), 0.4.77 (2i) und 0.4.78 (2j).
-- PR #6 ist damit inhaltlich in `main` enthalten. `test` wurde danach auf `main` (`f5bfba9`) gesetzt; beide Branches sind identisch.
+- **Aktuell in Produktion: 0.4.78 / versionCode 108** (Produktionsbuild #242, Code-Commit `6be0db9`, Release `latest`, Asset `KlimaPilot.apk`, SHA-256 `4af436c8eee2c65a560dba76b36c468226e92528d3f14a94d30d8de84c09fe59`, Produktionszertifikat unverändert).
+- Funktionsumfang seit 0.4.67: automatische ioBroker-Anmeldung und QR-Kontoübernahme (2f), Ein-Scan-Pairing (2d), Abfrage der Klimaanlage alle 10 s, Abgleich von Konten, Klimaprofilen, Räumen und Geräten zwischen gekoppelten Smartphones (2i), Oberflächenpflege (2j).
+- Updates zeigen derzeit eine Play-Protect-Warnung („Trotzdem installieren“), siehe 2h.
+- Hinweis: Release `latest` enthält zusätzlich ein altes Asset `app-release.apk`. Der Updater verwendet ausschließlich `KlimaPilot.apk`.
 - [Direkter APK-Download](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
 
 ## 2. Entwicklungsstand – `test`
 
-- `test` und `main` sind auf demselben Code-Stand (0.4.78). Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur `230865b9…65ecfb`, Installation über den Direktlink). Übernahme nach `main` nach Gerätetest.
-- Historie des heutigen Tages in den Abschnitten 2j (neueste) bis 2a.
+- `test` enthält denselben Code wie `main` (0.4.78); `main` ist nur um Dokumentationscommits voraus.
+- Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur `230865b9…65ecfb`, Installation über den Direktlink). Übernahme nach `main` nach Gerätetest und auf Wunsch des Nutzers.
+- Letzter Test-Build: WLAN-Workflow #255 erfolgreich (#254 scheiterte an einem Maven-Netzwerkfehler, siehe 2j).
 
-## 2j. Oberflächenpflege 0.4.78 (18.11.2026)
+## 3. Branches und Pull Requests
 
-- Kopplungskarte als Ausklappkachel (Kopfzeile zeigt Anzahl gekoppelter Geräte, bleibt während einer Kopplung offen); Fingerprints und Hinweise zu Signaturen/Speicherbestätigung aus der Oberfläche entfernt – die Prüfungen laufen unverändert im Hintergrund.
-- „Nach Updates suchen“ und „Update laden“ über die volle Breite (nur Layout-Modifier; Updater-Ablauf unverändert).
-- Test-Build #254 scheiterte an einem Maven-Netzwerkfehler; der WLAN-Workflow wiederholt Downloads jetzt bis zu fünfmal. Test-Build #255 und Produktionsbuild #242 (Commit `6be0db9`) erfolgreich; APK-SHA-256 `4af436c8eee2c65a560dba76b36c468226e92528d3f14a94d30d8de84c09fe59`, Produktionszertifikat unverändert.
-
-## 2i. Synchronisation zwischen gekoppelten Smartphones (18.11.2026, `test`)
-
-- Commits `511a179` (0.4.76, Build #252) und `18a1dd3` (0.4.77, Build #253): nach der gegenseitigen TCP-Authentifizierung tauschen beide Geräte je einen Datenstand aus (`ClimatePeerDataSync`).
-- Inhalt: Kontenliste (höhere Revision gewinnt, bei gleicher Revision deterministischer Digest), neuestes Profilereignis je Profil (Anwendung über `ClimateProfileSyncEngine`, gleiche Regeln wie ioBroker; ioBroker-Ereignisse werden über ein Peer-Ereignisprotokoll weitergereicht), Admin-Konfiguration (Räume, Geräte, WF-RAC-Modulidentitäten; neuere Änderungszeit gewinnt) und ioBroker-Adresse (nur übernommen, wenn keine gespeichert ist).
-- Automatisch im Vordergrund, sobald mindestens ein Gerät gekoppelt ist: DNS-SD-Suche, Abgleich beim Finden und alle 30 s; Neustart direkt nach einer Kopplung. Die Kopplungskarte ist jetzt auch in der Produktions-App sichtbar; die Debug-Karte „Lokales WLAN“ entfällt.
-- Anmeldung: gespeicherte ioBroker-Adresse, sonst `ws://192.168.178.54:8084` (keine Netzwerksuche).
-- Unit-Tests `ClimatePeerDataSyncTest` (Kontenrevision, Konvergenz, Ereignisprotokoll, Snapshot-Roundtrip, Konfigurationsübernahme). Test-APK 0.4.77 SHA-256 `ba789c2de2c4012f69e06b8e38d6b7e67259459673283bb846daed892a7c6f41`.
-- **Gerätetest 18.11.2026, 20:45 Uhr (Testversion 0.4.77, Smartphone + Tablet):** angelegter Raum erschien kurz darauf auf dem anderen Gerät; automatische Anmeldung und Kopplung funktionierten. Danach Übernahme nach `main` (Produktionsrelease 0.4.77).
-
-## 2h. Play-Protect-Blockade von 0.4.74 und Korrektur der Updater-Doku (18.11.2026)
-
-- **Befund:** Produktions-APK 0.4.74 wurde beim Update per In-App-Updater von Google Play Protect als „Schädliche App blockiert“ abgewiesen (kein Hinweis, keine Option zum Installieren). 0.4.67 ließ sich zuvor problemlos aktualisieren.
-- **Testversion ohne `REQUEST_INSTALL_PACKAGES`:** „Update laden“ öffnet keinen Installationsdialog (Gerätetest 18.11.2026). Die Berechtigung ist für den bestehenden `ACTION_VIEW`-Updater also nötig.
-- **Korrektur der bisherigen Doku:** Der Abschnitt „Bewährte Updater-Lösung – Gerätetest 05.11.2026“ behauptete, `REQUEST_INSTALL_PACKAGES` werde nicht verwendet. Das ist falsch. 0.4.23 (bestätigter Gerätetest) wurde mit `ACTION_VIEW` + FileProvider + ClipData **und** `REQUEST_INSTALL_PACKAGES` gebaut. Hintergrund: Commit `65c1250` hat die Berechtigung wieder eingebaut, `19a6028` stellte auf `ACTION_INSTALL_PACKAGE` um, der automatische Doku-Commit `467c280` des Release-Workflows hat diese Code-Umstellung drei Minuten später unbeabsichtigt wieder auf `ACTION_VIEW` zurückgedreht. Seit 0.4.23 enthielt jede Produktionsversion die Berechtigung.
-- **Verbindlich:** Produktions-Updater = `ACTION_VIEW` + `application/vnd.android.package-archive` + FileProvider + URI-Leseberechtigung + ClipData + `REQUEST_INSTALL_PACKAGES` im Manifest. Nicht ändern.
-- **Maßnahme 0.4.75:** `GithubPrivateUpdates.kt` und `GithubUpdateCard.kt` byte-identisch mit dem 0.4.67-Build (`608912f`); die Test-Updater-Anpassung aus 2g ist damit vollständig zurückgenommen (Testversionen fragen wieder `latest` ab). Zusätzlich wurde die automatische Suche aller WLAN-Adressen auf Port 8084 (Abschnitt 2f) entfernt, weil dieses Verhalten am ehesten einer Malware-Heuristik entspricht. Die automatische Anmeldung nutzt nur noch die gespeicherte Adresse; sonst Adressfeld oder QR-Übernahme.
-- **Gerätetest 18.11.2026, 19:57–19:59 Uhr:** Updater öffnet den Installationsdialog korrekt. Play Protect meldet auch für 0.4.75 „Schädliche App blockiert“ – die WLAN-Suche war also nicht der Auslöser. Diesmal bot Play Protect „Trotzdem installieren“ an; danach zeigt die App **Installierte Version 0.4.75**, Anmeldung (Apropo · Administrator) und Einstellungen erhalten.
-- **Offen:** Ursache der Play-Protect-Einstufung (neuer Code seit 0.4.67 oder Einstufung der App insgesamt). Bis zur Klärung müssen Updates mit „Trotzdem installieren“ bestätigt werden. Kein weiterer Umbau am Updater.
-
-## 2a. Kontenübernahme direkt aus ioBroker (18.11.2026)
-
-- Auf einem Gerät ohne lokale Konten kann die vorhandene Registry über die WebSocket-Adresse direkt aus `0_userdata.0.KlimaPilot.accounts` in ioBroker geladen werden.
-- Anschließend erfolgt die Anmeldung mit dem vorhandenen Benutzernamen und Passwort. Kein neuer Administrator und kein Datei-Export/-Import oder manuelles Kopieren erforderlich.
-- Import überschreibt keine bereits befüllte oder beschädigte lokale Registry.
-- Testversion: **0.4.68 / versionCode 98**, Debug-Paketkennung `de.klimapilot.app.debug`, versionName `0.4.68-debug`.
-- Codeänderungen: `ab7da3a`, `9d15852`, `0ad1d42`, `f8f4261`, `86cd86d`, `7f75f4d`. Aktueller Branch-HEAD nach CI-/Dokumentationsänderungen: siehe Branch `test`.
-- WLAN-Validierung #220 war auf Commit `7f75f4d534d646cf9f06540a7ceeef62ae2e9216` erfolgreich (Unit-Tests und Debug-Kompilierung).
-- API-26-Lauf #86 auf Commit `f1fd7af3f6ba5ff61a4ccd27bd72f8df39c37b42` ist fehlgeschlagen: 4/5 Instrumentierungstests bestanden; der Fehler war `ClimatePeerTcpCompatibilityTest.clientSocketCreatedDuringShutdownIsClosedBeforeConnect`. Die APK-Upload-Schritte wurden dadurch übersprungen. Dieser Emulatorfehler betrifft den TCP-Peer-Test, nicht den Kontenimport.
-- Zur Bereitstellung der APK wurde der WLAN-Workflow erweitert: Nach Unit-Tests und Debug-Build prüft er Paketkennung, Version, Abwesenheit von `REQUEST_INSTALL_PACKAGES` und APK-Signatur und lädt anschließend `KlimaPilot-debug-test-0.4.68` hoch. Der dazugehörige WLAN-Lauf #221 ist **erfolgreich abgeschlossen**. Das Artefakt `KlimaPilot-debug-test-0.4.68` (ID `14431108516`, 18.174.150 Bytes) wurde heruntergeladen und bereitgestellt. SHA-256: `c638579dbed18ed5de5b129cc5c5d4de72cb02cb091b01b8272825368258c816`. Das Artefakt läuft am 25.11.2026 ab. Kein neuer API-26-Lauf wurde durch diese Workflow-/README-Änderung ausgelöst.
-- Der Nutzer hat die Anmeldung auf einem zweiten Smartphone mit einem bestehenden ioBroker-Konto erfolgreich begonnen/bestätigt. Der vollständige Zwei-Smartphone-Test läuft noch; Peer-Nutzdatentransfer bleibt bis zur erfolgreichen Geräteprüfung gesperrt.
-- **Login-Komfort – teilweise auf `test` implementiert (18.11.2026):** Die gespeicherte ioBroker-Adresse wird aus `klimapilot_iobroker_address` beziehungsweise als Rückfall aus `iobroker_server` gelesen. Bei fehlender lokaler Registry wird die gespeicherte Adresse automatisch für die Kontoübernahme verwendet. Die Adresse wird nach erfolgreichem Import in beiden Schlüsseln vereinheitlicht gespeichert. Solange keine Registry geladen werden konnte, zeigt der Login die Adressangabe und eine erneute Verbindungs-/Ladeaktion; bei laufender Verbindung erscheint ein Ladezustand. Änderungen: `77c91053901967851c9c684b9448d2679bfe626e` und `0dccd771732b414c85259dce80dcc25c2be7e3f3`. Noch nicht gebaut oder auf Geräten geprüft. Der Versionsstand bleibt bis zum gebündelten Abschluss bei 0.4.68 / versionCode 98.
-- **Geplanter Fallback (noch nicht getestet):** Wenn ioBroker nicht erreichbar ist, soll zusätzlich eine direkte Smartphone-zu-Smartphone-Übernahme per QR-Code angeboten werden. Vor Umsetzung/Praxisfreigabe sind Ablauf und Sicherheit zu prüfen; Zugangsdaten dürfen nicht ungeschützt im QR-Code stehen. Dieser Fallback ist ausdrücklich noch nicht als funktionsfähig bestätigt.
-- `main` und der produktive Updater bleiben unverändert.
-
-## 2b. Pairing-ACK und CI-Steuerung (18.11.2026)
-
-- Commits `308f3f80c1f8d005f0b0976260ea0ceee601dd4f` und `b5f890248b3128a504fc5e48af6bdb9b2d26944c`: Der Responder speichert den Einladenden nicht mehr unmittelbar nach Zustimmung. Die Controller-Grundlage verlangt eine nachgelagerte Speicherbestätigung; Tests decken falsche ACK-Daten und Abbruch ab.
-- Der nachfolgende Pairing-Arbeitsstand ergänzt den realen WLAN-Rückkanal, das signierte ACK und die Ein-Scan-Oberfläche; Details und Grenzen siehe Abschnitt 2d. Ein erfolgreicher CI-Lauf ersetzt weiterhin keinen Zwei-Smartphone-Praxistest.
-- Commit `2e6a8170eedc318e7c33977c6b7ae2364e743116`: `.github/workflows/pairing-tls-validation.yml` startet nicht mehr bei Pushes auf `test`; nur noch `workflow_dispatch` ist eingetragen. Reguläre Validierung erfolgt über `.github/workflows/wlan-validation.yml`. Damit werden weitere normale Code-Pushes nicht mehr automatisch den API-26-Emulator starten.
-- Der zuvor bereits gestartete API-26-Lauf #90 (Run ID `44323759302`) war zum letzten Abruf noch aktiv. Die Workflow-Änderung verhindert neue automatische Starts, beendet aber keinen bereits laufenden Run.
-- WLAN-Workflow #225 (Run ID `44323759391`) auf Commit `b5f890248b3128a504fc5e48af6bdb9b2d26944c` erfolgreich: Unit-Tests, Debug-Kompilierung, APK-Prüfung und Artefaktbereitstellung abgeschlossen. Dieser Lauf enthält die Pairing-Controller-/Teständerungen, aber noch keinen echten WLAN-Rückkanal.
-
-## 2c. Kryptografisches Speicher-ACK (18.11.2026)
-
-- Commit `f7f6eaf220b671f9a5b624ac5efe2110dd5866a9`: Neue Klasse `ClimatePairingAcknowledgement`. Das ACK ist eine ECDSA-signierte Nachricht mit Sitzungs-ID, Einladenden-ID, Responder-ID, Responder-Nonce und Zeitstempel.
-- Commit `b0e430e38f6fa8a645b1041b878d16db2b4aa1ce`: `ClimatePairingSessionController.acknowledgeIncomingInvitation` nimmt jetzt das ACK-Payload entgegen und verifiziert dessen Signatur gegen den öffentlichen Schlüssel der ursprünglichen Einladung. Eine bloße Übergabe von Sitzungs-ID und Peer-ID reicht nicht mehr.
-- Commit `5dcc6ed7cd102d2aaf46800a2a966ffb3aed3d55`: Controller-Methode für den Einladenden erzeugt das signierte ACK nach erfolgreicher lokaler Bestätigung und Peer-Speicherung.
-- Commit `aa633a1a4a29e2233bbb8a5d95d5ce9194c945c2`: Controller-Tests verwenden den signierten ACK-Ablauf und prüfen eine gefälschte Signatur sowie ACK nach Abbruch.
-- WLAN-Workflow #230 (Run `44326084183`) auf Commit `aa633a1a4a29e2233bbb8a5d95d5ce9194c945c2` erfolgreich. Der neuere Stand ist in Abschnitt 2d dokumentiert.
-
-
-## 2d. Ein-Scan-Pairing über lokalen WLAN-Rückkanal (18.11.2026)
-
-- Implementiert auf Branch `test` in PR #6; aktueller Code-Commit: `07a774c92d19579ad0d0f53f9cefd55c4894de47`.
-- Einladungsgerät wählt ein privates IPv4-WLAN, öffnet einen One-shot-TCP-Listener und bindet Host/Port in die signierte QR-Einladung ein.
-- Zweites Gerät scannt den QR-Code einmal, prüft die Einladung und zeigt nur die Nutzerentscheidung „Koppeln“ oder „Abbrechen“. Nach Zustimmung wird die signierte Antwort über die SocketFactory des ausgewählten WLAN-Netzes übertragen.
-- Einladungsgerät prüft die Antwort, erstellt über den Controller ein signiertes Speicher-ACK und speichert den Peer. Das ACK geht über dieselbe TCP-Verbindung zurück; das zweite Gerät speichert den Einladenden erst nach erfolgreicher ACK-Prüfung.
-- Der Rückkanal verwendet längenpräfixierte Frames, eine maximale Nachrichtengröße von 4 KiB und begrenzte Listener-/Connect-/Read-Zeiten. Der Endpoint-Parser akzeptiert nur numerische lokale IPv4-/IPv6-Adressen und gültige Ports; DNS-Namen aus dem QR werden abgewiesen.
-- **Transport-Sicherheit:** TCP im lokalen WLAN ist unverschlüsselt. Die Pairing-Nachrichten sind signiert, aber nicht vertraulich; andere Teilnehmer desselben WLANs können sie passiv mitlesen. Die UI weist ausdrücklich darauf hin. TLS/mTLS bleibt entsprechend Nutzerentscheidung verworfen.
-- Es werden keine Profile oder sonstigen Nutzdaten übertragen. Der bestehende Updater, `main`, Produktionsrelease `latest` und PR-Merge bleiben unangetastet.
-- Korrektur des Kotlin-Aufrufs der ACK-Factory: Commit `07a774c9` verwendet benannte Parameter entsprechend der tatsächlichen Controller-Signatur.
-
-### CI-Nachweis des Ein-Scan-Pairings
-
-- WLAN-Workflow **#239** (Run `44330933413`) auf Commit `bec8b59629eaeb6f304123b4590c6af40f2fe69b`: fehlgeschlagen wegen falsch positionierter `createAcknowledgement`-Lambda in `ClimatePairingSettingsCard.kt`. Keine APK bereitgestellt.
-- WLAN-Workflow **#240** (Run `44331588695`) auf Commit `07a774c92d19579ad0d0f53f9cefd55c4894de47`: **erfolgreich**. `testDebugUnitTest`, Debug-/Release-Kotlin-Kompilierung, Debug-APK-Prüfung und Artefakt-Upload erfolgreich.
-- Artefakt: `KlimaPilot-debug-test-0.4.68`, ID `14438439474`, 18.188.574 Bytes, verfügbar bis 25.11.2026. SHA-256 der APK: `c3fb5f9e9ffb4d44136a53a8bdbfbdb4502654c169e8d603ce61cab57ee7c6fe`; SHA-256 des Artifact-ZIP: `f9a8678d9534668e3c218ba1e40ac67e18f579eb0a7bb721657eb460567bddd6`.
-- APK-Signaturprüfung mit `apksigner` erfolgreich (v2). CI prüfte außerdem Paketkennung/Version und das Fehlen von `REQUEST_INSTALL_PACKAGES`. Der Debug-Build bleibt ausschließlich ein Testartefakt, kein Produktionsrelease.
-- **Praxistest 18.11.2026, 18:04 Uhr (0.4.69-debug, Tablet als Einladender, Smartphone als Antwortender):** erfolgreiche Kopplung mit einem einzigen QR-Scan bestätigt. Einladender meldet „Gerät erfolgreich gekoppelt. Die signierte Speicherbestätigung wurde übertragen.“, Antwortender meldet „… Speicherbestätigung wurde geprüft.“; beide zeigen „Gekoppelte Geräte: 1“ bei unterschiedlichen Geräte-Fingerprints. Damit sind Testpunkt 1 (erfolgreiche Kopplung) und 2 (beidseitige Speicherung) bestanden. Der Pairing-Code ist in 0.4.70 unverändert (Commit `7f266a7` ändert nur Login/Konten/ioBroker-Adresse).
-- **Noch offen (Negativfälle):** Abbruch, Timeout, Verbindungsverlust während Antwort/ACK und Verhalten bei ungültigen/gefälschten/wiederholten Nachrichten müssen noch praktisch geprüft werden. Bis dahin keine Freigabe für Profil-/Nutzdatentransfer und kein Merge.
-
-## 2e. Feste Test-Signatur und Test-APK 0.4.69 (18.11.2026)
-
-- Fehler WLAN-Workflow **#241** (Run `44339096984`, Commit `985c050`): eingecheckter `app/klimapilot-test-debug.keystore` war ungültig (PKCS12-Integritätsprüfung fehlgeschlagen). Keine APK.
-- Commit `56eb4e1`: ungültige Keystore-Datei aus dem Repository entfernt (bleibt in der Git-Historie, ist aber unbrauchbar). Lauf **#242** (Run `44344737195`) scheiterte, weil die zugehörige Gradle-Änderung erst im Folgecommit lag.
-- Commit `43526e6`: Debug-Signierung liest `KLIMAPILOT_TEST_KEYSTORE_PATH` / `KLIMAPILOT_TEST_*` aus der Umgebung; ohne diese Variablen (lokale Builds) wird der Android-Standard-Debugschlüssel verwendet. Lauf **#243** (Run `44345348385`) scheiterte erwartungsgemäß am noch fehlenden Secret.
-- Commit `695e9ab`: Nur noch **ein** Secret nötig: `KLIMAPILOT_TEST_KEYSTORE_BASE64` (vom Nutzer angelegt). Alias `klimapilot-test` und Keystore-Passwort stehen im Workflow (ohne die Schlüsseldatei wertlos). Workflow-Änderungen lösen jetzt ebenfalls einen Build aus.
-- Testschlüssel: PKCS12, RSA 2048, gültig bis 10.11.2056. **Zertifikat SHA-256: `230865b90b0c37e6a7935fd4f5e0fad0626853a44921a7a2f7d6185b9665ecfb`.** Die CI bricht ab, wenn die APK nicht genau einen Signierer mit diesem Zertifikat hat. Produktionssignierung und Produktions-Secrets unverändert. Sicherungskopie des Schlüssels liegt beim Nutzer.
-- WLAN-Workflow **#244** (Run `44346124733`, Commit `695e9ab`): erfolgreich, Zertifikat bestätigt.
-- Commit `2bcbffa`: Der Workflow veröffentlicht die geprüfte Debug-APK zusätzlich als Pre-Release unter dem separaten Tag **`klimapilot-test-latest`** (nie `latest`; der Updater liest ausschließlich `releases/tags/latest`).
-- WLAN-Workflow **#245** (Run `44348138478`, Commit `2bcbffa94997ad5219e8a5d432ea18431313f6e1`): **erfolgreich** – Unit-Tests, Debug-Build, Release-Kotlin-Kompilierung, Paket/Version, kein `REQUEST_INSTALL_PACKAGES`, Signatur und Zertifikats-Fingerprint geprüft, Artefakt und Pre-Release hochgeladen.
-- Artefakt `KlimaPilot-debug-test-0.4.69`, ID `14448245408`, läuft am 25.11.2026 ab.
-- **Direkter Download:** https://github.com/Apropo1710/KlimaPilot/releases/download/klimapilot-test-latest/KlimaPilot-test.apk (18.813.180 Bytes), APK-SHA-256 `c5fa0649e94371950c9a56477e4540ed7196dbb5d239ad96a80df682f2d1072c`. Unabhängig nachgeprüft: heruntergeladen, Hash identisch mit CI, Manifest `de.klimapilot.app.debug` / `0.4.69-debug` / 99, minSdk 26, targetSdk 35, ohne `REQUEST_INSTALL_PACKAGES`, ein v2-Signierer mit obigem Zertifikat.
-- **Migration:** Bereits installierte ältere Testversionen (z. B. aus #221/#240) tragen eine andere Signatur und lassen sich nicht direkt aktualisieren. Einmalige Neuinstallation der Testversion nötig; davor lokale Daten prüfen. Alle künftigen Testbuilds verwenden dieselbe Signatur und sind als Update installierbar.
-- **Noch offen:** Zwei-Smartphone-Praxistest des Ein-Scan-Pairings (siehe 2d). Kein Merge, kein Nutzdatentransfer.
-
-## 2f. Automatische ioBroker-Einrichtung und QR-Kontoübernahme (18.11.2026)
-
-- Anlass: Bei Neuinstallation zeigte 0.4.69 sofort die Adresseingabe (doppelte Fehlermeldung). Zusätzlich speicherte die Einstellungskarte in `klimapilot_iobroker_address` nur den Host, der Login erwartete dort eine vollständige URL.
-- Neu in `IoBrokerAutoSetup.kt` (Commit `7f266a7`):
-  - `IoBrokerAddress`: einheitliche Ablage (`iobroker_server` = ws-URL, dazu Host/Port/Protokoll), tolerantes Lesen alter Formate, Eingaben wie `192.168.178.54` oder `host:port` werden zu `ws://…:8084`.
-  - `IoBrokerAutoSetup`: ohne Nutzereingabe zuerst gespeicherte Adresse, dann Suche im eigenen WLAN-/24 nach Port 8084 (48 parallele Proben, 500 ms). Jeder Treffer gilt erst nach der regulären Verbindungs- und Alive-Prüfung als ioBroker (10 s Timeout je Kandidat). Danach automatischer Import aus `0_userdata.0.KlimaPilot.accounts`.
-  - Login zeigt währenddessen nur einen Ladekreis. Adresseingabe, „Automatisch erneut suchen“ und QR-Fallback erscheinen nur, wenn nichts gefunden wurde.
-  - `KlimaPilotSetupTransfer`: Administratoren können unter Einstellungen → Benutzerkonto → „Anderes Smartphone einrichten“ einen 10 Minuten gültigen QR-Code anzeigen (Kontenliste mit PBKDF2-Hashes, keine Klartextpasswörter, plus ioBroker-Adresse). Das neue Smartphone scannt ihn auf dem Anmelde- oder Ersteinrichtungsbildschirm. Vorhandene lokale Konten werden nie überschrieben. Bewusst einfache Lösung nach Nutzervorgabe (Heimnetz, zwei Personen).
-- Unit-Tests `IoBrokerAutoSetupTest` (Adressnormalisierung, Altformate, Subnetzbereich, QR-Roundtrip, abgelaufene/fremde/leere Codes).
-- CI liest erwartete Version jetzt aus `app/build.gradle.kts`.
-- WLAN-Workflow **#246** (Run `44353514087`, Commit `7f266a766d483d5c5ab267fd1ccd96e133655e78`): **erfolgreich**. Artefakt `KlimaPilot-debug-test-0.4.70`, ID `14450381008`, läuft am 25.11.2026 ab. Pre-Release `klimapilot-test-latest` aktualisiert; APK-SHA-256 `6863f57439676dda5d33977508ab8357b4fefeafc0012790a1e2212dc1ce488a`, unabhängig nachgeprüft (Paket, 0.4.70-debug/100, ohne `REQUEST_INSTALL_PACKAGES`, Test-Zertifikat `230865b9…65ecfb`).
-- **Noch offen:** Praxistest auf dem Smartphone (automatisches Finden, manuelle Adresse, QR-Übernahme). Der Updater und `main` sind unverändert.
-
-## 2g. Updater der Testversion (18.11.2026, mit ausdrücklicher Nutzerfreigabe nur für Testbuilds)
-
-- Befund in 0.4.69-debug: Der Updater fragte das Produktions-Release `latest` (0.4.67) ab und hielt es für neuer, weil `0.4.69-debug` beim Vergleich als 0.4.0 gelesen wurde. Installiert hätte er es nicht (Paketkennung passt nicht).
-- Commit `febef43`: Update-Quelle über `BuildConfig.UPDATE_RELEASE_TAG` / `UPDATE_ASSET_NAME`. Release: unverändert `latest` / `KlimaPilot.apk`. Debug: `klimapilot-test-latest` / `KlimaPilot-test.apk`. Versionsvergleich ignoriert das Suffix `-debug`.
-- In `febef43` wurde für Debug-Builds zusätzlich eine Browser-Abzweigung für „Update laden“ eingebaut. Das war nicht freigegeben und wurde mit Commit `e8cb6f7` vollständig zurückgenommen. Der Installationsablauf (Download, Paketprüfung, FileProvider, `ACTION_VIEW`, ClipData) ist in Test- und Produktionsversion identisch und unverändert. Ob die Debug-Variante ohne `REQUEST_INSTALL_PACKAGES` den Installationsdialog öffnen kann, ist noch auf dem Gerät zu prüfen.
-- Release-Notizen des Test-Pre-Release enthalten `KlimaPilot-Version: <versionName>` für die Versionsprüfung.
-- WLAN-Workflow **#247** (Run `44356354091`, Commit `febef438f6e9ab0d601231cdcecea2b46b055489`): **erfolgreich**. Artefakt `KlimaPilot-debug-test-0.4.71`, ID `14453886779`, läuft am 25.11.2026 ab. APK-SHA-256 `d68a8b96e68bf5f9fa02748a97af1437c06220944ebdd2cd6b6e12ec2007b07e`, unabhängig nachgeprüft (0.4.71-debug/101, ohne `REQUEST_INSTALL_PACKAGES`, Test-Zertifikat `230865b9…65ecfb`). Produktions-Release `latest` unverändert.
-- WLAN-Workflow **#248** (Run `44358219807`, Commit `e8cb6f7`): **erfolgreich**. Artefakt ID `14452823159`, läuft am 25.11.2026 ab. APK-SHA-256 `f666e9c8773ba02851628ec0d08e67a5bc9010905191e9dbc93f317976163596`, unabhängig nachgeprüft (0.4.72-debug/102, ohne `REQUEST_INSTALL_PACKAGES`, Test-Zertifikat `230865b9…65ecfb`). 0.4.71 ist überholt und soll nicht verwendet werden.
-- **Noch offen:** Gerätetest des Test-Updaters (Erkennen und Installieren einer neueren Testversion).
-
-## 3. Letzte Codeänderung
-
-- Produktion und `test`: 0.4.78 / 108, Code-Commit `6be0db92978ee09980608779a5b1ef32a1fbfa9a` (Abschnitt 2j). Davor: Smartphone-Synchronisation (2i), Play-Protect-Korrektur (2h), automatische ioBroker-Einrichtung (2f).
+- Offene PRs: **keine**.
+- PR #6 (`test` → `main`, WLAN-Sync und Pairing) am 18.11.2026 gemergt. PR #3 (Änderungsjournal) am 17.11.2026 und PR #1 (direkte WF-RAC-Anbindung) am 15.11.2026 gemergt. PR #2, #4 und #5 ohne Merge geschlossen.
+- Übrige Remote-Branches (alle ohne offenen PR, nicht maßgeblich):
+  - `feature/local-wifi-pairing`, `fix/durable-profile-change-journal`: keine Commits, die nicht in `main` enthalten sind.
+  - `feature/local-wifi-profile-sync`: 2 Commits voraus, nur Workflow-Dateien; Inhalt über `test` überholt.
+  - `feature/direct-wf-rac-wlan`: nach dem Merge von PR #1 23 weitere Commits, die nicht in `main` übernommen wurden; stark veralteter Stand.
+  - `validation/tcp-api26-api35-20261118`, `validation/tcp-api35-retry-20261118`, `validation/tcp-api35-device-ready-20261118`, `validation/tcp-api35-kvm-permissions-20261118`: isolierte Workflow-Prüfstände für API 35 (siehe Abschnitt 5).
+- Die früheren automatischen Dokumentationsbranches `docs/status-reconcile-2026-11-15` und `docs/status-refresh-2026-11-16` wurden am 19.11.2026 gelöscht.
 
 ## 4. Pairing- und Synchronisationsstatus
 
-- Kopplung: Ein-Scan-QR mit signiertem ACK, in Produktions- und Testversion; Fingerprints werden nur im Hintergrund geprüft.
+- Kopplung: Ein-Scan-QR mit signiertem ACK, in Produktions- und Testversion; Fingerprints werden nur im Hintergrund geprüft und nicht mehr angezeigt.
 - Abgleich zwischen gekoppelten Geräten: Konten, Klimaprofile (inkl. aktivem Profil und individuellen Einstellungen), Räume, Geräte, WF-RAC-Modulidentitäten, ioBroker-Adresse. Automatisch bei geöffneter App, alle 30 s. Details in `LOCAL_WIFI_SYNC_DESIGN.md`, Abschnitt 6.
 - Aktueller Zustand der Klimaanlage: jedes Smartphone liest ihn direkt per WF-RAC alle 10 s (kein ioBroker nötig).
 - ioBroker-Profilsync läuft unverändert parallel; die gemeinsame `ClimateProfileSyncEngine` sorgt für gleiche Konfliktregeln.
-- TCP ist unverschlüsselt (Nutzerentscheidung); Inhalte inkl. Passwort-Hashes sind im eigenen WLAN mitlesbar.
-- Gerätetest 18.11.2026: Kopplung Smartphone/Tablet und Raumübertragung bestanden; Produktions-Apps beider Nutzer gekoppelt (0.4.77/0.4.78). Offen: Test mit der realen Klimaanlage, Negativfälle der Kopplung.
+- TCP ist unverschlüsselt (Nutzerentscheidung, TLS/mTLS verworfen); Inhalte inkl. Passwort-Hashes sind im eigenen WLAN mitlesbar. Authentifizierung über gegenseitige ECDSA-Signaturen mit Keystore-Schlüsseln.
+- Gerätetests 18.11.2026: Kopplung Smartphone/Tablet (0.4.69-debug, 18:04 Uhr) und Raumübertragung (0.4.77, 20:45 Uhr) bestanden; Produktions-Apps beider Nutzer gekoppelt.
+- Offen: Test mit der realen Klimaanlage, Negativfälle der Kopplung (Abbruch, Timeout, Verbindungsverlust, ungültige/wiederholte Nachrichten).
 
-## 5. CI- und Testnachweise (historisch, Stand vor 18.11.2026 abends)
+## 5. CI und Workflows
 
-Aktuelle Nachweise stehen in den Abschnitten 1 und 2e–2j. Die folgenden Nachweise sind konkrete ältere Ergebnisse; sie dürfen nicht als Validierung der neuen Handshake-Integration ausgegeben werden:
+- `.github/workflows/android.yml`: Produktionsbuild bei Push auf `main` (Commits mit `[skip ci]` ausgenommen); veröffentlicht `KlimaPilot.apk` im Release `latest` und pflegt den automatischen Block oben in dieser Datei.
+- `.github/workflows/wlan-validation.yml` („KlimaPilot WLAN Branch Validation“): Push auf `test` (ausgenommen `PROJECT_STATUS.md` und `app/src/debug/**`) sowie `workflow_dispatch`. Unit-Tests, Debug-APK, Release-Kotlin-Kompilierung, Prüfung von Paket, Version, Test-Zertifikat und Fehlen von `REQUEST_INSTALL_PACKAGES`; veröffentlicht die Test-APK als Pre-Release `klimapilot-test-latest`. Maven-Downloads werden bis zu fünfmal wiederholt.
+- `.github/workflows/pairing-tls-validation.yml` (historischer Dateiname): API-26-Emulator-/TCP-Instrumentierungstest, nur `workflow_dispatch`.
+- **API 26:** TCP-Instrumentierungstests bestanden (u. a. Lauf #63, 3/3; Lauf #69).
+- **API 35:** ungeprüft. Alle Versuche vom 18.11.2026 scheiterten an der CI-Umgebung, nicht an der App: Lauf #63 mit `Can't find service: package`, die Wiederholungen auf den `validation/tcp-api35-*`-Branches an einem Shell-Syntaxfehler im Bereitschaftsschritt, bevor ein Test lief. API 35 ist optional und kein Freigabekriterium; keine weiteren Versuche ohne konkreten neuen Ansatz.
+- CI-Ergebnisse ersetzen keine Gerätetests.
 
-- WLAN-Workflow **#202**, erfolgreich auf älterem Commit `ae1bdc03c78624ff640505b4bd255bfd885b05c5`.
-- WLAN-Workflow **#201**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`.
-- Separater TCP-Emulatorlauf **#62**, erfolgreich auf älterem Commit `41b9a3ab513e7d48daa09ee21298fe718748363b`, API 26.
-- WLAN-Workflow **#203**, erfolgreich per `workflow_dispatch` auf `test` mit Commit `1a1d9df06492b45b89d537ac2844d76c789280a6`: `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin` erfolgreich. Damit sind die elf Netzwerk-Policy-Tests auf diesem Stand über Gradle/JUnit ausgeführt.
-- WLAN-Workflow **#205**, manuell gestartet auf `test` mit HEAD `f99ffb0a48a77afcd03c38950927369288fcfc5e`, erfolgreich abgeschlossen. `testDebugUnitTest`, `assembleDebug` und `compileReleaseKotlin` liefen im Schritt „Unit-Tests und Debug-Kompilierung“ erfolgreich. Dies bestätigt JVM-Unit-Tests und Kompilierung auf diesem App-Stand, ersetzt aber keinen Android-Instrumentierungstest.
-- WLAN-Workflow **#206**, Push-Trigger auf CI-Konfigurationscommit `e01cc74...`, erfolgreich abgeschlossen. Derselbe Unit-/Debug-/Release-Kompilierungsschritt war erfolgreich; kein Emulator-/Instrumentierungstest.
-- TCP-Peer-Emulatorworkflow **#69** auf API 26, Commit `3fbe06d0f8cf357bb787ca2a95a47a41fb55767d`, erfolgreich abgeschlossen. Alle Steps einschließlich „Android Emulator und TCP-Peer-Test“ und Diagnose-Artefakt waren erfolgreich. Der Step führt `testDebugUnitTest connectedDebugAndroidTest` aus; damit ist der Android-Instrumentierungslauf auf API 26 erfolgreich. Der genaue einzelne Testfallzähler ist aus den verfügbaren Jobmetadaten nicht ersichtlich.
-- Nachträgliche Workflow-Ergänzung: Nach erfolgreicher API-26-Prüfung wird `app-debug.apk` auf Paketkennung, versionCode und versionName geprüft, mit `apksigner` verifiziert und als Artefakt `KlimaPilot-debug-api26-test` hochgeladen. API-26-Lauf **#70** auf Commit `e685389a30aed387561815b506bdf1e6cc673ff9` erfolgreich abgeschlossen. Der Emulator-/Instrumentierungsschritt, die Paket-/Versions-/Signaturprüfung und der Artefakt-Upload waren erfolgreich. Das Artefakt `KlimaPilot-debug-api26-test` wurde heruntergeladen und enthält `app-debug.apk` (18.796.844 Bytes) sowie SHA-256 `197b2f069a20d4fd845c6499c736ca87e5254291774fa4d910a4e1987cc0d7bd`. Geprüfte erwartete Werte des Laufs #70: Paket `de.klimapilot.app.debug`, versionCode `94`, versionName `0.4.64-debug`; `apksigner verify` erfolgreich. Dieser ältere Artefaktstand enthält noch die Installationsberechtigung und darf nicht erneut verwendet werden.
-- WLAN-Workflow **#207** auf demselben Commit `3fbe06d...` ebenfalls erfolgreich; er war ein redundanter zusätzlicher Lauf mit Unit-Tests und Debug-/Release-Kompilierung, nicht der Emulatornachweis.
-- Debug-Test-App: `app/src/debug/AndroidManifest.xml` entfernt `REQUEST_INSTALL_PACKAGES` ausschließlich aus dem Debug-Variant-Manifest per Manifest-Merger-Marker `tools:node="remove"`. `main` und das gemeinsame `app/src/main/AndroidManifest.xml` wurden nicht geändert; der bestehende Release-Updater bleibt unangetastet. Die neue Debug-APK ist noch nicht freigegeben, bis die explizite APK-Manifest-Prüfung auf `REQUEST_INSTALL_PACKAGES` erfolgreich durchlaufen ist. Die bisherige CI-Prüfung #73 kontrollierte Paketkennung/Version/Signatur, aber noch nicht ausdrücklich die Abwesenheit dieser Berechtigung.
-- Testversion auf Branch `test`: 0.4.65 / versionCode 95; Debug-Paket `de.klimapilot.app.debug`, erwarteter versionName `0.4.65-debug`. Das ist keine Produktionsversion und kein Release.
-- Die sieben JVM-Adress-/IPv6-Scope-Tests sind vorhanden; ihre Ausführung auf dem aktuellen Stand ist nicht bestätigt.
-- TCP-Emulatorlauf **#63**, Commit `725fe3109aa4712abda0a4f500cb6433c8a49e19` (Workflow-only-Abzweig vom identischen App-/Teststand `1a1d9df...`): API 26 erfolgreich; Gradle-Build erfolgreich und Instrumentierungstests **3/3 bestanden**. API 35 im selben Lauf fehlgeschlagen, weil der Emulator/Package-Manager nicht rechtzeitig verfügbar war; keine bestandenen API-35-App-Tests.
-- Optionale API-35-Wiederholungen #66, #67 und #68 fehlgeschlagen; #64 und #65 wurden während der Workflow-Konfigurationskorrektur abgebrochen. Lauf #68 enthielt zusätzliche KVM-Berechtigungs- und Emulator-Readiness-Prüfungen, endete aber weiterhin mit Fehler im API-35-Job. API 35 bleibt ausdrücklich optional und ist kein Freigabekriterium. Keine weiteren API-35-Wiederholungen, solange kein konkreter neuer technischer Ansatz vorliegt.
-- **Neue gewünschte Kopplungs-UX (noch nicht implementiert):** Einladungsgerät zeigt einen QR-Code; das zweite Gerät scannt einmal und erhält nur die Auswahl „Koppeln“ oder „Abbrechen“. Die Fingerprint-Prüfung bleibt automatisch im Hintergrund. Nach Zustimmung muss die signierte Antwort über einen zeitlich begrenzten lokalen WLAN-Rückkanal zum Einladungsgerät gelangen. Das Einladungsgerät speichert den Peer und bestätigt den Speichervorgang; erst nach dieser Bestätigung speichert auch das zweite Gerät den Einladenden. Fehler, Timeout, Abbruch oder fehlende Bestätigung dürfen auf keiner Seite eine erfolgreiche Kopplung anzeigen. Der bestehende Handshake-only-TCP-Kanal ist dafür nicht ausreichend und darf nicht als bereits vorhandener Pairing-Rückkanal missverstanden werden.
-- Kein Zwei-Smartphone-Praxistest bestätigt. Die neue Handshake-Integration wurde noch nicht auf realen Geräten geprüft.
-- Der erfolgreiche WLAN-Lauf #203 deckte den damaligen App-/Teststand `1a1d9df...` ab, nicht die neue Handshake-Integration. Der API-26-Instrumentierungslauf #63 verwendet einen separaten Workflow-only-Commit, dessen App-/Testbaum dem damaligen Stand `1a1d9df...` entspricht.
-- Die elf Netzwerk-Policy-Fälle wurden im WLAN-Workflow #203 auf dem damaligen App-/Teststand durch `testDebugUnitTest` ausgeführt; der gesamte Workflow war erfolgreich. Zusätzlich wurden sie zuvor mit einem separaten Kotlin-Smoke-Harness 11/11 bestanden. Der Smoke-Harness ist kein Ersatz für Gradle, Android-Kompilierung oder Emulator-/Gerätetests.
+## 6. Verlauf 18.11.2026 (kompakt)
 
-Workflows:
-- `.github/workflows/wlan-validation.yml`: Push-Trigger für `test`; nur `PROJECT_STATUS.md` und `app/src/debug/**` sind ausgeschlossen (Workflow-Änderungen bauen seit `695e9ab` neu). Zusätzlich `workflow_dispatch`; führt Unit-Tests, Debug-APK-Build und Release-Kotlin-Kompilierung mit Java 17/Android SDK 35 aus, prüft Manifest, Signatur und Test-Zertifikat und veröffentlicht die APK als Pre-Release `klimapilot-test-latest`.
-- `.github/workflows/pairing-tls-validation.yml`: historischer Dateiname; API-26-Emulator-/Instrumentierungstest. Seit Commit `2e6a817...` kein Push-Trigger mehr; nur `workflow_dispatch` ist konfiguriert. Reguläre Änderungen auf `test` lösen diesen Emulatorworkflow nicht mehr aus. Manuelle Auslösung bleibt aufgrund der Workflow-Datei nur auf `test` möglicherweise nicht über die GitHub-Oberfläche verfügbar. Der WLAN-Workflow bleibt der reguläre Prüfweg.
+### 2a–2c. Kontenübernahme aus ioBroker und Pairing-ACK
+- Kontenübernahme direkt aus `0_userdata.0.KlimaPilot.accounts` über die WebSocket-Adresse; vorhandene lokale Konten werden nie überschrieben (0.4.68).
+- Pairing: Responder speichert den Einladenden erst nach einem ECDSA-signierten Speicher-ACK (`ClimatePairingAcknowledgement`, Commits `f7f6eaf`, `b0e430e`, `5dcc6ed`, `aa633a1`).
+- `pairing-tls-validation.yml` startet seit Commit `2e6a817` nicht mehr automatisch.
 
-## 6. Verbindliche Regeln
+### 2d. Ein-Scan-Pairing über lokalen WLAN-Rückkanal
+- Einladungsgerät öffnet einen One-shot-TCP-Listener und bindet Host/Port in die signierte QR-Einladung ein; das zweite Gerät scannt einmal und wählt „Koppeln“ oder „Abbrechen“. Längenpräfixierte Frames, max. 4 KiB, begrenzte Zeiten; nur numerische lokale IP-Adressen.
+- Grundlage Commit `07a774c` (WLAN-Workflow #240), Praxistest bestanden (siehe Abschnitt 4).
 
-- Updater und Installationsablauf dürfen **niemals geändert** werden (siehe 2h; nur reine Layout-Änderungen nach ausdrücklichem Wunsch).
+### 2e. Feste Test-Signatur
+- Debug-Builds werden in der CI mit dem Testschlüssel aus dem Secret `KLIMAPILOT_TEST_KEYSTORE_BASE64` signiert (PKCS12, RSA 2048, gültig bis 10.11.2056, Zertifikat SHA-256 `230865b90b0c37e6a7935fd4f5e0fad0626853a44921a7a2f7d6185b9665ecfb`). Lokale Builds ohne Variablen nutzen den Android-Standard-Debugschlüssel. Sicherungskopie des Schlüssels liegt beim Nutzer.
+- Ältere Testversionen mit anderer Signatur erfordern einmalig eine Neuinstallation.
+
+### 2f. Automatische ioBroker-Einrichtung und QR-Kontoübernahme
+- `IoBrokerAutoSetup.kt` (Commit `7f266a7`): einheitliche Adressablage, tolerantes Lesen alter Formate, automatischer Kontenimport.
+- Administratoren können unter Einstellungen → Benutzerkonto → „Anderes Smartphone einrichten“ einen 10 Minuten gültigen QR-Code anzeigen (PBKDF2-Hashes, keine Klartextpasswörter, plus ioBroker-Adresse).
+- Die ursprüngliche automatische Suche im WLAN (Port 8084) wurde in 0.4.75 wieder entfernt (siehe 2h). Anmeldung nutzt die gespeicherte Adresse, sonst `ws://192.168.178.54:8084`, sonst Adressfeld oder QR-Übernahme.
+
+### 2g. Updater der Testversion – überholt
+- Die Test-Updater-Anpassung (`febef43`, `e8cb6f7`) wurde in 0.4.75 vollständig zurückgenommen. Testversionen werden über den Direktlink installiert.
+
+### 2h. Play-Protect-Blockade und Updater-Korrektur
+- 0.4.74 wurde beim Update von Play Protect als „Schädliche App blockiert“ abgewiesen.
+- Ohne `REQUEST_INSTALL_PACKAGES` öffnet „Update laden“ keinen Installationsdialog (Gerätetest 18.11.2026). Die frühere Doku-Aussage, die Berechtigung werde nicht verwendet, war falsch: Seit 0.4.23 enthielt jede Produktionsversion sie.
+- 0.4.75: `GithubPrivateUpdates.kt` und `GithubUpdateCard.kt` byte-identisch mit dem 0.4.67-Build (`608912f`), WLAN-Suche entfernt. Gerätetest 19:57–19:59 Uhr: Installationsdialog öffnet sich, Play Protect bietet „Trotzdem installieren“, Update auf 0.4.75 erfolgreich, Anmeldung und Einstellungen erhalten.
+- **Offen:** Ursache der Play-Protect-Einstufung. Kein weiterer Umbau am Updater.
+
+### 2i. Synchronisation zwischen gekoppelten Smartphones (0.4.76/0.4.77)
+- Commits `511a179` und `18a1dd3`: nach der gegenseitigen TCP-Authentifizierung tauschen beide Geräte einen Datenstand aus (`ClimatePeerDataSync`). Konten: höhere Revision gewinnt; Profile über `ClimateProfileSyncEngine`; Admin-Konfiguration: neuere Änderungszeit gewinnt; ioBroker-Adresse nur, wenn keine gespeichert ist.
+- Unit-Tests `ClimatePeerDataSyncTest`. Gerätetest 20:45 Uhr bestanden, danach Produktionsrelease 0.4.77.
+
+### 2j. Oberflächenpflege 0.4.78
+- Kopplungskarte als Ausklappkachel; Fingerprints und Signaturhinweise aus der Oberfläche entfernt (Prüfungen laufen unverändert im Hintergrund).
+- „Nach Updates suchen“ und „Update laden“ über die volle Breite (nur Layout; Updater-Ablauf unverändert).
+
+### Übernahme nach `main`
+- `main` wurde per Merge-Commit `12096f3` in `test` geholt (Konflikte zugunsten von `test`, identische Speicherschlüssel), WLAN-Workflow #250 erfolgreich, danach `main` per Fast-Forward nachgezogen (Produktionsbuild #239, 0.4.74). Seitdem werden Versionen nach Gerätetest von `test` nach `main` übernommen.
+
+## 7. Verbindliche Regeln
+
+- Updater und Installationsablauf dürfen **niemals geändert** werden: `ACTION_VIEW` + `application/vnd.android.package-archive` + FileProvider + URI-Leseberechtigung + ClipData + `REQUEST_INSTALL_PACKAGES` im Manifest (nur reine Layout-Änderungen nach ausdrücklichem Wunsch).
 - Neue Funktionen zuerst auf `test` mit der Testversion prüfen; Übernahme nach `main` auf Wunsch des Nutzers. Produktionsbuild nur über Push auf `main`.
 - Commits, die nur Dokumentation auf `main` ändern, mit `[skip ci]` kennzeichnen, damit kein Release entsteht.
 - Bestehende ioBroker-Verbindung, WF-RAC-Steuerung und Produktionsdaten schützen.
 
-## 7. Produkt- und Hardwaregrenzen
+## 8. Produkt- und Hardwaregrenzen
 
 - Zielgerät: Mitsubishi Heavy SRK15ZS-WF.
-- Die Klimaanlage wird am 19.11.2026 in Betrieb genommen; reale Hardware-/Firmwarefunktionen sind bis dahin nicht bestätigt.
+- Die Klimaanlage wird am 19.11.2026 in Betrieb genommen; reale Hardware-/Firmwarefunktionen sind bis zum Test nicht bestätigt.
 - Adapter `mhi-wfrac` ist noch nicht eingerichtet und wird erst nach Installation der Klimaanlage verwendet.
 - SENEC/`energyfluss` nicht als Datenquelle einplanen.
 - Produktionsverbindung zu ioBroker: WebSocket `ws.0`, Port 8084; Alive-Prüfung über `system.adapter.admin.0.alive`.
 
-## 8. Nächste Schritte
+## 9. Nächste Schritte
 
 1. Inbetriebnahme der Klimaanlage: auf dem Admin-Handy hinzufügen und WF-RAC koppeln; prüfen, dass sie auf dem zweiten Handy erscheint, von dort steuerbar ist und Änderungen nach ~10 s auf beiden Geräten sichtbar sind.
 2. Profilübertragung mit realer Anlage prüfen.
 3. Play-Protect-Einstufung klären (Updates müssen derzeit mit „Trotzdem installieren“ bestätigt werden).
 4. Optional: Negativfälle der Kopplung testen; gekoppelte Geräte in der Oberfläche entfernbar machen.
 
-## 9. Dokumentationsstruktur und Pflege
+## 10. Dokumentationsstruktur und Pflege
 
 ### Einstieg
 - `README.md`: kurze Projektbeschreibung, technische Basis, feste Grundregeln und Links. Keine zweite Statusübersicht.
 
 ### Einzige Statusquelle
-- `PROJECT_STATUS.md`: Produktivversion, Branches, Commits, Builds, CI-Nachweise, aktueller Arbeitsstand, Regeln und nächste Schritte.
+- `PROJECT_STATUS.md`: Produktivversion, Branches, Builds, CI-Nachweise, aktueller Arbeitsstand, Regeln und nächste Schritte.
 
 ### Technische Fachkonzepte
 - `DIRECT_WLAN_MIGRATION.md`: direkter WF-RAC-Kommunikationsweg und Hardwaretestanforderungen.
@@ -243,13 +143,12 @@ Workflows:
 - `PAIRING_PROTOCOL_DECISIONS.md`: Identität, Pairing, Trust und Sicherheitsentscheidungen.
 - `SYNC_RESILIENCE_PLAN.md`: Outbox, Konfliktbehandlung, Wiederanlauf und Zuverlässigkeitsanforderungen.
 
-Die frühere Datei `STATUS.md` wurde entfernt. Ihr Übergabe-/Statusinhalt ist in diese Datei übernommen. Es darf keine neue parallele Statusdatei angelegt werden, solange kein konkreter, nicht anders lösbarer Bedarf besteht.
+Es darf keine parallele Statusdatei angelegt werden. Neue Stände werden in die passenden Abschnitte eingearbeitet, nicht als zusätzliche Abgleich-Abschnitte oben angehängt.
 
 ### Verbindliche Aktualisierungsroutine
-1. Vor jeder Änderung den aktuellen GitHub-Stand von `main`, `test`, PR und relevanten Actions prüfen.
-2. Betroffene Code- und Fachdateien vollständig beziehungsweise ausreichend lesen.
-3. Nach Änderungen den maßgeblichen Status in dieser Datei aktualisieren.
-4. Fachkonzepte nur dann ändern, wenn sich deren Architektur, Entscheidung oder technische Anforderungen ändern – nicht für jede Statuswiederholung.
+1. Vor jeder Änderung den aktuellen GitHub-Stand von `main`, `test`, PRs und relevanten Actions prüfen.
+2. Betroffene Code- und Fachdateien ausreichend lesen.
+3. Nach Änderungen den maßgeblichen Status in dieser Datei aktualisieren; überholte Aussagen ersetzen statt neue daneben zu stellen.
+4. Fachkonzepte nur bei Änderungen an Architektur, Entscheidungen oder technischen Anforderungen ändern.
 5. README nur bei Änderungen an Projektbeschreibung, Einstieg oder festen Grundregeln aktualisieren.
-6. Nach dem Commit alle geänderten Dateien erneut von GitHub lesen und Links, Status, Commit-Hashes sowie Querverweise auf Konsistenz prüfen.
-7. Produktions-HEAD, letzter erfolgreicher Build und Release-Stand immer getrennt ausweisen.\n\n\n\n
+6. Produktions-HEAD, letzter erfolgreicher Build und Release-Stand immer getrennt ausweisen.
