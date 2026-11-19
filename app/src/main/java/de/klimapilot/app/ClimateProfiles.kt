@@ -11,7 +11,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -333,12 +334,13 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ClimateProfile?>(null) }
     var saveNameDialog by remember { mutableStateOf(false) }
-    var saveChoiceDialog by remember { mutableStateOf(false) }
     var newProfileName by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
     var selectedProfileId by remember(deviceId) { mutableStateOf(syncStore.activeProfileId(deviceId)) }
 
     var profileMenuExpanded by remember { mutableStateOf(false) }
+    // True while a profile is being applied: the shown selection already changed, the unit not yet.
+    var switching by remember(deviceId) { mutableStateOf(false) }
 
     fun persistActiveProfile(profileId: String?, requestSync: Boolean = true): String? {
         val error = persistActiveProfileSelection(syncStore, deviceId, syncDeviceKey, profileId)
@@ -394,6 +396,61 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         (modelSupportsVaneLR == true && selectedProfile.horizontalSwing != null && selectedProfile.horizontalSwing != currentState.windLR) ||
         (modelSupportsVaneLR == true && selectedProfile.threeDAuto != null && selectedProfile.threeDAuto != currentState.entrust)
     )
+    val showDirty = selectedProfileDirty && !switching
+
+    fun updateSelectedProfileFromState() {
+        val profile = selectedProfile ?: return
+        val state = currentState ?: return
+        val updated = profile.copy(
+            power = state.power, mode = state.mode?.name,
+            targetTemp = state.presetTemp, fanSpeed = state.airFlow,
+            verticalSwing = state.windUD,
+            horizontalSwing = state.windLR.takeIf { modelSupportsVaneLR == true },
+            threeDAuto = state.entrust.takeIf { modelSupportsVaneLR == true },
+            updatedAt = System.currentTimeMillis()
+        )
+        runCatching {
+            if (syncDeviceKey.isBlank()) repository.save(updated)
+            else repository.saveWithPendingSync(updated, syncDeviceKey)
+        }.onSuccess {
+            val index = profiles.indexOfFirst { it.id == updated.id }
+            if (index >= 0) profiles[index] = updated
+            status = "Änderungen in „${updated.name}“ übernommen."
+            syncRevision++
+        }.onFailure { status = it.message ?: "Profil konnte nicht aktualisiert werden." }
+    }
+
+    // "Individuell" keeps whatever is set on the unit: every change is saved right away.
+    LaunchedEffect(deviceId, currentState, selectedProfileId, switching, loaded) {
+        if (managerMode || !loaded || switching || selectedProfileId != null || deviceId.isBlank()) return@LaunchedEffect
+        val state = currentState ?: return@LaunchedEffect
+        val stored = runCatching { syncStore.individualProfile(deviceId) }.getOrNull()
+        val vaneLR = Codec.modelHasVaneLR(state.modelNrRaw) == true
+        val unchanged = stored != null &&
+            stored.power == state.power && stored.mode == state.mode?.name &&
+            stored.targetTemp != null && abs(stored.targetTemp - state.presetTemp) < 0.01 &&
+            stored.fanSpeed == state.airFlow && stored.verticalSwing == state.windUD &&
+            stored.horizontalSwing == state.windLR.takeIf { vaneLR } &&
+            stored.threeDAuto == state.entrust.takeIf { vaneLR }
+        if (!unchanged) captureIndividualSettings()?.let { status = it }
+    }
+
+    fun switchTo(profile: ClimateProfile, profileId: String?, failure: String) {
+        val previous = selectedProfileId
+        selectedProfileId = profileId
+        switching = true
+        status = ""
+        onApply(profile) { success, message ->
+            if (success) {
+                status = persistActiveProfile(profileId) ?: ""
+            } else {
+                selectedProfileId = previous
+                status = message ?: failure
+            }
+            switching = false
+        }
+    }
+
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
         if (!loaded || !loadSucceeded) return@LaunchedEffect
@@ -439,6 +496,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                     Text(selectedProfile?.let { profileSymbol(it) } ?: "⚙️", fontSize = 17.sp)
                                     Spacer(Modifier.width(7.dp))
                                     Text(selectedProfile?.name ?: "Individuell", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1)
+                                    if (showDirty) Text("  (geändert)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                                     Spacer(Modifier.weight(1f))
                                     Text("⌄", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -451,11 +509,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                         if (snapshot == null) {
                                             status = persistActiveProfile(null) ?: "Noch keine individuellen Einstellungen gespeichert. Die aktuellen Geräteeinstellungen bleiben unverändert."
                                         } else {
-                                            onApply(snapshot) { success, message ->
-                                                status = if (success) {
-                                                    persistActiveProfile(null) ?: (message ?: "Individuelle Einstellungen wiederhergestellt.")
-                                                } else message ?: "Individuelle Einstellungen konnten nicht wiederhergestellt werden."
-                                            }
+                                            switchTo(snapshot, null, "Individuelle Einstellungen konnten nicht wiederhergestellt werden.")
                                         }
                                     })
                                 deviceProfiles.forEach { profile ->
@@ -466,23 +520,20 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                             if (captureError != null) {
                                                 status = captureError
                                             } else {
-                                                onApply(profile) { success, message ->
-                                                    status = if (success) {
-                                                        persistActiveProfile(profile.id) ?: (message ?: "Profil erfolgreich angewendet.")
-                                                    } else message ?: "Profil konnte nicht angewendet werden."
-                                                }
+                                                switchTo(profile, profile.id, "Profil konnte nicht angewendet werden.")
                                             }
                                         })
                                 }
                             }
                         }
-                        IconButton(onClick = {
-                            if (currentState != null) {
-                                if (selectedProfileDirty) saveChoiceDialog = true
-                                else { newProfileName = ""; saveNameDialog = true }
+                        if (showDirty) {
+                            IconButton(onClick = { updateSelectedProfileFromState() }, modifier = Modifier.size(34.dp)) {
+                                Icon(Icons.Default.Check, contentDescription = "Änderungen in dieses Profil übernehmen", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                             }
-                        }, enabled = currentState != null, modifier = Modifier.size(34.dp)) {
-                            Icon(Icons.Default.Save, contentDescription = "Profil speichern", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = { newProfileName = ""; saveNameDialog = true },
+                            enabled = currentState != null, modifier = Modifier.size(34.dp)) {
+                            Icon(Icons.Default.Add, contentDescription = "Neues Profil anlegen", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 } else if (deviceProfiles.isEmpty()) {
@@ -541,72 +592,6 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         )
     }
 
-
-    if (saveChoiceDialog && selectedProfile != null && currentState != null) {
-        KlimaPilotAlertDialog(
-            onDismissRequest = { saveChoiceDialog = false },
-            title = { Text("Profil speichern") },
-            text = { Text("Möchtest du die geänderten Einstellungen im Profil „${selectedProfile.name}“ aktualisieren oder ein neues Profil anlegen?") },
-            confirmButton = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Button(
-                            onClick = {
-                                val updated = selectedProfile.copy(
-                                    power = currentState.power, mode = currentState.mode?.name,
-                                    targetTemp = currentState.presetTemp, fanSpeed = currentState.airFlow,
-                                    verticalSwing = currentState.windUD,
-                                    horizontalSwing = currentState.windLR.takeIf { modelSupportsVaneLR == true },
-                                    threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
-                                    updatedAt = System.currentTimeMillis()
-                                )
-                                runCatching {
-                                    if (syncDeviceKey.isBlank()) repository.save(updated)
-                                    else repository.saveWithPendingSync(updated, syncDeviceKey)
-                                }.onSuccess {
-                                    val index = profiles.indexOfFirst { it.id == updated.id }
-                                    if (index >= 0) profiles[index] = updated
-                                    status = if (syncDeviceKey.isBlank()) "Profil aktualisiert." else
-                                        "Profil aktualisiert und dauerhaft zur Synchronisierung vorgemerkt."
-                                    syncRevision++
-                                }.onFailure { status = it.message ?: "Profil konnte nicht aktualisiert werden." }
-                                saveChoiceDialog = false
-                            },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text("Aktualisieren", maxLines = 1, fontSize = 11.sp)
-                        }
-                        OutlinedButton(
-                            onClick = { saveChoiceDialog = false; newProfileName = ""; saveNameDialog = true },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text("Neues Profil", maxLines = 1, fontSize = 11.sp)
-                        }
-                    }
-                    TextButton(
-                        onClick = { saveChoiceDialog = false },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
-                        contentPadding = PaddingValues(vertical = 6.dp)
-                    ) {
-                        Text("Abbrechen", fontSize = 13.sp)
-                    }
-                }
-            },
-            dismissButton = null
-        )
-    }
 
     if (saveNameDialog && currentState != null) {
         KlimaPilotAlertDialog(
