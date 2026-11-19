@@ -22,6 +22,21 @@
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
 
+## GitHub-Abgleich – 19.11.2026, 03:12 MEZ
+
+- `main` und `test` zeigen beide auf Dokumentations-HEAD `e94ecc8231e40dfd180bd9f991fdb2139c5e092c` (18.11.2026, 20:27 UTC). Der enthaltene App-Code bleibt `6be0db92978ee09980608779a5b1ef32a1fbfa9a`, Version **0.4.78 / 108**. Produktionsbuild #242 / Run [44388323331](https://github.com/Apropo1710/KlimaPilot/actions/runs/44388323331) ist erfolgreich; Release `latest` enthält `KlimaPilot.apk`, SHA-256 `4af436c8eee2c65a560dba76b36c468226e92528d3f14a94d30d8de84c09fe59`. Die Signaturprüfung war erfolgreich.
+- PR [#6](https://github.com/Apropo1710/KlimaPilot/pull/6) wurde am 18.11.2026 um 18:18 UTC gemergt. `test` und `main` sind dadurch auf demselben Code- und Dokumentationsstand; der PR ist nicht mehr Draft/offen.
+- **API-26/API-35-TCP-Validierung (isolierte Branches, 18.11.2026):**
+  - `validation/tcp-api26-api35-20261118`, HEAD `725fe310`, Run [44264080828](https://github.com/Apropo1710/KlimaPilot/actions/runs/44264080828): API-26-Pflichtjob erfolgreich. Der API-35-Job scheiterte beim Installieren des Testpakets mit `Can't find service: package`; der Emulator war zuvor gestartet.
+  - `validation/tcp-api35-retry-20261118`, HEAD `ec393af5`, Run [44267089878](https://github.com/Apropo1710/KlimaPilot/actions/runs/44267089878), sowie `validation/tcp-api35-device-ready-20261118`, HEAD `4749dbfa`, Run [44270120632](https://github.com/Apropo1710/KlimaPilot/actions/runs/44270120632), und `validation/tcp-api35-kvm-permissions-20261118`, HEAD `a59492ea`, Run [44273731606](https://github.com/Apropo1710/KlimaPilot/actions/runs/44273731606): API-35-Emulator startete, anschließend brach der Bereitschaftsschritt wegen eines Shell-Syntaxfehlers ab (`Syntax error: end of file unexpected (expecting "done")`), bevor der TCP-Test ausgeführt wurde.
+  - Diese Fehlschläge belegen **keinen App-/TCP-Kompatibilitätsfehler**. API-35-Kompatibilität ist weiterhin ungeprüft; der Workflowfehler muss separat behoben werden. Im Rahmen der Statuspflege wurde keine Workflowdatei verändert.
+- Weitere Remote-Branches:
+  - `feature/local-wifi-pairing` (`de214bca`): 0 Commits voraus / 237 zurück; keine einzigartigen Commits gegenüber `main`.
+  - `feature/local-wifi-profile-sync` (`f2ff6072`): 2 voraus / 282 zurück, kein PR; letzter Branch-Validierungslauf #44152069387 erfolgreich.
+  - `feature/direct-wf-rac-wlan` (`eb326955`): 23 voraus / 654 zurück, kein PR; stark divergenter separater Stand, nicht in Produktion übernommen.
+  - `fix/durable-profile-change-journal` (`c111d137`): 0 voraus / 353 zurück; keine einzigartigen Commits gegenüber `main`.
+- Die vier API-35-/TCP-Validierungsbranches sind isolierte Prüfstände ohne offenen PR. Kein Workflow läuft aktuell. Smartphone-Praxistests bleiben von den Emulator- und CI-Ergebnissen getrennt zu bewerten.
+
 ## 1. Produktivstand – `main`
 
 - **Aktuell in Produktion: 0.4.78 / versionCode 108** (Produktionsbuild #242, Commit `6be0db9`, Release `latest`). Konten, Klimaprofile, Räume und Geräte werden zwischen gekoppelten Smartphones abgeglichen. Updates zeigen derzeit eine Play-Protect-Warnung („Trotzdem installieren“).
