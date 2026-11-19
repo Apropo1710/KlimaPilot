@@ -21,6 +21,7 @@ import de.klimapilot.app.wfrac.WfRacDiscoveredService
 @Composable
 internal fun DeviceSettingsDialog(
     device: UserDevice,
+    otherDevices: List<UserDevice> = emptyList(),
     onDismiss: () -> Unit,
     onResetPairing: (String) -> String?,
     canMigrateSyncKey: Boolean,
@@ -106,7 +107,16 @@ internal fun DeviceSettingsDialog(
                             onClick = { wfRacHost = found.host },
                             enabled = !pairing,
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("${found.name} · ${found.host}") }
+                        ) {
+                            val owner = otherDevices.firstOrNull { it.wfRacHost.equals(found.host, ignoreCase = true) }
+                            Text(
+                                when {
+                                    owner != null -> "${found.host} · bereits „${owner.name}“ (${owner.room})"
+                                    found.host.equals(device.wfRacHost, ignoreCase = true) -> "${found.host} · dieses Gerät"
+                                    else -> "${found.host} · noch nicht zugeordnet"
+                                }
+                            )
+                        }
                     }
                     OutlinedTextField(
                         value = wfRacHost,
@@ -124,8 +134,13 @@ internal fun DeviceSettingsDialog(
                             scope.launch {
                                 try {
                                     val result = withContext(Dispatchers.IO) { repository.pair(wfRacHost) }
-                                    wfRacAirconId = result.airconId
-                                    pairingStatus = "Erfolgreich gekoppelt. Geräte-ID: ${result.airconId}"
+                                    val owner = otherDevices.firstOrNull { it.wfRacAirconId == result.airconId }
+                                    if (owner != null) {
+                                        pairingStatus = "Diese Klimaanlage ist bereits „${owner.name}“ im Raum „${owner.room}“ zugeordnet. Bitte das passende Modul wählen."
+                                    } else {
+                                        wfRacAirconId = result.airconId
+                                        pairingStatus = "Erfolgreich gekoppelt. Geräte-ID: ${result.airconId}"
+                                    }
                                 } catch (error: Exception) {
                                     pairingStatus = error.message ?: "Kopplung fehlgeschlagen."
                                 } finally {
@@ -177,6 +192,11 @@ internal fun DeviceSettingsDialog(
                 onClick = {
                     val oldKey = syncDeviceKey.trim()
                     val newAirconId = wfRacAirconId.trim()
+                    val owner = otherDevices.firstOrNull { newAirconId.isNotBlank() && it.wfRacAirconId == newAirconId }
+                    if (owner != null) {
+                        syncKeyError = "Diese Klimaanlage ist bereits „${owner.name}“ im Raum „${owner.room}“ zugeordnet. Eine Klimaanlage kann nur einem Gerät zugeordnet werden."
+                        return@TextButton
+                    }
                     val newKey = when {
                         oldKey.startsWith("wfrac:") && newAirconId.isNotBlank() -> "wfrac:$newAirconId"
                         oldKey.isNotBlank() -> oldKey

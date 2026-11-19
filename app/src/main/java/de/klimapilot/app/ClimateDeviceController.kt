@@ -22,7 +22,22 @@ internal class ClimateDeviceController(context: Context) {
         }
         val airconId = device.wfRacAirconId.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Für dieses Gerät ist noch kein WLAN-Modul gekoppelt.")
+        ensurePaired(device, airconId)
         return real.readStatus(airconId).status.state
+    }
+
+    /**
+     * A device can still name its airconId while the module identity behind it is gone
+     * (e.g. the same unit was assigned twice and one assignment was reset). Restore it from
+     * the stored host when the module there still reports the same airconId.
+     */
+    private suspend fun ensurePaired(device: UserDevice, airconId: String) {
+        if (real.identities.findByAirconId(airconId) != null) return
+        val host = device.wfRacHost.trim()
+        if (host.isBlank()) {
+            throw IllegalStateException("Die Kopplung dieser Klimaanlage fehlt. Bitte in den Geräteeinstellungen „WLAN-Modul koppeln und auslesen“ ausführen.")
+        }
+        real.restore(host, airconId)
     }
 
     suspend fun apply(device: UserDevice, change: (AirconState) -> AirconState): AirconState {
@@ -36,6 +51,7 @@ internal class ClimateDeviceController(context: Context) {
         }
         val airconId = device.wfRacAirconId.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Für dieses Gerät ist noch kein WLAN-Modul gekoppelt.")
+        ensurePaired(device, airconId)
         return real.apply(airconId, waitUpToS = 0, change = change)
     }
 
