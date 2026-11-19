@@ -56,6 +56,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - 0.4.81: Beide Anlagen laufen (Nutzertest 19.11.2026). Schnellere Bedienung: Temperatur-Klicks werden gesammelt und nach 1,2 s Pause als ein Befehl gesendet, +/- und Schieberegler bleiben bedienbar; Identitätsprüfung (getDeviceInfo) nur einmal pro App-Sitzung und Anlage, erste Anzeige ohne vorherige Prüfung; Kontoregistrierung am Modul wird dauerhaft gemerkt; ältere Abfrageergebnisse überschreiben keine gerade gesendeten Werte.
 - 0.4.81 vom Nutzer als deutlich schneller bestätigt.
 - 0.4.82 (Nutzerentscheidung 19.11.2026): Profile bleiben fest; Abweichungen zeigen „(geändert)“ und ein ✓ übernimmt sie ins Profil (Auswahldialog entfällt). „Individuell“ speichert jede Änderung sofort. Diskette ersetzt durch + (neues Profil anlegen). Profilauswahl springt sofort um, der Befehl läuft im Hintergrund; bei Fehler wird die vorherige Auswahl wiederhergestellt.
+- Kompressor-Anzeige (Statusbyte 9, Bit 0x02) am 19.11.2026 an realer Anlage bestätigt: wechselt bei Betrieb auf „Aktiv“.
 - Offen: Gerätetest 0.4.82 (Profilwechsel, ✓, Individuell) mit beiden Anlagen, langsame erste Statusanzeige prüfen, Negativfälle der Kopplung (Abbruch, Timeout, Verbindungsverlust, ungültige/wiederholte Nachrichten).
 
 ## 5. CI und Workflows
