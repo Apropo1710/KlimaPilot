@@ -28,7 +28,6 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Version, Quellcommit, APK-Hash und Release-Stand stehen ausschließlich im automatisch gepflegten Block am Dateianfang (wird vom Produktionsbuild geschrieben) und werden hier nicht wiederholt.
 - Funktionsumfang seit 0.4.67: automatische ioBroker-Anmeldung und QR-Kontoübernahme (2f), Ein-Scan-Pairing (2d), Abfrage der Klimaanlage alle 10 s, Abgleich von Konten, Klimaprofilen, Räumen und Geräten zwischen gekoppelten Smartphones (2i), Oberflächenpflege (2j).
 - Updates zeigen derzeit eine Play-Protect-Warnung („Trotzdem installieren“), siehe 2h.
-- Hinweis: Release `latest` enthält zusätzlich ein altes Asset `app-release.apk`. Der Updater verwendet ausschließlich `KlimaPilot.apk`.
 - [Direkter APK-Download](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
 
 ## 2. Entwicklungsstand – `test`
@@ -41,12 +40,8 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 - Offene PRs: **keine**.
 - PR #6 (`test` → `main`, WLAN-Sync und Pairing) am 18.11.2026 gemergt. PR #3 (Änderungsjournal) am 17.11.2026 und PR #1 (direkte WF-RAC-Anbindung) am 15.11.2026 gemergt. PR #2, #4 und #5 ohne Merge geschlossen.
-- Übrige Remote-Branches (alle ohne offenen PR, nicht maßgeblich):
-  - `feature/local-wifi-pairing`, `fix/durable-profile-change-journal`: keine Commits, die nicht in `main` enthalten sind.
-  - `feature/local-wifi-profile-sync`: 2 Commits voraus, nur Workflow-Dateien; Inhalt über `test` überholt.
-  - `feature/direct-wf-rac-wlan`: nach dem Merge von PR #1 23 weitere Commits, die nicht in `main` übernommen wurden; stark veralteter Stand.
-  - `validation/tcp-api26-api35-20261118`, `validation/tcp-api35-retry-20261118`, `validation/tcp-api35-device-ready-20261118`, `validation/tcp-api35-kvm-permissions-20261118`: isolierte Workflow-Prüfstände für API 35 (siehe Abschnitt 5).
-- `docs/status-reconcile-2026-11-15` und `docs/status-refresh-2026-11-16`: veraltete automatische Dokumentationsstände (PR #2 geschlossen); nicht verwenden, zum Löschen vorgesehen.
+- Remote-Branches: nur `main` und `test`. Alle alten Feature-, Validierungs- und Dokumentationsbranches wurden am 19.11.2026 gelöscht.
+- Releases: `latest` (Produktion, nur `KlimaPilot.apk`) und Pre-Release `klimapilot-test-latest` (Testversion). Das alte Pre-Release `wlan-test-latest` (15.11.2026) ist veraltet und zum Löschen vorgesehen.
 
 ## 4. Pairing- und Synchronisationsstatus
 
@@ -64,7 +59,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - `.github/workflows/wlan-validation.yml` („KlimaPilot WLAN Branch Validation“): Push auf `test` (ausgenommen `PROJECT_STATUS.md` und `app/src/debug/**`) sowie `workflow_dispatch`. Unit-Tests, Debug-APK, Release-Kotlin-Kompilierung, Prüfung von Paket, Version, Test-Zertifikat und Fehlen von `REQUEST_INSTALL_PACKAGES`; veröffentlicht die Test-APK als Pre-Release `klimapilot-test-latest`. Maven-Downloads werden bis zu fünfmal wiederholt.
 - `.github/workflows/pairing-tls-validation.yml` (historischer Dateiname): API-26-Emulator-/TCP-Instrumentierungstest, nur `workflow_dispatch`.
 - **API 26:** TCP-Instrumentierungstests bestanden (u. a. Lauf #63, 3/3; Lauf #69).
-- **API 35:** ungeprüft. Alle Versuche vom 18.11.2026 scheiterten an der CI-Umgebung, nicht an der App: Lauf #63 mit `Can't find service: package`, die Wiederholungen auf den `validation/tcp-api35-*`-Branches an einem Shell-Syntaxfehler im Bereitschaftsschritt, bevor ein Test lief. API 35 ist optional und kein Freigabekriterium; keine weiteren Versuche ohne konkreten neuen Ansatz.
+- **API 35:** ungeprüft. Alle Versuche vom 18.11.2026 scheiterten an der CI-Umgebung, nicht an der App: Lauf #63 mit `Can't find service: package`, die Wiederholungen (auf inzwischen gelöschten Prüfbranches) an einem Shell-Syntaxfehler im Bereitschaftsschritt, bevor ein Test lief. API 35 ist optional und kein Freigabekriterium; keine weiteren Versuche ohne konkreten neuen Ansatz.
 - CI-Ergebnisse ersetzen keine Gerätetests.
 
 ## 6. Verlauf 18.11.2026 (kompakt)
