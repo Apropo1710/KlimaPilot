@@ -18,14 +18,14 @@
 
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 19.11.2026, 06:30 Uhr MEZ (Dokumentation bereinigt; Produktion 0.4.78)
+**Letzter Abgleich:** 19.11.2026, 06:55 Uhr MEZ (Dokumentation bereinigt)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
 
 ## 1. Produktivstand – `main`
 
-- **Aktuell in Produktion: 0.4.78 / versionCode 108** (Produktionsbuild #242, Code-Commit `6be0db9`, Release `latest`, Asset `KlimaPilot.apk`, SHA-256 `4af436c8eee2c65a560dba76b36c468226e92528d3f14a94d30d8de84c09fe59`, Produktionszertifikat unverändert).
+- Version, Quellcommit, APK-Hash und Release-Stand stehen ausschließlich im automatisch gepflegten Block am Dateianfang (wird vom Produktionsbuild geschrieben) und werden hier nicht wiederholt.
 - Funktionsumfang seit 0.4.67: automatische ioBroker-Anmeldung und QR-Kontoübernahme (2f), Ein-Scan-Pairing (2d), Abfrage der Klimaanlage alle 10 s, Abgleich von Konten, Klimaprofilen, Räumen und Geräten zwischen gekoppelten Smartphones (2i), Oberflächenpflege (2j).
 - Updates zeigen derzeit eine Play-Protect-Warnung („Trotzdem installieren“), siehe 2h.
 - Hinweis: Release `latest` enthält zusätzlich ein altes Asset `app-release.apk`. Der Updater verwendet ausschließlich `KlimaPilot.apk`.
@@ -33,7 +33,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 2. Entwicklungsstand – `test`
 
-- `test` enthält denselben Code wie `main` (0.4.78); `main` ist nur um Dokumentationscommits voraus.
+- `test` enthält denselben Code wie `main`; `main` ist nur um Dokumentationscommits voraus.
 - Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur `230865b9…65ecfb`, Installation über den Direktlink). Übernahme nach `main` nach Gerätetest und auf Wunsch des Nutzers.
 - Letzter Test-Build: WLAN-Workflow #255 erfolgreich (#254 scheiterte an einem Maven-Netzwerkfehler, siehe 2j).
 
@@ -151,4 +151,4 @@ Es darf keine parallele Statusdatei angelegt werden. Neue Stände werden in die 
 3. Nach Änderungen den maßgeblichen Status in dieser Datei aktualisieren; überholte Aussagen ersetzen statt neue daneben zu stellen.
 4. Fachkonzepte nur bei Änderungen an Architektur, Entscheidungen oder technischen Anforderungen ändern.
 5. README nur bei Änderungen an Projektbeschreibung, Einstieg oder festen Grundregeln aktualisieren.
-6. Produktions-HEAD, letzter erfolgreicher Build und Release-Stand immer getrennt ausweisen.
+6. Version, Build und Release-Stand nicht von Hand pflegen – sie stehen nur im automatischen Block.
