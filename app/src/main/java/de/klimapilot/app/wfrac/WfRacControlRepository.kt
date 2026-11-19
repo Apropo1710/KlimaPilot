@@ -48,31 +48,22 @@ class WfRacControlRepository(context: Context) {
     suspend fun pair(host: String): WfRacConnectionResult {
         val address = host.trim()
         require(address.isNotBlank()) { "IP-Adresse des WLAN-Moduls fehlt." }
-        val knownAtHost = identities.findByHost(address)
-        val probe = WfRacClient(
-            host = address,
-            deviceId = deviceId,
-            scheme = knownAtHost?.scheme,
-            certificatePin = knownAtHost?.certificatePin,
-        )
+        // An explicit pairing by the user re-establishes trust from scratch: the transport is
+        // detected anew, and stale identities (old IP of this unit, or another unit that
+        // used to have this IP) are replaced instead of blocking the pairing.
+        val probe = WfRacClient(host = address, deviceId = deviceId)
         val airconId = probe.getDeviceInfo()
         val actualScheme = probe.scheme
             ?: throw SecurityException("Das WF-RAC-Modul hat kein gültiges Verbindungsverfahren gemeldet.")
-
-        if (knownAtHost != null && knownAtHost.airconId != airconId) {
-            throw SecurityException("Sicherheitsprüfung abgebrochen: An dieser IP wurde eine andere Klimaanlage erkannt.")
-        }
-        val knownById = identities.findByAirconId(airconId)
-        if (knownById != null) {
-            if (knownById.scheme != actualScheme) {
-                throw SecurityException("Das Verbindungsverfahren des bekannten Moduls hat sich geändert.")
-            }
-            if (actualScheme == Scheme.HTTPS && knownById.certificatePin != probe.certificatePin) {
-                throw SecurityException("Der HTTPS-Zertifikat-Fingerprint stimmt nicht mit dem gespeicherten Wert überein.")
-            }
-        }
         if (actualScheme == Scheme.HTTPS && probe.certificatePin.isNullOrBlank()) {
             throw SecurityException("Das HTTPS-Zertifikat konnte nicht dauerhaft identifiziert werden.")
+        }
+        val staleAtHost = identities.findByHost(address)
+        if (staleAtHost != null && staleAtHost.airconId != airconId) {
+            if (!identities.remove(staleAtHost.airconId)) {
+                throw IllegalStateException("Die alte Zuordnung dieser IP konnte nicht entfernt werden.")
+            }
+            clients.remove(staleAtHost.airconId)
         }
 
         // Only after the explicit pairing action and identity checks do we read the full status.
