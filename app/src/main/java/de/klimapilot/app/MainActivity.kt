@@ -61,6 +61,8 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import de.klimapilot.app.wfrac.AirconState
@@ -186,6 +188,8 @@ private fun KlimaPilotApp(appVersion: String) {
     var airconConnected by remember(selectedDevice?.id) { mutableStateOf(false) }
     var controlBusy by remember(selectedDevice?.id) { mutableStateOf(false) }
     var controlStatus by remember(selectedDevice?.id) { mutableStateOf("") }
+    // Bumped by every command: a poll that started before a command must not show older values.
+    var commandSeq by remember(selectedDevice?.id) { mutableIntStateOf(0) }
     val controlScope = rememberCoroutineScope()
     val accountRepository = remember(context) { KlimaPilotAccountRepository(context) }
     LaunchedEffect(selectedDevice?.id, selectedDevice?.wfRacAirconId, selectedDevice?.demoMode, showSettings, showManager, showProfileManager, showAccountSettings) {
@@ -196,8 +200,12 @@ private fun KlimaPilotApp(appVersion: String) {
         val device = selectedDevice ?: return@LaunchedEffect
         if (!device.demoMode && device.wfRacAirconId.isBlank()) return@LaunchedEffect
         while (true) {
+            val seqAtStart = commandSeq
             runCatching { withContext(Dispatchers.IO) { controller.read(device) } }
-                .onSuccess { state -> currentAirconState = state; airconConnected = true; controlStatus = "" }
+                .onSuccess { state ->
+                    if (seqAtStart == commandSeq && !controlBusy) { currentAirconState = state; controlStatus = "" }
+                    airconConnected = true
+                }
                 .onFailure { error -> airconConnected = false; controlStatus = error.message ?: "Gerätestatus konnte nicht gelesen werden." }
             delay(if (device.demoMode) 3_000L else 10_000L)
         }
@@ -224,6 +232,7 @@ private fun KlimaPilotApp(appVersion: String) {
         }
         controlScope.launch {
             controlBusy = true
+            commandSeq++
             controlStatus = "Befehl wird übertragen …"
             try {
                 val updated = withContext(Dispatchers.IO) { controller.apply(device, change) }
@@ -236,6 +245,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 controlStatus = message
                 onComplete?.invoke(false, message)
             } finally {
+                commandSeq++
                 controlBusy = false
             }
         }
@@ -1044,7 +1054,35 @@ private fun TemperatureCard(
     onPower: (Boolean) -> Unit,
     onTargetTemp: (Float) -> Unit
 ) {
-    var draftTemp by remember(state?.presetTemp) { mutableFloatStateOf((state?.presetTemp ?: 21.0).toFloat().coerceIn(16f, 30f)) }
+    // Clicks only change the shown value; it is sent once the user pauses, so several
+    // 0.5° steps become one command and the buttons never lock in between.
+    var draftTemp by remember { mutableFloatStateOf((state?.presetTemp ?: 21.0).toFloat().coerceIn(16f, 30f)) }
+    var editSeq by remember { mutableIntStateOf(0) }
+    var editing by remember { mutableStateOf(false) }
+    val currentBusy by rememberUpdatedState(busy)
+    val currentState by rememberUpdatedState(state)
+    val currentOnTargetTemp by rememberUpdatedState(onTargetTemp)
+    LaunchedEffect(state?.presetTemp) {
+        if (!editing) draftTemp = (state?.presetTemp ?: 21.0).toFloat().coerceIn(16f, 30f)
+    }
+    LaunchedEffect(editSeq) {
+        if (editSeq == 0) return@LaunchedEffect
+        delay(1_200)
+        snapshotFlow { currentBusy }.first { !it }
+        val sent = draftTemp
+        currentOnTargetTemp(sent)
+        // Keep the shown value until the command is through; then follow the unit again.
+        if (withTimeoutOrNull(3_000) { snapshotFlow { currentBusy }.first { it } } != null) {
+            snapshotFlow { currentBusy }.first { !it }
+        }
+        editing = false
+        currentState?.presetTemp?.let { draftTemp = it.toFloat().coerceIn(16f, 30f) }
+    }
+    fun changeTemp(value: Float) {
+        draftTemp = value.coerceIn(16f, 30f)
+        editing = true
+        editSeq++
+    }
     Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE3EEF7))) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -1065,8 +1103,8 @@ private fun TemperatureCard(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(
-                        modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = state != null && !busy && draftTemp > 16f) {
-                            draftTemp = (draftTemp - 0.5f).coerceAtLeast(16f); onTargetTemp(draftTemp)
+                        modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = state != null && draftTemp > 16f) {
+                            changeTemp(draftTemp - 0.5f)
                         }, color = Panel
                     ) { Box(contentAlignment = Alignment.Center) { Text("−", color = Blue, fontSize = 23.sp) } }
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -1074,8 +1112,8 @@ private fun TemperatureCard(
                         Text("SOLL °C", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
                     Surface(
-                        modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = state != null && !busy && draftTemp < 30f) {
-                            draftTemp = (draftTemp + 0.5f).coerceAtMost(30f); onTargetTemp(draftTemp)
+                        modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = state != null && draftTemp < 30f) {
+                            changeTemp(draftTemp + 0.5f)
                         }, color = Panel
                     ) { Box(contentAlignment = Alignment.Center) { Text("+", color = Blue, fontSize = 21.sp) } }
                 }
@@ -1086,11 +1124,11 @@ private fun TemperatureCard(
             }
             Slider(
                 value = draftTemp,
-                onValueChange = { value -> draftTemp = (value * 2f).roundToInt() / 2f },
-                onValueChangeFinished = { onTargetTemp(draftTemp) },
+                onValueChange = { value -> draftTemp = (value * 2f).roundToInt() / 2f; editing = true },
+                onValueChangeFinished = { changeTemp(draftTemp) },
                 valueRange = 16f..30f,
                 steps = 27,
-                enabled = state != null && !busy,
+                enabled = state != null,
                 colors = SliderDefaults.colors(thumbColor = Blue, activeTrackColor = Blue, inactiveTrackColor = Color(0xFFC8D8E6)),
                 modifier = Modifier.fillMaxWidth().height(28.dp)
             )
