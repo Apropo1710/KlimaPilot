@@ -213,7 +213,10 @@ internal fun RoomDeviceManagerScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val error = onDeleteDevice(target)
+                    // A unit still assigned to another device keeps its module identity.
+                    val sharedUnit = target.wfRacAirconId.isNotBlank() &&
+                        devices.any { it.id != target.id && it.wfRacAirconId == target.wfRacAirconId }
+                    val error = if (sharedUnit) null else onDeleteDevice(target)
                     if (error == null) {
                         devices.remove(target)
                         save()
@@ -262,7 +265,12 @@ internal fun RoomDeviceManagerScreen(
         DeviceSettingsDialog(
             device = configuring!!,
             onDismiss = { configuring = null },
-            onResetPairing = onResetPairing,
+            otherDevices = devices.filter { it.id != configuring!!.id },
+            onResetPairing = { airconId ->
+                // Only the module identity of a unit no other device uses is removed.
+                if (devices.any { it.id != configuring!!.id && it.wfRacAirconId == airconId }) null
+                else onResetPairing(airconId)
+            },
             canMigrateSyncKey = devices.count { it.syncDeviceKey == configuring!!.syncDeviceKey } == 1,
             onSave = { updated ->
                 val index = devices.indexOfFirst { it.id == updated.id }

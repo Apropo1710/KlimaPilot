@@ -92,6 +92,42 @@ class WfRacControlRepository(context: Context) {
         return WfRacConnectionResult(airconId, status, probe.trace.module, actualScheme, probe.certificatePin)
     }
 
+    /**
+     * Restores a lost module identity for a device that still remembers its airconId and host.
+     * Trust is re-established only when the module at that host reports exactly the expected
+     * airconId; anything else needs an explicit pairing by the user.
+     */
+    suspend fun restore(host: String, expectedAirconId: String) {
+        val address = host.trim()
+        require(address.isNotBlank()) { "IP-Adresse des WLAN-Moduls fehlt." }
+        if (identities.findByAirconId(expectedAirconId) != null) return
+        val knownAtHost = identities.findByHost(address)
+        if (knownAtHost != null && knownAtHost.airconId != expectedAirconId) {
+            throw SecurityException("An der gespeicherten IP ist eine andere Klimaanlage gekoppelt. Bitte in den Geräteeinstellungen neu koppeln.")
+        }
+        val probe = WfRacClient(host = address, deviceId = deviceId)
+        val airconId = probe.getDeviceInfo()
+        if (airconId != expectedAirconId) {
+            throw SecurityException("An der gespeicherten IP antwortet eine andere Klimaanlage. Bitte in den Geräteeinstellungen neu koppeln.")
+        }
+        val scheme = probe.scheme
+            ?: throw SecurityException("Das WF-RAC-Modul hat kein gültiges Verbindungsverfahren gemeldet.")
+        if (scheme == Scheme.HTTPS && probe.certificatePin.isNullOrBlank()) {
+            throw SecurityException("Das HTTPS-Zertifikat konnte nicht dauerhaft identifiziert werden.")
+        }
+        val identity = WfRacStoredIdentity(
+            airconId = airconId,
+            host = address,
+            scheme = scheme,
+            certificatePin = probe.certificatePin,
+            lastVerifiedAt = System.currentTimeMillis(),
+        )
+        if (!identities.save(identity)) {
+            throw IllegalStateException("Die Geräteidentität konnte nicht dauerhaft gespeichert werden.")
+        }
+        clients[airconId] = probe
+    }
+
     suspend fun readStatus(airconId: String): WfRacConnectionResult {
         val identity = identities.findByAirconId(airconId)
             ?: throw IllegalArgumentException("Für dieses Gerät ist noch kein WF-RAC-Modul gekoppelt.")
