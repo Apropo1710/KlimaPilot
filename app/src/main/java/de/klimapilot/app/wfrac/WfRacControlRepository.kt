@@ -28,6 +28,26 @@ class WfRacControlRepository(context: Context) {
     private val registered = ConcurrentHashMap.newKeySet<String>()
     private val unitLocks = ConcurrentHashMap<String, Mutex>()
 
+    /**
+     * Clients whose module identity was checked in this app session. The module wants about a
+     * second between requests, so the identity check (getDeviceInfo) is done once per client
+     * rather than before every read and write.
+     */
+    private val verifiedClients: MutableSet<WfRacClient> =
+        java.util.Collections.newSetFromMap(ConcurrentHashMap<WfRacClient, Boolean>())
+
+    /** Clients that already had their one read before the identity check. */
+    private val quickReadClients: MutableSet<WfRacClient> =
+        java.util.Collections.newSetFromMap(ConcurrentHashMap<WfRacClient, Boolean>())
+
+    private fun isRegistered(airconId: String) =
+        airconId in registered || settings.getBoolean("wf_rac_registered_$airconId", false)
+
+    private fun markRegistered(airconId: String, value: Boolean) {
+        if (value) registered += airconId else registered.remove(airconId)
+        settings.edit().putBoolean("wf_rac_registered_$airconId", value).apply()
+    }
+
     private fun clientFor(identity: WfRacStoredIdentity): WfRacClient =
         clients.compute(identity.airconId) { _, existing ->
             existing?.takeIf {
@@ -79,6 +99,7 @@ class WfRacControlRepository(context: Context) {
             throw IllegalStateException("Die Geräteidentität konnte nicht dauerhaft gespeichert werden.")
         }
         clients[airconId] = probe
+        verifiedClients += probe
         settings.edit().putString("wf_rac_host", address).apply()
         return WfRacConnectionResult(airconId, status, probe.trace.module, actualScheme, probe.certificatePin)
     }
@@ -117,19 +138,25 @@ class WfRacControlRepository(context: Context) {
             throw IllegalStateException("Die Geräteidentität konnte nicht dauerhaft gespeichert werden.")
         }
         clients[airconId] = probe
+        verifiedClients += probe
     }
 
     suspend fun readStatus(airconId: String): WfRacConnectionResult {
         val identity = identities.findByAirconId(airconId)
             ?: throw IllegalArgumentException("Für dieses Gerät ist noch kein WF-RAC-Modul gekoppelt.")
         val client = clientFor(identity)
-        val verified = verifyIdentity(identity, client)
-        val status = client.getStatus(airconId)
-        val updated = identity.copy(lastVerifiedAt = System.currentTimeMillis())
-        if (updated != identity && !identities.save(updated)) {
-            throw IllegalStateException("Der Prüfzeitpunkt der Geräteidentität konnte nicht gespeichert werden.")
+        // The first read of a client shows the state right away; the identity check follows on
+        // the next poll, and every write checks it before anything is sent.
+        val firstContact = client !in verifiedClients && quickReadClients.add(client)
+        if (!firstContact && client !in verifiedClients) {
+            verifyIdentity(identity, client)
+            val updated = identity.copy(lastVerifiedAt = System.currentTimeMillis())
+            if (!identities.save(updated)) {
+                throw IllegalStateException("Der Prüfzeitpunkt der Geräteidentität konnte nicht gespeichert werden.")
+            }
         }
-        return WfRacConnectionResult(airconId, status, client.trace.module, verified.scheme!!, verified.certificatePin)
+        val status = client.getStatus(airconId)
+        return WfRacConnectionResult(airconId, status, client.trace.module, client.scheme ?: identity.scheme, client.certificatePin)
     }
 
     /**
@@ -160,9 +187,9 @@ class WfRacControlRepository(context: Context) {
                 return echoed
             }
 
-            if (airconId !in registered) {
+            if (!isRegistered(airconId)) {
                 client.registerAccount(airconId, TimeZone.getDefault().id)
-                registered += airconId
+                markRegistered(airconId, true)
             }
 
             try {
@@ -183,9 +210,9 @@ class WfRacControlRepository(context: Context) {
                     delay((locked + 1) * 1000L)
                 } else {
                     // The module may have forgotten our account. Registration is idempotent.
-                    registered.remove(airconId)
+                    markRegistered(airconId, false)
                     client.registerAccount(airconId, TimeZone.getDefault().id)
-                    registered += airconId
+                    markRegistered(airconId, true)
                 }
                 try {
                     attempt()
@@ -207,6 +234,7 @@ class WfRacControlRepository(context: Context) {
     }
 
     private suspend fun verifyIdentity(identity: WfRacStoredIdentity, client: WfRacClient): WfRacClient {
+        if (client in verifiedClients) return client
         val actualId = client.getDeviceInfo()
         if (actualId != identity.airconId) {
             throw SecurityException("Sicherheitsprüfung abgebrochen: Die Geräte-ID stimmt nicht mit der Kopplung überein.")
@@ -217,6 +245,7 @@ class WfRacControlRepository(context: Context) {
         if (identity.scheme == Scheme.HTTPS && client.certificatePin != identity.certificatePin) {
             throw SecurityException("Sicherheitsprüfung abgebrochen: Der HTTPS-Zertifikat-Fingerprint hat sich geändert.")
         }
+        verifiedClients += client
         return client
     }
 
@@ -229,8 +258,8 @@ class WfRacControlRepository(context: Context) {
         try {
             val removed = identities.remove(airconId)
             if (removed) {
-                clients.remove(airconId)
-                registered.remove(airconId)
+                clients.remove(airconId)?.let { verifiedClients.remove(it) }
+                markRegistered(airconId, false)
             }
             return removed
         } finally {
