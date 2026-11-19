@@ -51,7 +51,8 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - ioBroker-Profilsync läuft unverändert parallel; die gemeinsame `ClimateProfileSyncEngine` sorgt für gleiche Konfliktregeln.
 - TCP ist unverschlüsselt (Nutzerentscheidung, TLS/mTLS verworfen); Inhalte inkl. Passwort-Hashes sind im eigenen WLAN mitlesbar. Authentifizierung über gegenseitige ECDSA-Signaturen mit Keystore-Schlüsseln.
 - Gerätetests 18.11.2026: Kopplung Smartphone/Tablet (0.4.69-debug, 18:04 Uhr) und Raumübertragung (0.4.77, 20:45 Uhr) bestanden; Produktions-Apps beider Nutzer gekoppelt.
-- Offen: Test mit der realen Klimaanlage, Negativfälle der Kopplung (Abbruch, Timeout, Verbindungsverlust, ungültige/wiederholte Nachrichten).
+- 19.11.2026: Klimaanlagen in Betrieb. Erster Praxistest deckte auf: Wurde dieselbe Klimaanlage zwei Geräten zugeordnet und eine Zuordnung zurückgesetzt, ging die Modulidentität für beide verloren (Gerät „Offline“), und erneutes Koppeln scheiterte an veralteten Zuordnungen. Behoben in 0.4.79: Zurücksetzen/Löschen entfernt die Identität nur, wenn kein anderes Gerät die Anlage nutzt; fehlende Identität wird über die gespeicherte IP wiederhergestellt, wenn dort dieselbe Aircon-ID antwortet; ausdrückliches Koppeln ersetzt veraltete Zuordnungen; Doppelzuordnung wird verhindert; WLAN-Suche zeigt die bestehende Zuordnung je Modul.
+- Offen: Gerätetest 0.4.79 mit beiden Anlagen, langsame erste Statusanzeige prüfen, Negativfälle der Kopplung (Abbruch, Timeout, Verbindungsverlust, ungültige/wiederholte Nachrichten).
 
 ## 5. CI und Workflows
 
