@@ -1,7 +1,7 @@
 # KlimaPilot – direkte WLAN-Verbindung zum WF-RAC
 
-**Fachlicher Stand:** 18.11.2026  
-**Zielgerät:** Mitsubishi Heavy SRK15ZS-WF (noch nicht installiert)
+**Fachlicher Stand:** 19.11.2026  
+**Geräte:** zwei Mitsubishi Heavy SRK15ZS-WF, seit 19.11.2026 in Betrieb
 
 ## Zweck und Abgrenzung
 
@@ -17,7 +17,21 @@ Produktivversion, Buildnachweis und Release-Stand werden ausschließlich in `PRO
 
 Der dokumentierte Funktionsumfang umfasst gerätebezogene Kopplung, getrennte Geräte-IDs/Verbindungen und die im App-Code vorhandenen WF-RAC-Bedienfunktionen. Dazu zählen Ein/Aus, Betriebsmodus, Solltemperatur, Lüfterstufe sowie die vom jeweiligen Modell gelieferten Luftführungsoptionen. Profilanwendung und Demo-Modus sind ebenfalls Bestandteil des App-Stands.
 
-**Wichtige Einschränkung:** Die Klimaanlage ist noch nicht installiert. Die genannten Steuerpfade sind Code-/App-Funktionen, aber nicht am konkreten SRK15ZS-WF samt Firmware hardwarebestätigt. Keine Funktion darf vor dem Praxistest als erfolgreich am realen Gerät bestätigt gelten.
+**Hardwarestand:** Kopplung, Statusanzeige, Solltemperatur, Profilanwendung und Kompressor-Anzeige sind seit 19.11.2026 am realen Gerät bestätigt. Modi, Lüfterstufen und Luftführung sind noch nicht gezielt geprüft (aktueller Stand in `PROJECT_STATUS.md`, Abschnitt 5).
+
+## Kopplung und Identität (seit 0.4.79)
+
+- Die Modulidentität (Aircon-ID, IP, Verfahren, ggf. Zertifikat-Fingerprint) wird pro physischer Anlage gespeichert, nicht pro App-Gerät. Eine Anlage darf nur einem App-Gerät zugeordnet sein; die App verhindert Doppelzuordnungen.
+- Zurücksetzen oder Löschen entfernt die Modulidentität nur, wenn kein anderes App-Gerät dieselbe Anlage nutzt.
+- Ausdrückliches Koppeln durch den Nutzer baut das Vertrauen neu auf und ersetzt veraltete Zuordnungen (alte IP dieser Anlage, andere Anlage unter dieser IP).
+- Fehlt die Modulidentität, obwohl das App-Gerät Aircon-ID und IP kennt, wird sie automatisch wiederhergestellt – aber nur, wenn das Modul an dieser IP genau diese Aircon-ID meldet.
+
+## Zeitverhalten (seit 0.4.81)
+
+- Das Modul bearbeitet eine Verbindung zur Zeit und verlangt rund 1 s Abstand zwischen Anfragen; Anfragen werden pro Anlage serialisiert.
+- Die Identitätsprüfung (`getDeviceInfo`) läuft einmal pro App-Sitzung und Anlage; die erste Statusanzeige wartet nicht darauf, jeder Schreibbefehl prüft vorher.
+- Die Kontoregistrierung am Modul (`updateAccountInfo`) wird dauerhaft gemerkt und nur bei Ablehnung wiederholt.
+- Temperaturänderungen werden gesammelt und nach 1,2 s ohne weitere Eingabe als ein Befehl gesendet.
 
 ## Verbindungs- und Sicherheitsgrenzen
 
@@ -28,11 +42,9 @@ Der dokumentierte Funktionsumfang umfasst gerätebezogene Kopplung, getrennte Ge
 
 ## Noch ausstehend
 
-1. Klimaanlage und WF-RAC-Modul installieren.
-2. Tatsächliche Firmware-/Datenpunkt- und Funktionszuordnung am Gerät prüfen.
-3. Ein-/Ausschalten, Modi, Solltemperatur, Lüfterstufen und verfügbare Luftführungsoptionen am realen Gerät testen.
-4. Verbindungsabbruch, Wiederverbindung und Neustartverhalten testen.
-5. Ergebnisse mit Datum, App-Version, Firmwarestand und konkreten Testergebnissen dokumentieren.
+1. Modi, Lüfterstufen und verfügbare Luftführungsoptionen am realen Gerät gezielt testen.
+2. Verbindungsabbruch, Wiederverbindung und Neustart des Moduls testen.
+3. Ergebnisse mit Datum, App-Version und Firmwarestand in `PROJECT_STATUS.md` festhalten.
 
 ## Nicht Bestandteil dieses Dokuments
 

@@ -18,7 +18,7 @@
 
 # KlimaPilot – verbindlicher Projektstatus
 
-**Letzter Abgleich:** 19.11.2026, 06:55 Uhr MEZ (Dokumentation bereinigt)
+**Letzter Abgleich:** 19.11.2026, 20:15 Uhr MEZ (Inbetriebnahme der Klimaanlagen, 0.4.79–0.4.82)
 **Repository:** https://github.com/Apropo1710/KlimaPilot
 
 Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, Branch-, PR-, Build- und Validierungsstand**. Die README dient nur als Einstieg. Die technischen Fachkonzepte enthalten Architektur und Entscheidungen, aber keine konkurrierenden Live-Statusübersichten.
@@ -27,14 +27,16 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 - Version, Quellcommit, APK-Hash und Release-Stand stehen ausschließlich im automatisch gepflegten Block am Dateianfang (wird vom Produktionsbuild geschrieben) und werden hier nicht wiederholt.
 - Funktionsumfang seit 0.4.67: automatische ioBroker-Anmeldung und QR-Kontoübernahme (2f), Ein-Scan-Pairing (2d), Abfrage der Klimaanlage alle 10 s, Abgleich von Konten, Klimaprofilen, Räumen und Geräten zwischen gekoppelten Smartphones (2i), Oberflächenpflege (2j).
+- Seit 0.4.79–0.4.82 (19.11.2026): robuste WF-RAC-Kopplung, schnellere Bedienung und überarbeitete Profilbedienung, siehe Abschnitt 5.
 - Updates zeigen derzeit eine Play-Protect-Warnung („Trotzdem installieren“), siehe 2h.
 - [Direkter APK-Download](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
 
-## 2. Entwicklungsstand – `test`
+## 2. Entwicklungsablauf – `test` als CI-Vorprüfung
 
-- `test` enthält denselben Code wie `main`; `main` ist nur um Dokumentationscommits voraus.
-- Weiterentwicklung auf `test`, Testbuilds als Pre-Release `klimapilot-test-latest` (`de.klimapilot.app.debug`, Testsignatur `230865b9…65ecfb`, Installation über den Direktlink). Übernahme nach `main` nach Gerätetest und auf Wunsch des Nutzers.
-- Letzter Test-Build: WLAN-Workflow #255 erfolgreich (#254 scheiterte an einem Maven-Netzwerkfehler, siehe 2j).
+- Nutzerentscheidung 18.11.2026: Ausgeliefert wird nur die Produktionsversion über den Updater; beide Nutzer sollen keine Testversionen installieren müssen.
+- Ablauf seither: Änderung zuerst auf `test` pushen → Workflow „KlimaPilot WLAN Branch Validation“ (Unit-Tests, Kompilierung) muss grün sein → dieselbe Änderung auf `main` → Produktionsbuild und Release `latest`. Gerätetest danach durch den Nutzer mit der Produktionsversion.
+- Das Pre-Release `klimapilot-test-latest` wird von der Validierung weiter erzeugt, wird aber nicht mehr aktiv genutzt.
+- App-Code auf `test` und `main` identisch; `main` enthält zusätzlich die Dokumentationscommits.
 
 ## 3. Branches und Pull Requests
 
@@ -51,15 +53,20 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - ioBroker-Profilsync läuft unverändert parallel; die gemeinsame `ClimateProfileSyncEngine` sorgt für gleiche Konfliktregeln.
 - TCP ist unverschlüsselt (Nutzerentscheidung, TLS/mTLS verworfen); Inhalte inkl. Passwort-Hashes sind im eigenen WLAN mitlesbar. Authentifizierung über gegenseitige ECDSA-Signaturen mit Keystore-Schlüsseln.
 - Gerätetests 18.11.2026: Kopplung Smartphone/Tablet (0.4.69-debug, 18:04 Uhr) und Raumübertragung (0.4.77, 20:45 Uhr) bestanden; Produktions-Apps beider Nutzer gekoppelt.
-- 19.11.2026: Klimaanlagen in Betrieb. Erster Praxistest deckte auf: Wurde dieselbe Klimaanlage zwei Geräten zugeordnet und eine Zuordnung zurückgesetzt, ging die Modulidentität für beide verloren (Gerät „Offline“), und erneutes Koppeln scheiterte an veralteten Zuordnungen. Behoben in 0.4.79: Zurücksetzen/Löschen entfernt die Identität nur, wenn kein anderes Gerät die Anlage nutzt; fehlende Identität wird über die gespeicherte IP wiederhergestellt, wenn dort dieselbe Aircon-ID antwortet; ausdrückliches Koppeln ersetzt veraltete Zuordnungen; Doppelzuordnung wird verhindert; WLAN-Suche zeigt die bestehende Zuordnung je Modul.
-- 0.4.80: Speichern nach Neukopplung scheiterte, weil die Sync-Kennung aus der früheren Doppelkopplung noch zwei Geräten zugeordnet war. Jetzt bekommt das umgekoppelte Gerät seine eigene Kennung; die geteilte bleibt beim anderen Gerät samt ausstehender Änderungen.
-- 0.4.81: Beide Anlagen laufen (Nutzertest 19.11.2026). Schnellere Bedienung: Temperatur-Klicks werden gesammelt und nach 1,2 s Pause als ein Befehl gesendet, +/- und Schieberegler bleiben bedienbar; Identitätsprüfung (getDeviceInfo) nur einmal pro App-Sitzung und Anlage, erste Anzeige ohne vorherige Prüfung; Kontoregistrierung am Modul wird dauerhaft gemerkt; ältere Abfrageergebnisse überschreiben keine gerade gesendeten Werte.
-- 0.4.81 vom Nutzer als deutlich schneller bestätigt.
-- 0.4.82 (Nutzerentscheidung 19.11.2026): Profile bleiben fest; Abweichungen zeigen „(geändert)“ und ein ✓ übernimmt sie ins Profil (Auswahldialog entfällt). „Individuell“ speichert jede Änderung sofort. Diskette ersetzt durch + (neues Profil anlegen). Profilauswahl springt sofort um, der Befehl läuft im Hintergrund; bei Fehler wird die vorherige Auswahl wiederhergestellt.
-- Kompressor-Anzeige (Statusbyte 9, Bit 0x02) am 19.11.2026 an realer Anlage bestätigt: wechselt bei Betrieb auf „Aktiv“.
-- Offen: Gerätetest 0.4.82 (Profilwechsel, ✓, Individuell) mit beiden Anlagen, langsame erste Statusanzeige prüfen, Negativfälle der Kopplung (Abbruch, Timeout, Verbindungsverlust, ungültige/wiederholte Nachrichten).
+- Offen: Negativfälle der Kopplung (Abbruch, Timeout, Verbindungsverlust, ungültige/wiederholte Nachrichten).
 
-## 5. CI und Workflows
+## 5. Klimaanlagen und WF-RAC-Betrieb
+
+- Seit 19.11.2026 in Betrieb: zwei Mitsubishi Heavy SRK15ZS-WF (Schlafzimmer, Büro), beide über KlimaPilot gekoppelt und steuerbar; Räume richtig zugeordnet.
+- Am realen Gerät bestätigt (19.11.2026): Kopplung, Statusanzeige, Solltemperatur, Profilwechsel, Kompressor-Anzeige (Statusbyte 9, Bit 0x02 → „Aktiv“ bei Betrieb).
+- 0.4.79: Ursache des ersten Fehlers – dieselbe Anlage war zwei Geräten zugeordnet; das Zurücksetzen einer Zuordnung löschte die gemeinsame Modulidentität. Jetzt: Zurücksetzen/Löschen entfernt die Identität nur, wenn kein anderes Gerät die Anlage nutzt; fehlende Identität wird über die gespeicherte IP wiederhergestellt, wenn dort dieselbe Aircon-ID antwortet; ausdrückliches Koppeln ersetzt veraltete Zuordnungen; Doppelzuordnung wird verhindert; WLAN-Suche zeigt die bestehende Zuordnung je Modul.
+- 0.4.80: Speichern nach Neukopplung ist auch bei geteilter Sync-Kennung möglich; das umgekoppelte Gerät erhält seine eigene Kennung.
+- 0.4.81 (vom Nutzer als deutlich schneller bestätigt): Temperatur-Klicks werden gesammelt und nach 1,2 s Pause als ein Befehl gesendet, Bedienelemente sperren nicht; Identitätsprüfung nur einmal pro App-Sitzung und Anlage; Kontoregistrierung am Modul wird dauerhaft gemerkt; ältere Abfrageergebnisse überschreiben keine gerade gesendeten Werte.
+- 0.4.82 (Nutzerentscheidung): Profile bleiben fest, Abweichung zeigt „(geändert)“ mit ✓ zum Übernehmen; „Individuell“ speichert jede Änderung sofort; + legt ein neues Profil an; Profilauswahl wechselt sofort, der Befehl läuft im Hintergrund.
+- Grenze: Das Modul verlangt rund 1 s Abstand zwischen Anfragen; ein Befehl braucht damit typischerweise 2–3 s.
+- Offen: Gerätetest 0.4.82 (Profilwechsel, ✓, Individuell); Modi, Lüfterstufen und Luftführung am realen Gerät gezielt prüfen; Verhalten bei Verbindungsabbruch/Neustart des Moduls.
+
+## 6. CI und Workflows
 
 - `.github/workflows/android.yml`: Produktionsbuild bei Push auf `main` (Commits mit `[skip ci]` ausgenommen); veröffentlicht `KlimaPilot.apk` im Release `latest` und pflegt den automatischen Block oben in dieser Datei.
 - `.github/workflows/wlan-validation.yml` („KlimaPilot WLAN Branch Validation“): Push auf `test` (ausgenommen `PROJECT_STATUS.md` und `app/src/debug/**`) sowie `workflow_dispatch`. Unit-Tests, Debug-APK, Release-Kotlin-Kompilierung, Prüfung von Paket, Version, Test-Zertifikat und Fehlen von `REQUEST_INSTALL_PACKAGES`; veröffentlicht die Test-APK als Pre-Release `klimapilot-test-latest`. Maven-Downloads werden bis zu fünfmal wiederholt.
@@ -68,7 +75,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - **API 35:** ungeprüft. Alle Versuche vom 18.11.2026 scheiterten an der CI-Umgebung, nicht an der App: Lauf #63 mit `Can't find service: package`, die Wiederholungen (auf inzwischen gelöschten Prüfbranches) an einem Shell-Syntaxfehler im Bereitschaftsschritt, bevor ein Test lief. API 35 ist optional und kein Freigabekriterium; keine weiteren Versuche ohne konkreten neuen Ansatz.
 - CI-Ergebnisse ersetzen keine Gerätetests.
 
-## 6. Verlauf 18.11.2026 (kompakt)
+## 7. Verlauf 18.11.2026 (kompakt)
 
 ### 2a–2c. Kontenübernahme aus ioBroker und Pairing-ACK
 - Kontenübernahme direkt aus `0_userdata.0.KlimaPilot.accounts` über die WebSocket-Adresse; vorhandene lokale Konten werden nie überschrieben (0.4.68).
@@ -106,31 +113,30 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - „Nach Updates suchen“ und „Update laden“ über die volle Breite (nur Layout; Updater-Ablauf unverändert).
 
 ### Übernahme nach `main`
-- `main` wurde per Merge-Commit `12096f3` in `test` geholt (Konflikte zugunsten von `test`, identische Speicherschlüssel), WLAN-Workflow #250 erfolgreich, danach `main` per Fast-Forward nachgezogen (Produktionsbuild #239, 0.4.74). Seitdem werden Versionen nach Gerätetest von `test` nach `main` übernommen.
+- `main` wurde per Merge-Commit `12096f3` in `test` geholt (Konflikte zugunsten von `test`, identische Speicherschlüssel), WLAN-Workflow #250 erfolgreich, danach `main` per Fast-Forward nachgezogen (Produktionsbuild #239, 0.4.74). Seit 18.11.2026 gilt der in Abschnitt 2 beschriebene Ablauf (CI-Vorprüfung auf `test`, Auslieferung über `main`).
 
-## 7. Verbindliche Regeln
+## 8. Verbindliche Regeln
 
 - Updater und Installationsablauf dürfen **niemals geändert** werden: `ACTION_VIEW` + `application/vnd.android.package-archive` + FileProvider + URI-Leseberechtigung + ClipData + `REQUEST_INSTALL_PACKAGES` im Manifest (nur reine Layout-Änderungen nach ausdrücklichem Wunsch).
-- Neue Funktionen zuerst auf `test` mit der Testversion prüfen; Übernahme nach `main` auf Wunsch des Nutzers. Produktionsbuild nur über Push auf `main`.
+- Änderungen zuerst auf `test` durch die CI prüfen lassen, erst bei grünem Lauf nach `main`. Produktionsbuild nur über Push auf `main`; ausgeliefert wird nur die Produktionsversion.
 - Commits, die nur Dokumentation auf `main` ändern, mit `[skip ci]` kennzeichnen, damit kein Release entsteht.
 - Bestehende ioBroker-Verbindung, WF-RAC-Steuerung und Produktionsdaten schützen.
 
-## 8. Produkt- und Hardwaregrenzen
+## 9. Produkt- und Hardwaregrenzen
 
-- Zielgerät: Mitsubishi Heavy SRK15ZS-WF.
-- Die Klimaanlage wird am 19.11.2026 in Betrieb genommen; reale Hardware-/Firmwarefunktionen sind bis zum Test nicht bestätigt.
-- Adapter `mhi-wfrac` ist noch nicht eingerichtet und wird erst nach Installation der Klimaanlage verwendet.
+- Geräte: zwei Mitsubishi Heavy SRK15ZS-WF, seit 19.11.2026 in Betrieb; bestätigte Funktionen siehe Abschnitt 5, alles andere gilt bis zum Test als unbestätigt.
+- Adapter `mhi-wfrac` ist nicht eingerichtet; für KlimaPilot nicht erforderlich, da die App die Anlagen direkt steuert.
 - SENEC/`energyfluss` nicht als Datenquelle einplanen.
 - Produktionsverbindung zu ioBroker: WebSocket `ws.0`, Port 8084; Alive-Prüfung über `system.adapter.admin.0.alive`.
 
-## 9. Nächste Schritte
+## 10. Nächste Schritte
 
-1. Inbetriebnahme der Klimaanlage: auf dem Admin-Handy hinzufügen und WF-RAC koppeln; prüfen, dass sie auf dem zweiten Handy erscheint, von dort steuerbar ist und Änderungen nach ~10 s auf beiden Geräten sichtbar sind.
-2. Profilübertragung mit realer Anlage prüfen.
+1. Gerätetest 0.4.82: Profilwechsel, ✓-Übernahme, „Individuell“, auch auf dem zweiten Handy.
+2. Modi, Lüfterstufen und Luftführung an beiden Anlagen gezielt prüfen.
 3. Play-Protect-Einstufung klären (Updates müssen derzeit mit „Trotzdem installieren“ bestätigt werden).
-4. Optional: Negativfälle der Kopplung testen; gekoppelte Geräte in der Oberfläche entfernbar machen.
+4. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
 
-## 10. Dokumentationsstruktur und Pflege
+## 11. Dokumentationsstruktur und Pflege
 
 ### Einstieg
 - `README.md`: kurze Projektbeschreibung, technische Basis, feste Grundregeln und Links. Keine zweite Statusübersicht.

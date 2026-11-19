@@ -1,6 +1,6 @@
 # KlimaPilot
 
-Android-App zur Steuerung und Überwachung von Mitsubishi-Heavy-Klimaanlagen über ioBroker und den WF-RAC-Adapter.
+Android-App zur Steuerung und Überwachung von Mitsubishi-Heavy-Klimaanlagen direkt über deren WF-RAC-WLAN-Modul, mit ioBroker als zusätzlichem Synchronisationsweg.
 
 ## Projekt
 
@@ -9,7 +9,7 @@ Android-App zur Steuerung und Überwachung von Mitsubishi-Heavy-Klimaanlagen üb
 - Direkte lokale Verbindung zum WF-RAC-Modul
 - Synchronisation von Konten, Klimaprofilen, Räumen und Geräten zwischen gekoppelten Smartphones im lokalen WLAN (zusätzlich zum ioBroker-Weg)
 
-Die produktive Quelle ist der Git-Branch `main`. Weiterentwicklung erfolgt auf `test` und wird nach Gerätetest nach `main` übernommen. PR #6 (WLAN-Pairing) ist seit 18.11.2026 in `main` enthalten.
+Die produktive Quelle ist der Git-Branch `main`. Änderungen werden auf `test` durch die CI vorgeprüft und dann über `main` als Produktionsversion ausgeliefert.
 
 ## Technische Basis
 
@@ -20,12 +20,12 @@ Die produktive Quelle ist der Git-Branch `main`. Weiterentwicklung erfolgt auf `
 - ioBroker-WebSocket über `ws.0`, Port 8084
 - Die App gilt erst nach erfolgreicher Alive-Prüfung von `system.adapter.admin.0.alive` als verbunden
 
-Die Klimaanlage wird am 19.11.2026 in Betrieb genommen. Reale Geräte-, Firmware- und Steuerungsfunktionen müssen deshalb am konkreten Gerät geprüft werden.
+Zwei Klimaanlagen (SRK15ZS-WF) sind seit 19.11.2026 in Betrieb und werden mit KlimaPilot gesteuert. Welche Funktionen am realen Gerät bestätigt sind, steht in `PROJECT_STATUS.md`.
 
 ## Verbindliche Projektregeln
 
 - `main` ist die alleinige Quelle der produktiven App.
-- Neue Funktionen zuerst auf `test` bauen und als Testversion (Pre-Release `klimapilot-test-latest`, Paket `de.klimapilot.app.debug`) prüfen; Übernahme nach `main` nach Gerätetest und auf Wunsch des Nutzers.
+- Änderungen zuerst auf `test` pushen und den CI-Lauf abwarten; nur bei grünem Ergebnis nach `main`. Ausgeliefert wird nur die Produktionsversion über den Updater.
 - Updater und Installationsablauf dürfen nicht verändert werden (`ACTION_VIEW` + FileProvider + ClipData, mit `REQUEST_INSTALL_PACKAGES` in der Produktions-App; Details in `PROJECT_STATUS.md`, Abschnitt 2h).
 - Vor Änderungen GitHub-Stand und betroffene Dateien prüfen; danach die maßgeblichen Status- und Fachunterlagen synchron halten.
 - Nicht hardwarebestätigte Funktionen nicht als am realen Gerät getestet darstellen.
@@ -46,5 +46,5 @@ Der aktuelle Branch-, PR-, Build- und Validierungsstand wird ausschließlich in 
 
 - [Repository](https://github.com/Apropo1710/KlimaPilot)
 - [GitHub Actions](https://github.com/Apropo1710/KlimaPilot/actions)
-- Die Testversion wird im Workflow „KlimaPilot WLAN Branch Validation“ gebaut, geprüft (Paket, Version, Test-Signatur, ohne `REQUEST_INSTALL_PACKAGES`) und als Pre-Release veröffentlicht: [Test-APK](https://github.com/Apropo1710/KlimaPilot/releases/download/klimapilot-test-latest/KlimaPilot-test.apk). Testversionen werden über diesen Link installiert, nicht über den In-App-Updater.
+- Der Workflow „KlimaPilot WLAN Branch Validation“ prüft jeden Push auf `test` (Unit-Tests, Kompilierung, Paket, Version, Signatur).
 - [Produktions-APK](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
