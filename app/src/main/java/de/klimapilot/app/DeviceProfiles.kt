@@ -203,11 +203,9 @@ internal fun DeviceSettingsDialog(
                         newAirconId.isNotBlank() -> "wfrac:$newAirconId"
                         else -> ""
                     }
-                    if (oldKey.startsWith("wfrac:") && newKey != oldKey) {
-                        if (!canMigrateSyncKey) {
-                            syncKeyError = "Die bisherige Gerätekennung ist mehreren Geräten zugeordnet. Bitte erst die doppelte Zuordnung beheben; die Synchronisierung wird nicht umgestellt."
-                            return@TextButton
-                        }
+                    // A key still shared with another device stays with that device: this device
+                    // simply switches to its own key and leaves the pending changes where they are.
+                    if (oldKey.startsWith("wfrac:") && newKey != oldKey && canMigrateSyncKey) {
                         val migrated = runCatching {
                             // Move durable repository-journal entries into the outbox first,
                             // so the existing outbox migration also covers not-yet-flushed edits.
