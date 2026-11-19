@@ -728,6 +728,7 @@ private fun KlimaPilotApp(appVersion: String) {
             onVerticalSwing = { value -> applyDeviceChange { it.copy(windUD = value) } },
             onHorizontalSwing = { value -> applyDeviceChange { it.copy(windLR = value) } },
             onThreeDAuto = { enabled -> applyDeviceChange { it.copy(entrust = enabled) } },
+            onSelfClean = { enabled -> applyDeviceChange { it.copy(selfClean = enabled) } },
             onApplyProfile = { profile, onComplete ->
                 applyDeviceChange(
                     change = { current ->
@@ -829,6 +830,7 @@ private fun MainScreen(
     onVerticalSwing: (Int) -> Unit,
     onHorizontalSwing: (Int) -> Unit,
     onThreeDAuto: (Boolean) -> Unit,
+    onSelfClean: (Boolean) -> Unit,
     onApplyProfile: (ClimateProfile, (Boolean, String?) -> Unit) -> Unit,
     airconConnected: Boolean,
     onSettings: () -> Unit
@@ -1019,6 +1021,24 @@ private fun MainScreen(
                                 Text("Verteilt die Luft im Raum", color = Muted, fontSize = 11.sp)
                             }
                             Switch(checked = state.entrust, onCheckedChange = onThreeDAuto, enabled = ready)
+                        }
+                    }
+                }
+
+                if (state != null) {
+                    // The codec only carries the self-clean bit for model numbers 1 and 2.
+                    val supportsSelfClean = state.modelNr == 1 || state.modelNr == 2
+                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("Selbstreinigung", color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (supportsSelfClean) "Trocknet das Innengerät nach Kühlen oder Entfeuchten"
+                                    else "Von diesem Modell über WLAN nicht gemeldet (Modellkennung ${state.modelNrRaw})",
+                                    color = Muted, fontSize = 11.sp
+                                )
+                            }
+                            Switch(checked = state.selfClean, onCheckedChange = onSelfClean, enabled = ready && supportsSelfClean)
                         }
                     }
                 }
