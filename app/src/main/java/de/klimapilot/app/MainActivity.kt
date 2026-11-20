@@ -891,6 +891,42 @@ private fun MainScreen(
             }
         }
 
+        // Rooms (and units, if a room has several) stay fixed under the header.
+        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                rooms.forEach { room ->
+                    FilterChip(
+                        selected = selectedRoom == room,
+                        onClick = { onRoomSelect(room) },
+                        label = { Text(room, maxLines = 1) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFE3EEF7),
+                            selectedLabelColor = Color(0xFF123B60),
+                            containerColor = Panel,
+                            labelColor = TextMain
+                        )
+                    )
+                }
+            }
+            if (devicesInRoom.size > 1) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    devicesInRoom.forEach { device ->
+                        FilterChip(
+                            selected = selectedDeviceId == device.id,
+                            onClick = { onDeviceSelect(device.id) },
+                            label = { Text(device.name, maxLines = 1, softWrap = false) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFE3EEF7),
+                                selectedLabelColor = Color(0xFF123B60),
+                                containerColor = Panel,
+                                labelColor = TextMain
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
         Column(
             modifier = Modifier.weight(1f).fillMaxWidth()
                 .pointerInput(rooms, selectedRoom) {
@@ -915,40 +951,6 @@ private fun MainScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Spacer(Modifier.height(8.dp))
-            SectionTitle("RAUM")
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            rooms.forEach { room ->
-                FilterChip(
-                    selected = selectedRoom == room,
-                    onClick = { onRoomSelect(room) },
-                    label = { Text(room, maxLines = 1) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFE3EEF7),
-                        selectedLabelColor = Color(0xFF123B60),
-                        containerColor = Panel,
-                        labelColor = TextMain
-                    )
-                )
-            }
-        }
-        if (devicesInRoom.size > 1) {
-            SectionTitle("KLIMAANLAGE")
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                devicesInRoom.forEach { device ->
-                    FilterChip(
-                        selected = selectedDeviceId == device.id,
-                        onClick = { onDeviceSelect(device.id) },
-                        label = { Text(device.name, maxLines = 1, softWrap = false) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFE3EEF7),
-                            selectedLabelColor = Color(0xFF123B60),
-                            containerColor = Panel,
-                            labelColor = TextMain
-                        )
-                    )
-                }
-            }
-        }
 
         ClimateProfilesSection(
             deviceId = selectedDeviceId,
@@ -1057,11 +1059,9 @@ private fun MainScreen(
                     }
                 }
 
+                ScheduleSection(allDevices.firstOrNull { it.id == deviceId }, airconState)
+
                 if (state != null) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactMetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", state.errorCode?.let { "Statuscode: $it" } ?: "Kein Code gemeldet")
-                        CompactMetricCard(Modifier.weight(1f), "Verbindung", if (airconConnected) "Lokal" else "Getrennt", if (controlBusy) "Befehl läuft …" else "WF-RAC")
-                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (todayEnergyKwh != null) {
                             CompactMetricCard(
@@ -1077,6 +1077,10 @@ private fun MainScreen(
                                 "Seit dem Einschalten · antippen für Verlauf"
                             )
                         }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CompactMetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", state.errorCode?.let { "Statuscode: $it" } ?: "Kein Code gemeldet")
+                        CompactMetricCard(Modifier.weight(1f), "Verbindung", if (airconConnected) "Lokal" else "Getrennt", if (controlBusy) "Befehl läuft …" else "WF-RAC")
                     }
                 } else {
                     Text(
@@ -1096,7 +1100,6 @@ private fun MainScreen(
                 }
             }
         }
-            ScheduleSection(allDevices.firstOrNull { it.id == selectedDeviceId }, airconState)
             Spacer(Modifier.height(12.dp))
         }
     }
