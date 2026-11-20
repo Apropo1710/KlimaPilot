@@ -1080,8 +1080,14 @@ private fun MainScreen(
                     }
                 } else {
                     Text(
-                        if (devicesInRoom.firstOrNull { it.id == deviceId }?.demoMode == true) "Demo-Gerät wird initialisiert …"
-                        else "Kopple das WLAN-Modul in den Geräteeinstellungen oder aktiviere dort den Testmodus.",
+                        devicesInRoom.firstOrNull { it.id == deviceId }.let { device ->
+                            when {
+                                device?.demoMode == true -> "Demo-Gerät wird initialisiert …"
+                                device?.wfRacAirconId.isNullOrBlank() -> "Kopple das WLAN-Modul in den Geräteeinstellungen oder aktiviere dort den Testmodus."
+                                controlStatus.isBlank() -> "Verbindung zur Klimaanlage wird aufgebaut …"
+                                else -> "Klimaanlage im Moment nicht erreichbar. Die App versucht es alle 10 Sekunden erneut."
+                            }
+                        },
                         color = Muted, fontSize = 12.sp
                     )
                 }
