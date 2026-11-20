@@ -32,6 +32,8 @@ internal class IoBrokerSocket(
     @Volatile private var readyReceived = false
     @Volatile private var lastPong = System.currentTimeMillis()
     private var reconnectDelay = 1000L
+    /** Failed attempts before the first successful connection; the first ones are retried silently. */
+    private var failedOpens = 0
     private val pingTask = object : Runnable {
         override fun run() {
             if (stopped) return
@@ -89,6 +91,7 @@ internal class IoBrokerSocket(
                         if (name == "___ready___") {
                             isConnected = true
                             readyReceived = true
+                            failedOpens = 0
                             reconnectDelay = 1000L
                             notifyHandlers("connect", emptyArray())
                         } else {
@@ -145,6 +148,12 @@ internal class IoBrokerSocket(
         callbackTimeouts.clear()
         callbacks.values.toList().forEach { it(arrayOf("disconnected")) }
         callbacks.clear()
+        if (!wasReady && !stopped && ++failedOpens <= SILENT_RETRIES) {
+            // A single lost TCP connect (WLAN waking up, short stall on the ioBroker host) is
+            // retried right away instead of being reported to the caller as an error.
+            main.postDelayed({ if (!stopped && !isConnected) openSocket() }, 500L)
+            return
+        }
         if (wasReady) notifyHandlers("disconnect", emptyArray())
         else notifyHandlers("connect_error", arrayOf(message))
         if (!stopped) {
@@ -198,13 +207,15 @@ internal class IoBrokerSocket(
     fun close() = disconnect()
 
     companion object {
+        private const val SILENT_RETRIES = 1
+
         /**
          * One HTTP client for all ioBroker connections of the app. A client per connection
          * left its thread and connection pools behind on every short-lived connection.
          */
         private val sharedClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
-                .connectTimeout(8, TimeUnit.SECONDS)
+                .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
                 .pingInterval(0, TimeUnit.SECONDS)
                 .build()
