@@ -571,7 +571,9 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         ClimateProfileEditorDialog(
             deviceId = deviceId, profile = profileToEdit,
             initialState = currentState,
-            modelSupportsVaneLR = modelSupportsVaneLR,
+            // Unknown model (e.g. in the profile manager without live state) counts as supported,
+            // like in the schedule editor; applying a profile checks the real model anyway.
+            modelSupportsVaneLR = modelSupportsVaneLR != false,
             onDismiss = { editing = null },
             onSave = { profile ->
                 runCatching {
@@ -734,7 +736,7 @@ private fun ClimateProfileEditorDialog(
                 OutlinedTextField(name, { name = it }, label = { Text("Profilname") },
                     placeholder = { Text("z. B. Nachtmodus") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 HorizontalDivider()
-                Text(if (profile == null) "Die aktuellen Einstellungen werden übernommen. Du kannst nur den Namen festlegen oder Werte bei Bedarf anpassen." else "Gespeicherte Einstellungen", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Was das Profil einstellt", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(includePower, { includePower = it }); Text("Ein-/Aus-Zustand")
                 }
@@ -791,14 +793,6 @@ private fun ClimateProfileEditorDialog(
                         FilterChip(selected = threeDAuto, onClick = { threeDAuto = true }, label = { Text("Ein") })
                         FilterChip(selected = !threeDAuto, onClick = { threeDAuto = false }, label = { Text("Aus") })
                     }
-                } else {
-                    Text(
-                        if (modelSupportsVaneLR == false)
-                            "Dieses Modell unterstützt horizontale Luftführung und 3D-Automatik nicht."
-                        else
-                            "Das Modell wurde noch nicht ausgelesen. Gespeicherte Werte für horizontale Luftführung und 3D-Automatik bleiben unverändert.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
-                    )
                 }
             }
         },
