@@ -370,11 +370,11 @@ internal class ScheduleIoBroker {
 // UI
 // -------------------------------------------------------------------------------------------
 
-private val SBlue = Color(0xFF1769AA)
-private val SLight = Color(0xFFE3EEF7)
-private val SText = Color(0xFF172334)
-private val SMuted = Color(0xFF63748A)
-private val SDark = Color(0xFF123B60)
+internal val SBlue = Color(0xFF1769AA)
+internal val SLight = Color(0xFFE3EEF7)
+internal val SText = Color(0xFF172334)
+internal val SMuted = Color(0xFF63748A)
+internal val SDark = Color(0xFF123B60)
 
 @Composable
 private fun SectionLabel(text: String) = Text(text.uppercase(), color = SMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
@@ -498,13 +498,13 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
     }
 }
 
-private val SPage = Color(0xFFF2F6FA)
-private val SDivider = Color(0xFFEAF0F5)
-private val SSegmentBg = Color(0xFFE4EBF2)
+internal val SPage = Color(0xFFF2F6FA)
+internal val SDivider = Color(0xFFEAF0F5)
+internal val SSegmentBg = Color(0xFFE4EBF2)
 
 /** Compact segmented control: the selected segment is a raised white tab. */
 @Composable
-private fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
+internal fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
     Surface(color = SSegmentBg, shape = RoundedCornerShape(12.dp), modifier = modifier.fillMaxWidth()) {
         Row(Modifier.padding(3.dp)) {
             options.forEachIndexed { index, label ->
@@ -528,7 +528,7 @@ private fun Segmented(options: List<String>, selected: Int, modifier: Modifier =
 
 /** Small tonal chip. */
 @Composable
-private fun Chip(label: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun Chip(label: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     Surface(
         color = if (selected) SBlue.copy(alpha = 0.12f) else Color.Transparent,
         shape = RoundedCornerShape(50),
@@ -544,7 +544,7 @@ private fun Chip(label: String, selected: Boolean, enabled: Boolean = true, onCl
 }
 
 @Composable
-private fun Group(title: String, content: @Composable () -> Unit) {
+internal fun Group(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title.uppercase(), color = SMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(start = 6.dp))
         Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
@@ -554,7 +554,7 @@ private fun Group(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun SettingRow(label: String, trailing: @Composable () -> Unit) {
+internal fun SettingRow(label: String, trailing: @Composable () -> Unit) {
     Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = SText, fontSize = 14.sp, modifier = Modifier.weight(1f))
         trailing()
@@ -562,10 +562,10 @@ private fun SettingRow(label: String, trailing: @Composable () -> Unit) {
 }
 
 @Composable
-private fun RowDivider() = androidx.compose.material3.HorizontalDivider(color = SDivider, thickness = 1.dp)
+internal fun RowDivider() = androidx.compose.material3.HorizontalDivider(color = SDivider, thickness = 1.dp)
 
 @Composable
-private fun MiniRound(label: String, onClick: () -> Unit) {
+internal fun MiniRound(label: String, onClick: () -> Unit) {
     Surface(
         shape = CircleShape, color = Color.Transparent, border = BorderStroke(1.dp, Color(0xFFD5DFE9)),
         modifier = Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onClick)
@@ -573,7 +573,7 @@ private fun MiniRound(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Dropdown(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+internal fun Dropdown(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         Row(
