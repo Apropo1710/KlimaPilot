@@ -1028,6 +1028,13 @@ private fun MainScreen(
                         CompactMetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", state.errorCode?.let { "Statuscode: $it" } ?: "Kein Code gemeldet")
                         CompactMetricCard(Modifier.weight(1f), "Verbindung", if (airconConnected) "Lokal" else "Getrennt", if (controlBusy) "Befehl läuft …" else "WF-RAC")
                     }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CompactMetricCard(
+                            Modifier.weight(1f), "Verbrauch",
+                            state.runEnergyKwh?.let { "%.2f kWh".format(java.util.Locale.GERMANY, it) } ?: "Nicht gemeldet",
+                            "Seit dem letzten Einschalten"
+                        )
+                    }
                 } else {
                     Text(
                         if (devicesInRoom.firstOrNull { it.id == deviceId }?.demoMode == true) "Demo-Gerät wird initialisiert …"
