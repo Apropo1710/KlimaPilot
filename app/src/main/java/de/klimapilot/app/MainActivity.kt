@@ -927,6 +927,9 @@ private fun MainScreen(
             }
         }
 
+        // Switching room or unit always starts at the top of the page.
+        val pageScroll = rememberScrollState()
+        LaunchedEffect(selectedRoom, selectedDeviceId) { pageScroll.scrollTo(0) }
         Column(
             modifier = Modifier.weight(1f).fillMaxWidth()
                 .pointerInput(rooms, selectedRoom) {
@@ -947,7 +950,7 @@ private fun MainScreen(
                         }
                     }
                 }
-                .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                .verticalScroll(pageScroll).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Spacer(Modifier.height(8.dp))
@@ -1054,7 +1057,7 @@ private fun MainScreen(
                                 Text("3D-Auto-Luftstrom", color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                 Text("Verteilt die Luft im Raum", color = Muted, fontSize = 11.sp)
                             }
-                            Switch(checked = state.entrust, onCheckedChange = onThreeDAuto, enabled = ready)
+                            Switch(checked = state.entrust, onCheckedChange = onThreeDAuto, enabled = ready, colors = blueSwitchColors())
                         }
                     }
                 }
