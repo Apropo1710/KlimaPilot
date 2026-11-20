@@ -1096,6 +1096,7 @@ private fun MainScreen(
                 }
             }
         }
+            ScheduleSection(allDevices.firstOrNull { it.id == selectedDeviceId }, airconState)
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -1439,14 +1440,14 @@ private fun EnergyScriptSettingsCard(expanded: Boolean, onExpandedChange: (Boole
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth().clickable { onExpandedChange(!expanded) }, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Energieaufzeichnung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("Skript in ioBroker für den Verbrauchsverlauf.", color = Muted, fontSize = 11.sp)
+                    Text("ioBroker-Skript", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Für Energieverlauf und Zeitpläne.", color = Muted, fontSize = 11.sp)
                 }
                 Text(if (expanded) "⌃" else "⌄", color = Muted, fontSize = 20.sp)
             }
             if (expanded) {
                 Text(
-                    "KlimaPilot legt im ioBroker-JavaScript-Adapter das Skript „KlimaPilot_Energie“ an und startet es. Es liest die Anlagen alle 5 Minuten aus. Andere aktive Kopien des Energieskripts werden angehalten. Beim App-Start wird das Skript bei Bedarf automatisch aktualisiert.",
+                    "KlimaPilot legt im ioBroker-JavaScript-Adapter das Skript „KlimaPilot“ an und startet es. Es zeichnet alle 5 Minuten den Verbrauch auf und führt die Zeitpläne aus. Ältere Kopien werden angehalten bzw. ersetzt. Beim App-Start wird das Skript bei Bedarf automatisch aktualisiert.",
                     color = Muted, fontSize = 12.sp
                 )
                 OutlinedButton(
@@ -1665,6 +1666,11 @@ private fun SettingsScreen(
         if (isAdmin) {
             IoBrokerConnectionSettingsCard(expanded = ioBrokerExpanded, onExpandedChange = { ioBrokerExpanded = it })
             EnergyScriptSettingsCard(expanded = energyExpanded, onExpandedChange = { energyExpanded = it })
+            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ScheduleSettingsContent()
+                }
+            }
         } else {
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
                 Text(

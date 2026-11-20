@@ -339,11 +339,15 @@ internal class EnergyScriptInstaller(private val context: Context) {
                     val row = rows.optJSONObject(i) ?: return@mapNotNull null
                     val id = row.optString("id")
                     val common = row.optJSONObject("value")?.optJSONObject("common") ?: return@mapNotNull null
-                    id.takeIf { it != SCRIPT_ID && common.optBoolean("enabled") && common.optString("source").contains(MARKER) }
+                    val source = common.optString("source")
+                    id.takeIf { it != SCRIPT_ID && common.optBoolean("enabled") && (source.contains(MARKER) || source.contains(LEGACY_MARKER)) }
                 }
                 fun next(index: Int) {
                     if (index >= others.size) {
-                        finish(true, if (others.isEmpty()) message else "$message Eine ältere Kopie wurde angehalten.")
+                        // The earlier energy-only script KlimaPilot set up itself is removed for good.
+                        socket.emit("delObject", LEGACY_SCRIPT_ID, IoBrokerAck {
+                            finish(true, if (others.isEmpty()) message else "$message Eine ältere Kopie wurde angehalten.")
+                        })
                         return
                     }
                     val update = JSONObject().put("common", JSONObject().put("enabled", false))
@@ -353,32 +357,43 @@ internal class EnergyScriptInstaller(private val context: Context) {
             })
         }
 
+        fun write(existing: JSONObject?) {
+            val common = existing?.optJSONObject("common")
+            if (common != null && common.optString("source") == source && common.optBoolean("enabled")) {
+                disableOtherCopies("Das KlimaPilot-Skript ist eingerichtet und aktuell.")
+                return
+            }
+            val definition = JSONObject()
+                .put("type", "script")
+                .put("common", JSONObject()
+                    .put("name", "KlimaPilot")
+                    .put("engineType", "Javascript/js")
+                    .put("engine", "system.adapter.javascript.0")
+                    .put("source", source)
+                    .put("enabled", true)
+                    .put("debug", false)
+                    .put("verbose", false))
+                .put("native", JSONObject())
+            socket.emit("setObject", SCRIPT_ID, definition, IoBrokerAck setCallback@{ setArgs ->
+                if (err(setArgs) != null) { finish(false, "Skript konnte nicht angelegt werden: ${err(setArgs)}"); return@setCallback }
+                disableOtherCopies(if (existing == null) "KlimaPilot-Skript eingerichtet und gestartet." else "KlimaPilot-Skript aktualisiert.")
+            })
+        }
+
         socket.on("connect") {
             socket.emit("authenticate", IoBrokerAck authCallback@{ authArgs ->
                 if (authArgs.firstOrNull() as? Boolean != true) { finish(false, "ioBroker hat die Verbindung nicht authentifiziert."); return@authCallback }
                 socket.emit("getObject", SCRIPT_ID, IoBrokerAck getCallback@{ getArgs ->
                     val existing = asJson(getArgs.getOrNull(1))
-                    if (updateOnly && existing == null) { finish(true, "Nicht eingerichtet."); return@getCallback }
-                    val common = existing?.optJSONObject("common")
-                    if (common != null && common.optString("source") == source && common.optBoolean("enabled")) {
-                        disableOtherCopies("Das Energieskript ist eingerichtet und aktuell.")
+                    if (updateOnly && existing == null) {
+                        // Not installed yet; only replace the earlier energy script if that exists.
+                        socket.emit("getObject", LEGACY_SCRIPT_ID, IoBrokerAck legacyCallback@{ legacyArgs ->
+                            if (asJson(legacyArgs.getOrNull(1)) == null) { finish(true, "Nicht eingerichtet."); return@legacyCallback }
+                            write(null)
+                        })
                         return@getCallback
                     }
-                    val definition = JSONObject()
-                        .put("type", "script")
-                        .put("common", JSONObject()
-                            .put("name", "KlimaPilot Energie")
-                            .put("engineType", "Javascript/js")
-                            .put("engine", "system.adapter.javascript.0")
-                            .put("source", source)
-                            .put("enabled", true)
-                            .put("debug", false)
-                            .put("verbose", false))
-                        .put("native", JSONObject())
-                    socket.emit("setObject", SCRIPT_ID, definition, IoBrokerAck setCallback@{ setArgs ->
-                        if (err(setArgs) != null) { finish(false, "Skript konnte nicht angelegt werden: ${err(setArgs)}"); return@setCallback }
-                        disableOtherCopies(if (existing == null) "Energieskript eingerichtet und gestartet." else "Energieskript aktualisiert.")
-                    })
+                    write(existing)
                 })
             })
         }
@@ -387,9 +402,12 @@ internal class EnergyScriptInstaller(private val context: Context) {
     }
 
     companion object {
-        const val ASSET = "klimapilot-energie.js"
-        const val SCRIPT_ID = "script.js.common.KlimaPilot_Energie"
-        const val MARKER = "KlimaPilot – Energieaufzeichnung für ioBroker"
+        const val ASSET = "klimapilot.js"
+        const val SCRIPT_ID = "script.js.common.KlimaPilot"
+        const val MARKER = "KlimaPilot – ioBroker-Skript"
+        /** Earlier energy-only script; replaced by [SCRIPT_ID]. */
+        const val LEGACY_SCRIPT_ID = "script.js.common.KlimaPilot_Energie"
+        const val LEGACY_MARKER = "KlimaPilot – Energieaufzeichnung für ioBroker"
     }
 }
 

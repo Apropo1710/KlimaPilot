@@ -42,16 +42,15 @@ Technische Fachkonzepte:
 
 Der aktuelle Branch-, PR-, Build- und Validierungsstand wird ausschließlich in `PROJECT_STATUS.md` gepflegt. Die Fachkonzepte beschreiben Architektur, Entscheidungen und technische Anforderungen und sollen keine konkurrierenden Statusübersichten führen.
 
-## Energieaufzeichnung (ioBroker)
+## ioBroker-Skript: Energieaufzeichnung und Zeitpläne
 
-Die Energieansicht in KlimaPilot (Kachel „Verbrauch“ antippen) braucht ein Skript in ioBroker, das die Anlagen rund um die Uhr ausliest ([`scripts/iobroker/klimapilot-energie.js`](scripts/iobroker/klimapilot-energie.js)). Es wird mit der App ausgeliefert:
+Energieverlauf und Zeitpläne laufen über ein Skript im ioBroker-JavaScript-Adapter ([`scripts/iobroker/klimapilot.js`](scripts/iobroker/klimapilot.js)), damit sie auch funktionieren, wenn kein Smartphone zu Hause oder die App geschlossen ist. Das Skript wird mit der App ausgeliefert:
 
-- **Einrichten:** In den Einstellungen die Kachel „Energieaufzeichnung“ aufklappen und „Skript in ioBroker einrichten / prüfen“ antippen (nur Administrator). KlimaPilot legt `script.js.common.KlimaPilot_Energie` im JavaScript-Adapter (`javascript.0`) an und startet es. Andere aktive Kopien des Energieskripts werden angehalten, damit nichts doppelt gezählt wird.
-- **Aktualisieren:** Beim Start prüft KlimaPilot, ob das von ihm eingerichtete Skript der mitgelieferten Fassung entspricht, und aktualisiert es bei Bedarf.
-- KlimaPilot trägt die gekoppelten Anlagen und den Strompreis unter `0_userdata.0.KlimaPilot.energy.config` ein. Das Skript liest alle 5 Minuten und schreibt nach `0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>`.
-- Manuell geht es auch: neues JavaScript-Skript anlegen und den Dateiinhalt einfügen (am PC; der Editor ist auf dem Smartphone kaum bedienbar).
-
-Aufgezeichnet wird ab der ersten Ablesung durch das Skript; Verbrauch davor kann nicht zugeordnet werden.
+- **Einrichten:** Einstellungen → Kachel „ioBroker-Skript“ aufklappen → „Skript in ioBroker einrichten / prüfen“ (nur Administrator). KlimaPilot legt `script.js.common.KlimaPilot` (`javascript.0`) an und startet es. Ältere Kopien werden angehalten, das frühere Energieskript `KlimaPilot_Energie` wird ersetzt.
+- **Aktualisieren:** Beim Start prüft KlimaPilot, ob das eingerichtete Skript der mitgelieferten Fassung entspricht, und aktualisiert es bei Bedarf.
+- **Energie:** KlimaPilot trägt Anlagen und Strompreis unter `0_userdata.0.KlimaPilot.energy.config` ein; das Skript liest alle 5 Minuten und schreibt nach `0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>`. Aufgezeichnet wird ab der ersten Ablesung.
+- **Zeitpläne:** KlimaPilot schreibt sie nach `0_userdata.0.KlimaPilot.schedules.config`; das Skript prüft jede Minute, schaltet fällige Anlagen direkt am WLAN-Modul und schreibt das Ergebnis nach `0_userdata.0.KlimaPilot.schedules.status`. Schlägt ein Termin fehl (z. B. beim stündlichen Neustart des Moduls), wird er bis zu 10 Minuten lang jede Minute wiederholt. Der Schalter „Zeitpläne verwenden“ in den Einstellungen hält alle Zeitpläne an und blendet sie in der App aus.
+- Manuell geht es auch: neues JavaScript-Skript anlegen und den Dateiinhalt einfügen (am PC).
 
 ## GitHub
 
