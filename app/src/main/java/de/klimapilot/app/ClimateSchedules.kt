@@ -249,6 +249,14 @@ internal object ScheduleMath {
 
     fun profileSettings(p: ClimateProfile) = ScheduleSettings(p.mode, p.targetTemp, p.fanSpeed, p.verticalSwing, p.horizontalSwing, p.threeDAuto)
 
+    /** A one-time timer that has run is switched off; it stays listed until it is deleted. */
+    fun disableFinished(items: List<ClimateSchedule>, status: Map<String, ScheduleRun>): List<ClimateSchedule> = items.map { item ->
+        val run = status[item.id]
+        if (item.kind == "once" && item.enabled && item.at != null && run?.done == true && run.key == "once:${item.at}")
+            item.copy(enabled = false, updatedAt = System.currentTimeMillis())
+        else item
+    }
+
     /** Keeps the copied profile values in step with the profiles, so the script applies the current ones. */
     fun withProfiles(items: List<ClimateSchedule>, profiles: List<ClimateProfile>): List<ClimateSchedule> = items.map { item ->
         val profile = item.profileId?.let { id -> profiles.firstOrNull { it.id == id } } ?: return@map item
@@ -399,14 +407,16 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
             io.load(address) { result, err ->
                 if (result == null) { error = err; return@load }
                 data = result; error = null
-                // A profile used by a schedule was changed here: hand its current values to ioBroker.
-                if (ScheduleMath.withProfiles(result.items, fresh) != result.items) {
-                    io.update(address, { enabled, items -> enabled to ScheduleMath.withProfiles(items, fresh) }) { updated, _ ->
+                // Hand changed profile values to ioBroker, and switch off one-time timers that have run.
+                fun tidy(items: List<ClimateSchedule>, status: Map<String, ScheduleRun>) =
+                    ScheduleMath.disableFinished(ScheduleMath.withProfiles(items, fresh), status)
+                if (tidy(result.items, result.status) != result.items) {
+                    io.update(address, { enabled, items -> enabled to tidy(items, result.status) }) { updated, _ ->
                         if (updated != null) data = updated
                     }
                 }
             }
-            delay(60_000)
+            delay(300_000)
         }
     }
 
