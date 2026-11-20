@@ -42,7 +42,9 @@ internal data class ClimateProfile(
     val verticalSwing: Int?,
     val horizontalSwing: Int?,
     val threeDAuto: Boolean?,
-    val updatedAt: Long
+    val updatedAt: Long,
+    /** "winter", "summer" or "all"; null follows the mode (see [ProfileSeason]). */
+    val season: String? = null
 ) {
     fun summary(): String = buildList {
         power?.let { add(if (it) "Ein" else "Aus") }
@@ -120,7 +122,8 @@ internal class ClimateProfileRepository(context: Context) {
                 optionalIndex("verticalSwing", 4),
                 optionalIndex("horizontalSwing", 7),
                 if (item.isNull("threeDAuto") || !item.has("threeDAuto")) null else item.getBoolean("threeDAuto"),
-                item.optLong("updatedAt", 0L).coerceAtLeast(0L)
+                item.optLong("updatedAt", 0L).coerceAtLeast(0L),
+                season = item.optString("season").takeIf { it in ProfileSeason.VALUES }
             )
         }
         check(profiles.map { it.id }.distinct().size == profiles.size) { "Klimaprofil-IDs sind nicht eindeutig." }
@@ -253,6 +256,7 @@ internal class ClimateProfileRepository(context: Context) {
         .put("mode", item.mode ?: JSONObject.NULL).put("targetTemp", item.targetTemp ?: JSONObject.NULL)
         .put("fanSpeed", item.fanSpeed ?: JSONObject.NULL).put("verticalSwing", item.verticalSwing ?: JSONObject.NULL)
         .put("horizontalSwing", item.horizontalSwing ?: JSONObject.NULL).put("threeDAuto", item.threeDAuto ?: JSONObject.NULL)
+        .put("season", item.season ?: JSONObject.NULL)
         .put("updatedAt", item.updatedAt)
 
     /** Applies a remote event locally without creating a new outbound event. */
@@ -284,7 +288,8 @@ internal class ClimateProfileRepository(context: Context) {
                     verticalSwing = if (item.isNull("verticalSwing")) null else item.optInt("verticalSwing"),
                     horizontalSwing = if (item.isNull("horizontalSwing")) null else item.optInt("horizontalSwing"),
                     threeDAuto = if (item.isNull("threeDAuto")) null else item.optBoolean("threeDAuto"),
-                    updatedAt = item.optLong("updatedAt", 0L).coerceAtLeast(0L)
+                    updatedAt = item.optLong("updatedAt", 0L).coerceAtLeast(0L),
+                    season = item.optString("season").takeIf { it in ProfileSeason.VALUES }
                 )
                 save(profile)
             }
@@ -311,6 +316,7 @@ internal class ClimateProfileRepository(context: Context) {
                     .put("verticalSwing", item.verticalSwing ?: JSONObject.NULL)
                     .put("horizontalSwing", item.horizontalSwing ?: JSONObject.NULL)
                     .put("threeDAuto", item.threeDAuto ?: JSONObject.NULL)
+                    .put("season", item.season ?: JSONObject.NULL)
                     .put("updatedAt", item.updatedAt))
             }
         }).toString()
@@ -390,6 +396,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     }
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
+    var season by remember { mutableStateOf(ProfileSeason.current(context)) }
+    LaunchedEffect(PeerSyncSignals.dataRevision) { season = ProfileSeason.current(context) }
     val selectedProfile = deviceProfiles.firstOrNull { it.id == selectedProfileId }
     val modelSupportsVaneLR = currentState?.let { Codec.modelHasVaneLR(it.modelNrRaw) }
     val selectedProfileDirty = selectedProfile != null && currentState != null && (
@@ -536,6 +544,13 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                 }
                             }
                             DropdownMenu(expanded = profileMenuExpanded, onDismissRequest = { profileMenuExpanded = false }) {
+                                Segmented(
+                                    listOf("☼ Winter", "❄ Sommer"), if (season == ProfileSeason.WINTER) 0 else 1,
+                                    Modifier.width(230.dp).padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    season = if (it == 0) ProfileSeason.WINTER else ProfileSeason.SUMMER
+                                    ProfileSeason.set(context, season)
+                                }
                                 DropdownMenuItem(text = { Text("⚙️  Individuell") },
                                     onClick = {
                                         profileMenuExpanded = false
@@ -546,7 +561,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                             switchTo(snapshot, null, "Individuelle Einstellungen konnten nicht wiederhergestellt werden.")
                                         }
                                     })
-                                deviceProfiles.forEach { profile ->
+                                deviceProfiles.filter { ProfileSeason.matches(it, season) || it.id == selectedProfileId }.forEach { profile ->
                                     DropdownMenuItem(text = { Text(profileSymbol(profile) + "  " + profile.name) },
                                         onClick = {
                                             profileMenuExpanded = false
@@ -586,6 +601,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         ClimateProfileEditorDialog(
             deviceId = deviceId, profile = profileToEdit,
             initialState = currentState,
+            currentSeason = season,
             // Unknown model (e.g. in the profile manager without live state) counts as supported,
             // like in the schedule editor; applying a profile checks the real model anyway.
             modelSupportsVaneLR = modelSupportsVaneLR != false,
@@ -633,7 +649,9 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         verticalSwing = currentState.windUD,
                         horizontalSwing = currentState.windLR.takeIf { modelSupportsVaneLR == true },
                         threeDAuto = currentState.entrust.takeIf { modelSupportsVaneLR == true },
-                        updatedAt = System.currentTimeMillis()
+                        updatedAt = System.currentTimeMillis(),
+                        // A profile created from the menu belongs to the season it was created in.
+                        season = season
                     )
                     runCatching {
                         if (syncDeviceKey.isBlank()) repository.save(created)
@@ -736,7 +754,14 @@ private fun ManagerProfileRow(profile: ClimateProfile, onEdit: () -> Unit, onDel
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(profile.name, color = SText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(profile.name, color = SText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+                when (ProfileSeason.of(profile)) {
+                    ProfileSeason.WINTER -> "☼ Winter"
+                    ProfileSeason.SUMMER -> "❄ Sommer"
+                    else -> null
+                }?.let { Text("  $it", color = SMuted, fontSize = 11.sp, maxLines = 1) }
+            }
             Text(main, color = SText.copy(alpha = 0.75f), fontSize = 13.sp, maxLines = 1)
             if (air.isNotBlank()) Text(air, color = SMuted, fontSize = 12.sp, maxLines = 1)
         }

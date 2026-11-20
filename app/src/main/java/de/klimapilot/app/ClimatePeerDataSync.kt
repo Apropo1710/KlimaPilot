@@ -153,6 +153,7 @@ internal class ClimatePeerDataSync(context: Context) : ClimatePeerSessionHandler
         }
         IoBrokerAddress.saved(settings)?.let { snapshot.put("iobroker", it) }
         ScheduleIoBroker.peerJson(appContext)?.let { snapshot.put("schedules", it) }
+        ProfileSeason.peerJson(appContext)?.let { snapshot.put("season", it) }
         val store = ClimateProfileSyncStore(appContext)
         val repository = ClimateProfileRepository(appContext)
         val log = ClimatePeerEventLog(appContext)
@@ -171,7 +172,8 @@ internal class ClimatePeerDataSync(context: Context) : ClimatePeerSessionHandler
             accountsChanged = KlimaPilotAccountRepository(appContext).mergeFromPeer(registry)
         }
         val schedulesChanged = remote.optJSONObject("schedules")?.let { ScheduleIoBroker.applyPeer(appContext, it) } ?: false
-        val configChanged = (remote.optJSONObject("config")?.let { applyConfig(it) } ?: false) || schedulesChanged
+        val seasonChanged = remote.optJSONObject("season")?.let { ProfileSeason.applyPeer(appContext, it) } ?: false
+        val configChanged = (remote.optJSONObject("config")?.let { applyConfig(it) } ?: false) || schedulesChanged || seasonChanged
         remote.optString("iobroker").takeIf { it.isNotBlank() }?.let { url ->
             val settings = settings()
             if (IoBrokerAddress.saved(settings) == null) IoBrokerAddress.normalize(url)?.let { IoBrokerAddress.store(settings, it) }

@@ -63,6 +63,7 @@ internal fun ClimateProfileEditorDialog(
     deviceId: String,
     profile: ClimateProfile?,
     initialState: AirconState? = null,
+    currentSeason: String = ProfileSeason.WINTER,
     modelSupportsVaneLR: Boolean?,
     onDismiss: () -> Unit,
     onSave: (ClimateProfile) -> Unit
@@ -88,6 +89,9 @@ internal fun ClimateProfileEditorDialog(
     var include3d by remember(key) { mutableStateOf(vaneLR && (profile?.threeDAuto != null || fromState)) }
     var threeD by remember(key) { mutableStateOf(profile?.threeDAuto ?: initialState?.entrust ?: false) }
     var showInfo by remember { mutableStateOf(false) }
+    // Until chosen by hand, a profile without an assignment follows its mode (heating = winter, cooling = summer).
+    var seasonChoice by remember(key) { mutableStateOf(profile?.season?.takeIf { it in ProfileSeason.VALUES }) }
+    val season = seasonChoice ?: if (includeMode) ProfileSeason.fromMode(mode) else if (profile == null) currentSeason else ProfileSeason.ALL
 
     fun build() = ClimateProfile(
         id = profile?.id ?: UUID.randomUUID().toString(),
@@ -99,7 +103,8 @@ internal fun ClimateProfileEditorDialog(
         verticalSwing = vertical.takeIf { includeVertical },
         horizontalSwing = horizontal.takeIf { vaneLR && includeHorizontal },
         threeDAuto = threeD.takeIf { vaneLR && include3d },
-        updatedAt = System.currentTimeMillis()
+        updatedAt = System.currentTimeMillis(),
+        season = season
     )
 
     val anySetting = includePower || includeMode || includeTemp || includeFan || includeVertical ||
@@ -145,6 +150,13 @@ internal fun ClimateProfileEditorDialog(
                             )
                         }
                         Text(preview, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+
+                Group("Jahreszeit") {
+                    val options = listOf(ProfileSeason.WINTER to "☼ Winter", ProfileSeason.SUMMER to "❄ Sommer", ProfileSeason.ALL to "Ganzjährig")
+                    Segmented(options.map { it.second }, options.indexOfFirst { it.first == season }.coerceAtLeast(0), Modifier.padding(vertical = 10.dp)) {
+                        seasonChoice = options[it].first
                     }
                 }
 

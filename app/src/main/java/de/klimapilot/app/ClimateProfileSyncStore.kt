@@ -439,6 +439,7 @@ internal class ClimateProfileSyncStore(
         .put("mode", mode ?: JSONObject.NULL).put("targetTemp", targetTemp ?: JSONObject.NULL)
         .put("fanSpeed", fanSpeed ?: JSONObject.NULL).put("verticalSwing", verticalSwing ?: JSONObject.NULL)
         .put("horizontalSwing", horizontalSwing ?: JSONObject.NULL).put("threeDAuto", threeDAuto ?: JSONObject.NULL)
+        .put("season", season ?: JSONObject.NULL)
         .put("updatedAt", updatedAt)
 
     companion object {
