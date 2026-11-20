@@ -672,20 +672,24 @@ private fun ScheduleEditor(
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = SPage) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Top bar
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
-                        Text("✕", color = SText, fontSize = 18.sp)
-                    }
-                    Text(
-                        if (existing == null) "Neuer Zeitplan" else "Zeitplan", color = SText, fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = { onSave(build()) }, enabled = valid) {
-                        Text("Sichern", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = if (valid) SBlue else SMuted)
-                    }
+          Column(Modifier.fillMaxSize()) {
+            // Fixed header: close and save stay reachable while scrolling.
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
+                    Text("✕", color = SText, fontSize = 18.sp)
                 }
+                Text(
+                    if (existing == null) "Neuer Zeitplan" else "Zeitplan", color = SText, fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { onSave(build()) }, enabled = valid) {
+                    Text("Sichern", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = if (valid) SBlue else SMuted)
+                }
+            }
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
 
                 Segmented(listOf("Wöchentlich", "Einmalig"), if (kind == "weekly") 0 else 1) { kind = if (it == 0) "weekly" else "once" }
 
@@ -825,6 +829,7 @@ private fun ScheduleEditor(
                 }
                 Spacer(Modifier.height(40.dp))
             }
+          }
         }
     }
 
