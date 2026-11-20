@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -236,13 +237,15 @@ internal object ScheduleMath {
         if (item.action == "off") return "Ausschalten"
         item.profileName?.let { return "Ein · Profil „$it“" }
         val s = item.settings ?: return "Einschalten"
-        return buildList {
-            add("Ein")
-            s.mode?.let { add(modeLabels[it] ?: it) }
-            s.targetTemp?.let { add("%.1f °C".format(Locale.GERMANY, it)) }
-            s.fanSpeed?.let { add("Lüfter " + fanLabels.getOrElse(it) { "?" }) }
-        }.joinToString(" · ")
+        return (listOf("Ein") + settingsLabel(s).split(" · ").filter { it.isNotBlank() }).joinToString(" · ")
     }
+
+    /** Mode, temperature and fan in one line (no on/off: a schedule decides that itself). */
+    fun settingsLabel(s: ScheduleSettings): String = buildList {
+        s.mode?.let { add(modeLabels[it] ?: it) }
+        s.targetTemp?.let { add("%.1f °C".format(Locale.GERMANY, it)) }
+        s.fanSpeed?.let { add("Lüfter " + fanLabels.getOrElse(it) { "?" }) }
+    }.joinToString(" · ")
 
     fun profileSettings(p: ClimateProfile) = ScheduleSettings(p.mode, p.targetTemp, p.fanSpeed, p.verticalSwing, p.horizontalSwing, p.threeDAuto)
 
@@ -366,22 +369,6 @@ private val SMuted = Color(0xFF63748A)
 private val SDark = Color(0xFF123B60)
 
 @Composable
-private fun Pill(label: String, selected: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
-    Surface(
-        modifier = modifier.clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, onClick = onClick),
-        color = if (selected) SBlue else SLight,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Text(
-            label, Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
-            color = if (selected) Color.White else SDark.copy(alpha = if (enabled) 1f else 0.4f),
-            fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            maxLines = 1, textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
 private fun SectionLabel(text: String) = Text(text.uppercase(), color = SMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
 
 /** The schedule tile of one unit on the main page. Hidden when schedules are switched off. */
@@ -501,6 +488,102 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
     }
 }
 
+private val SPage = Color(0xFFF2F6FA)
+private val SDivider = Color(0xFFEAF0F5)
+private val SSegmentBg = Color(0xFFE4EBF2)
+
+/** Compact segmented control: the selected segment is a raised white tab. */
+@Composable
+private fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
+    Surface(color = SSegmentBg, shape = RoundedCornerShape(12.dp), modifier = modifier.fillMaxWidth()) {
+        Row(Modifier.padding(3.dp)) {
+            options.forEachIndexed { index, label ->
+                val active = index == selected
+                Surface(
+                    color = if (active) Color.White else Color.Transparent,
+                    shape = RoundedCornerShape(10.dp),
+                    shadowElevation = if (active) 1.dp else 0.dp,
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).clickable { onSelect(index) }
+                ) {
+                    Text(
+                        label, Modifier.padding(vertical = 8.dp), textAlign = TextAlign.Center,
+                        color = if (active) SText else SMuted, fontSize = 13.sp,
+                        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Small tonal chip. */
+@Composable
+private fun Chip(label: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+    Surface(
+        color = if (selected) SBlue.copy(alpha = 0.12f) else Color.Transparent,
+        shape = RoundedCornerShape(50),
+        border = BorderStroke(1.dp, if (selected) SBlue.copy(alpha = 0.55f) else Color(0xFFD5DFE9)),
+        modifier = Modifier.clip(RoundedCornerShape(50)).clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Text(
+            label, Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            color = if (selected) SBlue else SText.copy(alpha = if (enabled) 0.85f else 0.35f),
+            fontSize = 13.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun Group(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title.uppercase(), color = SMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(start = 6.dp))
+        Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) { content() }
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(label: String, trailing: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = SText, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        trailing()
+    }
+}
+
+@Composable
+private fun RowDivider() = androidx.compose.material3.HorizontalDivider(color = SDivider, thickness = 1.dp)
+
+@Composable
+private fun MiniRound(label: String, onClick: () -> Unit) {
+    Surface(
+        shape = CircleShape, color = Color.Transparent, border = BorderStroke(1.dp, Color(0xFFD5DFE9)),
+        modifier = Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onClick)
+    ) { Box(contentAlignment = Alignment.Center) { Text(label, color = SBlue, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) } }
+}
+
+@Composable
+private fun Dropdown(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            Modifier.clip(RoundedCornerShape(8.dp)).clickable { open = true }.padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(options.getOrElse(selected) { "–" }, color = SBlue, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text("  ▾", color = SBlue, fontSize = 12.sp)
+        }
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEachIndexed { index, label ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(label, fontWeight = if (index == selected) FontWeight.SemiBold else FontWeight.Normal) },
+                    onClick = { onSelect(index); open = false }
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ScheduleEditor(
@@ -530,158 +613,191 @@ private fun ScheduleEditor(
     val base = existing?.settings
     var mode by remember { mutableStateOf(base?.mode ?: currentState?.mode?.name ?: "HEAT") }
     var temp by remember { mutableStateOf(base?.targetTemp ?: currentState?.presetTemp ?: 21.0) }
-    var fan by remember { mutableStateOf(base?.fanSpeed ?: currentState?.airFlow ?: 0) }
-    var vertical by remember { mutableStateOf(base?.verticalSwing ?: currentState?.windUD ?: 0) }
-    var horizontal by remember { mutableStateOf(base?.horizontalSwing ?: currentState?.windLR ?: 0) }
+    var fan by remember { mutableStateOf(base?.fanSpeed ?: currentState?.airFlow?.takeIf { it >= 0 } ?: 0) }
+    var vertical by remember { mutableStateOf(base?.verticalSwing ?: currentState?.windUD?.takeIf { it >= 0 } ?: 0) }
+    var horizontal by remember { mutableStateOf(base?.horizontalSwing ?: currentState?.windLR?.takeIf { it >= 0 } ?: 0) }
     var threeD by remember { mutableStateOf(base?.threeDAuto ?: currentState?.entrust ?: false) }
     val supportsVaneLR = currentState?.let { Codec.modelHasVaneLR(it.modelNrRaw) } != false
 
     val onceAt = onceDay.atTime(time)
-    val valid = when (kind) {
-        "weekly" -> days.isNotEmpty()
-        else -> onceAt.isAfter(LocalDateTime.now().minusMinutes(1))
-    } && (action == "off" || !useProfile || profileId != null)
+    val profile = profiles.firstOrNull { it.id == profileId }
+    val onceInPast = kind == "once" && !onceAt.isAfter(LocalDateTime.now().minusMinutes(1))
+    val valid = (if (kind == "weekly") days.isNotEmpty() else !onceInPast) &&
+        (action == "off" || !useProfile || profile != null)
+
+    fun build(): ClimateSchedule {
+        val usingProfile = action == "on" && useProfile && profile != null
+        return ClimateSchedule(
+            id = existing?.id ?: UUID.randomUUID().toString(),
+            airconId = airconId,
+            enabled = existing?.enabled ?: true,
+            kind = kind,
+            days = if (kind == "weekly") days.sorted() else emptyList(),
+            time = if (kind == "weekly") "%02d:%02d".format(Locale.ROOT, time.hour, time.minute) else "",
+            at = if (kind == "once") onceAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() else null,
+            action = action,
+            profileId = if (usingProfile) profile!!.id else null,
+            profileName = if (usingProfile) profile!!.name else null,
+            settings = when {
+                action == "off" -> null
+                usingProfile -> ScheduleMath.profileSettings(profile!!)
+                else -> ScheduleSettings(mode, temp, fan, vertical, if (supportsVaneLR) horizontal else null, if (supportsVaneLR) threeD else null)
+            },
+        )
+    }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize(), color = Color(0xFFF2F6FA)) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (existing == null) "Neuer Zeitplan" else "Zeitplan bearbeiten", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = SText, modifier = Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        Surface(Modifier.fillMaxSize(), color = SPage) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Top bar
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
+                        Text("✕", color = SText, fontSize = 18.sp)
+                    }
+                    Text(
+                        if (existing == null) "Neuer Zeitplan" else "Zeitplan", color = SText, fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = { onSave(build()) }, enabled = valid) {
+                        Text("Sichern", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = if (valid) SBlue else SMuted)
+                    }
                 }
 
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill("Wöchentlich", kind == "weekly", Modifier.weight(1f)) { kind = "weekly" }
-                    Pill("Einmalig", kind == "once", Modifier.weight(1f)) { kind = "once" }
-                }
+                Segmented(listOf("Wöchentlich", "Einmalig"), if (kind == "weekly") 0 else 1) { kind = if (it == 0) "weekly" else "once" }
 
-                // Time: a large, tappable clock face.
-                Surface(color = Color.White, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).clickable { showTimePicker = true }) {
-                    Column(Modifier.padding(vertical = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("%02d:%02d".format(Locale.ROOT, time.hour, time.minute), fontSize = 56.sp, fontWeight = FontWeight.Bold, color = SBlue)
-                        Text("Uhrzeit antippen zum Ändern", color = SMuted, fontSize = 12.sp)
+                // Hero: the time, with what happens at a glance.
+                val caption = if (kind == "weekly") (if (days.isEmpty()) "Keine Tage gewählt" else ScheduleMath.daysLabel(days.toList()))
+                    else ScheduleMath.whenLabel(onceAt, LocalDateTime.now()).substringBeforeLast(' ').replaceFirstChar { it.uppercase() }
+                val preview = ScheduleMath.actionLabel(build())
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                        .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1E7BC4), Color(0xFF12558C))))
+                        .clickable { showTimePicker = true }
+                        .padding(vertical = 22.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(caption, color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text("%02d:%02d".format(Locale.ROOT, time.hour, time.minute), color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Light, letterSpacing = 2.sp)
+                        Text(preview, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
                     }
                 }
 
                 if (kind == "weekly") {
-                    SectionLabel("Tage")
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So").forEachIndexed { index, label ->
-                            val day = index + 1
-                            Pill(label, day in days, Modifier.weight(1f)) { days = if (day in days) days - day else days + day }
+                    Group("Wiederholen") {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So").forEachIndexed { index, label ->
+                                val day = index + 1
+                                val active = day in days
+                                Box(
+                                    Modifier.size(38.dp).clip(CircleShape)
+                                        .background(if (active) SBlue else Color(0xFFEFF3F7))
+                                        .clickable { days = if (active) days - day else days + day },
+                                    contentAlignment = Alignment.Center
+                                ) { Text(label, color = if (active) Color.White else SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
+                            }
                         }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Pill("Täglich", days == (1..7).toSet()) { days = (1..7).toSet() }
-                        Pill("Mo–Fr", days == (1..5).toSet()) { days = (1..5).toSet() }
-                        Pill("Sa–So", days == setOf(6, 7)) { days = setOf(6, 7) }
+                        RowDivider()
+                        Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Chip("Täglich", days == (1..7).toSet()) { days = (1..7).toSet() }
+                            Chip("Werktags", days == (1..5).toSet()) { days = (1..5).toSet() }
+                            Chip("Wochenende", days == setOf(6, 7)) { days = setOf(6, 7) }
+                        }
                     }
                 } else {
-                    SectionLabel("Tag")
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val today = LocalDate.now()
-                        listOf("Heute" to today, "Morgen" to today.plusDays(1), "Übermorgen" to today.plusDays(2)).forEach { (label, day) ->
-                            Pill(label, onceDay == day, Modifier.weight(1f)) { onceDay = day }
-                        }
-                    }
-                    SectionLabel("Oder in …")
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(30L to "30 Min.", 60L to "1 Std.", 120L to "2 Std.", 240L to "4 Std.", 480L to "8 Std.").forEach { (minutes, label) ->
-                            Pill(label, false) {
-                                val target = LocalDateTime.now().plusMinutes(minutes).withSecond(0).withNano(0)
-                                onceDay = target.toLocalDate(); time = target.toLocalTime()
+                    Group("Wann") {
+                        FlowRow(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val today = LocalDate.now()
+                            listOf("Heute" to today, "Morgen" to today.plusDays(1), "Übermorgen" to today.plusDays(2)).forEach { (label, day) ->
+                                Chip(label, onceDay == day) { onceDay = day }
                             }
                         }
-                    }
-                    Text("Schaltet ${ScheduleMath.whenLabel(onceAt, LocalDateTime.now())}", color = if (valid || action == "off") SMuted else MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                }
-
-                SectionLabel("Aktion")
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill("Einschalten", action == "on", Modifier.weight(1f)) { action = "on" }
-                    Pill("Ausschalten", action == "off", Modifier.weight(1f)) { action = "off" }
-                }
-
-                AnimatedVisibility(action == "on") {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Pill("Profil", useProfile, Modifier.weight(1f), enabled = profiles.isNotEmpty()) { useProfile = true }
-                            Pill("Eigene Werte", !useProfile, Modifier.weight(1f)) { useProfile = false }
-                        }
-                        if (useProfile && profiles.isNotEmpty()) {
+                        RowDivider()
+                        Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("In …", color = SMuted, fontSize = 12.sp)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                profiles.forEach { p -> Pill(p.name, profileId == p.id) { profileId = p.id } }
-                            }
-                            profiles.firstOrNull { it.id == profileId }?.let { Text(it.summary(), color = SMuted, fontSize = 12.sp) }
-                        } else {
-                            SectionLabel("Betriebsmodus")
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf("AUTO" to "Auto", "COOL" to "Kühlen", "HEAT" to "Heizen", "FAN" to "Lüfter", "DRY" to "Trocknen").forEach { (value, label) ->
-                                    Pill(label, mode == value, Modifier.weight(1f)) { mode = value }
+                                listOf(30L to "30 Min.", 60L to "1 Std.", 120L to "2 Std.", 240L to "4 Std.", 480L to "8 Std.").forEach { (minutes, label) ->
+                                    Chip(label, false) {
+                                        val target = LocalDateTime.now().plusMinutes(minutes).withSecond(0).withNano(0)
+                                        onceDay = target.toLocalDate(); time = target.toLocalTime()
+                                    }
                                 }
                             }
-                            SectionLabel("Solltemperatur")
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                RoundButton("−") { temp = (temp - 0.5).coerceAtLeast(16.0) }
-                                Text("%.1f °C".format(Locale.GERMANY, temp), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = SText, modifier = Modifier.width(150.dp), textAlign = TextAlign.Center)
-                                RoundButton("+") { temp = (temp + 0.5).coerceAtMost(30.0) }
+                        }
+                        if (onceInPast) {
+                            Text("Der Zeitpunkt liegt in der Vergangenheit.", color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                        }
+                    }
+                }
+
+                Group("Aktion") {
+                    Segmented(listOf("Einschalten", "Ausschalten"), if (action == "on") 0 else 1, Modifier.padding(vertical = 10.dp)) { action = if (it == 0) "on" else "off" }
+                    AnimatedVisibility(action == "on") {
+                        Column {
+                            RowDivider()
+                            Segmented(listOf("Profil", "Eigene Werte"), if (useProfile && profiles.isNotEmpty()) 0 else 1, Modifier.padding(vertical = 10.dp)) {
+                                if (it == 0 && profiles.isNotEmpty()) useProfile = true else if (it == 1) useProfile = false
                             }
-                            SectionLabel("Lüfter")
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                ScheduleMath.fanLabels.forEachIndexed { index, label -> Pill(label, fan == index, Modifier.weight(1f)) { fan = index } }
-                            }
-                            SectionLabel("Vertikal")
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf("Auto", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten").forEachIndexed { index, label -> Pill(label, vertical == index) { vertical = index } }
-                            }
-                            if (supportsVaneLR) {
-                                SectionLabel("Horizontal")
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen").forEachIndexed { index, label -> Pill(label, horizontal == index) { horizontal = index } }
+                            if (useProfile && profiles.isNotEmpty()) {
+                                FlowRow(Modifier.padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    profiles.forEach { p -> Chip(p.name, profileId == p.id) { profileId = p.id } }
                                 }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("3D-Auto-Luftstrom", color = SText, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                                    Switch(threeD, { threeD = it }, colors = SwitchDefaults.colors(checkedTrackColor = SBlue))
+                                profile?.let {
+                                    Text(ScheduleMath.settingsLabel(ScheduleMath.profileSettings(it)), color = SMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 10.dp))
+                                }
+                            } else {
+                                RowDivider()
+                                Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Modus", color = SText, fontSize = 14.sp)
+                                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        listOf("AUTO" to "✦ Auto", "COOL" to "❄ Kühlen", "HEAT" to "☼ Heizen", "FAN" to "≈ Lüfter", "DRY" to "◇ Trocknen").forEach { (value, label) ->
+                                            Chip(label, mode == value) { mode = value }
+                                        }
+                                    }
+                                }
+                                RowDivider()
+                                SettingRow("Temperatur") {
+                                    MiniRound("−") { temp = (temp - 0.5).coerceAtLeast(16.0) }
+                                    Text("%.1f °C".format(Locale.GERMANY, temp), color = SText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.width(76.dp))
+                                    MiniRound("+") { temp = (temp + 0.5).coerceAtMost(30.0) }
+                                }
+                                RowDivider()
+                                Column(Modifier.padding(top = 10.dp, bottom = 2.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Lüfter", color = SText, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                                        Text(ScheduleMath.fanLabels.getOrElse(fan) { "–" }, color = SBlue, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                    }
+                                    androidx.compose.material3.Slider(
+                                        value = fan.toFloat(), onValueChange = { fan = Math.round(it) },
+                                        valueRange = 0f..4f, steps = 3,
+                                        colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = SBlue, activeTrackColor = SBlue)
+                                    )
+                                }
+                                RowDivider()
+                                SettingRow("Vertikal") {
+                                    Dropdown(listOf("Auto", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten"), vertical) { vertical = it }
+                                }
+                                if (supportsVaneLR) {
+                                    RowDivider()
+                                    SettingRow("Horizontal") {
+                                        Dropdown(listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen"), horizontal) { horizontal = it }
+                                    }
+                                    RowDivider()
+                                    SettingRow("3D-Auto-Luftstrom") {
+                                        Switch(threeD, { threeD = it }, colors = SwitchDefaults.colors(checkedTrackColor = SBlue))
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                Button(
-                    onClick = {
-                        val profile = profiles.firstOrNull { it.id == profileId }
-                        val usingProfile = action == "on" && useProfile && profile != null
-                        onSave(
-                            ClimateSchedule(
-                                id = existing?.id ?: UUID.randomUUID().toString(),
-                                airconId = airconId,
-                                enabled = existing?.enabled ?: true,
-                                kind = kind,
-                                days = if (kind == "weekly") days.sorted() else emptyList(),
-                                time = if (kind == "weekly") "%02d:%02d".format(Locale.ROOT, time.hour, time.minute) else "",
-                                at = if (kind == "once") onceAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() else null,
-                                action = action,
-                                profileId = if (usingProfile) profile!!.id else null,
-                                profileName = if (usingProfile) profile!!.name else null,
-                                settings = when {
-                                    action == "off" -> null
-                                    usingProfile -> ScheduleMath.profileSettings(profile!!)
-                                    else -> ScheduleSettings(mode, temp, fan, vertical, if (supportsVaneLR) horizontal else null, if (supportsVaneLR) threeD else null)
-                                },
-                            )
-                        )
-                    },
-                    enabled = valid,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SBlue)
-                ) { Text("Speichern", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
                 if (onDelete != null) {
-                    OutlinedButton(onClick = onDelete, modifier = Modifier.fillMaxWidth().height(48.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)) {
+                    TextButton(onClick = onDelete, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                         Text("Zeitplan löschen", color = MaterialTheme.colorScheme.error)
                     }
                 }
-                Spacer(Modifier.height(48.dp))
+                Spacer(Modifier.height(40.dp))
             }
         }
     }
@@ -694,13 +810,6 @@ private fun ScheduleEditor(
             dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Abbrechen") } },
             text = { TimePicker(state = pickerState) }
         )
-    }
-}
-
-@Composable
-private fun RoundButton(label: String, onClick: () -> Unit) {
-    Surface(modifier = Modifier.size(52.dp).clip(CircleShape).clickable(onClick = onClick), color = Color.White, shape = CircleShape, shadowElevation = 2.dp) {
-        Box(contentAlignment = Alignment.Center) { Text(label, fontSize = 26.sp, color = SBlue, fontWeight = FontWeight.Bold) }
     }
 }
 
