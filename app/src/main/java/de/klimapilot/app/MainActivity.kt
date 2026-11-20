@@ -182,6 +182,7 @@ private fun KlimaPilotApp(appVersion: String) {
     }
     val devicesInSelectedRoom = devices.filter { it.room == selectedRoom }
     val selectedDevice = devicesInSelectedRoom.firstOrNull { it.id == selectedDeviceId }
+    var showEnergy by remember { mutableStateOf(false) }
         ?: devicesInSelectedRoom.firstOrNull()
     val controller = remember(context) { ClimateDeviceController(context) }
     var currentAirconState by remember(selectedDevice?.id) { mutableStateOf<AirconState?>(null) }
@@ -746,8 +747,21 @@ private fun KlimaPilotApp(appVersion: String) {
                 )
             },
             airconConnected = airconConnected,
-            onSettings = { showSettings = true }
+            onSettings = { showSettings = true },
+            onShowEnergy = { showEnergy = true }
         )
+        if (showEnergy) EnergyDialog(devices.toList(), selectedDevice) { showEnergy = false }
+    }
+
+    // Keeps the unit list of the ioBroker energy script current; writes only on changes.
+    val energyConfigSignature = devices.joinToString("|") { "${it.wfRacAirconId}@${it.wfRacHost}/${it.name}/${it.room}/${it.demoMode}" }
+    LaunchedEffect(accountAuthenticated, energyConfigSignature) {
+        if (!accountAuthenticated) return@LaunchedEffect
+        val address = prefs.getString("iobroker_server", null).orEmpty()
+        if (address.isBlank() || devices.none { it.wfRacAirconId.isNotBlank() }) return@LaunchedEffect
+        EnergyIoBroker().exchange(address, devices.toList(), null) { result, _ ->
+            result?.let { EnergyIoBroker.cachePrice(context, it.priceEurPerKwh) }
+        }
     }
 
     if (accountAuthenticated) {
@@ -831,7 +845,8 @@ private fun MainScreen(
     onThreeDAuto: (Boolean) -> Unit,
     onApplyProfile: (ClimateProfile, (Boolean, String?) -> Unit) -> Unit,
     airconConnected: Boolean,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onShowEnergy: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
@@ -1030,9 +1045,9 @@ private fun MainScreen(
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CompactMetricCard(
-                            Modifier.weight(1f), "Verbrauch",
+                            Modifier.weight(1f).clickable(onClick = onShowEnergy), "Verbrauch",
                             state.runEnergyKwh?.let { "%.2f kWh".format(java.util.Locale.GERMANY, it) } ?: "Nicht gemeldet",
-                            "Seit dem letzten Einschalten"
+                            "Seit dem Einschalten · antippen für Verlauf"
                         )
                     }
                 } else {
