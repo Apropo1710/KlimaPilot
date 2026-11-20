@@ -2,6 +2,10 @@ package de.klimapilot.app
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import de.klimapilot.app.wfrac.AirconState
@@ -333,6 +337,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var status by remember { mutableStateOf("") }
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ClimateProfile?>(null) }
+    var creatingNew by remember { mutableStateOf(false) }
     var saveNameDialog by remember { mutableStateOf(false) }
     var newProfileName by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
@@ -490,7 +495,28 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             }
         }
     }
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE3EEF7))) {
+    if (managerMode) Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth().padding(14.dp))
+            deviceProfiles.forEach { profile ->
+                ManagerProfileRow(profile, onEdit = { editing = profile }, onDelete = { deleting = profile })
+                HorizontalDivider(color = SDivider, thickness = 1.dp, modifier = Modifier.padding(start = 66.dp, end = 14.dp))
+            }
+            Row(
+                Modifier.fillMaxWidth().clickable(enabled = loaded && deviceId.isNotBlank()) { creatingNew = true }.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(40.dp).clip(CircleShape).background(SBlue.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = SBlue, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Text("Neues Profil", color = SBlue, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            }
+            val failed = status.isNotBlank() && listOf("fehlgeschlagen", "konnte nicht", "ungültig", "abgebrochen", "beschädigt", "nicht erreichbar", "fehler")
+                .any { status.contains(it, ignoreCase = true) }
+            if (failed) Text(status, color = MaterialTheme.colorScheme.error, fontSize = 11.sp, lineHeight = 14.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+        }
+    } else Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE3EEF7))) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth())
             else if (deviceId.isBlank()) Text("Wähle zuerst eine Klimaanlage aus.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -544,17 +570,6 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                             Icon(Icons.Default.Add, contentDescription = "Neues Profil anlegen", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
-                } else if (deviceProfiles.isEmpty()) {
-                    Text("Noch keine Profile für dieses Gerät gespeichert.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                } else deviceProfiles.forEach { profile ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(profile.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text(profile.summary(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                        }
-                        TextButton(onClick = { editing = profile }) { Text("Bearbeiten") }
-                        TextButton(onClick = { deleting = profile }) { Text("Löschen") }
-                    }
                 }
             }
             // Only problems are shown; routine sync and save confirmations stay out of the way.
@@ -567,14 +582,14 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     }
 
     val profileToEdit = editing
-    if (profileToEdit != null) {
+    if (profileToEdit != null || creatingNew) {
         ClimateProfileEditorDialog(
             deviceId = deviceId, profile = profileToEdit,
             initialState = currentState,
             // Unknown model (e.g. in the profile manager without live state) counts as supported,
             // like in the schedule editor; applying a profile checks the real model anyway.
             modelSupportsVaneLR = modelSupportsVaneLR != false,
-            onDismiss = { editing = null },
+            onDismiss = { editing = null; creatingNew = false },
             onSave = { profile ->
                 runCatching {
                     if (syncDeviceKey.isBlank()) repository.save(profile)
@@ -590,6 +605,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                         }
                         syncRevision++
                         editing = null
+                        creatingNew = false
                     }
                     .onFailure { status = it.message ?: "Profil konnte nicht gespeichert werden." }
             }
@@ -676,18 +692,56 @@ private fun profileSymbol(profile: ClimateProfile): String = when (profile.mode)
 
 @Composable
 internal fun ClimateProfileManagerScreen(devices: List<UserDevice>, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().background(MaterialTheme.colorScheme.background)) {
+    Column(Modifier.fillMaxSize().background(SPage).statusBarsPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = MaterialTheme.colorScheme.onBackground) }
             Text("Klimaprofile verwalten", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             devices.forEach { device ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(device.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(device.name.removePrefix("Klimaanlage ").uppercase(), color = SMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(start = 6.dp))
                     ClimateProfilesSection(deviceId = device.id, syncDeviceKey = device.syncDeviceKey, devices = devices, managerMode = true, onApply = { _, _ -> })
                 }
             }
+        }
+    }
+}
+
+private val modeNames = mapOf("AUTO" to "Auto", "COOL" to "Kühlen", "HEAT" to "Heizen", "DRY" to "Trocknen", "FAN" to "Lüfter")
+
+/** One profile in the manager: symbol, name, the main values and the air flow in a quieter line. */
+@Composable
+private fun ManagerProfileRow(profile: ClimateProfile, onEdit: () -> Unit, onDelete: () -> Unit) {
+    val main = buildList {
+        profile.power?.let { if (!it) add("Aus") }
+        profile.mode?.let { add(modeNames[it] ?: it) }
+        profile.targetTemp?.let { add("%.1f °C".format(java.util.Locale.GERMANY, it)) }
+        profile.fanSpeed?.let { add("Lüfter " + ScheduleMath.fanLabels.getOrElse(it) { "?" }) }
+    }.joinToString(" · ").ifBlank { "Ändert nur die Luftführung" }
+    val air = buildList {
+        profile.verticalSwing?.let { add("↕ " + listOf("Auto", "Ganz oben", "Mitte oben", "Mitte unten", "Ganz unten").getOrElse(it) { "?" }) }
+        profile.horizontalSwing?.let { add("↔ " + listOf("Auto", "Links außen", "Links", "Mitte links", "Mitte", "Mitte rechts", "Rechts", "Rechts außen").getOrElse(it) { "?" }) }
+        profile.threeDAuto?.let { add(if (it) "3D-Auto" else "3D aus") }
+    }.joinToString("   ")
+    val tint = when (profile.mode) {
+        "HEAT" -> Color(0xFFE8833A)
+        "COOL" -> Color(0xFF2B8FD6)
+        "DRY" -> Color(0xFF3AA7A0)
+        else -> SBlue
+    }
+    Row(Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(40.dp).clip(CircleShape).background(tint.copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
+            Text(profileSymbol(profile), fontSize = 18.sp)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(profile.name, color = SText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(main, color = SText.copy(alpha = 0.75f), fontSize = 13.sp, maxLines = 1)
+            if (air.isNotBlank()) Text(air, color = SMuted, fontSize = 12.sp, maxLines = 1)
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Outlined.Delete, contentDescription = "Profil löschen", tint = SMuted, modifier = Modifier.size(20.dp))
         }
     }
 }
