@@ -184,6 +184,8 @@ private fun KlimaPilotApp(appVersion: String) {
     val selectedDevice = devicesInSelectedRoom.firstOrNull { it.id == selectedDeviceId }
         ?: devicesInSelectedRoom.firstOrNull()
     var showEnergy by remember { mutableStateOf(false) }
+    var energyUnits by remember { mutableStateOf<List<EnergyUnitData>>(emptyList()) }
+    var energyPrice by remember { mutableStateOf(EnergyIoBroker.cachedPrice(context)) }
     val controller = remember(context) { ClimateDeviceController(context) }
     var currentAirconState by remember(selectedDevice?.id) { mutableStateOf<AirconState?>(null) }
     var airconConnected by remember(selectedDevice?.id) { mutableStateOf(false) }
@@ -748,21 +750,34 @@ private fun KlimaPilotApp(appVersion: String) {
             },
             airconConnected = airconConnected,
             onSettings = { showSettings = true },
-            onShowEnergy = { showEnergy = true }
+            onShowEnergy = { showEnergy = true },
+            todayEnergyKwh = energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }
+                ?.let { EnergyMath.todayKwh(it, currentAirconState?.runEnergyKwh, java.time.LocalDateTime.now()) },
+            energyPrice = energyPrice
         )
         if (showEnergy) EnergyDialog(devices.toList(), selectedDevice) { showEnergy = false }
     }
 
-    // Keeps the unit list of the ioBroker energy script current; writes only on changes.
+    // Keeps the unit list of the ioBroker energy script current (writes only on changes) and
+    // fetches the recorded values for today's consumption on the main page every 5 minutes.
     val energyConfigSignature = devices.joinToString("|") { "${it.wfRacAirconId}@${it.wfRacHost}/${it.name}/${it.room}/${it.demoMode}" }
-    LaunchedEffect(accountAuthenticated, energyConfigSignature) {
-        if (!accountAuthenticated) return@LaunchedEffect
+    LaunchedEffect(accountAuthenticated, energyConfigSignature, showEnergy) {
+        if (!accountAuthenticated || showEnergy) return@LaunchedEffect
         val address = prefs.getString("iobroker_server", null).orEmpty()
         if (address.isBlank() || devices.none { it.wfRacAirconId.isNotBlank() }) return@LaunchedEffect
-        EnergyIoBroker().exchange(address, devices.toList(), null) { result, _ ->
-            result?.let { EnergyIoBroker.cachePrice(context, it.priceEurPerKwh) }
+        var first = true
+        while (true) {
+            EnergyIoBroker().exchange(address, devices.toList(), null) { result, _ ->
+                result?.let {
+                    EnergyIoBroker.cachePrice(context, it.priceEurPerKwh)
+                    energyPrice = it.priceEurPerKwh
+                    energyUnits = it.units
+                }
+            }
             // Brings an energy script installed by KlimaPilot up to the version shipped with the app.
-            EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
+            if (first) EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
+            first = false
+            delay(300_000L)
         }
     }
 
@@ -848,7 +863,9 @@ private fun MainScreen(
     onApplyProfile: (ClimateProfile, (Boolean, String?) -> Unit) -> Unit,
     airconConnected: Boolean,
     onSettings: () -> Unit,
-    onShowEnergy: () -> Unit
+    onShowEnergy: () -> Unit,
+    todayEnergyKwh: Double?,
+    energyPrice: Double
 ) {
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
@@ -1046,11 +1063,20 @@ private fun MainScreen(
                         CompactMetricCard(Modifier.weight(1f), "Verbindung", if (airconConnected) "Lokal" else "Getrennt", if (controlBusy) "Befehl läuft …" else "WF-RAC")
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactMetricCard(
-                            Modifier.weight(1f).clickable(onClick = onShowEnergy), "Verbrauch",
-                            state.runEnergyKwh?.let { "%.2f kWh".format(java.util.Locale.GERMANY, it) } ?: "Nicht gemeldet",
-                            "Seit dem Einschalten · antippen für Verlauf"
-                        )
+                        if (todayEnergyKwh != null) {
+                            CompactMetricCard(
+                                Modifier.weight(1f).clickable(onClick = onShowEnergy), "Verbrauch heute",
+                                "%.2f kWh".format(java.util.Locale.GERMANY, todayEnergyKwh),
+                                "≈ %.2f € · antippen für Verlauf".format(java.util.Locale.GERMANY, todayEnergyKwh * energyPrice)
+                            )
+                        } else {
+                            // No recording in ioBroker yet: the unit's own counter is all there is.
+                            CompactMetricCard(
+                                Modifier.weight(1f).clickable(onClick = onShowEnergy), "Verbrauch",
+                                state.runEnergyKwh?.let { "%.2f kWh".format(java.util.Locale.GERMANY, it) } ?: "Nicht gemeldet",
+                                "Seit dem Einschalten · antippen für Verlauf"
+                            )
+                        }
                     }
                 } else {
                     Text(

@@ -52,4 +52,16 @@ class EnergyMathTest {
         assertEquals(4.0, years.first().kWh, 1e-9)
         assertEquals(6.75, years.last().kWh, 1e-9)
     }
+
+    @Test
+    fun todayAddsWhatTheUnitCountedSinceTheLastRecording() {
+        val polled = now.minusMinutes(3).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime().toString()
+        val unit = buero.copy(lastRunKwh = 2.25, lastPollAt = polled)
+        assertEquals(0.75 + 0.25, EnergyMath.todayKwh(unit, 2.5, now), 1e-9)
+        // A new run started since the last recording: the live counter counts in full.
+        assertEquals(0.75 + 0.25, EnergyMath.todayKwh(unit, 0.25, now), 1e-9)
+        // Last recording from yesterday: only what was recorded today.
+        val old = unit.copy(lastPollAt = now.minusDays(1).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime().toString())
+        assertEquals(0.75, EnergyMath.todayKwh(old, 2.5, now), 1e-9)
+    }
 }
