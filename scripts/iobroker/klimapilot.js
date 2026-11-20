@@ -8,6 +8,8 @@
  *    Stunden- und Tageswerte nach 0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>.
  *    Der Zähler meldet den Verbrauch des aktuellen Laufs in 0,25-kWh-Schritten (Segment 0x94/0x10)
  *    und beginnt beim Einschalten wieder bei 0; fällt der Wert, hat ein neuer Lauf begonnen.
+ *    Weil ein Schritt oft über eine Stunde dauert, wird jeder Schritt auf die Ablesungen verteilt,
+ *    bei denen die Anlage seit dem letzten Schritt eingeschaltet war (gleichmäßige Stundenwerte).
  *
  * 2. Zeitpläne: prüft jede Minute die Zeitpläne aus 0_userdata.0.KlimaPilot.schedules.config
  *    und schaltet fällige Anlagen. Ergebnisse stehen in 0_userdata.0.KlimaPilot.schedules.status.
@@ -27,6 +29,7 @@ const SCHEDULE_CONFIG_ID = `${SCHEDULE_ROOT}.config`;
 const SCHEDULE_STATUS_ID = `${SCHEDULE_ROOT}.status`;
 const POLL_MINUTES = 5;
 const HOURLY_DAYS = 31;          // Stundenwerte werden 31 Tage aufbewahrt, Tageswerte unbegrenzt.
+const SPREAD_MAX_SLOTS = 12 * 60 / 5; // Ein Zählerschritt wird auf höchstens 12 h Laufzeit verteilt.
 const ONCE_GRACE_MS = 6 * 3600 * 1000; // Einmalige Timer werden bis 6 h nach ihrem Termin nachgeholt.
 const RETRY_WINDOW_MS = 10 * 60 * 1000; // Fehlgeschlagene Termine werden bis 10 min lang jede Minute wiederholt
                                         // (die Module starten stündlich kurz neu).
@@ -243,21 +246,35 @@ async function pollEnergy(unit) {
     const now = new Date();
     try {
         const contents = await serial(unit, () => readStat(unit));
-        const value = decodeStat(contents.airconStat).runEnergyKwh;
+        const stat = decodeStat(contents.airconStat);
+        const value = stat.runEnergyKwh;
         if (value === null) throw new Error('Anlage meldet keinen Energiezähler');
+        // Laufzeit seit dem letzten Zählerschritt, als Anzahl eingeschalteter Ablesungen je Stunde.
+        const slots = data.pendingSlots && typeof data.pendingSlots === 'object' ? data.pendingSlots : {};
+        // Neuer Lauf: Laufzeit des vorigen Laufs gehört zu keinem kommenden Schritt mehr.
+        if (typeof data.lastRunKwh === 'number' && value < data.lastRunKwh) for (const key of Object.keys(slots)) delete slots[key];
+        if (stat.power) slots[hourKey(now)] = (slots[hourKey(now)] || 0) + 1;
         if (typeof data.lastRunKwh === 'number') {
             // Fällt der Zähler, hat ein neuer Lauf begonnen: dann zählt der neue Wert ganz.
             const delta = value >= data.lastRunKwh ? value - data.lastRunKwh : value;
             if (delta > 0) {
-                const h = hourKey(now), d = dayKey(now);
-                data.hourly[h] = round((data.hourly[h] || 0) + delta);
-                data.daily[d] = round((data.daily[d] || 0) + delta);
-                data.totalKwh = round((data.totalKwh || 0) + delta);
+                book(data, delta, slots, now);
+                for (const key of Object.keys(slots)) delete slots[key];
             }
         } else {
             // Erste Ablesung: Ausgangswert merken. Was davor verbraucht wurde, ist zeitlich nicht zuzuordnen.
             data.recordingSince = now.toISOString();
         }
+        // Nur die jüngste Laufzeit behalten, damit ein Schritt nicht über Tage verschmiert wird.
+        const keys = Object.keys(slots).sort();
+        let total = keys.reduce((sum, key) => sum + slots[key], 0);
+        for (const key of keys) {
+            if (total <= SPREAD_MAX_SLOTS) break;
+            const drop = Math.min(slots[key], total - SPREAD_MAX_SLOTS);
+            slots[key] -= drop; total -= drop;
+            if (slots[key] <= 0) delete slots[key];
+        }
+        data.pendingSlots = slots;
         data.lastRunKwh = value;
         data.lastPollAt = now.toISOString();
         delete data.lastError;
@@ -267,6 +284,19 @@ async function pollEnergy(unit) {
     const oldest = hourKey(new Date(now.getTime() - HOURLY_DAYS * 24 * 3600 * 1000));
     for (const key of Object.keys(data.hourly)) if (key < oldest) delete data.hourly[key];
     await setStateAsync(id, JSON.stringify(data), true);
+}
+
+/** Verteilt einen Zählerschritt anteilig auf die Stunden, in denen die Anlage lief. */
+function book(data, delta, slots, now) {
+    const entries = Object.entries(slots).filter(([, count]) => count > 0);
+    const total = entries.reduce((sum, [, count]) => sum + count, 0);
+    const parts = total > 0 ? entries.map(([hour, count]) => [hour, delta * count / total]) : [[hourKey(now), delta]];
+    for (const [hour, kwh] of parts) {
+        const day = hour.slice(0, 10);
+        data.hourly[hour] = round((data.hourly[hour] || 0) + kwh);
+        data.daily[day] = round((data.daily[day] || 0) + kwh);
+    }
+    data.totalKwh = round((data.totalKwh || 0) + delta);
 }
 
 let energyRunning = false;
