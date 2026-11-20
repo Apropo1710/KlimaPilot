@@ -42,6 +42,16 @@ Technische Fachkonzepte:
 
 Der aktuelle Branch-, PR-, Build- und Validierungsstand wird ausschließlich in `PROJECT_STATUS.md` gepflegt. Die Fachkonzepte beschreiben Architektur, Entscheidungen und technische Anforderungen und sollen keine konkurrierenden Statusübersichten führen.
 
+## Energieaufzeichnung (ioBroker)
+
+Die Energieansicht in KlimaPilot (Kachel „Verbrauch“ antippen) braucht ein Skript in ioBroker, das die Anlagen rund um die Uhr ausliest:
+
+1. Im ioBroker-Admin den Adapter **JavaScript** öffnen und ein neues **JavaScript**-Skript (kein Blockly) anlegen, z. B. „KlimaPilot Energie“.
+2. Den Inhalt von [`scripts/iobroker/klimapilot-energie.js`](scripts/iobroker/klimapilot-energie.js) einfügen, speichern und starten.
+3. KlimaPilot einmal öffnen: Die App trägt die gekoppelten Anlagen und den Strompreis unter `0_userdata.0.KlimaPilot.energy.config` ein. Das Skript liest danach alle 5 Minuten und schreibt nach `0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>`.
+
+Aufgezeichnet wird ab der ersten Ablesung durch das Skript; Verbrauch davor kann nicht zugeordnet werden.
+
 ## GitHub
 
 - [Repository](https://github.com/Apropo1710/KlimaPilot)
