@@ -8,6 +8,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,10 +59,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal enum class EnergyPeriod(val label: String) {
-    HOURS("Stunden"), DAYS("Tage"), WEEKS("Wochen"), MONTHS("Monate"), YEARS("Jahre")
+    DAY("Tag"), WEEK("Woche"), MONTH("Monat"), YEAR("Jahr"), ALL("Gesamt")
 }
 
-internal data class EnergyBar(val label: String, val kWh: Double)
+/** [drillDown]: the date a tap on this bar opens one level finer, if any. */
+internal data class EnergyBar(val label: String, val kWh: Double, val drillDown: LocalDate? = null)
 
 internal data class EnergyUnitData(
     val airconId: String,
@@ -107,41 +112,70 @@ internal object EnergyMath {
         return sum
     }
 
-    fun bars(period: EnergyPeriod, units: List<EnergyUnitData>, now: LocalDateTime): List<EnergyBar> {
-        val today = now.toLocalDate()
-        return when (period) {
-            EnergyPeriod.HOURS -> {
-                val current = now.truncatedTo(ChronoUnit.HOURS)
-                (23 downTo 0).map { back ->
-                    val t = current.minusHours(back.toLong())
-                    EnergyBar("%02d".format(Locale.ROOT, t.hour), units.sumOf { it.hourly[hourKey(t)] ?: 0.0 })
-                }
-            }
-            EnergyPeriod.DAYS -> (13 downTo 0).map { back ->
-                val d = today.minusDays(back.toLong())
-                EnergyBar("%02d.%02d.".format(Locale.ROOT, d.dayOfMonth, d.monthValue), daySum(units, d, d))
-            }
-            EnergyPeriod.WEEKS -> {
-                val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                (11 downTo 0).map { back ->
-                    val start = monday.minusWeeks(back.toLong())
-                    EnergyBar("KW${start.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)}", daySum(units, start, start.plusDays(6)))
-                }
-            }
-            EnergyPeriod.MONTHS -> {
-                val first = today.withDayOfMonth(1)
-                (11 downTo 0).map { back ->
-                    val start = first.minusMonths(back.toLong())
-                    EnergyBar("%02d/%02d".format(Locale.ROOT, start.monthValue, start.year % 100), daySum(units, start, start.plusMonths(1).minusDays(1)))
-                }
-            }
-            EnergyPeriod.YEARS -> {
-                val firstYear = units.flatMap { it.daily.keys }.mapNotNull { it.take(4).toIntOrNull() }.minOrNull() ?: today.year
-                (firstYear.coerceAtMost(today.year)..today.year).map { year ->
-                    EnergyBar(year.toString(), daySum(units, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31)))
-                }
+    private val monthShort = listOf("Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez")
+    private val monthLong = listOf("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember")
+    private val weekdayShort = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
+
+    private fun weekStart(d: LocalDate) = d.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+    /** Calendar bars for the period that contains [anchor]: hours of a day, days of a week or month, months of a year, or all years. */
+    fun bars(period: EnergyPeriod, units: List<EnergyUnitData>, anchor: LocalDate, today: LocalDate = LocalDate.now()): List<EnergyBar> = when (period) {
+        EnergyPeriod.DAY -> (0..23).map { h ->
+            EnergyBar("%02d".format(Locale.ROOT, h), units.sumOf { it.hourly[hourKey(anchor.atTime(h, 0))] ?: 0.0 })
+        }
+        EnergyPeriod.WEEK -> {
+            val monday = weekStart(anchor)
+            (0..6).map { i -> val d = monday.plusDays(i.toLong()); EnergyBar(weekdayShort[i], daySum(units, d, d), d) }
+        }
+        EnergyPeriod.MONTH -> {
+            val first = anchor.withDayOfMonth(1)
+            (0 until first.lengthOfMonth()).map { i -> val d = first.plusDays(i.toLong()); EnergyBar("${d.dayOfMonth}", daySum(units, d, d), d) }
+        }
+        EnergyPeriod.YEAR -> (1..12).map { m ->
+            val start = LocalDate.of(anchor.year, m, 1)
+            EnergyBar(monthShort[m - 1], daySum(units, start, start.plusMonths(1).minusDays(1)), start)
+        }
+        EnergyPeriod.ALL -> {
+            val firstYear = units.flatMap { it.daily.keys }.mapNotNull { it.take(4).toIntOrNull() }.minOrNull() ?: today.year
+            (firstYear.coerceAtMost(today.year)..today.year).map { year ->
+                EnergyBar(year.toString(), daySum(units, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31)), LocalDate.of(year, 1, 1))
             }
         }
+    }
+
+    fun title(period: EnergyPeriod, anchor: LocalDate): String = when (period) {
+        EnergyPeriod.DAY -> "${weekdayShort[anchor.dayOfWeek.value - 1]}, %02d.%02d.%d".format(Locale.ROOT, anchor.dayOfMonth, anchor.monthValue, anchor.year)
+        EnergyPeriod.WEEK -> {
+            val monday = weekStart(anchor); val sunday = monday.plusDays(6)
+            "KW ${monday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)} · %02d.%02d.–%02d.%02d.%d".format(Locale.ROOT, monday.dayOfMonth, monday.monthValue, sunday.dayOfMonth, sunday.monthValue, sunday.year)
+        }
+        EnergyPeriod.MONTH -> "${monthLong[anchor.monthValue - 1]} ${anchor.year}"
+        EnergyPeriod.YEAR -> anchor.year.toString()
+        EnergyPeriod.ALL -> "Gesamter Zeitraum"
+    }
+
+    fun shift(period: EnergyPeriod, anchor: LocalDate, steps: Long): LocalDate = when (period) {
+        EnergyPeriod.DAY -> anchor.plusDays(steps)
+        EnergyPeriod.WEEK -> anchor.plusWeeks(steps)
+        EnergyPeriod.MONTH -> anchor.plusMonths(steps)
+        EnergyPeriod.YEAR -> anchor.plusYears(steps)
+        EnergyPeriod.ALL -> anchor
+    }
+
+    /** Whether the period containing [anchor] lies before the one containing [today]. */
+    fun isBeforeCurrent(period: EnergyPeriod, anchor: LocalDate, today: LocalDate): Boolean = when (period) {
+        EnergyPeriod.DAY -> anchor.isBefore(today)
+        EnergyPeriod.WEEK -> weekStart(anchor).isBefore(weekStart(today))
+        EnergyPeriod.MONTH -> anchor.withDayOfMonth(1).isBefore(today.withDayOfMonth(1))
+        EnergyPeriod.YEAR -> anchor.year < today.year
+        EnergyPeriod.ALL -> false
+    }
+
+    fun finer(period: EnergyPeriod): EnergyPeriod? = when (period) {
+        EnergyPeriod.DAY -> null
+        EnergyPeriod.WEEK, EnergyPeriod.MONTH -> EnergyPeriod.DAY
+        EnergyPeriod.YEAR -> EnergyPeriod.MONTH
+        EnergyPeriod.ALL -> EnergyPeriod.YEAR
     }
 
     /**
@@ -387,7 +421,9 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE) }
     val io = remember { EnergyIoBroker() }
-    var period by remember { mutableStateOf(EnergyPeriod.DAYS) }
+    var period by remember { mutableStateOf(EnergyPeriod.WEEK) }
+    val today = LocalDate.now()
+    var anchor by remember { mutableStateOf(today) }
     var inEuro by remember { mutableStateOf(false) }
     // null = all units
     var selectedUnit by remember { mutableStateOf(selectedDevice?.wfRacAirconId?.takeIf { it.isNotBlank() }) }
@@ -414,7 +450,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
 
     val shown = units.orEmpty().filter { selectedUnit == null || it.airconId == selectedUnit }
     val pairedDevices = devices.filter { !it.demoMode && it.wfRacAirconId.isNotBlank() }.distinctBy { it.wfRacAirconId }
-    val bars = EnergyMath.bars(period, shown, LocalDateTime.now())
+    val bars = EnergyMath.bars(period, shown, anchor, today)
     val factor = if (inEuro) price else 1.0
     val unitLabel = if (inEuro) "€" else "kWh"
 
@@ -436,6 +472,21 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                         EnergyPill(p.label, period == p, Modifier.weight(1f)) { period = p }
                     }
                 }
+                if (period != EnergyPeriod.ALL) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        EnergyPill("‹", false) { anchor = EnergyMath.shift(period, anchor, -1) }
+                        Text(
+                            EnergyMath.title(period, anchor),
+                            modifier = Modifier.weight(1f).clickable { anchor = today },
+                            textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
+                        )
+                        if (EnergyMath.isBeforeCurrent(period, anchor, today)) {
+                            EnergyPill("›", false) { anchor = EnergyMath.shift(period, anchor, 1) }
+                        } else {
+                            EnergyPill("›", false, Modifier.alpha(0.3f)) {}
+                        }
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     EnergyPill("kWh", !inEuro) { inEuro = false }
                     EnergyPill("Kosten (€)", inEuro) { inEuro = true }
@@ -443,7 +494,17 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
 
                 val total = bars.sumOf { it.kWh } * factor
                 Text("Summe im Zeitraum: ${formatNumber(total, 2)} $unitLabel", fontWeight = FontWeight.SemiBold)
-                EnergyChart(bars.map { it.label to it.kWh * factor }, unitLabel)
+                EnergyChart(bars.map { it.label to it.kWh * factor }, unitLabel) { index ->
+                    val target = bars.getOrNull(index)?.drillDown ?: return@EnergyChart
+                    val finer = EnergyMath.finer(period) ?: return@EnergyChart
+                    period = finer
+                    anchor = target
+                }
+                if (period == EnergyPeriod.DAY && anchor.isBefore(today.minusDays(30))) {
+                    Text("Stundenwerte werden nur für die letzten 31 Tage aufbewahrt.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else if (EnergyMath.finer(period) != null) {
+                    Text("Balken antippen für Details.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
 
                 if (status.isNotBlank()) Text(status, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 shown.forEach { unit ->
@@ -452,11 +513,6 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     val lastText = last?.let { "%02d.%02d. %02d:%02d".format(Locale.ROOT, it.dayOfMonth, it.monthValue, it.hour, it.minute) } ?: "noch nie"
                     Text("$label – zuletzt gelesen: $lastText" + (unit.lastError?.let { "\nFehler: $it" } ?: ""), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(
-                    "Gezählt wird in 0,25-kWh-Schritten, so wie die Anlage es meldet. Die Stundenansicht ist deshalb grob; Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft.",
-                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
                 Text("Strompreis", fontWeight = FontWeight.SemiBold)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -480,20 +536,25 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                         }
                     }) { Text("Speichern") }
                 }
-                Text("Ohne Grundgebühr. Der Preis gilt für beide Smartphones und wird in ioBroker gespeichert.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(96.dp))
             }
         }
     }
 }
 
 @Composable
-private fun EnergyChart(values: List<Pair<String, Double>>, unitLabel: String) {
+private fun EnergyChart(values: List<Pair<String, Double>>, unitLabel: String, onBarTap: (Int) -> Unit) {
     val max = values.maxOfOrNull { it.second }?.takeIf { it > 0 } ?: 1.0
     val barColor = EnergyBlue
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("max. ${formatNumber(max, 2)} $unitLabel", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Canvas(Modifier.fillMaxWidth().height(180.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(200.dp).pointerInput(values.size) {
+            detectTapGestures { offset ->
+                val slot = size.width.toFloat() / values.size.coerceAtLeast(1)
+                onBarTap((offset.x / slot).toInt().coerceIn(0, values.size - 1))
+            }
+        }) {
             val gap = 4.dp.toPx()
             val slot = size.width / values.size.coerceAtLeast(1)
             val barWidth = (slot - gap).coerceAtLeast(1f)
