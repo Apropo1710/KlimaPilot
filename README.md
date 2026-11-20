@@ -46,7 +46,7 @@ Der aktuelle Branch-, PR-, Build- und Validierungsstand wird ausschließlich in 
 
 Die Energieansicht in KlimaPilot (Kachel „Verbrauch“ antippen) braucht ein Skript in ioBroker, das die Anlagen rund um die Uhr ausliest ([`scripts/iobroker/klimapilot-energie.js`](scripts/iobroker/klimapilot-energie.js)). Es wird mit der App ausgeliefert:
 
-- **Einrichten:** In der Energieansicht „Skript in ioBroker einrichten“ antippen. KlimaPilot legt `script.js.common.KlimaPilot_Energie` im JavaScript-Adapter (`javascript.0`) an und startet es. Andere aktive Kopien des Energieskripts werden angehalten, damit nichts doppelt gezählt wird.
+- **Einrichten:** In den Einstellungen die Kachel „Energieaufzeichnung“ aufklappen und „Skript in ioBroker einrichten / prüfen“ antippen (nur Administrator). KlimaPilot legt `script.js.common.KlimaPilot_Energie` im JavaScript-Adapter (`javascript.0`) an und startet es. Andere aktive Kopien des Energieskripts werden angehalten, damit nichts doppelt gezählt wird.
 - **Aktualisieren:** Beim Start prüft KlimaPilot, ob das von ihm eingerichtete Skript der mitgelieferten Fassung entspricht, und aktualisiert es bei Bedarf.
 - KlimaPilot trägt die gekoppelten Anlagen und den Strompreis unter `0_userdata.0.KlimaPilot.energy.config` ein. Das Skript liest alle 5 Minuten und schreibt nach `0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>`.
 - Manuell geht es auch: neues JavaScript-Skript anlegen und den Dateiinhalt einfügen (am PC; der Editor ist auf dem Smartphone kaum bedienbar).

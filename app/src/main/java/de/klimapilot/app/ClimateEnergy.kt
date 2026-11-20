@@ -17,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -356,8 +355,6 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     var status by remember { mutableStateOf("Energiedaten werden aus ioBroker geladen …") }
     var refresh by remember { mutableStateOf(0) }
     var pendingPrice by remember { mutableStateOf<Double?>(null) }
-    val installer = remember { EnergyScriptInstaller(context) }
-    var installing by remember { mutableStateOf(false) }
 
     LaunchedEffect(refresh) {
         val address = prefs.getString("iobroker_server", null).orEmpty()
@@ -368,7 +365,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                 if (pendingPrice == null) priceText = formatNumber(price, 3)
                 pendingPrice = null
                 units = result.units
-                if (!installing) status = if (result.units.isEmpty()) "Noch keine Energiedaten. Tippe auf „Skript in ioBroker einrichten“; danach dauert es bis zu 5 Minuten." else ""
+                status = if (result.units.isEmpty()) "Noch keine Energiedaten. Das Energieskript wird in den Einstellungen unter „Energieaufzeichnung“ eingerichtet; danach dauert es bis zu 5 Minuten." else ""
             } else status = error ?: "Energiedaten konnten nicht geladen werden."
         }
     }
@@ -412,15 +409,6 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     val lastText = last?.let { "%02d.%02d. %02d:%02d".format(Locale.ROOT, it.dayOfMonth, it.monthValue, it.hour, it.minute) } ?: "noch nie"
                     Text("$label – zuletzt gelesen: $lastText" + (unit.lastError?.let { "\nFehler: $it" } ?: ""), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedButton(enabled = !installing, onClick = {
-                    installing = true
-                    status = "Energieskript wird in ioBroker eingerichtet …"
-                    installer.install(prefs.getString("iobroker_server", null).orEmpty(), updateOnly = false) { _, message ->
-                        installing = false
-                        status = message
-                        refresh++
-                    }
-                }) { Text(if (installing) "Wird eingerichtet …" else "Skript in ioBroker einrichten") }
                 Text(
                     "Gezählt wird in 0,25-kWh-Schritten, so wie die Anlage es meldet. Die Stundenansicht ist deshalb grob; Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft.",
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
