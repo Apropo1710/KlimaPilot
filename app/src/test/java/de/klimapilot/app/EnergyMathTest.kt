@@ -14,43 +14,47 @@ class EnergyMathTest {
     )
     private val schlafzimmer = buero.copy(airconId = "b", hourly = mapOf("2026-11-20T09" to 0.25), daily = mapOf("2026-11-20" to 0.25))
 
+    private val today = now.toLocalDate()
+
     @Test
-    fun hoursCoverTheLast24HoursEndingNow() {
-        val bars = EnergyMath.bars(EnergyPeriod.HOURS, listOf(buero), now)
+    fun dayShowsTheHoursOfThatDay() {
+        val bars = EnergyMath.bars(EnergyPeriod.DAY, listOf(buero), today, today)
         assertEquals(24, bars.size)
-        assertEquals("09", bars.last().label)
-        assertEquals(0.5, bars.last().kWh, 1e-9)
-        assertEquals(0.25, bars[22].kWh, 1e-9)
-        // 2026-11-19T09 is exactly 24 h ago and therefore outside the window.
-        assertEquals(0.75, bars.sumOf { it.kWh }, 1e-9)
+        assertEquals(0.25, bars[8].kWh, 1e-9)
+        assertEquals(0.5, bars[9].kWh, 1e-9)
+        assertEquals(1.0, EnergyMath.bars(EnergyPeriod.DAY, listOf(buero), today.minusDays(1), today)[9].kWh, 1e-9)
     }
 
     @Test
-    fun unitsAreSummed() {
-        val bars = EnergyMath.bars(EnergyPeriod.DAYS, listOf(buero, schlafzimmer), now)
-        assertEquals(14, bars.size)
-        assertEquals(1.0, bars.last().kWh, 1e-9)
-        assertEquals(2.0, bars[12].kWh, 1e-9)
+    fun weekRunsMondayToSundayAndSumsUnits() {
+        val bars = EnergyMath.bars(EnergyPeriod.WEEK, listOf(buero, schlafzimmer), today, today)
+        assertEquals(listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"), bars.map { it.label })
+        assertEquals(1.0, bars[0].kWh, 1e-9)   // 16.11.
+        assertEquals(2.0, bars[3].kWh, 1e-9)   // 19.11.
+        assertEquals(1.0, bars[4].kWh, 1e-9)   // 20.11., both units
+        assertEquals(java.time.LocalDate.of(2026, 11, 20), bars[4].drillDown)
+        assertEquals("KW 47 · 16.11.–22.11.2026", EnergyMath.title(EnergyPeriod.WEEK, today))
     }
 
     @Test
-    fun weeksStartOnMonday() {
-        val bars = EnergyMath.bars(EnergyPeriod.WEEKS, listOf(buero), now)
-        assertEquals("KW47", bars.last().label)
-        // Monday 16.11. to Sunday 22.11.
-        assertEquals(3.75, bars.last().kWh, 1e-9)
+    fun monthYearAndAll() {
+        val month = EnergyMath.bars(EnergyPeriod.MONTH, listOf(buero), today, today)
+        assertEquals(30, month.size)
+        assertEquals(3.75, month.sumOf { it.kWh }, 1e-9)
+        val year = EnergyMath.bars(EnergyPeriod.YEAR, listOf(buero), today, today)
+        assertEquals(12, year.size)
+        assertEquals(3.0, year[9].kWh, 1e-9)
+        assertEquals(3.75, year[10].kWh, 1e-9)
+        val all = EnergyMath.bars(EnergyPeriod.ALL, listOf(buero), today, today)
+        assertEquals(listOf("2025", "2026"), all.map { it.label })
+        assertEquals(6.75, all.last().kWh, 1e-9)
     }
 
     @Test
-    fun monthsAndYears() {
-        val months = EnergyMath.bars(EnergyPeriod.MONTHS, listOf(buero), now)
-        assertEquals(12, months.size)
-        assertEquals(3.75, months.last().kWh, 1e-9)
-        assertEquals(3.0, months[10].kWh, 1e-9)
-        val years = EnergyMath.bars(EnergyPeriod.YEARS, listOf(buero), now)
-        assertEquals(listOf("2025", "2026"), years.map { it.label })
-        assertEquals(4.0, years.first().kWh, 1e-9)
-        assertEquals(6.75, years.last().kWh, 1e-9)
+    fun navigationStopsAtTheCurrentPeriod() {
+        assertEquals(false, EnergyMath.isBeforeCurrent(EnergyPeriod.WEEK, today, today))
+        assertEquals(true, EnergyMath.isBeforeCurrent(EnergyPeriod.WEEK, EnergyMath.shift(EnergyPeriod.WEEK, today, -1), today))
+        assertEquals(EnergyPeriod.MONTH, EnergyMath.finer(EnergyPeriod.YEAR))
     }
 
     @Test
