@@ -5,6 +5,8 @@ plugins {
 }
 
 android {
+    // The ioBroker energy script ships inside the app so KlimaPilot can install and update it.
+    sourceSets["main"].assets.srcDir(rootProject.file("scripts/iobroker"))
     namespace = "de.klimapilot.app"
     compileSdk = 35
 
@@ -13,8 +15,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 116
-        versionName = "0.4.86"
+        versionCode = 117
+        versionName = "0.4.87"
     }
 
     signingConfigs {

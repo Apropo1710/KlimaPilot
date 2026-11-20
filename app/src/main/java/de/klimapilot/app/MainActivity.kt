@@ -761,6 +761,8 @@ private fun KlimaPilotApp(appVersion: String) {
         if (address.isBlank() || devices.none { it.wfRacAirconId.isNotBlank() }) return@LaunchedEffect
         EnergyIoBroker().exchange(address, devices.toList(), null) { result, _ ->
             result?.let { EnergyIoBroker.cachePrice(context, it.priceEurPerKwh) }
+            // Brings an energy script installed by KlimaPilot up to the version shipped with the app.
+            EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
         }
     }
 
@@ -1395,6 +1397,46 @@ internal fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
+private fun EnergyScriptSettingsCard(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
+    val installer = remember { EnergyScriptInstaller(context) }
+    var installing by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf("") }
+    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth().clickable { onExpandedChange(!expanded) }, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Energieaufzeichnung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Skript in ioBroker für den Verbrauchsverlauf.", color = Muted, fontSize = 11.sp)
+                }
+                Text(if (expanded) "⌃" else "⌄", color = Muted, fontSize = 20.sp)
+            }
+            if (expanded) {
+                Text(
+                    "KlimaPilot legt im ioBroker-JavaScript-Adapter das Skript „KlimaPilot_Energie“ an und startet es. Es liest die Anlagen alle 5 Minuten aus. Andere aktive Kopien des Energieskripts werden angehalten. Beim App-Start wird das Skript bei Bedarf automatisch aktualisiert.",
+                    color = Muted, fontSize = 12.sp
+                )
+                OutlinedButton(
+                    onClick = {
+                        installing = true
+                        status = "Wird eingerichtet …"
+                        installer.install(prefs.getString("iobroker_server", null).orEmpty(), updateOnly = false) { _, message ->
+                            installing = false
+                            status = message
+                        }
+                    },
+                    enabled = !installing,
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) { Text("Skript in ioBroker einrichten / prüfen", fontSize = 13.sp) }
+                if (status.isNotBlank()) Text(status, color = TextMain, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
 private fun IoBrokerConnectionSettingsCard(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
@@ -1492,6 +1534,7 @@ private fun SettingsScreen(
     var accountExpanded by remember { mutableStateOf(false) }
     var fontSizeExpanded by remember { mutableStateOf(false) }
     var ioBrokerExpanded by remember { mutableStateOf(false) }
+    var energyExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
@@ -1589,6 +1632,7 @@ private fun SettingsScreen(
         }
         if (isAdmin) {
             IoBrokerConnectionSettingsCard(expanded = ioBrokerExpanded, onExpandedChange = { ioBrokerExpanded = it })
+            EnergyScriptSettingsCard(expanded = energyExpanded, onExpandedChange = { energyExpanded = it })
         } else {
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
                 Text(

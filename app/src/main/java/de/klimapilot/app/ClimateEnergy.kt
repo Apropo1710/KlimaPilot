@@ -245,6 +245,100 @@ internal class EnergyIoBroker {
     }
 }
 
+/**
+ * Installs or updates the energy script in the ioBroker JavaScript adapter. It only ever writes
+ * its own script object; other copies of the energy script (recognised by their header line) are
+ * disabled so two scripts never count the same consumption.
+ */
+internal class EnergyScriptInstaller(private val context: Context) {
+    private val main = Handler(Looper.getMainLooper())
+
+    private fun source(): String = context.assets.open(ASSET).bufferedReader().use { it.readText() }
+
+    /** [updateOnly]: change nothing unless the script was installed by KlimaPilot before. */
+    fun install(address: String, updateOnly: Boolean, callback: (Boolean, String) -> Unit) {
+        val url = address.trim().trimEnd('/')
+        if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(false, "Keine ioBroker-Adresse hinterlegt."); return }
+        val source = runCatching { source() }.getOrElse { callback(false, "Skript fehlt in der App."); return }
+        val socket = IoBrokerSocket(url, "name=klimapilot.energy-script")
+        val done = AtomicBoolean(false)
+        fun finish(ok: Boolean, message: String) {
+            if (!done.compareAndSet(false, true)) return
+            runCatching { socket.off() }
+            runCatching { socket.disconnect() }
+            main.post { callback(ok, message) }
+        }
+        main.postDelayed({ finish(false, "ioBroker antwortet nicht.") }, 20_000)
+        fun err(args: Array<Any?>) = args.firstOrNull()?.takeUnless { it == JSONObject.NULL }
+        fun asJson(raw: Any?): JSONObject? = when (raw) {
+            is JSONObject -> raw
+            is Map<*, *> -> JSONObject().apply { raw.forEach { (k, v) -> if (k is String) put(k, v) } }
+            else -> null
+        }
+
+        fun disableOtherCopies(message: String) {
+            val params = JSONObject().put("startkey", "script.js.").put("endkey", "script.js.\u9999")
+            socket.emit("getObjectView", "system", "script", params, IoBrokerAck viewCallback@{ args ->
+                val rows = asJson(args.getOrNull(1))?.optJSONArray("rows")
+                if (err(args) != null || rows == null) { finish(true, message); return@viewCallback }
+                val others = (0 until rows.length()).mapNotNull { i ->
+                    val row = rows.optJSONObject(i) ?: return@mapNotNull null
+                    val id = row.optString("id")
+                    val common = row.optJSONObject("value")?.optJSONObject("common") ?: return@mapNotNull null
+                    id.takeIf { it != SCRIPT_ID && common.optBoolean("enabled") && common.optString("source").contains(MARKER) }
+                }
+                fun next(index: Int) {
+                    if (index >= others.size) {
+                        finish(true, if (others.isEmpty()) message else "$message Eine ältere Kopie wurde angehalten.")
+                        return
+                    }
+                    val update = JSONObject().put("common", JSONObject().put("enabled", false))
+                    socket.emit("extendObject", others[index], update, IoBrokerAck { next(index + 1) })
+                }
+                next(0)
+            })
+        }
+
+        socket.on("connect") {
+            socket.emit("authenticate", IoBrokerAck authCallback@{ authArgs ->
+                if (authArgs.firstOrNull() as? Boolean != true) { finish(false, "ioBroker hat die Verbindung nicht authentifiziert."); return@authCallback }
+                socket.emit("getObject", SCRIPT_ID, IoBrokerAck getCallback@{ getArgs ->
+                    val existing = asJson(getArgs.getOrNull(1))
+                    if (updateOnly && existing == null) { finish(true, "Nicht eingerichtet."); return@getCallback }
+                    val common = existing?.optJSONObject("common")
+                    if (common != null && common.optString("source") == source && common.optBoolean("enabled")) {
+                        disableOtherCopies("Das Energieskript ist eingerichtet und aktuell.")
+                        return@getCallback
+                    }
+                    val definition = JSONObject()
+                        .put("type", "script")
+                        .put("common", JSONObject()
+                            .put("name", "KlimaPilot Energie")
+                            .put("engineType", "Javascript/js")
+                            .put("engine", "system.adapter.javascript.0")
+                            .put("source", source)
+                            .put("enabled", true)
+                            .put("debug", false)
+                            .put("verbose", false))
+                        .put("native", JSONObject())
+                    socket.emit("setObject", SCRIPT_ID, definition, IoBrokerAck setCallback@{ setArgs ->
+                        if (err(setArgs) != null) { finish(false, "Skript konnte nicht angelegt werden: ${err(setArgs)}"); return@setCallback }
+                        disableOtherCopies(if (existing == null) "Energieskript eingerichtet und gestartet." else "Energieskript aktualisiert.")
+                    })
+                })
+            })
+        }
+        socket.on("connect_error") { args -> finish(false, "ioBroker nicht erreichbar: ${args.firstOrNull() ?: "Verbindung fehlgeschlagen"}") }
+        socket.connect()
+    }
+
+    companion object {
+        const val ASSET = "klimapilot-energie.js"
+        const val SCRIPT_ID = "script.js.common.KlimaPilot_Energie"
+        const val MARKER = "KlimaPilot – Energieaufzeichnung für ioBroker"
+    }
+}
+
 private fun formatNumber(value: Double, decimals: Int) = "%.${decimals}f".format(Locale.GERMANY, value)
 
 @Composable
@@ -271,7 +365,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                 if (pendingPrice == null) priceText = formatNumber(price, 3)
                 pendingPrice = null
                 units = result.units
-                status = if (result.units.isEmpty()) "Noch keine Energiedaten. Ist das KlimaPilot-Skript im ioBroker-JavaScript-Adapter eingerichtet?" else ""
+                status = if (result.units.isEmpty()) "Noch keine Energiedaten. Das Energieskript wird in den Einstellungen unter „Energieaufzeichnung“ eingerichtet; danach dauert es bis zu 5 Minuten." else ""
             } else status = error ?: "Energiedaten konnten nicht geladen werden."
         }
     }
