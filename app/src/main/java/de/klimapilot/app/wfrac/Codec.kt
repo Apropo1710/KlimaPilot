@@ -32,6 +32,11 @@ data class AirconState(
     val indoorTemp: Double? = null,
     val outdoorTemp: Double? = null,
     /**
+     * Energy of the current run in kWh (segment 0x94/0x10, 0.25 kWh steps). It counts while
+     * the unit runs, holds while it is off and restarts at 0 on the next power-on.
+     */
+    val runEnergyKwh: Double? = null,
+    /**
      * False when byte 12 reads exactly 1. The module pins it there on units with the legacy
      * bus signature, which then never report their left/right vane or 3D auto; but it is also
      * what an extended unit with its left/right vane on swing reports. Anything else proves
@@ -84,11 +89,15 @@ object Codec {
         val modelNr = if (modelNrRaw == 3) 2 else listOf(0, 1, 2).indexOf(modelNrRaw)
         var indoor: Double? = null
         var outdoor: Double? = null
+        var energy: Double? = null
         var i = 0
         while (i + 3 < segments.size) {
             if (segments[i] == 0x80) {
                 if (segments[i + 1] == 0x10) outdoor = TempTables.outdoor[segments[i + 2]]
                 if (segments[i + 1] == 0x20) indoor = TempTables.indoor[segments[i + 2]]
+            }
+            if (segments[i] == 0x94 && segments[i + 1] == 0x10) {
+                energy = ((segments[i + 3] shl 8) or segments[i + 2]) * 0.25
             }
             i += 4
         }
@@ -114,6 +123,7 @@ object Codec {
             },
             indoorTemp = indoor,
             outdoorTemp = outdoor,
+            runEnergyKwh = energy,
             vaneLRReported = c[12] != 1,
         )
     }
