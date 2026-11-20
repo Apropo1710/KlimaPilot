@@ -54,4 +54,16 @@ class ScheduleMathTest {
         // Unchanged when already in step.
         assertEquals(listOf(updated), ScheduleMath.withProfiles(listOf(updated), listOf(profile)))
     }
+
+    @Test
+    fun finishedOneTimeTimersAreSwitchedOff() {
+        val once = ClimateSchedule(id = "o", airconId = "a", kind = "once", at = 1000L, action = "off")
+        val weekly = weekly(listOf(1), "06:00")
+        val status = mapOf("o" to ScheduleRun("once:1000", null, true, "ok"), "w" to ScheduleRun("2026-11-16T06:00", null, true, "ok"))
+        val result = ScheduleMath.disableFinished(listOf(once, weekly), status)
+        assertEquals(false, result[0].enabled)
+        assertEquals(true, result[1].enabled)
+        // Not yet run, or failed: stays on.
+        assertEquals(true, ScheduleMath.disableFinished(listOf(once), mapOf("o" to ScheduleRun("once:1000", null, false, "Zeitüberschreitung"))).single().enabled)
+    }
 }

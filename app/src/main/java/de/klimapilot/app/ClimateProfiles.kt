@@ -452,6 +452,14 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     }
 
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
+    // A single failed connection to ioBroker is retried a minute later anyway; only a repeated
+    // failure is worth showing.
+    var syncFailures by remember { mutableIntStateOf(0) }
+    fun syncStatus(message: String): String {
+        val failed = message.contains("fehlgeschlagen", ignoreCase = true)
+        syncFailures = if (failed) syncFailures + 1 else 0
+        return if (failed && syncFailures < 2) "" else message
+    }
     LaunchedEffect(loaded, loadSucceeded, deviceSyncSignature, syncRevision) {
         if (!loaded || !loadSucceeded) return@LaunchedEffect
         runCatching { repository.flushPendingSyncJournal(syncStore) }
@@ -463,7 +471,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         val address = settingsPrefs.getString("iobroker_server", null).orEmpty()
         if (devices.none { it.syncDeviceKey.isNotBlank() } || address.isBlank()) return@LaunchedEffect
         syncClient.syncNow(address, devices, syncStore, repository) { message ->
-            status = message
+            status = syncStatus(message)
             runCatching { repository.load() }.onSuccess { latest -> profiles.clear(); profiles.addAll(latest) }
             selectedProfileId = syncStore.activeProfileId(deviceId)
         }
@@ -476,7 +484,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                 .onFailure { status = it.message ?: "Profiländerungsjournal konnte nicht übernommen werden." }
             val address = settingsPrefs.getString("iobroker_server", null).orEmpty()
             if (address.isNotBlank()) syncClient.syncNow(address, devices, syncStore, repository) { message ->
-                status = message
+                status = syncStatus(message)
                 runCatching { repository.load() }.onSuccess { latest -> profiles.clear(); profiles.addAll(latest) }
                 selectedProfileId = syncStore.activeProfileId(deviceId)
             }

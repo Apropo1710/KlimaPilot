@@ -20,11 +20,7 @@ internal class IoBrokerSocket(
     private val query: String = ""
 ) {
     private val main = Handler(Looper.getMainLooper())
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(0, TimeUnit.SECONDS)
-        .build()
+    private val client = sharedClient
     private val ids = AtomicInteger(0)
     private val callbacks = ConcurrentHashMap<Int, (Array<Any?>) -> Unit>()
     private val callbackTimeouts = ConcurrentHashMap<Int, Runnable>()
@@ -200,4 +196,18 @@ internal class IoBrokerSocket(
     }
 
     fun close() = disconnect()
+
+    companion object {
+        /**
+         * One HTTP client for all ioBroker connections of the app. A client per connection
+         * left its thread and connection pools behind on every short-lived connection.
+         */
+        private val sharedClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(8, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .pingInterval(0, TimeUnit.SECONDS)
+                .build()
+        }
+    }
 }
