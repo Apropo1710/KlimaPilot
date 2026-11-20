@@ -1,0 +1,57 @@
+package de.klimapilot.app
+
+import java.time.LocalDateTime
+import java.time.ZoneId
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class ScheduleMathTest {
+    // Friday, 20.11.2026, 17:30
+    private val now = LocalDateTime.of(2026, 11, 20, 17, 30)
+    private fun weekly(days: List<Int>, time: String, enabled: Boolean = true) =
+        ClimateSchedule(id = "w", airconId = "a", enabled = enabled, kind = "weekly", days = days, time = time, action = "off")
+
+    @Test
+    fun weeklyFindsTheNextMatchingDay() {
+        assertEquals(LocalDateTime.of(2026, 11, 20, 22, 0), ScheduleMath.nextRun(weekly((1..5).toList(), "22:00"), now))
+        // Friday's 06:30 has passed; weekdays only -> Monday.
+        assertEquals(LocalDateTime.of(2026, 11, 23, 6, 30), ScheduleMath.nextRun(weekly((1..5).toList(), "06:30"), now))
+        assertEquals(LocalDateTime.of(2026, 11, 21, 9, 0), ScheduleMath.nextRun(weekly(listOf(6, 7), "09:00"), now))
+        // Same weekday, earlier time -> next week.
+        assertEquals(LocalDateTime.of(2026, 11, 27, 17, 0), ScheduleMath.nextRun(weekly(listOf(5), "17:00"), now))
+        assertNull(ScheduleMath.nextRun(weekly(listOf(5), "22:00", enabled = false), now))
+    }
+
+    @Test
+    fun onceIsGoneAfterItRan() {
+        val at = now.plusHours(1).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val item = ClimateSchedule(id = "o", airconId = "a", kind = "once", at = at, action = "on")
+        assertEquals(now.plusHours(1), ScheduleMath.nextRun(item, now))
+        assertNull(ScheduleMath.nextRun(item, now, ScheduleRun("once:$at", null, true, "ok")))
+    }
+
+    @Test
+    fun labels() {
+        assertEquals("Täglich", ScheduleMath.daysLabel((1..7).toList()))
+        assertEquals("Mo–Fr", ScheduleMath.daysLabel(listOf(5, 4, 3, 2, 1)))
+        assertEquals("Sa–So", ScheduleMath.daysLabel(listOf(6, 7)))
+        assertEquals("Mo, Mi, Fr", ScheduleMath.daysLabel(listOf(1, 3, 5)))
+        assertEquals("heute 22:00", ScheduleMath.whenLabel(LocalDateTime.of(2026, 11, 20, 22, 0), now))
+        assertEquals("morgen 06:30", ScheduleMath.whenLabel(LocalDateTime.of(2026, 11, 21, 6, 30), now))
+        assertEquals("Ausschalten", ScheduleMath.actionLabel(weekly(listOf(1), "06:00")))
+        val custom = weekly(listOf(1), "06:00").copy(action = "on", settings = ScheduleSettings(mode = "HEAT", targetTemp = 21.5, fanSpeed = 0))
+        assertEquals("Ein · Heizen · 21,5 °C · Lüfter Auto", ScheduleMath.actionLabel(custom))
+    }
+
+    @Test
+    fun profileValuesFollowTheProfile() {
+        val profile = ClimateProfile("p", "d", "Schlafen", true, "HEAT", 19.0, 1, 0, null, null, 0L)
+        val item = weekly(listOf(1), "22:00").copy(action = "on", profileId = "p", profileName = "Alt", settings = ScheduleSettings(mode = "COOL"))
+        val updated = ScheduleMath.withProfiles(listOf(item), listOf(profile)).single()
+        assertEquals("Schlafen", updated.profileName)
+        assertEquals(ScheduleSettings("HEAT", 19.0, 1, 0, null, null), updated.settings)
+        // Unchanged when already in step.
+        assertEquals(listOf(updated), ScheduleMath.withProfiles(listOf(updated), listOf(profile)))
+    }
+}
