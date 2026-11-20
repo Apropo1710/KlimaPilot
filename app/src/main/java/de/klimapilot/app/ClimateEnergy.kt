@@ -4,6 +4,10 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -65,6 +68,7 @@ internal data class EnergyUnitData(
     val daily: Map<String, Double>,
     val lastPollAt: String?,
     val lastError: String?,
+    val lastRunKwh: Double? = null,
 )
 
 /** Turns the hourly and daily values the ioBroker script records into chart bars. */
@@ -85,6 +89,7 @@ internal object EnergyMath {
             daily = map("daily"),
             lastPollAt = json.optString("lastPollAt").ifBlank { null },
             lastError = json.optString("lastError").ifBlank { null },
+            lastRunKwh = json.optDouble("lastRunKwh", Double.NaN).takeIf { !it.isNaN() },
         )
     }
 
@@ -137,6 +142,20 @@ internal object EnergyMath {
                 }
             }
         }
+    }
+
+    /**
+     * Today's consumption: what the script recorded today plus what the unit counted since the
+     * script's last reading (the live run counter is newer than the 5-minute recording).
+     */
+    fun todayKwh(unit: EnergyUnitData, liveRunKwh: Double?, now: LocalDateTime): Double {
+        val recorded = unit.daily[dayKey(now.toLocalDate())] ?: 0.0
+        val last = unit.lastRunKwh ?: return recorded
+        val live = liveRunKwh ?: return recorded
+        val polledToday = unit.lastPollAt
+            ?.let { runCatching { java.time.OffsetDateTime.parse(it).atZoneSameInstant(java.time.ZoneId.systemDefault()).toLocalDate() }.getOrNull() } == now.toLocalDate()
+        if (!polledToday) return recorded
+        return recorded + if (live >= last) live - last else live
     }
 
     /** The configuration the ioBroker script polls: every paired unit plus the price. */
@@ -339,6 +358,28 @@ internal class EnergyScriptInstaller(private val context: Context) {
     }
 }
 
+private val EnergyBlue = Color(0xFF1769AA)
+
+/** Same look as the selection buttons in the rest of the app: blue when selected. */
+@Composable
+private fun EnergyPill(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
+        color = if (selected) EnergyBlue else Color(0xFFE3EEF7),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(
+            label,
+            Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+            color = if (selected) Color.White else Color(0xFF123B60),
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
 private fun formatNumber(value: Double, decimals: Int) = "%.${decimals}f".format(Locale.GERMANY, value)
 
 @Composable
@@ -348,7 +389,8 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     val io = remember { EnergyIoBroker() }
     var period by remember { mutableStateOf(EnergyPeriod.DAYS) }
     var inEuro by remember { mutableStateOf(false) }
-    var allUnits by remember { mutableStateOf(selectedDevice?.wfRacAirconId.isNullOrBlank()) }
+    // null = all units
+    var selectedUnit by remember { mutableStateOf(selectedDevice?.wfRacAirconId?.takeIf { it.isNotBlank() }) }
     var price by remember { mutableStateOf(EnergyIoBroker.cachedPrice(context)) }
     var priceText by remember { mutableStateOf(formatNumber(price, 3)) }
     var units by remember { mutableStateOf<List<EnergyUnitData>?>(null) }
@@ -370,7 +412,8 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
         }
     }
 
-    val shown = units.orEmpty().filter { allUnits || it.airconId == selectedDevice?.wfRacAirconId }
+    val shown = units.orEmpty().filter { selectedUnit == null || it.airconId == selectedUnit }
+    val pairedDevices = devices.filter { !it.demoMode && it.wfRacAirconId.isNotBlank() }.distinctBy { it.wfRacAirconId }
     val bars = EnergyMath.bars(period, shown, LocalDateTime.now())
     val factor = if (inEuro) price else 1.0
     val unitLabel = if (inEuro) "€" else "kWh"
@@ -382,20 +425,20 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     Text("Energie", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text("Schließen") }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!selectedDevice?.wfRacAirconId.isNullOrBlank()) {
-                        FilterChip(selected = !allUnits, onClick = { allUnits = false }, label = { Text(selectedDevice!!.name.ifBlank { "Diese Anlage" }) })
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    pairedDevices.forEach { device ->
+                        EnergyPill(device.room.ifBlank { device.name }, selectedUnit == device.wfRacAirconId) { selectedUnit = device.wfRacAirconId }
                     }
-                    FilterChip(selected = allUnits, onClick = { allUnits = true }, label = { Text("Alle Anlagen") })
+                    EnergyPill("Alle", selectedUnit == null) { selectedUnit = null }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    EnergyPeriod.entries.forEach { p ->
+                        EnergyPill(p.label, period == p, Modifier.weight(1f)) { period = p }
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    EnergyPeriod.entries.forEach { p ->
-                        FilterChip(selected = period == p, onClick = { period = p }, label = { Text(p.label, fontSize = 12.sp) })
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !inEuro, onClick = { inEuro = false }, label = { Text("kWh") })
-                    FilterChip(selected = inEuro, onClick = { inEuro = true }, label = { Text("Kosten (€)") })
+                    EnergyPill("kWh", !inEuro) { inEuro = false }
+                    EnergyPill("Kosten (€)", inEuro) { inEuro = true }
                 }
 
                 val total = bars.sumOf { it.kWh } * factor
@@ -446,7 +489,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
 @Composable
 private fun EnergyChart(values: List<Pair<String, Double>>, unitLabel: String) {
     val max = values.maxOfOrNull { it.second }?.takeIf { it > 0 } ?: 1.0
-    val barColor = MaterialTheme.colorScheme.primary
+    val barColor = EnergyBlue
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("max. ${formatNumber(max, 2)} $unitLabel", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
