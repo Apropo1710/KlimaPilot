@@ -761,6 +761,8 @@ private fun KlimaPilotApp(appVersion: String) {
         if (address.isBlank() || devices.none { it.wfRacAirconId.isNotBlank() }) return@LaunchedEffect
         EnergyIoBroker().exchange(address, devices.toList(), null) { result, _ ->
             result?.let { EnergyIoBroker.cachePrice(context, it.priceEurPerKwh) }
+            // Brings an energy script installed by KlimaPilot up to the version shipped with the app.
+            EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
         }
     }
 
