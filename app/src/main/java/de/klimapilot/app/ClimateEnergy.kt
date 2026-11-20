@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -422,6 +423,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE) }
     val io = remember { EnergyIoBroker() }
     var period by remember { mutableStateOf(EnergyPeriod.WEEK) }
+    var showInfo by remember { mutableStateOf(false) }
     val today = LocalDate.now()
     var anchor by remember { mutableStateOf(today) }
     var inEuro by remember { mutableStateOf(false) }
@@ -493,7 +495,24 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                 }
 
                 val total = bars.sumOf { it.kWh } * factor
-                Text("Summe im Zeitraum: ${formatNumber(total, 2)} $unitLabel", fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Summe im Zeitraum: ${formatNumber(total, 2)} $unitLabel", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text("ⓘ", fontSize = 20.sp, color = EnergyBlue, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { showInfo = true }.padding(horizontal = 8.dp, vertical = 2.dp))
+                }
+                if (showInfo) AlertDialog(
+                    onDismissRequest = { showInfo = false },
+                    confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } },
+                    title = { Text("Energieansicht") },
+                    text = {
+                        Text(
+                            "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. " +
+                                "Mit ‹ › blättern, den Titel antippen springt zurück zum aktuellen Zeitraum.\n\n" +
+                                "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten, einzelne Stunden sind daher grob. " +
+                                "Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft. Kosten ohne Grundgebühr; " +
+                                "der Strompreis gilt für beide Smartphones."
+                        )
+                    }
+                )
                 EnergyChart(bars.map { it.label to it.kWh * factor }, unitLabel) { index ->
                     val target = bars.getOrNull(index)?.drillDown ?: return@EnergyChart
                     val finer = EnergyMath.finer(period) ?: return@EnergyChart
@@ -502,8 +521,6 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                 }
                 if (period == EnergyPeriod.DAY && anchor.isBefore(today.minusDays(30))) {
                     Text("Stundenwerte werden nur für die letzten 31 Tage aufbewahrt.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else if (EnergyMath.finer(period) != null) {
-                    Text("Balken antippen für Details.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 if (status.isNotBlank()) Text(status, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
