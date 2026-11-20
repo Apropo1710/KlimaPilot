@@ -182,8 +182,8 @@ private fun KlimaPilotApp(appVersion: String) {
     }
     val devicesInSelectedRoom = devices.filter { it.room == selectedRoom }
     val selectedDevice = devicesInSelectedRoom.firstOrNull { it.id == selectedDeviceId }
-    var showEnergy by remember { mutableStateOf(false) }
         ?: devicesInSelectedRoom.firstOrNull()
+    var showEnergy by remember { mutableStateOf(false) }
     val controller = remember(context) { ClimateDeviceController(context) }
     var currentAirconState by remember(selectedDevice?.id) { mutableStateOf<AirconState?>(null) }
     var airconConnected by remember(selectedDevice?.id) { mutableStateOf(false) }
