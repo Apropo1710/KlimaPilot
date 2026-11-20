@@ -24,10 +24,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -190,7 +188,7 @@ internal fun ClimateProfileEditorDialog(
                                 Slider(
                                     value = fan.toFloat(), onValueChange = { fan = Math.round(it) },
                                     valueRange = 0f..4f, steps = 3, modifier = Modifier.padding(bottom = 4.dp),
-                                    colors = SliderDefaults.colors(thumbColor = SBlue, activeTrackColor = SBlue)
+                                    colors = blueSliderColors()
                                 )
                             }
                             RowDivider()
@@ -243,6 +241,6 @@ private fun Toggle(label: String, checked: Boolean, value: String? = null, onCha
             value != null -> Text(value, color = SBlue, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(end = 10.dp))
             !checked -> Text("unverändert", color = SMuted, fontSize = 12.sp, modifier = Modifier.padding(end = 10.dp))
         }
-        Switch(checked, onChange, colors = SwitchDefaults.colors(checkedTrackColor = SBlue))
+        Switch(checked, onChange, colors = blueSwitchColors())
     }
 }

@@ -473,7 +473,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                         Switch(
                             checked = item.enabled, enabled = !busy,
                             onCheckedChange = { on -> change { list -> list.map { if (it.id == item.id) it.copy(enabled = on, updatedAt = System.currentTimeMillis()) else it } } },
-                            colors = SwitchDefaults.colors(checkedTrackColor = SBlue)
+                            colors = blueSwitchColors()
                         )
                     }
                 }
@@ -486,7 +486,8 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
         ScheduleEditor(
             airconId = device.wfRacAirconId,
             existing = editing,
-            profiles = profiles,
+            // Read fresh on every opening, so a profile created a moment ago is offered right away.
+            profiles = remember(creating, editing) { loadProfiles() },
             currentState = currentState,
             onDismiss = { creating = false; editing = null },
             onDelete = editing?.let { e -> { change { list -> list.filterNot { it.id == e.id } }; editing = null } },
@@ -560,6 +561,19 @@ internal fun SettingRow(label: String, trailing: @Composable () -> Unit) {
         trailing()
     }
 }
+
+/** Blue instead of the theme's lilac for inactive tracks and switches. */
+@Composable
+internal fun blueSliderColors() = androidx.compose.material3.SliderDefaults.colors(
+    thumbColor = SBlue, activeTrackColor = SBlue, inactiveTrackColor = SSegmentBg,
+    activeTickColor = Color.White.copy(alpha = 0.7f), inactiveTickColor = SBlue.copy(alpha = 0.45f)
+)
+
+@Composable
+internal fun blueSwitchColors() = SwitchDefaults.colors(
+    checkedThumbColor = Color.White, checkedTrackColor = SBlue,
+    uncheckedThumbColor = Color(0xFF9AAABB), uncheckedTrackColor = SSegmentBg, uncheckedBorderColor = Color(0xFFC9D5E1)
+)
 
 @Composable
 internal fun RowDivider() = androidx.compose.material3.HorizontalDivider(color = SDivider, thickness = 1.dp)
@@ -745,10 +759,12 @@ private fun ScheduleEditor(
                     AnimatedVisibility(action == "on") {
                         Column {
                             RowDivider()
-                            Segmented(listOf("Profil", "Eigene Werte"), if (useProfile && profiles.isNotEmpty()) 0 else 1, Modifier.padding(vertical = 10.dp)) {
-                                if (it == 0 && profiles.isNotEmpty()) useProfile = true else if (it == 1) useProfile = false
+                            Segmented(listOf("Profil", "Eigene Werte"), if (useProfile) 0 else 1, Modifier.padding(vertical = 10.dp)) {
+                                useProfile = it == 0
                             }
-                            if (useProfile && profiles.isNotEmpty()) {
+                            if (useProfile && profiles.isEmpty()) {
+                                Text("Für diese Anlage gibt es noch kein Klimaprofil.", color = SMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
+                            } else if (useProfile) {
                                 FlowRow(Modifier.padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     profiles.forEach { p -> Chip(p.name, profileId == p.id) { profileId = p.id } }
                                 }
@@ -780,7 +796,7 @@ private fun ScheduleEditor(
                                     androidx.compose.material3.Slider(
                                         value = fan.toFloat(), onValueChange = { fan = Math.round(it) },
                                         valueRange = 0f..4f, steps = 3,
-                                        colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = SBlue, activeTrackColor = SBlue)
+                                        colors = blueSliderColors()
                                     )
                                 }
                                 RowDivider()
@@ -794,7 +810,7 @@ private fun ScheduleEditor(
                                     }
                                     RowDivider()
                                     SettingRow("3D-Auto-Luftstrom") {
-                                        Switch(threeD, { threeD = it }, colors = SwitchDefaults.colors(checkedTrackColor = SBlue))
+                                        Switch(threeD, { threeD = it }, colors = blueSwitchColors())
                                     }
                                 }
                             }
@@ -843,7 +859,7 @@ internal fun ScheduleSettingsContent() {
             io.update(prefs.getString("iobroker_server", null).orEmpty(), { _, items -> value to items }) { result, err ->
                 status = if (result != null) "" else "ioBroker nicht erreichbar – das andere Handy übernimmt die Einstellung über die Handy-Synchronisierung."
             }
-        }, colors = SwitchDefaults.colors(checkedTrackColor = SBlue))
+        }, colors = blueSwitchColors())
     }
     if (status.isNotBlank()) Text(status, color = SMuted, fontSize = 11.sp)
 }
