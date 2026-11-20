@@ -330,10 +330,28 @@ internal class ScheduleIoBroker {
         const val CONFIG_ID = "$ROOT.config"
         const val STATUS_ID = "$ROOT.status"
         private const val PREF_VISIBLE = "schedules_visible"
+        private const val PREF_VISIBLE_AT = "schedules_visible_updated_at"
 
-        fun visible(context: Context) = context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE).getBoolean(PREF_VISIBLE, true)
-        fun setVisible(context: Context, value: Boolean) =
-            context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE).edit().putBoolean(PREF_VISIBLE, value).apply()
+        private fun prefs(context: Context) = context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE)
+        fun visible(context: Context) = prefs(context).getBoolean(PREF_VISIBLE, true)
+
+        /** Switched by the user; carried to the other phone by the phone-to-phone sync. */
+        fun setVisible(context: Context, value: Boolean, changedAt: Long = System.currentTimeMillis()) =
+            prefs(context).edit().putBoolean(PREF_VISIBLE, value).putLong(PREF_VISIBLE_AT, changedAt).apply()
+
+        /** Snapshot part for the phone-to-phone sync, or null if never switched on this phone. */
+        fun peerJson(context: Context): JSONObject? {
+            val at = prefs(context).getLong(PREF_VISIBLE_AT, 0L).takeIf { it > 0L } ?: return null
+            return JSONObject().put("visible", visible(context)).put("updatedAt", at)
+        }
+
+        /** Takes the other phone's switch if it was changed later than ours. */
+        fun applyPeer(context: Context, remote: JSONObject): Boolean {
+            val at = remote.optLong("updatedAt", 0L)
+            if (at <= prefs(context).getLong(PREF_VISIBLE_AT, 0L) || !remote.has("visible")) return false
+            setVisible(context, remote.optBoolean("visible", true), at)
+            return true
+        }
     }
 }
 
@@ -371,6 +389,8 @@ private fun SectionLabel(text: String) = Text(text.uppercase(), color = SMuted, 
 internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
     if (device == null || device.demoMode || device.wfRacAirconId.isBlank()) return
     val context = LocalContext.current
+    // Read so a switch arriving from the other phone takes effect right away.
+    @Suppress("UNUSED_VARIABLE") val peerRevision = PeerSyncSignals.dataRevision
     if (!ScheduleIoBroker.visible(context)) return
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE) }
     val address = prefs.getString("iobroker_server", null).orEmpty()
@@ -690,19 +710,19 @@ internal fun ScheduleSettingsContent() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE) }
     val io = remember { ScheduleIoBroker() }
-    var on by remember { mutableStateOf(ScheduleIoBroker.visible(context)) }
+    var on by remember(PeerSyncSignals.dataRevision) { mutableStateOf(ScheduleIoBroker.visible(context)) }
     var status by remember { mutableStateOf("") }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("Zeitpläne verwenden", color = SText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Text(if (on) "Zeitpläne laufen über ioBroker." else "Zeitpläne sind angehalten und ausgeblendet.", color = SMuted, fontSize = 11.sp)
+            Text(if (on) "Zeitpläne laufen über ioBroker." else "Zeitpläne sind angehalten und auf beiden Handys ausgeblendet.", color = SMuted, fontSize = 11.sp)
         }
         Switch(on, { value ->
             on = value
             ScheduleIoBroker.setVisible(context, value)
             status = "Wird gespeichert …"
             io.update(prefs.getString("iobroker_server", null).orEmpty(), { _, items -> value to items }) { result, err ->
-                status = if (result != null) "" else "Nur auf diesem Handy umgestellt: ${err ?: "ioBroker nicht erreichbar"}"
+                status = if (result != null) "" else "ioBroker nicht erreichbar – das andere Handy übernimmt die Einstellung über die Handy-Synchronisierung."
             }
         }, colors = SwitchDefaults.colors(checkedTrackColor = SBlue))
     }
