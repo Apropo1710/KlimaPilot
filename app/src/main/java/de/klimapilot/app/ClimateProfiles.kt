@@ -549,17 +549,11 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                     }
                 }
             }
-            if (status.isNotBlank()) {
-                val failed = listOf("fehlgeschlagen", "konnte nicht", "ungültig", "abgebrochen", "beschädigt")
-                    .any { status.contains(it, ignoreCase = true) }
-                Text(
-                    status,
-                    color = if (failed) MaterialTheme.colorScheme.error
-                    else if (status.startsWith("Synchronisierung abgeschlossen")) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp
-                )
+            // Only problems are shown; routine sync and save confirmations stay out of the way.
+            val failed = status.isNotBlank() && listOf("fehlgeschlagen", "konnte nicht", "ungültig", "abgebrochen", "beschädigt", "nicht erreichbar", "fehler")
+                .any { status.contains(it, ignoreCase = true) }
+            if (failed) {
+                Text(status, color = MaterialTheme.colorScheme.error, fontSize = 11.sp, lineHeight = 14.sp)
             }
         }
     }
