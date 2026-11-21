@@ -48,6 +48,8 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.horizontalDrag
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1199,15 +1201,11 @@ private fun TemperatureCard(
                     Text(state?.outdoorTemp?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
-            Slider(
+            TemperatureSlider(
                 value = draftTemp,
-                onValueChange = { value -> draftTemp = (value * 2f).roundToInt() / 2f; editing = true },
-                onValueChangeFinished = { changeTemp(draftTemp) },
-                valueRange = 16f..30f,
-                steps = 27,
                 enabled = state != null,
-                colors = SliderDefaults.colors(thumbColor = Blue, activeTrackColor = Blue, inactiveTrackColor = Color(0xFFC8D8E6)),
-                modifier = Modifier.fillMaxWidth().height(28.dp)
+                onValueChange = { value -> draftTemp = value; editing = true },
+                onValueChangeFinished = { changeTemp(draftTemp) }
             )
             Button(
                 onClick = { onPower(!(state?.power ?: false)) },
@@ -1707,5 +1705,64 @@ private fun SettingsScreen(
             Text("Zurück zur Klimaübersicht")
         }
         }
+    }
+}
+
+
+/**
+ * Temperature slider that only moves when the round knob itself is grabbed. A swipe that starts
+ * elsewhere on the bar is left to the room swipe, and a tap on the bar changes nothing.
+ */
+@Composable
+private fun TemperatureSlider(value: Float, enabled: Boolean, onValueChange: (Float) -> Unit, onValueChangeFinished: () -> Unit) {
+    val min = 16f
+    val max = 30f
+    val currentValue by rememberUpdatedState(value)
+    val currentEnabled by rememberUpdatedState(enabled)
+    val currentOnChange by rememberUpdatedState(onValueChange)
+    val currentOnFinished by rememberUpdatedState(onValueChangeFinished)
+    var dragging by remember { mutableStateOf(false) }
+    val knobRadius = if (dragging) 13.dp else 11.dp
+    Canvas(
+        Modifier.fillMaxWidth().height(32.dp).pointerInput(Unit) {
+            val pad = 14.dp.toPx()
+            val grab = 26.dp.toPx()
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                if (!currentEnabled) return@awaitEachGesture
+                val width = size.width - 2 * pad
+                val knobX = pad + (currentValue - min) / (max - min) * width
+                if (kotlin.math.abs(down.position.x - knobX) > grab) return@awaitEachGesture
+                // Grabbed the knob: from now on this gesture belongs to the slider.
+                down.consume()
+                dragging = true
+                var last = currentValue
+                drag(down.id) { change ->
+                    change.consume()
+                    val raw = min + ((change.position.x - pad) / width).coerceIn(0f, 1f) * (max - min)
+                    val stepped = (raw * 2f).roundToInt() / 2f
+                    if (stepped != last) { last = stepped; currentOnChange(stepped) }
+                }
+                dragging = false
+                currentOnFinished()
+            }
+        }
+    ) {
+        val pad = 14.dp.toPx()
+        val width = size.width - 2 * pad
+        val y = size.height / 2
+        val fraction = ((value - min) / (max - min)).coerceIn(0f, 1f)
+        val knobX = pad + fraction * width
+        val track = 6.dp.toPx()
+        val active = if (enabled) Blue else Muted
+        drawLine(Color(0xFFC8D8E6), androidx.compose.ui.geometry.Offset(pad, y), androidx.compose.ui.geometry.Offset(pad + width, y), strokeWidth = track, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        drawLine(active, androidx.compose.ui.geometry.Offset(pad, y), androidx.compose.ui.geometry.Offset(knobX, y), strokeWidth = track, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        // One dot per whole degree.
+        for (degree in 17 until 30) {
+            val x = pad + (degree - min) / (max - min) * width
+            drawCircle(if (x <= knobX) Color.White.copy(alpha = 0.7f) else active.copy(alpha = 0.45f), radius = 1.5.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
+        }
+        drawCircle(Color.White, radius = knobRadius.toPx() + 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(knobX, y))
+        drawCircle(active, radius = knobRadius.toPx(), center = androidx.compose.ui.geometry.Offset(knobX, y))
     }
 }
