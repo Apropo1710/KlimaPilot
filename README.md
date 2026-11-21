@@ -191,15 +191,16 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 
 ```json
 {
-  "intervalHours": 200,
-  "units": { "1cd1d717ebe8": { "cleanedRunMinutes": 12000 } },
+  "intervalHours": 150,
+  "cleanAirIntervalHours": 750,
+  "units": { "1cd1d717ebe8": { "cleanedRunMinutes": 12000, "cleanAirCleanedRunMinutes": 9000 } },
   "updatedAt": 1795260000000
 }
 ```
 
-- `intervalHours`: Erinnerung nach so vielen Betriebsstunden. `0` heißt aus. Vorgabe ist 200.
-- `cleanedRunMinutes`: Stand von `runMinutes` aus `energy.units.<airconId>` bei der letzten Reinigung. Betriebsstunden seit der Reinigung = (`runMinutes` − `cleanedRunMinutes`) / 60. Fehlt eine Anlage, wird ab Aufzeichnungsbeginn gezählt.
-- „Gereinigt“ setzt `cleanedRunMinutes` auf den aktuellen `runMinutes`-Wert der Anlage. Schreiben immer als Lesen – Ändern – Schreiben und andere Anlagen unverändert lassen.
+- Zwei Filterarten mit eigenem Abstand: **Luftfilter** (`intervalHours`, Vorgabe 150) und **Allergen- und Geruchsfilter** zusammen (`cleanAirIntervalHours`, Vorgabe 750). `0` heißt aus.
+- `cleanedRunMinutes` bzw. `cleanAirCleanedRunMinutes`: Stand von `runMinutes` aus `energy.units.<airconId>` bei der letzten Reinigung der jeweiligen Filterart. Betriebsstunden seit der Reinigung = (`runMinutes` − Stand) / 60. Fehlt der Stand, wird ab Aufzeichnungsbeginn gezählt.
+- „Gereinigt“ bzw. „Erledigt“ setzt den Stand der Filterart auf den aktuellen `runMinutes`-Wert der Anlage. Schreiben immer als Lesen – Ändern – Schreiben, andere Anlagen und Felder unverändert lassen.
 
 ### `diagnostics.config` – Diagnose an/aus (lesen und schreiben)
 

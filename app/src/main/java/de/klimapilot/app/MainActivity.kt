@@ -189,6 +189,8 @@ private fun KlimaPilotApp(appVersion: String) {
     var showEnergy by remember { mutableStateOf(false) }
     var energyUnits by remember { mutableStateOf<List<EnergyUnitData>>(emptyList()) }
     var filterConfig by remember { mutableStateOf<FilterConfig?>(null) }
+    // Set by the update popup: the settings open scrolled down to the update card.
+    var settingsFocusUpdate by remember { mutableStateOf(false) }
     var energyPrice by remember { mutableStateOf(EnergyIoBroker.cachedPrice(context)) }
     val controller = remember(context) { ClimateDeviceController(context) }
     var currentAirconState by remember(selectedDevice?.id) { mutableStateOf<AirconState?>(null) }
@@ -698,7 +700,9 @@ private fun KlimaPilotApp(appVersion: String) {
             onFontScale = { updateAccountFontScale(it) },
             energyUnits = energyUnits,
             onFilterChanged = { filterConfig = it },
-            onBack = { showSettings = false }
+            focusUpdate = settingsFocusUpdate,
+            onFocusUpdateDone = { settingsFocusUpdate = false },
+            onBack = { showSettings = false; settingsFocusUpdate = false }
         )
     } else {
         MainScreen(
@@ -766,13 +770,13 @@ private fun KlimaPilotApp(appVersion: String) {
             todayEnergyKwh = energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }
                 ?.let { EnergyMath.todayKwh(it, currentAirconState?.runEnergyKwh, java.time.LocalDateTime.now()) },
             energyPrice = energyPrice,
-            filterDueHours = energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }
-                ?.let { unit -> filterConfig?.takeIf { it.due(unit) }?.hoursSinceCleaning(unit) },
-            onFilterDone = {
+            filtersDue = energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }
+                ?.let { unit -> filterConfig?.dueFilters(unit) }.orEmpty(),
+            onFilterDone = { kind ->
                 energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }?.let { unit ->
-                    FilterIoBroker().update(prefs.getString("iobroker_server", null).orEmpty(), {
-                        it.copy(cleanedRunMinutes = it.cleanedRunMinutes + (unit.airconId to unit.runMinutes))
-                    }) { result, _ -> result?.let { filterConfig = it } }
+                    FilterIoBroker().update(prefs.getString("iobroker_server", null).orEmpty(), { it.cleaned(kind, unit) }) { result, _ ->
+                        result?.let { filterConfig = it }
+                    }
                 }
             }
         )
@@ -813,6 +817,7 @@ private fun KlimaPilotApp(appVersion: String) {
             onOpenSettings = {
                 showManager = false
                 showAccountSettings = false
+                settingsFocusUpdate = true
                 showSettings = true
             }
         )
@@ -892,8 +897,8 @@ private fun MainScreen(
     onShowEnergy: () -> Unit,
     todayEnergyKwh: Double?,
     energyPrice: Double,
-    filterDueHours: Double? = null,
-    onFilterDone: () -> Unit = {}
+    filtersDue: List<Pair<FilterKind, Double>> = emptyList(),
+    onFilterDone: (FilterKind) -> Unit = {}
 ) {
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
@@ -983,7 +988,7 @@ private fun MainScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-        filterDueHours?.let { FilterReminder(it, onFilterDone) }
+        filtersDue.forEach { (kind, hours) -> FilterReminder(kind, hours) { onFilterDone(kind) } }
 
         ClimateProfilesSection(
             deviceId = selectedDeviceId,
@@ -1599,8 +1604,18 @@ private fun SettingsScreen(
     onFontScale: (Float) -> Unit,
     energyUnits: List<EnergyUnitData> = emptyList(),
     onFilterChanged: (FilterConfig) -> Unit = {},
+    focusUpdate: Boolean = false,
+    onFocusUpdateDone: () -> Unit = {},
     onBack: () -> Unit
 ) {
+    val settingsScroll = rememberScrollState()
+    LaunchedEffect(focusUpdate) {
+        if (!focusUpdate) return@LaunchedEffect
+        // The update card sits at the end of the settings; wait for the layout, then scroll down.
+        delay(250)
+        settingsScroll.animateScrollTo(settingsScroll.maxValue)
+        onFocusUpdateDone()
+    }
     var accountExpanded by remember { mutableStateOf(false) }
     var fontSizeExpanded by remember { mutableStateOf(false) }
     var ioBrokerExpanded by remember { mutableStateOf(false) }
@@ -1624,7 +1639,7 @@ private fun SettingsScreen(
         }
         Column(
             modifier = Modifier.weight(1f).fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(settingsScroll)
                 .padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

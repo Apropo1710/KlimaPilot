@@ -36,28 +36,76 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Filter reminder. The ioBroker script counts operating minutes per unit (`runMinutes` in
  * energy.units.<airconId>); this stores, per unit, the count at the last cleaning and the interval.
  */
-internal data class FilterConfig(val intervalHours: Int, val cleanedRunMinutes: Map<String, Long>) {
-    /** Operating hours since the last cleaning (or since recording started). */
-    fun hoursSinceCleaning(unit: EnergyUnitData): Double =
-        ((unit.runMinutes - (cleanedRunMinutes[unit.airconId] ?: 0L)).coerceAtLeast(0L)) / 60.0
+internal enum class FilterKind(val label: String, val reminder: String) {
+    /** Washable air filter at the front. */
+    AIR("Luftfilter", "Luftfilter reinigen"),
+    /** Allergen-clear and deodorizing filter, cleaned together and less often. */
+    CLEAN_AIR("Allergen- und Geruchsfilter", "Allergen- und Geruchsfilter reinigen"),
+}
 
-    fun due(unit: EnergyUnitData): Boolean = intervalHours > 0 && hoursSinceCleaning(unit) >= intervalHours
+internal data class FilterConfig(
+    val intervalHours: Int,
+    val cleanedRunMinutes: Map<String, Long>,
+    val cleanAirIntervalHours: Int = DEFAULT_CLEAN_AIR_INTERVAL_HOURS,
+    val cleanAirCleanedRunMinutes: Map<String, Long> = emptyMap(),
+) {
+    fun interval(kind: FilterKind) = if (kind == FilterKind.AIR) intervalHours else cleanAirIntervalHours
+
+    private fun cleanedAt(kind: FilterKind, airconId: String) =
+        (if (kind == FilterKind.AIR) cleanedRunMinutes else cleanAirCleanedRunMinutes)[airconId] ?: 0L
+
+    /** Operating hours since the last cleaning (or since recording started). */
+    fun hoursSinceCleaning(unit: EnergyUnitData, kind: FilterKind = FilterKind.AIR): Double =
+        (unit.runMinutes - cleanedAt(kind, unit.airconId)).coerceAtLeast(0L) / 60.0
+
+    fun due(unit: EnergyUnitData, kind: FilterKind = FilterKind.AIR): Boolean =
+        interval(kind) > 0 && hoursSinceCleaning(unit, kind) >= interval(kind)
+
+    /** All filters of the unit that are due, with their hours. */
+    fun dueFilters(unit: EnergyUnitData): List<Pair<FilterKind, Double>> =
+        FilterKind.entries.filter { due(unit, it) }.map { it to hoursSinceCleaning(unit, it) }
+
+    fun withInterval(kind: FilterKind, hours: Int) =
+        if (kind == FilterKind.AIR) copy(intervalHours = hours) else copy(cleanAirIntervalHours = hours)
+
+    fun cleaned(kind: FilterKind, unit: EnergyUnitData) =
+        if (kind == FilterKind.AIR) copy(cleanedRunMinutes = cleanedRunMinutes + (unit.airconId to unit.runMinutes))
+        else copy(cleanAirCleanedRunMinutes = cleanAirCleanedRunMinutes + (unit.airconId to unit.runMinutes))
 
     fun toJson(): JSONObject = JSONObject()
         .put("intervalHours", intervalHours)
+        .put("cleanAirIntervalHours", cleanAirIntervalHours)
         .put("units", JSONObject().apply {
-            cleanedRunMinutes.forEach { (id, minutes) -> put(id, JSONObject().put("cleanedRunMinutes", minutes)) }
+            (cleanedRunMinutes.keys + cleanAirCleanedRunMinutes.keys).forEach { id ->
+                put(id, JSONObject().apply {
+                    cleanedRunMinutes[id]?.let { put("cleanedRunMinutes", it) }
+                    cleanAirCleanedRunMinutes[id]?.let { put("cleanAirCleanedRunMinutes", it) }
+                })
+            }
         })
         .put("updatedAt", System.currentTimeMillis())
 
     companion object {
-        const val DEFAULT_INTERVAL_HOURS = 200
+        /** About two weeks of daily use; the manual says "clean every two weeks". */
+        const val DEFAULT_INTERVAL_HOURS = 150
+        /** About three months of daily use. */
+        const val DEFAULT_CLEAN_AIR_INTERVAL_HOURS = 750
         val INTERVALS = listOf(0, 100, 150, 200, 250, 300, 400)
+        val CLEAN_AIR_INTERVALS = listOf(0, 300, 500, 750, 1000, 1500)
+
+        fun intervals(kind: FilterKind) = if (kind == FilterKind.AIR) INTERVALS else CLEAN_AIR_INTERVALS
 
         fun fromJson(o: JSONObject?): FilterConfig {
             val units = o?.optJSONObject("units")
-            val cleaned = units?.keys()?.asSequence()?.associateWith { units.optJSONObject(it)?.optLong("cleanedRunMinutes", 0L) ?: 0L }.orEmpty()
-            return FilterConfig(o?.optInt("intervalHours", DEFAULT_INTERVAL_HOURS) ?: DEFAULT_INTERVAL_HOURS, cleaned)
+            fun cleaned(field: String) = units?.keys()?.asSequence()
+                ?.mapNotNull { id -> units.optJSONObject(id)?.takeIf { it.has(field) }?.let { id to it.optLong(field, 0L) } }
+                ?.toMap().orEmpty()
+            return FilterConfig(
+                intervalHours = o?.optInt("intervalHours", DEFAULT_INTERVAL_HOURS) ?: DEFAULT_INTERVAL_HOURS,
+                cleanedRunMinutes = cleaned("cleanedRunMinutes"),
+                cleanAirIntervalHours = o?.optInt("cleanAirIntervalHours", DEFAULT_CLEAN_AIR_INTERVAL_HOURS) ?: DEFAULT_CLEAN_AIR_INTERVAL_HOURS,
+                cleanAirCleanedRunMinutes = cleaned("cleanAirCleanedRunMinutes"),
+            )
         }
     }
 }
@@ -124,11 +172,11 @@ internal class FilterIoBroker {
 
 /** Small reminder on the unit page, shown only when cleaning is due. */
 @Composable
-internal fun FilterReminder(hours: Double, onDone: () -> Unit) {
+internal fun FilterReminder(kind: FilterKind, hours: Double, onDone: () -> Unit) {
     Surface(color = Color(0xFFFFF3E0), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Filter reinigen", color = Color(0xFF8A4B0F), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(kind.reminder, color = Color(0xFF8A4B0F), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Text("%.0f Betriebsstunden seit der letzten Reinigung".format(java.util.Locale.GERMANY, hours), color = Color(0xFF8A4B0F), fontSize = 12.sp)
             }
             TextButton(onClick = onDone) { Text("Erledigt", color = Color(0xFF8A4B0F), fontWeight = FontWeight.SemiBold) }
@@ -159,7 +207,9 @@ internal fun FilterSettingsCard(units: List<EnergyUnitData>, expanded: Boolean, 
                 Column(Modifier.weight(1f)) {
                     Text("Filter-Erinnerung", color = SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text(
-                        config?.let { if (it.intervalHours == 0) "Aus" else "Alle ${it.intervalHours} Betriebsstunden" } ?: "Nach Betriebsstunden der Anlage",
+                        config?.let { c ->
+                            FilterKind.entries.joinToString(" · ") { k -> if (c.interval(k) == 0) "${k.label} aus" else "${k.label} ${c.interval(k)} Std." }
+                        } ?: "Nach Betriebsstunden der Anlage",
                         color = SMuted, fontSize = 11.sp
                     )
                 }
@@ -167,20 +217,22 @@ internal fun FilterSettingsCard(units: List<EnergyUnitData>, expanded: Boolean, 
             }
             val current = config
             if (expanded && current != null) {
-                SettingRow("Erinnern nach") {
-                    Dropdown(
-                        FilterConfig.INTERVALS.map { if (it == 0) "Aus" else "$it Std." },
-                        FilterConfig.INTERVALS.indexOf(current.intervalHours).coerceAtLeast(0)
-                    ) { index -> save { it.copy(intervalHours = FilterConfig.INTERVALS[index]) } }
-                }
-                units.forEach { unit ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(unit.room.ifBlank { unit.name }, color = SText, fontSize = 14.sp)
-                            Text("%.0f Std. seit der letzten Reinigung".format(java.util.Locale.GERMANY, current.hoursSinceCleaning(unit)), color = SMuted, fontSize = 11.sp)
-                        }
-                        TextButton(onClick = { save { it.copy(cleanedRunMinutes = it.cleanedRunMinutes + (unit.airconId to unit.runMinutes)) } }) {
-                            Text("Gereinigt")
+                FilterKind.entries.forEach { kind ->
+                    Text(kind.label, color = SText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+                    SettingRow("Erinnern nach") {
+                        val options = FilterConfig.intervals(kind)
+                        Dropdown(
+                            options.map { if (it == 0) "Aus" else "$it Std." },
+                            options.indexOf(current.interval(kind)).coerceAtLeast(0)
+                        ) { index -> save { it.withInterval(kind, options[index]) } }
+                    }
+                    units.forEach { unit ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(unit.room.ifBlank { unit.name }, color = SText, fontSize = 14.sp)
+                                Text("%.0f Std. seit der letzten Reinigung".format(java.util.Locale.GERMANY, current.hoursSinceCleaning(unit, kind)), color = SMuted, fontSize = 11.sp)
+                            }
+                            TextButton(onClick = { save { it.cleaned(kind, unit) } }) { Text("Gereinigt") }
                         }
                     }
                 }
