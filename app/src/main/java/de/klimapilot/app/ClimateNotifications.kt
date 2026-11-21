@@ -75,7 +75,6 @@ internal object KlimaNotifications {
     private const val WORK = "klimapilot-hints"
     private const val PREFS = "klimapilot_settings"
     private const val PREF_SENT = "notify_sent_keys"
-    private const val PREF_ASKED = "notify_permission_asked"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -91,9 +90,6 @@ internal object KlimaNotifications {
     fun permissionNeeded(context: Context) = Build.VERSION.SDK_INT >= 33 &&
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
 
-    /** Ask for the permission only once on start; later it can be granted from the settings card. */
-    fun shouldAskOnStart(context: Context) = anyEnabled(context) && permissionNeeded(context) && !prefs(context).getBoolean(PREF_ASKED, false)
-    fun markAsked(context: Context) = prefs(context).edit().putBoolean(PREF_ASKED, true).apply()
 
     /** Starts or stops the periodic check depending on the switches. */
     fun schedule(context: Context) {

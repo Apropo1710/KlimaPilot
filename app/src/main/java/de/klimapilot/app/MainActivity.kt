@@ -82,18 +82,11 @@ private val Muted = Color(0xFF63748A)
 private val TextMain = Color(0xFF172334)
 
 class MainActivity : ComponentActivity() {
-    private val notificationPermission =
-        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AppDiagnostics.init(this)
         // Occasional background check for filter, schedule and reachability hints.
         runCatching { KlimaNotifications.schedule(this) }
-        if (KlimaNotifications.shouldAskOnStart(this) && android.os.Build.VERSION.SDK_INT >= 33) {
-            KlimaNotifications.markAsked(this)
-            notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-        }
         val installedAppVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "Unbekannt"
         setContent {
             val scheme = lightColorScheme(
