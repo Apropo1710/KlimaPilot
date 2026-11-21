@@ -82,9 +82,18 @@ private val Muted = Color(0xFF63748A)
 private val TextMain = Color(0xFF172334)
 
 class MainActivity : ComponentActivity() {
+    private val notificationPermission =
+        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AppDiagnostics.init(this)
+        // Occasional background check for filter, schedule and reachability hints.
+        runCatching { KlimaNotifications.schedule(this) }
+        if (KlimaNotifications.shouldAskOnStart(this) && android.os.Build.VERSION.SDK_INT >= 33) {
+            KlimaNotifications.markAsked(this)
+            notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
         val installedAppVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "Unbekannt"
         setContent {
             val scheme = lightColorScheme(
@@ -1720,8 +1729,6 @@ private fun SettingsScreen(
             EnergyScriptSettingsCard(expanded = energyExpanded, onExpandedChange = { energyExpanded = it })
             var diagnosticsExpanded by remember { mutableStateOf(false) }
             DiagnosticsSettingsCard(expanded = diagnosticsExpanded, onExpandedChange = { diagnosticsExpanded = it })
-            var filterExpanded by remember { mutableStateOf(false) }
-            FilterSettingsCard(energyUnits, expanded = filterExpanded, onExpandedChange = { filterExpanded = it }, onChanged = onFilterChanged)
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     ScheduleSettingsContent()
@@ -1735,6 +1742,11 @@ private fun SettingsScreen(
                 )
             }
         }
+        // For every account: each phone decides on its own notifications; filter state is shared.
+        var filterExpanded by remember { mutableStateOf(false) }
+        FilterSettingsCard(energyUnits, expanded = filterExpanded, onExpandedChange = { filterExpanded = it }, onChanged = onFilterChanged)
+        var notificationsExpanded by remember { mutableStateOf(false) }
+        NotificationSettingsCard(expanded = notificationsExpanded, onExpandedChange = { notificationsExpanded = it })
         ClimatePairingSettingsCard()
         GithubUpdateCard(appVersion)
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
