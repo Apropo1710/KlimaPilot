@@ -897,7 +897,7 @@ private fun MainScreen(
     onShowEnergy: () -> Unit,
     todayEnergyKwh: Double?,
     energyPrice: Double,
-    filtersDue: List<Pair<FilterKind, Double>> = emptyList(),
+    filtersDue: List<Triple<FilterKind, Int, Int>> = emptyList(),
     onFilterDone: (FilterKind) -> Unit = {}
 ) {
     Column(
@@ -988,7 +988,7 @@ private fun MainScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-        filtersDue.forEach { (kind, hours) -> FilterReminder(kind, hours) { onFilterDone(kind) } }
+        filtersDue.forEach { (kind, days, interval) -> FilterReminder(kind, days, interval) { onFilterDone(kind) } }
 
         ClimateProfilesSection(
             deviceId = selectedDeviceId,

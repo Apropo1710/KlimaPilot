@@ -86,8 +86,10 @@ internal data class EnergyUnitData(
     /** Mean outdoor temperature per hour (31 days) and per day (kept), in °C. */
     val outdoorHourly: Map<String, Double> = emptyMap(),
     val outdoorDaily: Map<String, Double> = emptyMap(),
-    /** Operating minutes counted by the script (for the filter reminder). */
+    /** Operating minutes counted by the script. */
     val runMinutes: Long = 0L,
+    /** Calendar days on which the unit ran at least once (for the filter reminder). */
+    val runDays: Int = 0,
 )
 
 /** Turns the hourly and daily values the ioBroker script records into chart bars. */
@@ -112,6 +114,7 @@ internal object EnergyMath {
             outdoorHourly = map("outdoorHourly"),
             outdoorDaily = map("outdoorDaily"),
             runMinutes = json.optLong("runMinutes", 0L),
+            runDays = json.optInt("runDays", 0),
         )
     }
 

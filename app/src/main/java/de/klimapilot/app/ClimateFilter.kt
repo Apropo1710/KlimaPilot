@@ -10,7 +10,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,74 +42,87 @@ import java.util.concurrent.atomic.AtomicBoolean
  * energy.units.<airconId>); this stores, per unit, the count at the last cleaning and the interval.
  */
 internal enum class FilterKind(val label: String, val reminder: String) {
-    /** Washable air filter at the front. */
+    /** Washable air filter at the front: interval in weeks. */
     AIR("Luftfilter", "Luftfilter reinigen"),
-    /** Allergen-clear and deodorizing filter, cleaned together and less often. */
+    /** Allergen-clear and deodorizing filter, cleaned together and less often: interval in months. */
     CLEAN_AIR("Allergen- und Geruchsfilter", "Allergen- und Geruchsfilter reinigen"),
 }
 
+/**
+ * Filter reminder settings. Intervals are given like in the manual (weeks / months) but counted in
+ * operating days: only calendar days on which the unit ran (`runDays` from the ioBroker script).
+ */
 internal data class FilterConfig(
-    val intervalHours: Int,
-    val cleanedRunMinutes: Map<String, Long>,
-    val cleanAirIntervalHours: Int = DEFAULT_CLEAN_AIR_INTERVAL_HOURS,
-    val cleanAirCleanedRunMinutes: Map<String, Long> = emptyMap(),
+    val airIntervalWeeks: Int = DEFAULT_AIR_WEEKS,
+    val cleanAirIntervalMonths: Int = DEFAULT_CLEAN_AIR_MONTHS,
+    val airCleanedRunDays: Map<String, Int> = emptyMap(),
+    val cleanAirCleanedRunDays: Map<String, Int> = emptyMap(),
 ) {
-    fun interval(kind: FilterKind) = if (kind == FilterKind.AIR) intervalHours else cleanAirIntervalHours
+    /** Interval in operating days, 0 = off. */
+    fun intervalDays(kind: FilterKind) = if (kind == FilterKind.AIR) airIntervalWeeks * 7 else cleanAirIntervalMonths * 30
 
-    private fun cleanedAt(kind: FilterKind, airconId: String) =
-        (if (kind == FilterKind.AIR) cleanedRunMinutes else cleanAirCleanedRunMinutes)[airconId] ?: 0L
+    fun intervalLabel(kind: FilterKind) = when {
+        intervalDays(kind) == 0 -> "aus"
+        kind == FilterKind.AIR -> if (airIntervalWeeks == 1) "1 Woche" else "$airIntervalWeeks Wochen"
+        else -> if (cleanAirIntervalMonths == 1) "1 Monat" else "$cleanAirIntervalMonths Monate"
+    }
 
-    /** Operating hours since the last cleaning (or since recording started). */
-    fun hoursSinceCleaning(unit: EnergyUnitData, kind: FilterKind = FilterKind.AIR): Double =
-        (unit.runMinutes - cleanedAt(kind, unit.airconId)).coerceAtLeast(0L) / 60.0
+    /** Operating days since the last cleaning (or since recording started). */
+    fun daysSinceCleaning(unit: EnergyUnitData, kind: FilterKind = FilterKind.AIR): Int =
+        (unit.runDays - ((if (kind == FilterKind.AIR) airCleanedRunDays else cleanAirCleanedRunDays)[unit.airconId] ?: 0)).coerceAtLeast(0)
 
     fun due(unit: EnergyUnitData, kind: FilterKind = FilterKind.AIR): Boolean =
-        interval(kind) > 0 && hoursSinceCleaning(unit, kind) >= interval(kind)
+        intervalDays(kind) > 0 && daysSinceCleaning(unit, kind) >= intervalDays(kind)
 
-    /** All filters of the unit that are due, with their hours. */
-    fun dueFilters(unit: EnergyUnitData): List<Pair<FilterKind, Double>> =
-        FilterKind.entries.filter { due(unit, it) }.map { it to hoursSinceCleaning(unit, it) }
+    /** All filters of the unit that are due, with their operating days and interval. */
+    fun dueFilters(unit: EnergyUnitData): List<Triple<FilterKind, Int, Int>> =
+        FilterKind.entries.filter { due(unit, it) }.map { Triple(it, daysSinceCleaning(unit, it), intervalDays(it)) }
 
-    fun withInterval(kind: FilterKind, hours: Int) =
-        if (kind == FilterKind.AIR) copy(intervalHours = hours) else copy(cleanAirIntervalHours = hours)
+    fun withInterval(kind: FilterKind, value: Int) =
+        if (kind == FilterKind.AIR) copy(airIntervalWeeks = value) else copy(cleanAirIntervalMonths = value)
 
     fun cleaned(kind: FilterKind, unit: EnergyUnitData) =
-        if (kind == FilterKind.AIR) copy(cleanedRunMinutes = cleanedRunMinutes + (unit.airconId to unit.runMinutes))
-        else copy(cleanAirCleanedRunMinutes = cleanAirCleanedRunMinutes + (unit.airconId to unit.runMinutes))
+        if (kind == FilterKind.AIR) copy(airCleanedRunDays = airCleanedRunDays + (unit.airconId to unit.runDays))
+        else copy(cleanAirCleanedRunDays = cleanAirCleanedRunDays + (unit.airconId to unit.runDays))
 
     fun toJson(): JSONObject = JSONObject()
-        .put("intervalHours", intervalHours)
-        .put("cleanAirIntervalHours", cleanAirIntervalHours)
+        .put("airIntervalWeeks", airIntervalWeeks)
+        .put("cleanAirIntervalMonths", cleanAirIntervalMonths)
         .put("units", JSONObject().apply {
-            (cleanedRunMinutes.keys + cleanAirCleanedRunMinutes.keys).forEach { id ->
+            (airCleanedRunDays.keys + cleanAirCleanedRunDays.keys).forEach { id ->
                 put(id, JSONObject().apply {
-                    cleanedRunMinutes[id]?.let { put("cleanedRunMinutes", it) }
-                    cleanAirCleanedRunMinutes[id]?.let { put("cleanAirCleanedRunMinutes", it) }
+                    airCleanedRunDays[id]?.let { put("airCleanedRunDays", it) }
+                    cleanAirCleanedRunDays[id]?.let { put("cleanAirCleanedRunDays", it) }
                 })
             }
         })
         .put("updatedAt", System.currentTimeMillis())
 
     companion object {
-        /** About two weeks of daily use; the manual says "clean every two weeks". */
-        const val DEFAULT_INTERVAL_HOURS = 150
-        /** About three months of daily use. */
-        const val DEFAULT_CLEAN_AIR_INTERVAL_HOURS = 750
-        val INTERVALS = listOf(0, 100, 150, 200, 250, 300, 400)
-        val CLEAN_AIR_INTERVALS = listOf(0, 300, 500, 750, 1000, 1500)
+        /** Manual: clean the air filter every two weeks. */
+        const val DEFAULT_AIR_WEEKS = 2
+        /** Allergen and deodorizing filter: "periodically"; about a quarter of a year. */
+        const val DEFAULT_CLEAN_AIR_MONTHS = 3
+        private val AIR_OPTIONS = listOf(0, 1, 2, 3, 4)
+        private val CLEAN_AIR_OPTIONS = listOf(0, 1, 2, 3, 4, 5, 6)
 
-        fun intervals(kind: FilterKind) = if (kind == FilterKind.AIR) INTERVALS else CLEAN_AIR_INTERVALS
+        fun options(kind: FilterKind) = if (kind == FilterKind.AIR) AIR_OPTIONS else CLEAN_AIR_OPTIONS
+        fun optionLabel(kind: FilterKind, value: Int) = when {
+            value == 0 -> "Aus"
+            kind == FilterKind.AIR -> if (value == 1) "1 Woche" else "$value Wochen"
+            else -> if (value == 1) "1 Monat" else "$value Monate"
+        }
 
         fun fromJson(o: JSONObject?): FilterConfig {
             val units = o?.optJSONObject("units")
             fun cleaned(field: String) = units?.keys()?.asSequence()
-                ?.mapNotNull { id -> units.optJSONObject(id)?.takeIf { it.has(field) }?.let { id to it.optLong(field, 0L) } }
+                ?.mapNotNull { id -> units.optJSONObject(id)?.takeIf { it.has(field) }?.let { id to it.optInt(field, 0) } }
                 ?.toMap().orEmpty()
             return FilterConfig(
-                intervalHours = o?.optInt("intervalHours", DEFAULT_INTERVAL_HOURS) ?: DEFAULT_INTERVAL_HOURS,
-                cleanedRunMinutes = cleaned("cleanedRunMinutes"),
-                cleanAirIntervalHours = o?.optInt("cleanAirIntervalHours", DEFAULT_CLEAN_AIR_INTERVAL_HOURS) ?: DEFAULT_CLEAN_AIR_INTERVAL_HOURS,
-                cleanAirCleanedRunMinutes = cleaned("cleanAirCleanedRunMinutes"),
+                airIntervalWeeks = o?.optInt("airIntervalWeeks", DEFAULT_AIR_WEEKS) ?: DEFAULT_AIR_WEEKS,
+                cleanAirIntervalMonths = o?.optInt("cleanAirIntervalMonths", DEFAULT_CLEAN_AIR_MONTHS) ?: DEFAULT_CLEAN_AIR_MONTHS,
+                airCleanedRunDays = cleaned("airCleanedRunDays"),
+                cleanAirCleanedRunDays = cleaned("cleanAirCleanedRunDays"),
             )
         }
     }
@@ -172,12 +190,12 @@ internal class FilterIoBroker {
 
 /** Small reminder on the unit page, shown only when cleaning is due. */
 @Composable
-internal fun FilterReminder(kind: FilterKind, hours: Double, onDone: () -> Unit) {
+internal fun FilterReminder(kind: FilterKind, days: Int, intervalDays: Int, onDone: () -> Unit) {
     Surface(color = Color(0xFFFFF3E0), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(kind.reminder, color = Color(0xFF8A4B0F), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text("%.0f Betriebsstunden seit der letzten Reinigung".format(java.util.Locale.GERMANY, hours), color = Color(0xFF8A4B0F), fontSize = 12.sp)
+                Text("$days von $intervalDays Betriebstagen seit der letzten Reinigung", color = Color(0xFF8A4B0F), fontSize = 12.sp)
             }
             TextButton(onClick = onDone) { Text("Erledigt", color = Color(0xFF8A4B0F), fontWeight = FontWeight.SemiBold) }
         }
@@ -193,6 +211,7 @@ internal fun FilterSettingsCard(units: List<EnergyUnitData>, expanded: Boolean, 
     var config by remember { mutableStateOf<FilterConfig?>(null) }
     var status by remember { mutableStateOf("") }
     var refresh by remember { mutableIntStateOf(0) }
+    var showInfo by remember { mutableStateOf(false) }
     LaunchedEffect(expanded, refresh) {
         if (expanded) io.load(address) { result, error -> if (result != null) { config = result; status = "" } else status = error.orEmpty() }
     }
@@ -208,10 +227,13 @@ internal fun FilterSettingsCard(units: List<EnergyUnitData>, expanded: Boolean, 
                     Text("Filter-Erinnerung", color = SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text(
                         config?.let { c ->
-                            FilterKind.entries.joinToString(" · ") { k -> if (c.interval(k) == 0) "${k.label} aus" else "${k.label} ${c.interval(k)} Std." }
+                            FilterKind.entries.joinToString(" · ") { k -> "${k.label} ${c.intervalLabel(k)}" }
                         } ?: "Nach Betriebsstunden der Anlage",
                         color = SMuted, fontSize = 11.sp
                     )
+                }
+                if (expanded) Box(Modifier.padding(end = 8.dp).size(26.dp).clip(CircleShape).clickable { showInfo = true }, contentAlignment = Alignment.Center) {
+                    Text("ⓘ", color = SMuted, fontSize = 15.sp)
                 }
                 Text(if (expanded) "⌃" else "⌄", color = SMuted, fontSize = 20.sp)
             }
@@ -220,17 +242,22 @@ internal fun FilterSettingsCard(units: List<EnergyUnitData>, expanded: Boolean, 
                 FilterKind.entries.forEach { kind ->
                     Text(kind.label, color = SText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
                     SettingRow("Erinnern nach") {
-                        val options = FilterConfig.intervals(kind)
+                        val options = FilterConfig.options(kind)
+                        val currentValue = if (kind == FilterKind.AIR) current.airIntervalWeeks else current.cleanAirIntervalMonths
                         Dropdown(
-                            options.map { if (it == 0) "Aus" else "$it Std." },
-                            options.indexOf(current.interval(kind)).coerceAtLeast(0)
+                            options.map { FilterConfig.optionLabel(kind, it) },
+                            options.indexOf(currentValue).coerceAtLeast(0)
                         ) { index -> save { it.withInterval(kind, options[index]) } }
                     }
                     units.forEach { unit ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(unit.room.ifBlank { unit.name }, color = SText, fontSize = 14.sp)
-                                Text("%.0f Std. seit der letzten Reinigung".format(java.util.Locale.GERMANY, current.hoursSinceCleaning(unit, kind)), color = SMuted, fontSize = 11.sp)
+                                Text(
+                                    if (current.intervalDays(kind) > 0) "${current.daysSinceCleaning(unit, kind)} von ${current.intervalDays(kind)} Betriebstagen"
+                                    else "${current.daysSinceCleaning(unit, kind)} Betriebstage seit der letzten Reinigung",
+                                    color = SMuted, fontSize = 11.sp
+                                )
                             }
                             TextButton(onClick = { save { it.cleaned(kind, unit) } }) { Text("Gereinigt") }
                         }
@@ -239,5 +266,19 @@ internal fun FilterSettingsCard(units: List<EnergyUnitData>, expanded: Boolean, 
             }
             if (expanded && status.isNotBlank()) Text(status, color = SMuted, fontSize = 11.sp)
         }
+    }
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { showInfo = false },
+            confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } },
+            title = { Text("Filter-Erinnerung") },
+            text = {
+                Text(
+                    "Die Abstände entsprechen dem Handbuch: Luftfilter alle zwei Wochen, Allergen- und Geruchsfilter regelmäßig " +
+                        "(hier alle drei Monate). Gezählt werden nur Betriebstage – Tage, an denen die Anlage lief. Wochen oder Monate, " +
+                        "in denen sie aus ist, zählen nicht mit. Den Allergenfilter etwa einmal im Jahr austauschen."
+                )
+            }
+        )
     }
 }

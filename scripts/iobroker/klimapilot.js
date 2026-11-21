@@ -279,8 +279,15 @@ async function pollEnergy(unit) {
         const stat = decodeStat(contents.airconStat);
         const value = stat.runEnergyKwh;
         if (value === null) throw new Error('Anlage meldet keinen Energiezähler');
-        // Betriebsstunden (für die Filter-Erinnerung in der App) und Außentemperatur (Mittel je Stunde und Tag).
-        if (stat.power) data.runMinutes = (data.runMinutes || 0) + POLL_MINUTES;
+        // Betriebszeit (Betriebstage für die Filter-Erinnerung in der App) und Außentemperatur (Mittel je Stunde und Tag).
+        if (stat.power) {
+            data.runMinutes = (data.runMinutes || 0) + POLL_MINUTES;
+            // Betriebstage: jeder Kalendertag, an dem die Anlage mindestens einmal lief, zählt einmal.
+            if (data.lastRunDay !== dayKey(now)) {
+                data.runDays = (data.runDays || 0) + 1;
+                data.lastRunDay = dayKey(now);
+            }
+        }
         if (typeof stat.outdoorTemp === 'number') {
             for (const [map, count, key] of [['outdoorHourly', 'outdoorHourlyN', hourKey(now)], ['outdoorDaily', 'outdoorDailyN', dayKey(now)]]) {
                 data[map] = data[map] || {};

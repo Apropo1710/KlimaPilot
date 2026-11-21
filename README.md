@@ -115,6 +115,8 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
   "totalKwh": 3.5,
   "lastRunKwh": 0.75,
   "runMinutes": 12840,
+  "runDays": 52,
+  "lastRunDay": "2026-11-21",
   "outdoorHourly": { "2026-11-21T10": 3.4, "2026-11-21T11": 3.9 },
   "outdoorDaily": { "2026-11-20": 1.8, "2026-11-21": 3.1 },
   "outdoorHourlyN": { "2026-11-21T11": 9 },
@@ -127,7 +129,8 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 
 - Schlüssel in Ortszeit von ioBroker: `hourly` als `JJJJ-MM-TTTHH` (31 Tage aufbewahrt), `daily` als `JJJJ-MM-TT` (unbegrenzt), Werte in kWh.
 - Der Zähler der Anlage meldet nur 0,25-kWh-Schritte. Jeder Schritt wird anteilig auf die Stunden verteilt, in denen die Anlage seit dem letzten Schritt lief. `daily` ist genau, einzelne Stunden sind angenähert.
-- `runMinutes`: Betriebsminuten der Anlage, gezählt in 5-Minuten-Schritten, solange sie eingeschaltet ist. Grundlage der Filter-Erinnerung.
+- `runMinutes`: Betriebsminuten der Anlage, gezählt in 5-Minuten-Schritten, solange sie eingeschaltet ist.
+- `runDays`: Betriebstage, also Kalendertage, an denen die Anlage mindestens einmal lief. Grundlage der Filter-Erinnerung. `lastRunDay` (`JJJJ-MM-TT`) ist ein interner Zwischenstand dazu.
 - `outdoorHourly` (31 Tage) und `outdoorDaily` (unbegrenzt): mittlere Außentemperatur in °C, gemessen vom Außenfühler der Anlage. Die Werte gibt es auch, wenn die Anlage aus ist.
 - `lastRunKwh`, `pendingSlots`, `outdoorHourlyN` und `outdoorDailyN` sind interne Zwischenstände des Skripts. `lastError` fehlt, wenn die letzte Ablesung geklappt hat.
 
@@ -191,16 +194,20 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 
 ```json
 {
-  "intervalHours": 150,
-  "cleanAirIntervalHours": 750,
-  "units": { "1cd1d717ebe8": { "cleanedRunMinutes": 12000, "cleanAirCleanedRunMinutes": 9000 } },
+  "airIntervalWeeks": 2,
+  "cleanAirIntervalMonths": 3,
+  "units": { "1cd1d717ebe8": { "airCleanedRunDays": 40, "cleanAirCleanedRunDays": 12 } },
   "updatedAt": 1795260000000
 }
 ```
 
-- Zwei Filterarten mit eigenem Abstand: **Luftfilter** (`intervalHours`, Vorgabe 150) und **Allergen- und Geruchsfilter** zusammen (`cleanAirIntervalHours`, Vorgabe 750). `0` heißt aus.
-- `cleanedRunMinutes` bzw. `cleanAirCleanedRunMinutes`: Stand von `runMinutes` aus `energy.units.<airconId>` bei der letzten Reinigung der jeweiligen Filterart. Betriebsstunden seit der Reinigung = (`runMinutes` − Stand) / 60. Fehlt der Stand, wird ab Aufzeichnungsbeginn gezählt.
-- „Gereinigt“ bzw. „Erledigt“ setzt den Stand der Filterart auf den aktuellen `runMinutes`-Wert der Anlage. Schreiben immer als Lesen – Ändern – Schreiben, andere Anlagen und Felder unverändert lassen.
+- Zwei Filterarten mit eigenem Abstand, angegeben wie im Handbuch:
+  - **Luftfilter** in Wochen (`airIntervalWeeks`, 0–4, Vorgabe 2)
+  - **Allergen- und Geruchsfilter** zusammen in Monaten (`cleanAirIntervalMonths`, 0–6, Vorgabe 3)
+  - `0` heißt aus.
+- Gezählt werden **Betriebstage**: `runDays` aus `energy.units.<airconId>`, also nur Kalendertage, an denen die Anlage lief. Eine Woche entspricht 7, ein Monat 30 Betriebstagen.
+- `airCleanedRunDays` bzw. `cleanAirCleanedRunDays`: Stand von `runDays` bei der letzten Reinigung der jeweiligen Filterart. Betriebstage seit der Reinigung = `runDays` − Stand. Fehlt der Stand, wird ab Aufzeichnungsbeginn gezählt.
+- „Gereinigt“ bzw. „Erledigt“ setzt den Stand auf den aktuellen `runDays`-Wert der Anlage. Schreiben immer als Lesen – Ändern – Schreiben, andere Anlagen und Felder unverändert lassen.
 
 ### `diagnostics.config` – Diagnose an/aus (lesen und schreiben)
 
