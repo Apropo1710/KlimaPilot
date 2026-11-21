@@ -108,7 +108,8 @@ internal object AppDiagnostics {
         return (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(DiagEntry::fromJson) }
     }
 
-    fun clearLocal() { prefs()?.edit()?.remove("entries")?.apply() }
+    @Synchronized
+    fun clearLocal() { prefs()?.edit()?.remove("entries")?.commit() }
 
     /** Called by every status poll; only changes are logged. */
     @Synchronized
@@ -218,6 +219,8 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
     var status by remember { mutableStateOf("") }
     var refresh by remember { mutableIntStateOf(0) }
     var showInfo by remember { mutableStateOf(false) }
+    // The phone's own entries are not Compose state; this counter makes the list re-read them.
+    var localVersion by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(expanded, refresh) {
         if (!expanded) return@LaunchedEffect
@@ -230,7 +233,7 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
             } else status = error.orEmpty()
         }
     }
-    val entries = (remote + AppDiagnostics.entries()).sortedByDescending { it.at }
+    val entries = remember(remote, localVersion, refresh) { (remote + AppDiagnostics.entries()).sortedByDescending { it.at } }
 
     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE3EEF7))) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -284,11 +287,14 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
                     OutlinedButton(
                         onClick = {
                             AppDiagnostics.clearLocal()
+                            remote = emptyList()
+                            localVersion++
+                            status = "Protokoll geleert."
                             io.clear(address) { result, error ->
                                 remote = result?.entries ?: remote
-                                status = error.orEmpty()
+                                localVersion++
+                                status = error ?: "Protokoll geleert."
                             }
-                            remote = emptyList()
                         },
                         modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
                     ) { Text("Leeren", fontSize = 12.sp) }
