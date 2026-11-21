@@ -59,10 +59,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 
 /** The kinds of Android notifications; each can be switched off in the settings. */
-internal enum class HintKind(val pref: String, val label: String) {
-    FILTER("notify_filter", "Filter fällig"),
-    SCHEDULE("notify_schedule", "Zeitplan fehlgeschlagen"),
-    OFFLINE("notify_offline", "Anlage länger nicht erreichbar"),
+internal enum class HintKind(val pref: String, val label: String, val repeatDaily: Boolean) {
+    /** Lasting states: shown again once a day while they last, also after being swiped away. */
+    FILTER("notify_filter", "Filter fällig", true),
+    /** One-off event: shown once. */
+    SCHEDULE("notify_schedule", "Zeitplan fehlgeschlagen", false),
+    OFFLINE("notify_offline", "Anlage länger nicht erreichbar", true),
 }
 
 /**
@@ -74,7 +76,6 @@ internal object KlimaNotifications {
     private const val CHANNEL = "hints"
     private const val WORK = "klimapilot-hints"
     private const val PREFS = "klimapilot_settings"
-    private const val PREF_SENT = "notify_sent_keys"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -109,11 +110,53 @@ internal object KlimaNotifications {
         }
     }
 
-    /** Shows the notification unless this finding (key) was already reported. */
-    fun notifyOnce(context: Context, key: String, title: String, text: String) {
-        val prefs = prefs(context)
-        val sent = prefs.getStringSet(PREF_SENT, emptySet()).orEmpty()
-        if (key in sent || permissionNeeded(context)) return
+    private const val PREF_SHOWN = "notify_shown_days"
+
+    private fun shownDays(context: Context): MutableMap<String, Long> {
+        val raw = prefs(context).getString(PREF_SHOWN, null) ?: return mutableMapOf()
+        val json = runCatching { JSONObject(raw) }.getOrNull() ?: return mutableMapOf()
+        return json.keys().asSequence().associateWith { json.optLong(it) }.toMutableMap()
+    }
+
+    private fun saveShownDays(context: Context, map: Map<String, Long>) {
+        val newest = map.entries.sortedByDescending { it.value }.take(200)
+        prefs(context).edit().putString(PREF_SHOWN, JSONObject().apply { newest.forEach { put(it.key, it.value) } }.toString()).apply()
+    }
+
+    /**
+     * Shows the findings of one check. Lasting states (filter due, unit unreachable) come again
+     * once a day while they last – unless the notification is still visible; one-off events once.
+     * Notifications of states that are over (filter cleaned, unit back) are removed.
+     */
+    fun show(context: Context, findings: List<HintFinding>) {
+        val today = java.time.LocalDate.now().toEpochDay()
+        val shown = shownDays(context)
+        val manager = NotificationManagerCompat.from(context)
+        val visible = runCatching {
+            context.getSystemService(NotificationManager::class.java).activeNotifications.map { it.id }.toSet()
+        }.getOrDefault(emptySet())
+        val current = findings.map { it.key }.toSet()
+        // Over: remove lasting notifications whose state no longer holds.
+        shown.keys.filter { key -> key !in current && HintKind.entries.any { it.repeatDaily && key.startsWith(it.name + "|") } }.forEach { key ->
+            runCatching { manager.cancel(key.hashCode()) }
+            shown.remove(key)
+        }
+        findings.filter { enabled(context, it.kind) }.forEach { finding ->
+            val storeKey = finding.kind.name + "|" + finding.key
+            val last = shown[storeKey]
+            val due = when {
+                last == null -> true
+                !finding.kind.repeatDaily -> false
+                storeKey.hashCode() in visible -> false
+                else -> last < today
+            }
+            if (due && notify(context, storeKey, finding.title, finding.text)) shown[storeKey] = today
+        }
+        saveShownDays(context, shown)
+    }
+
+    private fun notify(context: Context, key: String, title: String, text: String): Boolean {
+        if (permissionNeeded(context)) return false
         ensureChannel(context)
         val open = PendingIntent.getActivity(
             context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
@@ -127,9 +170,7 @@ internal object KlimaNotifications {
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()
-        runCatching { NotificationManagerCompat.from(context).notify(key.hashCode(), notification) }
-        // Keep the list of reported findings short; old keys are never seen again anyway.
-        prefs.edit().putStringSet(PREF_SENT, (sent + key).toList().takeLast(200).toSet()).apply()
+        return runCatching { NotificationManagerCompat.from(context).notify(key.hashCode(), notification) }.isSuccess
     }
 }
 
@@ -149,9 +190,7 @@ internal class HintWorker(context: Context, params: WorkerParameters) : Coroutin
         if (address.isBlank()) return Result.success()
         // Not at home or ioBroker busy: simply try again at the next run.
         val snapshot = withTimeoutOrNull(25_000) { fetch(address) } ?: return Result.success()
-        HintRules.findings(snapshot, System.currentTimeMillis()).forEach { finding ->
-            if (KlimaNotifications.enabled(context, finding.kind)) KlimaNotifications.notifyOnce(context, finding.key, finding.title, finding.text)
-        }
+        KlimaNotifications.show(context, HintRules.findings(snapshot, System.currentTimeMillis()))
         return Result.success()
     }
 
@@ -301,7 +340,7 @@ internal fun NotificationSettingsCard(expanded: Boolean, onExpandedChange: (Bool
             text = {
                 Text(
                     "Etwa alle zwei Stunden fragt die App im Hintergrund kurz bei ioBroker nach – nur im WLAN, gebündelt von Android, " +
-                        "ohne dauerhafte Verbindung. Jeder Hinweis kommt einmal. Unterwegs ist ioBroker nicht erreichbar; " +
+                        "ohne dauerhafte Verbindung. Fällige Filter und nicht erreichbare Anlagen werden einmal am Tag erneut gemeldet, solange sie bestehen – auch wenn du die Meldung weggewischt hast; fehlgeschlagene Zeitpläne nur einmal. Unterwegs ist ioBroker nicht erreichbar; " +
                         "die Prüfung holt das zu Hause nach. Eine Anlage gilt als nicht erreichbar, wenn ioBroker sie seit über einer Stunde nicht abfragen konnte."
                 )
             }
