@@ -4,6 +4,9 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.key
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -162,6 +165,15 @@ internal object EnergyMath {
         EnergyPeriod.YEAR -> anchor.plusYears(steps)
         EnergyPeriod.ALL -> anchor
     }
+
+    /** How many periods the one containing [anchor] lies before the one containing [today] (0 = current). */
+    fun stepsBack(period: EnergyPeriod, anchor: LocalDate, today: LocalDate): Long = when (period) {
+        EnergyPeriod.DAY -> java.time.temporal.ChronoUnit.DAYS.between(anchor, today)
+        EnergyPeriod.WEEK -> java.time.temporal.ChronoUnit.WEEKS.between(weekStart(anchor), weekStart(today))
+        EnergyPeriod.MONTH -> java.time.temporal.ChronoUnit.MONTHS.between(anchor.withDayOfMonth(1), today.withDayOfMonth(1))
+        EnergyPeriod.YEAR -> (today.year - anchor.year).toLong()
+        EnergyPeriod.ALL -> 0L
+    }.coerceAtLeast(0L)
 
     /** Whether the period containing [anchor] lies before the one containing [today]. */
     fun isBeforeCurrent(period: EnergyPeriod, anchor: LocalDate, today: LocalDate): Boolean = when (period) {
@@ -524,18 +536,38 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     text = {
                         Text(
                             "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. " +
-                                "Mit ‹ › blättern, den Titel antippen springt zurück zum aktuellen Zeitraum.\n\n" +
-                                "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten, einzelne Stunden sind daher grob. " +
+                                "Seitlich wischen oder mit ‹ › blättern, den Titel antippen springt zurück zum aktuellen Zeitraum.\n\n" +
+                                "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten; jeder Schritt wird auf die Laufzeit davor verteilt. " +
                                 "Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft. Kosten ohne Grundgebühr; " +
                                 "der Strompreis gilt für beide Smartphones."
                         )
                     }
                 )
-                EnergyChart(bars.map { it.label to it.kWh * factor }, unitLabel) { index ->
-                    val target = bars.getOrNull(index)?.drillDown ?: return@EnergyChart
-                    val finer = EnergyMath.finer(period) ?: return@EnergyChart
-                    period = finer
-                    anchor = target
+                // Swipe sideways through the periods; the last page is the current one (no future pages).
+                key(period) {
+                    val pageCount = if (period == EnergyPeriod.ALL) 1 else ENERGY_PAGES
+                    val last = pageCount - 1
+                    fun pageOf(date: LocalDate) = (last - EnergyMath.stepsBack(period, date, today).coerceAtMost(last.toLong())).toInt()
+                    fun anchorOf(page: Int) = if (period == EnergyPeriod.ALL) today else EnergyMath.shift(period, today, (page - last).toLong())
+                    val pager = rememberPagerState(initialPage = pageOf(anchor)) { pageCount }
+                    LaunchedEffect(pager.settledPage) {
+                        val settled = anchorOf(pager.settledPage)
+                        if (pageOf(anchor) != pager.settledPage) anchor = settled
+                    }
+                    LaunchedEffect(anchor) {
+                        val target = pageOf(anchor)
+                        if (pager.currentPage != target) pager.animateScrollToPage(target)
+                    }
+                    HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), pageSpacing = 16.dp) { page ->
+                        val pageAnchor = anchorOf(page)
+                        val pageBars = if (pageAnchor == anchor) bars else EnergyMath.bars(period, shown, pageAnchor, today)
+                        EnergyChart(pageBars.map { it.label to it.kWh * factor }, unitLabel) { index ->
+                            val target = pageBars.getOrNull(index)?.drillDown ?: return@EnergyChart
+                            val finer = EnergyMath.finer(period) ?: return@EnergyChart
+                            period = finer
+                            anchor = target
+                        }
+                    }
                 }
                 if (period == EnergyPeriod.DAY && anchor.isBefore(today.minusDays(30))) {
                     Text("Stundenwerte werden nur für die letzten 31 Tage aufbewahrt.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -576,6 +608,8 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
         }
     }
 }
+
+private const val ENERGY_PAGES = 4000
 
 @Composable
 private fun EnergyChart(values: List<Pair<String, Double>>, unitLabel: String, onBarTap: (Int) -> Unit) {
