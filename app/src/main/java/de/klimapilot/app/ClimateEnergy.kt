@@ -3,6 +3,7 @@ package de.klimapilot.app
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -456,6 +457,8 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     var showInfo by remember { mutableStateOf(false) }
     val today = LocalDate.now()
     var anchor by remember { mutableStateOf(today) }
+    // Periods left by tapping a bar; the back gesture returns to them one level at a time.
+    var drillStack by remember { mutableStateOf(listOf<EnergyPeriod>()) }
     var inEuro by remember { mutableStateOf(false) }
     // null = all units
     var selectedUnit by remember { mutableStateOf(selectedDevice?.wfRacAirconId?.takeIf { it.isNotBlank() }) }
@@ -487,6 +490,10 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     val unitLabel = if (inEuro) "€" else "kWh"
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BackHandler(enabled = drillStack.isNotEmpty()) {
+            period = drillStack.last()
+            drillStack = drillStack.dropLast(1)
+        }
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -501,7 +508,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     EnergyPeriod.entries.forEach { p ->
-                        EnergyPill(p.label, period == p, Modifier.weight(1f)) { period = p }
+                        EnergyPill(p.label, period == p, Modifier.weight(1f)) { period = p; drillStack = emptyList() }
                     }
                 }
                 if (period != EnergyPeriod.ALL) {
@@ -535,7 +542,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     title = { Text("Energieansicht") },
                     text = {
                         Text(
-                            "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. " +
+                            "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. Zurück-Geste oder Antippen von Woche, Monat oder Jahr geht wieder höher. " +
                                 "Seitlich wischen oder mit ‹ › blättern, den Titel antippen springt zurück zum aktuellen Zeitraum.\n\n" +
                                 "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten; jeder Schritt wird auf die Laufzeit davor verteilt. " +
                                 "Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft. Kosten ohne Grundgebühr; " +
@@ -564,6 +571,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                         EnergyChart(pageBars.map { it.label to it.kWh * factor }, unitLabel) { index ->
                             val target = pageBars.getOrNull(index)?.drillDown ?: return@EnergyChart
                             val finer = EnergyMath.finer(period) ?: return@EnergyChart
+                            drillStack = drillStack + period
                             period = finer
                             anchor = target
                         }
