@@ -155,7 +155,10 @@ internal class IoBrokerSocket(
             return
         }
         if (wasReady) notifyHandlers("disconnect", emptyArray())
-        else notifyHandlers("connect_error", arrayOf(message))
+        else {
+            AppDiagnostics.log("ioBroker", "nicht erreichbar", query.removePrefix("name=") + ": " + message)
+            notifyHandlers("connect_error", arrayOf(message))
+        }
         if (!stopped) {
             val wait = reconnectDelay
             reconnectDelay = (reconnectDelay * 2).coerceAtMost(10_000L)

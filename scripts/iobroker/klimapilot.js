@@ -2,7 +2,7 @@
  * KlimaPilot – ioBroker-Skript (JavaScript-Adapter)
  *
  * Wird von KlimaPilot eingerichtet und aktualisiert (Einstellungen → ioBroker-Skript).
- * Es erledigt zwei Dinge, auch wenn kein Smartphone zu Hause oder die App geschlossen ist:
+ * Es erledigt folgende Dinge, auch wenn kein Smartphone zu Hause oder die App geschlossen ist:
  *
  * 1. Energieaufzeichnung: liest alle 5 Minuten den Energiezähler jeder Klimaanlage und schreibt
  *    Stunden- und Tageswerte nach 0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>.
@@ -13,6 +13,9 @@
  *
  * 2. Zeitpläne: prüft jede Minute die Zeitpläne aus 0_userdata.0.KlimaPilot.schedules.config
  *    und schaltet fällige Anlagen. Ergebnisse stehen in 0_userdata.0.KlimaPilot.schedules.status.
+ *
+ * 3. Diagnose (nur wenn in KlimaPilot eingeschaltet): prüft jede Minute die lokale Erreichbarkeit
+ *    und protokolliert Ausfälle in 0_userdata.0.KlimaPilot.diagnostics.log.
  *
  * Anlagen (IP, Geräte-ID), Strompreis und Zeitpläne schreibt KlimaPilot selbst.
  * Anfragen an dieselbe Anlage laufen nacheinander, weil das WLAN-Modul nur eine Verbindung
@@ -27,6 +30,11 @@ const ENERGY_CONFIG_ID = `${ENERGY_ROOT}.config`;
 const SCHEDULE_ROOT = '0_userdata.0.KlimaPilot.schedules';
 const SCHEDULE_CONFIG_ID = `${SCHEDULE_ROOT}.config`;
 const SCHEDULE_STATUS_ID = `${SCHEDULE_ROOT}.status`;
+const DIAG_ROOT = '0_userdata.0.KlimaPilot.diagnostics';
+const DIAG_CONFIG_ID = `${DIAG_ROOT}.config`;
+const DIAG_LOG_ID = `${DIAG_ROOT}.log`;
+const DIAG_MAX_ENTRIES = 400;
+const DIAG_KEEP_DAYS = 14;
 const POLL_MINUTES = 5;
 const HOURLY_DAYS = 31;          // Stundenwerte werden 31 Tage aufbewahrt, Tageswerte unbegrenzt.
 const SPREAD_MAX_SLOTS = 12 * 60 / 5; // Ein Zählerschritt wird auf höchstens 12 h Laufzeit verteilt.
@@ -278,8 +286,10 @@ async function pollEnergy(unit) {
         data.lastRunKwh = value;
         data.lastPollAt = now.toISOString();
         delete data.lastError;
+        await diagReach(unit, true);
     } catch (e) {
         data.lastError = `${now.toISOString()} ${e.message}`;
+        await diagReach(unit, !!e.refused, e.message);
     }
     const oldest = hourKey(new Date(now.getTime() - HOURLY_DAYS * 24 * 3600 * 1000));
     for (const key of Object.keys(data.hourly)) if (key < oldest) delete data.hourly[key];
@@ -309,6 +319,90 @@ async function pollAllEnergy() {
         log(`KlimaPilot Energie: ${e.message}`, 'warn');
     } finally {
         energyRunning = false;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// 3. Diagnose (in KlimaPilot unter Einstellungen → Diagnose ein- und ausschaltbar)
+// ---------------------------------------------------------------------------------------------
+// Bei eingeschalteter Diagnose prüft das Skript jede Minute, ob die Anlagen lokal erreichbar sind,
+// und schreibt jeden Wechsel (nicht erreichbar / wieder erreichbar, mit Dauer und Fehler) ins Protokoll.
+
+const reach = {}; // airconId → { ok, since, error }
+
+async function diagEnabled() {
+    await ensureJsonState(DIAG_CONFIG_ID, 'KlimaPilot – Diagnose an/aus (wird von KlimaPilot geschrieben)', { enabled: false });
+    const config = await readJson(DIAG_CONFIG_ID) || {};
+    return config.enabled === true;
+}
+
+async function diagLog(subject, event, detail) {
+    await ensureJsonState(DIAG_LOG_ID, 'KlimaPilot – Diagnoseprotokoll', { entries: [] });
+    const logData = await readJson(DIAG_LOG_ID) || {};
+    const oldest = Date.now() - DIAG_KEEP_DAYS * 24 * 3600 * 1000;
+    const entries = (Array.isArray(logData.entries) ? logData.entries : []).filter(e => Date.parse(e.at) >= oldest);
+    entries.push({ at: new Date().toISOString(), source: 'ioBroker', subject, event, detail: detail || '' });
+    await setStateAsync(DIAG_LOG_ID, JSON.stringify({ entries: entries.slice(-DIAG_MAX_ENTRIES) }), true);
+}
+
+const minutesSince = since => Math.max(1, Math.round((Date.now() - since) / 60000));
+
+/** Merkt sich die Erreichbarkeit einer Anlage und protokolliert Wechsel, wenn die Diagnose an ist. */
+async function diagReach(unit, ok, error) {
+    const previous = reach[unit.airconId];
+    const now = Date.now();
+    if (previous && previous.ok === ok && (ok || previous.error === error)) return;
+    reach[unit.airconId] = { ok, since: previous && previous.ok === ok ? previous.since : now, error };
+    try {
+        if (!(await diagEnabled())) return;
+        const name = unit.name || unit.airconId;
+        if (!previous) {
+            if (!ok) await diagLog(name, 'nicht erreichbar', error);
+        } else if (previous.ok !== ok) {
+            if (ok) await diagLog(name, 'wieder erreichbar', `nach ${minutesSince(previous.since)} min`);
+            else await diagLog(name, 'nicht erreichbar', error);
+        } else if (!ok) {
+            await diagLog(name, 'anderer Fehler', error);
+        }
+    } catch (e) {
+        log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
+    }
+}
+
+let probing = false;
+async function probeAll() {
+    if (probing || new Date().getMinutes() % POLL_MINUTES === 0) return; // Zur Energieablesung prüft schon pollEnergy.
+    probing = true;
+    try {
+        if (!(await diagEnabled())) return;
+        for (const unit of await units()) {
+            try {
+                await serial(unit, () => readStat(unit));
+                await diagReach(unit, true);
+            } catch (e) {
+                await diagReach(unit, !!e.refused, e.message);
+            }
+        }
+    } catch (e) {
+        log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
+    } finally {
+        probing = false;
+    }
+}
+
+let diagWasEnabled = null;
+async function watchDiagnostics() {
+    try {
+        const enabled = await diagEnabled();
+        if (diagWasEnabled !== null && enabled !== diagWasEnabled) {
+            await diagLog('ioBroker-Skript', enabled ? 'Diagnose eingeschaltet' : 'Diagnose ausgeschaltet');
+            if (enabled) for (const key of Object.keys(reach)) delete reach[key]; // Ausgangslage neu erfassen
+        } else if (diagWasEnabled === null && enabled) {
+            await diagLog('ioBroker-Skript', 'Skript gestartet');
+        }
+        diagWasEnabled = enabled;
+    } catch (e) {
+        log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
     }
 }
 
@@ -431,5 +525,7 @@ async function runSchedules() {
 
 schedule(`*/${POLL_MINUTES} * * * *`, pollAllEnergy);
 schedule('* * * * *', runSchedules);
+schedule('* * * * *', async () => { await watchDiagnostics(); await probeAll(); });
+watchDiagnostics();
 pollAllEnergy();
 runSchedules();

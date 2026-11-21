@@ -82,6 +82,7 @@ private val TextMain = Color(0xFF172334)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppDiagnostics.init(this)
         val installedAppVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "Unbekannt"
         setContent {
             val scheme = lightColorScheme(
@@ -208,8 +209,13 @@ private fun KlimaPilotApp(appVersion: String) {
                 .onSuccess { state ->
                     if (seqAtStart == commandSeq && !controlBusy) { currentAirconState = state; controlStatus = "" }
                     airconConnected = true
+                    AppDiagnostics.reach(device.name, true)
                 }
-                .onFailure { error -> airconConnected = false; controlStatus = error.message ?: "Gerätestatus konnte nicht gelesen werden." }
+                .onFailure { error ->
+                    airconConnected = false
+                    controlStatus = error.message ?: "Gerätestatus konnte nicht gelesen werden."
+                    AppDiagnostics.reach(device.name, false, error.message)
+                }
             delay(if (device.demoMode) 3_000L else 10_000L)
         }
     }
@@ -245,6 +251,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 onComplete?.invoke(true, controlStatus)
             } catch (error: Exception) {
                 val message = error.message ?: "Steuerbefehl fehlgeschlagen."
+                AppDiagnostics.log(device.name, "Befehl fehlgeschlagen", message)
                 controlStatus = message
                 onComplete?.invoke(false, message)
             } finally {
@@ -775,7 +782,11 @@ private fun KlimaPilotApp(appVersion: String) {
                 }
             }
             // Brings an energy script installed by KlimaPilot up to the version shipped with the app.
-            if (first) EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
+            if (first) {
+                EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
+                // Takes over the diagnostics switch set on the other phone.
+                DiagnosticsIoBroker().load(address) { result, _ -> result?.let { AppDiagnostics.setEnabledLocal(it.enabled) } }
+            }
             first = false
             delay(300_000L)
         }
@@ -1675,6 +1686,8 @@ private fun SettingsScreen(
         if (isAdmin) {
             IoBrokerConnectionSettingsCard(expanded = ioBrokerExpanded, onExpandedChange = { ioBrokerExpanded = it })
             EnergyScriptSettingsCard(expanded = energyExpanded, onExpandedChange = { energyExpanded = it })
+            var diagnosticsExpanded by remember { mutableStateOf(false) }
+            DiagnosticsSettingsCard(expanded = diagnosticsExpanded, onExpandedChange = { diagnosticsExpanded = it })
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     ScheduleSettingsContent()
