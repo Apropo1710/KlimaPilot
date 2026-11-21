@@ -156,7 +156,8 @@ internal class IoBrokerSocket(
         }
         if (wasReady) notifyHandlers("disconnect", emptyArray())
         else {
-            AppDiagnostics.log("ioBroker", "nicht erreichbar", query.removePrefix("name=") + ": " + message)
+            // Closing our own finished session is not a failure.
+            if (!stopped) AppDiagnostics.log("ioBroker", "nicht erreichbar", query.removePrefix("name=") + ": " + message)
             notifyHandlers("connect_error", arrayOf(message))
         }
         if (!stopped) {
