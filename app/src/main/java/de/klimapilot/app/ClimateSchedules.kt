@@ -42,6 +42,17 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.zIndex
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -433,8 +444,32 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
     val current = data
     if (current != null && !current.enabled) return
     val now = LocalDateTime.now()
+    // Fixed order as stored in ioBroker; changed by holding and dragging an entry.
     val mine = current?.items.orEmpty().filter { it.airconId == device.wfRacAirconId }
-        .sortedWith(compareBy({ ScheduleMath.nextRun(it, now, current?.status?.get(it.id)) == null }, { ScheduleMath.nextRun(it, now, current?.status?.get(it.id)) }))
+    val baseIds = mine.map { it.id }
+    var localOrder by remember { mutableStateOf<List<String>?>(null) }
+    var dragId by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    val heights = remember { mutableStateMapOf<String, Int>() }
+    LaunchedEffect(baseIds) { if (dragId == null) localOrder = null }
+    val shown = (localOrder ?: baseIds).mapNotNull { id -> mine.firstOrNull { it.id == id } } +
+        mine.filter { localOrder != null && it.id !in localOrder!! }
+    val gapPx = with(LocalDensity.current) { 10.dp.toPx() }
+    val haptic = LocalHapticFeedback.current
+    val currentBaseIds by rememberUpdatedState(baseIds)
+    val currentBusy by rememberUpdatedState(busy)
+    fun finishDrag() {
+        val order = localOrder
+        dragId = null
+        dragOffset = 0f
+        if (order == null || order == currentBaseIds) { localOrder = null; return }
+        change { list ->
+            val byId = list.associateBy { it.id }
+            val queue = order.filter { it in byId }.toMutableList()
+            list.map { if (it.id in order && queue.isNotEmpty()) byId.getValue(queue.removeAt(0)) else it }
+        }
+    }
+    val currentFinish by rememberUpdatedState(::finishDrag)
     val next = mine.mapNotNull { item -> ScheduleMath.nextRun(item, now, current?.status?.get(item.id))?.let { item to it } }.minByOrNull { it.second }
 
     Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -459,10 +494,47 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                     color = if (current != null) SBlue else SLight, shape = CircleShape
                 ) { Box(contentAlignment = Alignment.Center) { Text("+", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold) } }
             }
-            mine.forEach { item ->
+            shown.forEach { item ->
                 val run = current?.status?.get(item.id)
                 val failed = run != null && !run.done && run.result != null && run.result != "ok"
-                Surface(color = SLight.copy(alpha = 0.55f), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { editing = item }) {
+                val dragging = dragId == item.id
+                Surface(
+                    color = if (dragging) Color.White else SLight.copy(alpha = 0.55f), shape = RoundedCornerShape(16.dp),
+                    shadowElevation = if (dragging) 6.dp else 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                        .zIndex(if (dragging) 1f else 0f)
+                        .graphicsLayer { translationY = if (dragging) dragOffset else 0f }
+                        .onGloballyPositioned { heights[item.id] = it.size.height }
+                        .pointerInput(item.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    if (currentBusy) return@detectDragGesturesAfterLongPress
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    localOrder = localOrder ?: currentBaseIds
+                                    dragId = item.id
+                                    dragOffset = 0f
+                                },
+                                onDrag = { change, amount ->
+                                    if (dragId != item.id) return@detectDragGesturesAfterLongPress
+                                    change.consume()
+                                    dragOffset += amount.y
+                                    val order = (localOrder ?: return@detectDragGesturesAfterLongPress).toMutableList()
+                                    val index = order.indexOf(item.id)
+                                    if (dragOffset > 0 && index < order.lastIndex) {
+                                        val step = (heights[order[index + 1]] ?: 0) + gapPx
+                                        if (dragOffset > step / 2f) { order.add(index + 1, order.removeAt(index)); dragOffset -= step }
+                                    } else if (dragOffset < 0 && index > 0) {
+                                        val step = (heights[order[index - 1]] ?: 0) + gapPx
+                                        if (-dragOffset > step / 2f) { order.add(index - 1, order.removeAt(index)); dragOffset += step }
+                                    }
+                                    localOrder = order
+                                },
+                                onDragEnd = { if (dragId == item.id) currentFinish() },
+                                onDragCancel = { if (dragId == item.id) currentFinish() }
+                            )
+                        }
+                        .clip(RoundedCornerShape(16.dp)).clickable { editing = item }
+                ) {
                     Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(ScheduleMath.scheduleLabel(item, now), color = if (item.enabled) SText else SMuted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
