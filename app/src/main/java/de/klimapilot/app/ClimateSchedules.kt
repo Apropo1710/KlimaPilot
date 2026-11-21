@@ -123,6 +123,8 @@ internal data class ScheduleData(
     val enabled: Boolean,
     val items: List<ClimateSchedule>,
     val status: Map<String, ScheduleRun>,
+    /** Counts every write of schedules.config; guards against two phones writing at once. */
+    val revision: Long = 0L,
 )
 
 internal object ScheduleJson {
@@ -174,8 +176,9 @@ internal object ScheduleJson {
         )
     }
 
-    fun configToJson(enabled: Boolean, items: List<ClimateSchedule>) = JSONObject()
+    fun configToJson(enabled: Boolean, items: List<ClimateSchedule>, revision: Long = 0L) = JSONObject()
         .put("enabled", enabled)
+        .put("revision", revision)
         .put("items", JSONArray().apply { items.forEach { put(itemToJson(it)) } })
 
     fun configFromJson(o: JSONObject?): Pair<Boolean, List<ClimateSchedule>> {
@@ -318,7 +321,7 @@ internal class ScheduleIoBroker {
         readJson(socket, CONFIG_ID) { config ->
             readJson(socket, STATUS_ID) { status ->
                 val (enabled, items) = ScheduleJson.configFromJson(config)
-                next(ScheduleData(enabled, items, ScheduleJson.statusFromJson(status)))
+                next(ScheduleData(enabled, items, ScheduleJson.statusFromJson(status), config?.optLong("revision", 0L) ?: 0L))
             }
         }
     }
@@ -328,23 +331,35 @@ internal class ScheduleIoBroker {
     }
 
     /** Reads the current schedules, applies [change] and writes them back only if something changed. */
+    /**
+     * Read – change – write. Right before writing, the revision is checked again; if the other
+     * phone wrote in between, the change is applied once more to its fresh state (up to 3 times).
+     */
     fun update(address: String, change: (Boolean, List<ClimateSchedule>) -> Pair<Boolean, List<ClimateSchedule>>, callback: (ScheduleData?, String?) -> Unit) =
         session(address, callback) { socket, finish ->
-            read(socket) { current ->
-                val (enabled, items) = change(current.enabled, current.items)
-                if (enabled == current.enabled && items == current.items) { finish(current, null); return@read }
-                val definition = JSONObject().put("type", "state")
-                    .put("common", JSONObject().put("name", "KlimaPilot – Zeitpläne (werden von KlimaPilot geschrieben)").put("type", "string").put("role", "json").put("read", true).put("write", true))
-                    .put("native", JSONObject())
-                socket.emit("setObject", CONFIG_ID, definition, IoBrokerAck { objectArgs ->
-                    if (objectArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL } != null) { finish(null, "Zeitpläne konnten nicht gespeichert werden."); return@IoBrokerAck }
-                    val value = ScheduleJson.configToJson(enabled, items).toString()
-                    socket.emit("setState", CONFIG_ID, JSONObject().put("val", value).put("ack", false), IoBrokerAck { stateArgs ->
-                        if (stateArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL } != null) finish(null, "Zeitpläne konnten nicht gespeichert werden.")
-                        else finish(ScheduleData(enabled, items, current.status), null)
-                    })
-                })
+            fun attempt(round: Int) {
+                read(socket) { current ->
+                    val (enabled, items) = change(current.enabled, current.items)
+                    if (enabled == current.enabled && items == current.items) { finish(current, null); return@read }
+                    readJson(socket, CONFIG_ID) { latest ->
+                        val latestRevision = latest?.optLong("revision", 0L) ?: 0L
+                        if (latestRevision != current.revision && round < 3) { attempt(round + 1); return@readJson }
+                        val revision = latestRevision + 1
+                        val definition = JSONObject().put("type", "state")
+                            .put("common", JSONObject().put("name", "KlimaPilot – Zeitpläne (werden von KlimaPilot geschrieben)").put("type", "string").put("role", "json").put("read", true).put("write", true))
+                            .put("native", JSONObject())
+                        socket.emit("setObject", CONFIG_ID, definition, IoBrokerAck { objectArgs ->
+                            if (objectArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL } != null) { finish(null, "Zeitpläne konnten nicht gespeichert werden."); return@IoBrokerAck }
+                            val value = ScheduleJson.configToJson(enabled, items, revision).toString()
+                            socket.emit("setState", CONFIG_ID, JSONObject().put("val", value).put("ack", false), IoBrokerAck { stateArgs ->
+                                if (stateArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL } != null) finish(null, "Zeitpläne konnten nicht gespeichert werden.")
+                                else finish(ScheduleData(enabled, items, current.status, revision), null)
+                            })
+                        })
+                    }
+                }
             }
+            attempt(1)
         }
 
     companion object {
@@ -431,13 +446,30 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
         }
     }
 
-    fun change(transform: (List<ClimateSchedule>) -> List<ClimateSchedule>) {
+    fun change(onDone: (Boolean) -> Unit = {}, transform: (List<ClimateSchedule>) -> List<ClimateSchedule>) {
         busy = true
         profiles = loadProfiles()
         val fresh = profiles
         io.update(address, { enabled, items -> enabled to ScheduleMath.withProfiles(transform(items), fresh) }) { result, err ->
             busy = false
             if (result != null) { data = result; error = null } else error = err
+            onDone(result != null)
+        }
+    }
+
+    // Saving an edited schedule: if the other phone changed or deleted it since the editor was
+    // opened, ask before overwriting instead of silently replacing its change.
+    var conflict by remember { mutableStateOf<ClimateSchedule?>(null) }
+    fun saveItem(saved: ClimateSchedule, openedAt: Long?, force: Boolean) {
+        var clash = false
+        change(onDone = { ok -> if (ok && clash) conflict = saved }) { list ->
+            val fresh = list.firstOrNull { it.id == saved.id }
+            clash = !force && openedAt != null && (fresh == null || fresh.updatedAt != openedAt)
+            when {
+                clash -> list
+                fresh != null -> list.map { if (it.id == saved.id) saved else it }
+                else -> list + saved
+            }
         }
     }
 
@@ -564,9 +596,19 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
             onDismiss = { creating = false; editing = null },
             onDelete = editing?.let { e -> { change { list -> list.filterNot { it.id == e.id } }; editing = null } },
             onSave = { saved ->
-                change { list -> if (list.any { it.id == saved.id }) list.map { if (it.id == saved.id) saved else it } else list + saved }
+                saveItem(saved, editing?.updatedAt, force = false)
                 creating = false; editing = null
             }
+        )
+    }
+
+    conflict?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { conflict = null },
+            title = { Text("Zeitplan wurde geändert") },
+            text = { Text("Dieser Zeitplan wurde inzwischen auf dem anderen Handy geändert oder gelöscht. Deine Änderung trotzdem speichern?") },
+            confirmButton = { TextButton(onClick = { conflict = null; saveItem(pending, null, force = true) }) { Text("Überschreiben") } },
+            dismissButton = { TextButton(onClick = { conflict = null; refresh++ }) { Text("Verwerfen") } }
         )
     }
 }
