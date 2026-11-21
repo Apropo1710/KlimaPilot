@@ -1064,7 +1064,8 @@ private fun MainScreen(
 
                 ScheduleSection(allDevices.firstOrNull { it.id == deviceId }, airconState)
 
-                if (state != null) {
+                // The recorded consumption comes from ioBroker, so it stays visible while the unit is unreachable.
+                if (state != null || todayEnergyKwh != null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (todayEnergyKwh != null) {
                             CompactMetricCard(
@@ -1072,7 +1073,7 @@ private fun MainScreen(
                                 "%.2f kWh".format(java.util.Locale.GERMANY, todayEnergyKwh),
                                 "≈ %.2f € · antippen für Verlauf".format(java.util.Locale.GERMANY, todayEnergyKwh * energyPrice)
                             )
-                        } else {
+                        } else if (state != null) {
                             // No recording in ioBroker yet: the unit's own counter is all there is.
                             CompactMetricCard(
                                 Modifier.weight(1f).clickable(onClick = onShowEnergy), "Verbrauch",
@@ -1081,6 +1082,8 @@ private fun MainScreen(
                             )
                         }
                     }
+                }
+                if (state != null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CompactMetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", state.errorCode?.let { "Statuscode: $it" } ?: "Kein Code gemeldet")
                         CompactMetricCard(Modifier.weight(1f), "Verbindung", if (airconConnected) "Lokal" else "Getrennt", if (controlBusy) "Befehl läuft …" else "WF-RAC")
