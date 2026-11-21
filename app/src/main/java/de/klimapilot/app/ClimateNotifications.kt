@@ -79,7 +79,8 @@ internal object KlimaNotifications {
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun enabled(context: Context, kind: HintKind) = prefs(context).getBoolean(kind.pref, true)
+    /** Off until switched on in the settings. */
+    fun enabled(context: Context, kind: HintKind) = prefs(context).getBoolean(kind.pref, false)
     fun anyEnabled(context: Context) = HintKind.entries.any { enabled(context, it) }
 
     fun setEnabled(context: Context, kind: HintKind, value: Boolean) {
