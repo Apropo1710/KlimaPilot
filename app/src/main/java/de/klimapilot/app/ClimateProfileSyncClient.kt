@@ -27,7 +27,7 @@ internal class ClimateProfileSyncClient(private val peerLog: ClimatePeerEventLog
             callback("Keine gültige ioBroker-WebSocket-Adresse hinterlegt.")
             return
         }
-        val socket = IoBrokerSocket(url, "name=klimapilot.profile-sync")
+        val socket = IoBrokerLease(url)
         val completed = AtomicBoolean(false)
         fun finish(message: String) {
             if (!completed.compareAndSet(false, true)) return
@@ -103,7 +103,7 @@ internal class ClimateProfileSyncClient(private val peerLog: ClimatePeerEventLog
         repository: ClimateProfileRepository
     ): Boolean = syncEngine.applyRemoteEventIfNewer(event, deviceId, store, repository)
 
-    private fun uploadPending(socket: IoBrokerSocket, store: ClimateProfileSyncStore, done: (Int, String?) -> Unit) {
+    private fun uploadPending(socket: IoBrokerLease, store: ClimateProfileSyncStore, done: (Int, String?) -> Unit) {
         val events = store.pendingEvents()
         if (events.isEmpty()) { done(0, null); return }
         var index = 0
@@ -138,7 +138,7 @@ internal class ClimateProfileSyncClient(private val peerLog: ClimatePeerEventLog
         next()
     }
 
-    private fun readRemoteEvents(socket: IoBrokerSocket, done: (List<JSONObject>, String?) -> Unit) {
+    private fun readRemoteEvents(socket: IoBrokerLease, done: (List<JSONObject>, String?) -> Unit) {
         socket.emit("getStates", "$ROOT_ID.devices.*", IoBrokerAck statesCallback@{ args ->
             val error = args.firstOrNull()?.takeUnless { it == JSONObject.NULL }
             if (error != null) { done(emptyList(), "Synchronisierungsdaten konnten aus ioBroker nicht gelesen werden: $error"); return@statesCallback }

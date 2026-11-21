@@ -15,8 +15,8 @@ android {
         minSdk = 26
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 142
-        versionName = "0.5.12"
+        versionCode = 143
+        versionName = "0.5.13"
     }
 
     signingConfigs {

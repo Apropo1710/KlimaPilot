@@ -248,7 +248,7 @@ internal class EnergyIoBroker {
             callback(null, "Keine ioBroker-Adresse hinterlegt.")
             return
         }
-        val socket = IoBrokerSocket(url, "name=klimapilot.energy")
+        val socket = IoBrokerLease(url)
         val done = AtomicBoolean(false)
         fun finish(result: EnergyFetch?, error: String?) {
             if (!done.compareAndSet(false, true)) return
@@ -340,7 +340,7 @@ internal class EnergyScriptInstaller(private val context: Context) {
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(false, "Keine ioBroker-Adresse hinterlegt."); return }
         val source = runCatching { source() }.getOrElse { callback(false, "Skript fehlt in der App."); return }
-        val socket = IoBrokerSocket(url, "name=klimapilot.energy-script")
+        val socket = IoBrokerLease(url)
         val done = AtomicBoolean(false)
         fun finish(ok: Boolean, message: String) {
             if (!done.compareAndSet(false, true)) return

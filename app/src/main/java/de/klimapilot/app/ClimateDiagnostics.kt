@@ -132,10 +132,10 @@ internal class DiagnosticsIoBroker {
 
     data class Result(val enabled: Boolean, val entries: List<DiagEntry>)
 
-    private fun session(address: String, callback: (Result?, String?) -> Unit, block: (IoBrokerSocket, (Result?, String?) -> Unit) -> Unit) {
+    private fun session(address: String, callback: (Result?, String?) -> Unit, block: (IoBrokerLease, (Result?, String?) -> Unit) -> Unit) {
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(null, "Keine ioBroker-Adresse hinterlegt."); return }
-        val socket = IoBrokerSocket(url, "name=klimapilot.diagnostics")
+        val socket = IoBrokerLease(url)
         val done = AtomicBoolean(false)
         val finish: (Result?, String?) -> Unit = { data, error ->
             if (done.compareAndSet(false, true)) {
@@ -155,14 +155,14 @@ internal class DiagnosticsIoBroker {
         socket.connect()
     }
 
-    private fun readJson(socket: IoBrokerSocket, id: String, next: (JSONObject?) -> Unit) {
+    private fun readJson(socket: IoBrokerLease, id: String, next: (JSONObject?) -> Unit) {
         socket.emit("getState", id, IoBrokerAck { args ->
             val raw = (args.getOrNull(1) as? JSONObject)?.opt("val") as? String
             next(raw?.let { runCatching { JSONObject(it) }.getOrNull() })
         })
     }
 
-    private fun read(socket: IoBrokerSocket, next: (Result) -> Unit) {
+    private fun read(socket: IoBrokerLease, next: (Result) -> Unit) {
         readJson(socket, CONFIG_ID) { config ->
             readJson(socket, LOG_ID) { log ->
                 val array = log?.optJSONArray("entries") ?: JSONArray()
@@ -172,7 +172,7 @@ internal class DiagnosticsIoBroker {
         }
     }
 
-    private fun write(socket: IoBrokerSocket, id: String, name: String, value: JSONObject, done: (Boolean) -> Unit) {
+    private fun write(socket: IoBrokerLease, id: String, name: String, value: JSONObject, done: (Boolean) -> Unit) {
         val definition = JSONObject().put("type", "state")
             .put("common", JSONObject().put("name", name).put("type", "string").put("role", "json").put("read", true).put("write", true))
             .put("native", JSONObject())

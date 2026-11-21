@@ -226,3 +226,123 @@ internal class IoBrokerSocket(
         }
     }
 }
+
+/**
+ * Shared ioBroker connection for the app's short tasks (energy, schedules, profile sync,
+ * diagnostics, script check). Instead of one WebSocket per task, all tasks borrow one connection
+ * per address; it closes after [IDLE_MS] without a task. This keeps the ioBroker log and load low.
+ * All methods are called on the main thread.
+ */
+internal object IoBrokerPool {
+    private const val IDLE_MS = 120_000L
+    private val main = Handler(Looper.getMainLooper())
+
+    private class Entry(val url: String) {
+        val socket = IoBrokerSocket(url, "name=klimapilot.app")
+        val leases = mutableSetOf<IoBrokerLease>()
+        var ready = false
+        var started = false
+        val idleClose = Runnable { close(this) }
+    }
+
+    private val entries = mutableMapOf<String, Entry>()
+
+    private fun entry(url: String): Entry = entries.getOrPut(url) {
+        Entry(url).also { e ->
+            // Socket events arrive on the network thread; the pool is only touched on the main thread.
+            e.socket.on("connect") {
+                main.post {
+                    e.ready = true
+                    e.leases.toList().forEach { it.fire("connect") }
+                }
+            }
+            e.socket.on("connect_error") { args ->
+                main.post {
+                    e.ready = false
+                    e.leases.toList().forEach { it.fire("connect_error", args) }
+                    // Nobody waits any more: stop retrying in the background.
+                    if (e.leases.isEmpty()) close(e)
+                }
+            }
+            e.socket.on("disconnect") {
+                main.post {
+                    e.ready = false
+                    e.leases.toList().forEach { it.fire("disconnect") }
+                    if (e.leases.isEmpty()) close(e)
+                }
+            }
+        }
+    }
+
+    private fun close(e: Entry) {
+        main.removeCallbacks(e.idleClose)
+        if (entries[e.url] === e) entries.remove(e.url)
+        runCatching { e.socket.off() }
+        runCatching { e.socket.disconnect() }
+    }
+
+    fun attach(lease: IoBrokerLease) {
+        val e = entry(lease.url)
+        main.removeCallbacks(e.idleClose)
+        e.leases += lease
+        when {
+            e.ready && e.socket.connected() -> main.post { lease.fire("connect") }
+            !e.started -> { e.started = true; e.socket.connect() }
+        }
+    }
+
+    fun detach(lease: IoBrokerLease) {
+        val e = entries[lease.url] ?: return
+        e.leases -= lease
+        if (e.leases.isEmpty()) {
+            main.removeCallbacks(e.idleClose)
+            main.postDelayed(e.idleClose, IDLE_MS)
+        }
+    }
+
+    fun emit(url: String, event: String, values: Array<out Any?>) {
+        entries[url]?.socket?.emit(event, *values)
+    }
+
+    fun connected(url: String): Boolean = entries[url]?.let { it.ready && it.socket.connected() } == true
+}
+
+/** A task's share of the pooled connection; same calls as [IoBrokerSocket]. */
+internal class IoBrokerLease(val url: String) {
+    private val main = Handler(Looper.getMainLooper())
+    private val handlers = mutableMapOf<String, MutableList<(Array<Any?>) -> Unit>>()
+    private var attached = false
+
+    fun on(event: String, handler: (Array<Any?>) -> Unit) {
+        handlers.getOrPut(event) { mutableListOf() }.add(handler)
+    }
+
+    fun off() = runOnMain { handlers.clear() }
+
+    fun connect() = runOnMain {
+        if (attached) return@runOnMain
+        attached = true
+        IoBrokerPool.attach(this)
+    }
+
+    fun emit(event: String, vararg values: Any?) = runOnMain {
+        if (attached) IoBrokerPool.emit(url, event, values)
+    }
+
+    fun connected(): Boolean = attached && IoBrokerPool.connected(url)
+
+    fun disconnect() = runOnMain {
+        if (!attached) return@runOnMain
+        attached = false
+        IoBrokerPool.detach(this)
+    }
+
+    internal fun fire(event: String, args: Array<Any?> = emptyArray()) {
+        if (!attached) return
+        handlers[event]?.toList()?.forEach { handler -> runCatching { handler(args) } }
+    }
+
+    private fun runOnMain(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block)
+    }
+}

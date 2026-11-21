@@ -273,10 +273,10 @@ internal object ScheduleMath {
 internal class ScheduleIoBroker {
     private val main = Handler(Looper.getMainLooper())
 
-    private fun session(address: String, callback: (ScheduleData?, String?) -> Unit, block: (IoBrokerSocket, (ScheduleData?, String?) -> Unit) -> Unit) {
+    private fun session(address: String, callback: (ScheduleData?, String?) -> Unit, block: (IoBrokerLease, (ScheduleData?, String?) -> Unit) -> Unit) {
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(null, "Keine ioBroker-Adresse hinterlegt."); return }
-        val socket = IoBrokerSocket(url, "name=klimapilot.schedules")
+        val socket = IoBrokerLease(url)
         val done = AtomicBoolean(false)
         val finish: (ScheduleData?, String?) -> Unit = { data, error ->
             if (done.compareAndSet(false, true)) {
@@ -296,14 +296,14 @@ internal class ScheduleIoBroker {
         socket.connect()
     }
 
-    private fun readJson(socket: IoBrokerSocket, id: String, next: (JSONObject?) -> Unit) {
+    private fun readJson(socket: IoBrokerLease, id: String, next: (JSONObject?) -> Unit) {
         socket.emit("getState", id, IoBrokerAck { args ->
             val raw = (args.getOrNull(1) as? JSONObject)?.opt("val") as? String
             next(raw?.let { runCatching { JSONObject(it) }.getOrNull() })
         })
     }
 
-    private fun read(socket: IoBrokerSocket, next: (ScheduleData) -> Unit) {
+    private fun read(socket: IoBrokerLease, next: (ScheduleData) -> Unit) {
         readJson(socket, CONFIG_ID) { config ->
             readJson(socket, STATUS_ID) { status ->
                 val (enabled, items) = ScheduleJson.configFromJson(config)
