@@ -115,6 +115,8 @@ internal data class ClimateSchedule(
     val profileName: String? = null,
     val settings: ScheduleSettings? = null,
     val updatedAt: Long = System.currentTimeMillis(),
+    /** Quick timer "off in …" from the schedules card: not listed, removed once it has run. */
+    val quick: Boolean = false,
 )
 
 internal data class ScheduleRun(val key: String, val at: String?, val done: Boolean, val result: String?)
@@ -155,6 +157,7 @@ internal object ScheduleJson {
         i.profileName?.let { put("profileName", it) }
         i.settings?.let { put("settings", settingsToJson(it)) }
         put("updatedAt", i.updatedAt)
+        if (i.quick) put("quick", true)
     }
 
     fun itemFromJson(o: JSONObject): ClimateSchedule? {
@@ -173,6 +176,7 @@ internal object ScheduleJson {
             profileName = o.optString("profileName").ifBlank { null },
             settings = o.optJSONObject("settings")?.let { settingsFromJson(it) },
             updatedAt = o.optLong("updatedAt", 0L),
+            quick = o.optBoolean("quick", false),
         )
     }
 
@@ -264,12 +268,18 @@ internal object ScheduleMath {
     fun profileSettings(p: ClimateProfile) = ScheduleSettings(p.mode, p.targetTemp, p.fanSpeed, p.verticalSwing, p.horizontalSwing, p.threeDAuto)
 
     /** A one-time timer that has run is switched off; it stays listed until it is deleted. */
-    fun disableFinished(items: List<ClimateSchedule>, status: Map<String, ScheduleRun>): List<ClimateSchedule> = items.map { item ->
+    fun disableFinished(items: List<ClimateSchedule>, status: Map<String, ScheduleRun>, now: Long = System.currentTimeMillis()): List<ClimateSchedule> = items.mapNotNull { item ->
         val run = status[item.id]
-        if (item.kind == "once" && item.enabled && item.at != null && run?.done == true && run.key == "once:${item.at}")
-            item.copy(enabled = false, updatedAt = System.currentTimeMillis())
-        else item
+        val ran = item.kind == "once" && item.at != null && run?.done == true && run.key == "once:${item.at}"
+        when {
+            // Quick timers disappear once they have run, or once they are too old to be caught up.
+            item.quick && (ran || (item.at != null && item.at < now - QUICK_EXPIRY_MS)) -> null
+            ran && item.enabled -> item.copy(enabled = false, updatedAt = now)
+            else -> item
+        }
     }
+
+    private const val QUICK_EXPIRY_MS = 7L * 3600 * 1000
 
     /** Keeps the copied profile values in step with the profiles, so the script applies the current ones. */
     fun withProfiles(items: List<ClimateSchedule>, profiles: List<ClimateProfile>): List<ClimateSchedule> = items.map { item ->
@@ -477,7 +487,9 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
     if (current != null && !current.enabled) return
     val now = LocalDateTime.now()
     // Fixed order as stored in ioBroker; changed by holding and dragging an entry.
-    val mine = current?.items.orEmpty().filter { it.airconId == device.wfRacAirconId }
+    val all = current?.items.orEmpty().filter { it.airconId == device.wfRacAirconId }
+    val quickTimer = all.firstOrNull { it.quick && it.enabled && (it.at ?: 0L) > System.currentTimeMillis() - 60_000L }
+    val mine = all.filterNot { it.quick }
     val baseIds = mine.map { it.id }
     var localOrder by remember { mutableStateOf<List<String>?>(null) }
     var dragId by remember { mutableStateOf<String?>(null) }
@@ -502,7 +514,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
         }
     }
     val currentFinish by rememberUpdatedState(::finishDrag)
-    val next = mine.mapNotNull { item -> ScheduleMath.nextRun(item, now, current?.status?.get(item.id))?.let { item to it } }.minByOrNull { it.second }
+    val next = (mine + listOfNotNull(quickTimer)).mapNotNull { item -> ScheduleMath.nextRun(item, now, current?.status?.get(item.id))?.let { item to it } }.minByOrNull { it.second }
 
     Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -525,6 +537,30 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                     modifier = Modifier.size(40.dp).clip(CircleShape).clickable(enabled = current != null && !busy) { creating = true },
                     color = if (current != null) SBlue else SLight, shape = CircleShape
                 ) { Box(contentAlignment = Alignment.Center) { Text("+", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold) } }
+            }
+            // Quick timer: switch off in … without the editor; one per unit.
+            if (current != null && (quickTimer != null || currentState?.power == true)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (quickTimer != null) {
+                        val at = java.time.Instant.ofEpochMilli(quickTimer.at ?: 0L).atZone(java.time.ZoneId.systemDefault())
+                        Text("⏱ Aus um %02d:%02d".format(at.hour, at.minute), color = SBlue, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Chip("Abbrechen", false) { if (!busy) change { list -> list.filterNot { it.id == quickTimer.id } } }
+                    } else {
+                        Text("⏱ Aus in", color = SMuted, fontSize = 13.sp)
+                        listOf(30 to "30 min", 60 to "1 h", 120 to "2 h", 180 to "3 h").forEach { (minutes, label) ->
+                            Chip(label, false) {
+                                if (busy) return@Chip
+                                val airconId = device.wfRacAirconId
+                                change { list ->
+                                    list.filterNot { it.quick && it.airconId == airconId } + ClimateSchedule(
+                                        id = java.util.UUID.randomUUID().toString(), airconId = airconId, kind = "once",
+                                        at = System.currentTimeMillis() + minutes * 60_000L, action = "off", quick = true
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
             shown.forEach { item ->
                 val run = current?.status?.get(item.id)

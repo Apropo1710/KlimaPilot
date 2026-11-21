@@ -188,6 +188,7 @@ private fun KlimaPilotApp(appVersion: String) {
         ?: devicesInSelectedRoom.firstOrNull()
     var showEnergy by remember { mutableStateOf(false) }
     var energyUnits by remember { mutableStateOf<List<EnergyUnitData>>(emptyList()) }
+    var filterConfig by remember { mutableStateOf<FilterConfig?>(null) }
     var energyPrice by remember { mutableStateOf(EnergyIoBroker.cachedPrice(context)) }
     val controller = remember(context) { ClimateDeviceController(context) }
     var currentAirconState by remember(selectedDevice?.id) { mutableStateOf<AirconState?>(null) }
@@ -695,6 +696,8 @@ private fun KlimaPilotApp(appVersion: String) {
             onManageProfiles = { showProfileManager = true; showSettings = false },
             fontScale = currentAccount!!.fontScale,
             onFontScale = { updateAccountFontScale(it) },
+            energyUnits = energyUnits,
+            onFilterChanged = { filterConfig = it },
             onBack = { showSettings = false }
         )
     } else {
@@ -762,7 +765,16 @@ private fun KlimaPilotApp(appVersion: String) {
             onShowEnergy = { showEnergy = true },
             todayEnergyKwh = energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }
                 ?.let { EnergyMath.todayKwh(it, currentAirconState?.runEnergyKwh, java.time.LocalDateTime.now()) },
-            energyPrice = energyPrice
+            energyPrice = energyPrice,
+            filterDueHours = energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }
+                ?.let { unit -> filterConfig?.takeIf { it.due(unit) }?.hoursSinceCleaning(unit) },
+            onFilterDone = {
+                energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }?.let { unit ->
+                    FilterIoBroker().update(prefs.getString("iobroker_server", null).orEmpty(), {
+                        it.copy(cleanedRunMinutes = it.cleanedRunMinutes + (unit.airconId to unit.runMinutes))
+                    }) { result, _ -> result?.let { filterConfig = it } }
+                }
+            }
         )
         if (showEnergy) EnergyDialog(devices.toList(), selectedDevice) { showEnergy = false }
     }
@@ -783,6 +795,7 @@ private fun KlimaPilotApp(appVersion: String) {
                     energyUnits = it.units
                 }
             }
+            FilterIoBroker().load(address) { result, _ -> result?.let { filterConfig = it } }
             // Brings an energy script installed by KlimaPilot up to the version shipped with the app.
             if (first) {
                 EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
@@ -878,7 +891,9 @@ private fun MainScreen(
     onSettings: () -> Unit,
     onShowEnergy: () -> Unit,
     todayEnergyKwh: Double?,
-    energyPrice: Double
+    energyPrice: Double,
+    filterDueHours: Double? = null,
+    onFilterDone: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
@@ -967,6 +982,8 @@ private fun MainScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Spacer(Modifier.height(8.dp))
+
+        filterDueHours?.let { FilterReminder(it, onFilterDone) }
 
         ClimateProfilesSection(
             deviceId = selectedDeviceId,
@@ -1580,6 +1597,8 @@ private fun SettingsScreen(
     onManageProfiles: () -> Unit,
     fontScale: Float,
     onFontScale: (Float) -> Unit,
+    energyUnits: List<EnergyUnitData> = emptyList(),
+    onFilterChanged: (FilterConfig) -> Unit = {},
     onBack: () -> Unit
 ) {
     var accountExpanded by remember { mutableStateOf(false) }
@@ -1686,6 +1705,8 @@ private fun SettingsScreen(
             EnergyScriptSettingsCard(expanded = energyExpanded, onExpandedChange = { energyExpanded = it })
             var diagnosticsExpanded by remember { mutableStateOf(false) }
             DiagnosticsSettingsCard(expanded = diagnosticsExpanded, onExpandedChange = { diagnosticsExpanded = it })
+            var filterExpanded by remember { mutableStateOf(false) }
+            FilterSettingsCard(energyUnits, expanded = filterExpanded, onExpandedChange = { filterExpanded = it }, onChanged = onFilterChanged)
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     ScheduleSettingsContent()

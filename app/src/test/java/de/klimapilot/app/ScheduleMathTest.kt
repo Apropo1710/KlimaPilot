@@ -66,4 +66,14 @@ class ScheduleMathTest {
         // Not yet run, or failed: stays on.
         assertEquals(true, ScheduleMath.disableFinished(listOf(once), mapOf("o" to ScheduleRun("once:1000", null, false, "Zeitüberschreitung"))).single().enabled)
     }
+
+    @Test
+    fun quickTimersAreRemovedOnceRunOrExpired() {
+        val now = 10_000_000_000L
+        val ran = ClimateSchedule("q1", "a", kind = "once", at = now - 60_000, action = "off", quick = true)
+        val pending = ClimateSchedule("q2", "a", kind = "once", at = now + 60_000, action = "off", quick = true)
+        val expired = ClimateSchedule("q3", "a", kind = "once", at = now - 8 * 3600_000L, action = "off", quick = true)
+        val status = mapOf("q1" to ScheduleRun("once:${now - 60_000}", null, true, "ok"))
+        assertEquals(listOf("q2"), ScheduleMath.disableFinished(listOf(ran, pending, expired), status, now).map { it.id })
+    }
 }

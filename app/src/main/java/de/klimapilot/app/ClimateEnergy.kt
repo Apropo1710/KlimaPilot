@@ -72,7 +72,7 @@ internal enum class EnergyPeriod(val label: String) {
 }
 
 /** [drillDown]: the date a tap on this bar opens one level finer, if any. */
-internal data class EnergyBar(val label: String, val kWh: Double, val drillDown: LocalDate? = null)
+internal data class EnergyBar(val label: String, val kWh: Double, val drillDown: LocalDate? = null, val outdoor: Double? = null)
 
 internal data class EnergyUnitData(
     val airconId: String,
@@ -83,6 +83,11 @@ internal data class EnergyUnitData(
     val lastPollAt: String?,
     val lastError: String?,
     val lastRunKwh: Double? = null,
+    /** Mean outdoor temperature per hour (31 days) and per day (kept), in °C. */
+    val outdoorHourly: Map<String, Double> = emptyMap(),
+    val outdoorDaily: Map<String, Double> = emptyMap(),
+    /** Operating minutes counted by the script (for the filter reminder). */
+    val runMinutes: Long = 0L,
 )
 
 /** Turns the hourly and daily values the ioBroker script records into chart bars. */
@@ -104,6 +109,9 @@ internal object EnergyMath {
             lastPollAt = json.optString("lastPollAt").ifBlank { null },
             lastError = json.optString("lastError").ifBlank { null },
             lastRunKwh = json.optDouble("lastRunKwh", Double.NaN).takeIf { !it.isNaN() },
+            outdoorHourly = map("outdoorHourly"),
+            outdoorDaily = map("outdoorDaily"),
+            runMinutes = json.optLong("runMinutes", 0L),
         )
     }
 
@@ -121,6 +129,15 @@ internal object EnergyMath {
         return sum
     }
 
+    /** Mean of the recorded outdoor temperatures of all units for the given keys, or null without data. */
+    private fun outdoorMean(units: List<EnergyUnitData>, keys: List<String>, hourly: Boolean): Double? {
+        val values = units.flatMap { unit -> keys.mapNotNull { (if (hourly) unit.outdoorHourly else unit.outdoorDaily)[it] } }
+        return values.takeIf { it.isNotEmpty() }?.average()
+    }
+
+    private fun dayKeys(from: LocalDate, toInclusive: LocalDate): List<String> =
+        generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(toInclusive) }.map(::dayKey).toList()
+
     private val monthShort = listOf("Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez")
     private val monthLong = listOf("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember")
     private val weekdayShort = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
@@ -130,24 +147,27 @@ internal object EnergyMath {
     /** Calendar bars for the period that contains [anchor]: hours of a day, days of a week or month, months of a year, or all years. */
     fun bars(period: EnergyPeriod, units: List<EnergyUnitData>, anchor: LocalDate, today: LocalDate = LocalDate.now()): List<EnergyBar> = when (period) {
         EnergyPeriod.DAY -> (0..23).map { h ->
-            EnergyBar("%02d".format(Locale.ROOT, h), units.sumOf { it.hourly[hourKey(anchor.atTime(h, 0))] ?: 0.0 })
+            val key = hourKey(anchor.atTime(h, 0))
+            EnergyBar("%02d".format(Locale.ROOT, h), units.sumOf { it.hourly[key] ?: 0.0 }, outdoor = outdoorMean(units, listOf(key), hourly = true))
         }
         EnergyPeriod.WEEK -> {
             val monday = weekStart(anchor)
-            (0..6).map { i -> val d = monday.plusDays(i.toLong()); EnergyBar(weekdayShort[i], daySum(units, d, d), d) }
+            (0..6).map { i -> val d = monday.plusDays(i.toLong()); EnergyBar(weekdayShort[i], daySum(units, d, d), d, outdoorMean(units, listOf(dayKey(d)), hourly = false)) }
         }
         EnergyPeriod.MONTH -> {
             val first = anchor.withDayOfMonth(1)
-            (0 until first.lengthOfMonth()).map { i -> val d = first.plusDays(i.toLong()); EnergyBar("${d.dayOfMonth}", daySum(units, d, d), d) }
+            (0 until first.lengthOfMonth()).map { i -> val d = first.plusDays(i.toLong()); EnergyBar("${d.dayOfMonth}", daySum(units, d, d), d, outdoorMean(units, listOf(dayKey(d)), hourly = false)) }
         }
         EnergyPeriod.YEAR -> (1..12).map { m ->
             val start = LocalDate.of(anchor.year, m, 1)
-            EnergyBar(monthShort[m - 1], daySum(units, start, start.plusMonths(1).minusDays(1)), start)
+            val end = start.plusMonths(1).minusDays(1)
+            EnergyBar(monthShort[m - 1], daySum(units, start, end), start, outdoorMean(units, dayKeys(start, end), hourly = false))
         }
         EnergyPeriod.ALL -> {
             val firstYear = units.flatMap { it.daily.keys }.mapNotNull { it.take(4).toIntOrNull() }.minOrNull() ?: today.year
             (firstYear.coerceAtMost(today.year)..today.year).map { year ->
-                EnergyBar(year.toString(), daySum(units, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31)), LocalDate.of(year, 1, 1))
+                val start = LocalDate.of(year, 1, 1); val end = LocalDate.of(year, 12, 31)
+                EnergyBar(year.toString(), daySum(units, start, end), start, outdoorMean(units, dayKeys(start, end), hourly = false))
             }
         }
     }
@@ -558,7 +578,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                         Text(
                             "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. „↑“ über dem Diagramm oder die Zurück-Geste geht wieder eine Ebene höher. " +
                                 "Seitlich wischen oder mit ‹ › blättern, den Titel antippen springt zurück zum aktuellen Zeitraum.\n\n" +
-                                "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten; jeder Schritt wird auf die Laufzeit davor verteilt. " +
+                                "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten; jeder Schritt wird auf die Laufzeit davor verteilt. Die orange Linie zeigt die mittlere Außentemperatur, gemessen vom Außenfühler der Anlage. " +
                                 "Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft. Kosten ohne Grundgebühr; " +
                                 "der Strompreis gilt für beide Smartphones."
                         )
@@ -601,7 +621,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), pageSpacing = 16.dp) { page ->
                         val pageAnchor = anchorOf(page)
                         val pageBars = if (pageAnchor == anchor) bars else EnergyMath.bars(period, shown, pageAnchor, today)
-                        EnergyChart(pageBars.map { it.label to it.kWh * factor }, unitLabel) { index ->
+                        EnergyChart(pageBars.map { it.label to it.kWh * factor }, unitLabel, pageBars.map { it.outdoor }) { index ->
                             val target = pageBars.getOrNull(index)?.drillDown ?: return@EnergyChart
                             val finer = EnergyMath.finer(period) ?: return@EnergyChart
                             drillStack = drillStack + period
@@ -652,13 +672,26 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
 
 private const val ENERGY_PAGES = 4000
 
+/** Outdoor temperature line: a warm orange that stands apart from the blue bars. */
+private val OutdoorColor = Color(0xFFE8833A)
+
 @Composable
-private fun EnergyChart(values: List<Pair<String, Double>>, unitLabel: String, onBarTap: (Int) -> Unit) {
+private fun EnergyChart(values: List<Pair<String, Double>>, unitLabel: String, outdoor: List<Double?> = emptyList(), onBarTap: (Int) -> Unit) {
     val max = values.maxOfOrNull { it.second }?.takeIf { it > 0 } ?: 1.0
     val barColor = EnergyBlue
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val temps = outdoor.filterNotNull()
+    // Outdoor temperature as a thin line on its own scale (lowest at the bottom, highest at the top).
+    val tMin = temps.minOrNull()?.let { kotlin.math.floor(it) }
+    val tMax = temps.maxOrNull()?.let { kotlin.math.ceil(it) }?.let { if (tMin != null && it - tMin < 4) tMin + 4 else it }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("max. ${formatNumber(max, 2)} $unitLabel", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("max. ${formatNumber(max, 2)} $unitLabel", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            if (temps.isNotEmpty()) Text(
+                "— Außen ${formatNumber(temps.min(), 1)} bis ${formatNumber(temps.max(), 1)} °C",
+                fontSize = 11.sp, color = OutdoorColor
+            )
+        }
         Canvas(Modifier.fillMaxWidth().height(200.dp).pointerInput(values.size) {
             detectTapGestures { offset ->
                 val slot = size.width.toFloat() / values.size.coerceAtLeast(1)
@@ -678,6 +711,19 @@ private fun EnergyChart(values: List<Pair<String, Double>>, unitLabel: String, o
                     size = Size(barWidth, h),
                     cornerRadius = CornerRadius(3.dp.toPx())
                 )
+            }
+            if (tMin != null && tMax != null) {
+                val pad = 8.dp.toPx()
+                fun y(t: Double) = (size.height - pad - (t - tMin) / (tMax - tMin) * (size.height - 2 * pad)).toFloat()
+                var previous: Offset? = null
+                outdoor.forEachIndexed { index, t ->
+                    if (t == null) { previous = null; return@forEachIndexed }
+                    val point = Offset(index * slot + slot / 2, y(t))
+                    previous?.let { drawLine(OutdoorColor, it, point, strokeWidth = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round) }
+                    drawCircle(Color.White, radius = 3.dp.toPx(), center = point)
+                    drawCircle(OutdoorColor, radius = 2.dp.toPx(), center = point)
+                    previous = point
+                }
             }
         }
         // Labels: at most about eight, evenly spread, so they stay readable.

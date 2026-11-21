@@ -133,6 +133,25 @@ const RCV_AIRFLOW = [0x07, 0x00, 0x01, 0x02, 0x06];
 const CMD_WIND_UD = [[192, 128], [128, 128], [128, 144], [128, 160], [128, 176]];
 const CMD_WIND_LR = [[3, 16], [2, 16], [2, 17], [2, 18], [2, 19], [2, 20], [2, 21], [2, 22]];
 const NO_SEGMENTS = [1, 255, 255, 255, 255];
+// Thermistortabelle Außentemperatur des WF-RAC-Moduls (Index = Rohwert, aus pywfrac, MIT; wie TempTables.kt).
+const OUTDOOR_TEMPS = [
+    -50.0, -50.0, -50.0, -50.0, -50.0, -48.9, -46.0, -44.0, -42.0, -41.0, -39.0, -38.0, -37.0, -36.0, -35.0, -34.0,
+    -33.0, -32.0, -31.0, -30.0, -29.0, -28.5, -28.0, -27.0, -26.0, -25.5, -25.0, -24.0, -23.5, -23.0, -22.5, -22.0,
+    -21.5, -21.0, -20.5, -20.0, -19.5, -19.0, -18.5, -18.0, -17.5, -17.0, -16.5, -16.0, -15.5, -15.0, -14.6, -14.3,
+    -14.0, -13.5, -13.0, -12.6, -12.3, -12.0, -11.5, -11.0, -10.6, -10.3, -10.0, -9.6, -9.3, -9.0, -8.6, -8.3,
+    -8.0, -7.6, -7.3, -7.0, -6.6, -6.3, -6.0, -5.6, -5.3, -5.0, -4.6, -4.3, -4.0, -3.7, -3.5, -3.2,
+    -3.0, -2.6, -2.3, -2.0, -1.7, -1.5, -1.2, -1.0, -0.6, -0.3, 0.0, 0.2, 0.5, 0.7, 1.0, 1.3,
+    1.6, 2.0, 2.2, 2.5, 2.7, 3.0, 3.2, 3.5, 3.7, 4.0, 4.2, 4.5, 4.7, 5.0, 5.2, 5.5,
+    5.7, 6.0, 6.2, 6.5, 6.7, 7.0, 7.2, 7.5, 7.7, 8.0, 8.2, 8.5, 8.7, 9.0, 9.2, 9.5,
+    9.7, 10.0, 10.2, 10.5, 10.7, 11.0, 11.2, 11.5, 11.7, 12.0, 12.2, 12.5, 12.7, 13.0, 13.2, 13.5,
+    13.7, 14.0, 14.2, 14.4, 14.6, 14.8, 15.0, 15.2, 15.5, 15.7, 16.0, 16.2, 16.5, 16.7, 17.0, 17.2,
+    17.5, 17.7, 18.0, 18.2, 18.5, 18.7, 19.0, 19.2, 19.4, 19.6, 19.8, 20.0, 20.2, 20.5, 20.7, 21.0,
+    21.2, 21.5, 21.7, 22.0, 22.2, 22.5, 22.7, 23.0, 23.2, 23.5, 23.7, 24.0, 24.2, 24.5, 24.7, 25.0,
+    25.2, 25.5, 25.7, 26.0, 26.2, 26.5, 26.7, 27.0, 27.2, 27.5, 27.7, 28.0, 28.2, 28.5, 28.7, 29.0,
+    29.2, 29.5, 29.7, 30.0, 30.2, 30.5, 30.7, 31.0, 31.3, 31.6, 32.0, 32.2, 32.5, 32.7, 33.0, 33.2,
+    33.5, 33.7, 34.0, 34.3, 34.6, 35.0, 35.2, 35.5, 35.7, 36.0, 36.3, 36.6, 37.0, 37.2, 37.5, 37.7,
+    38.0, 38.3, 38.6, 39.0, 39.3, 39.6, 40.0, 40.3, 40.6, 41.0, 41.3, 41.6, 42.0, 42.3, 42.6, 43.0,
+];
 const emptyBlock = () => [0, 0, 0, 0, 0, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 function crc16(bytes) {
@@ -151,8 +170,10 @@ function decodeStat(base64) {
     const c = d.slice(start, start + 18);
     const segments = d.slice(start + 19, d.length - 2);
     let energy = null;
+    let outdoor = null;
     for (let i = 0; i + 3 < segments.length; i += 4) {
         if (segments[i] === 0x94 && segments[i + 1] === 0x10) energy = ((segments[i + 3] << 8) | segments[i + 2]) * 0.25;
+        if (segments[i] === 0x80 && segments[i + 1] === 0x10 && segments[i + 2] < OUTDOOR_TEMPS.length) outdoor = OUTDOOR_TEMPS[segments[i + 2]];
     }
     const modelNrRaw = c[0] & 0x7f;
     const modelNr = modelNrRaw === 3 ? 2 : [0, 1, 2].indexOf(modelNrRaw);
@@ -171,6 +192,7 @@ function decodeStat(base64) {
         vacant: (c[10] & 1) !== 0,
         selfClean: (modelNr === 1 || modelNr === 2) ? (c[15] & 1) !== 0 : false,
         runEnergyKwh: energy,
+        outdoorTemp: outdoor,
     };
 }
 
@@ -257,6 +279,21 @@ async function pollEnergy(unit) {
         const stat = decodeStat(contents.airconStat);
         const value = stat.runEnergyKwh;
         if (value === null) throw new Error('Anlage meldet keinen Energiezähler');
+        // Betriebsstunden (für die Filter-Erinnerung in der App) und Außentemperatur (Mittel je Stunde und Tag).
+        if (stat.power) data.runMinutes = (data.runMinutes || 0) + POLL_MINUTES;
+        if (typeof stat.outdoorTemp === 'number') {
+            for (const [map, count, key] of [['outdoorHourly', 'outdoorHourlyN', hourKey(now)], ['outdoorDaily', 'outdoorDailyN', dayKey(now)]]) {
+                data[map] = data[map] || {};
+                data[count] = data[count] || {};
+                const n = data[count][key] || 0;
+                data[map][key] = Math.round(((data[map][key] || 0) * n + stat.outdoorTemp) / (n + 1) * 10) / 10;
+                data[count][key] = n + 1;
+            }
+            // Zähler werden nur für die laufende Stunde bzw. den laufenden Tag gebraucht.
+            for (const [count, key] of [['outdoorHourlyN', hourKey(now)], ['outdoorDailyN', dayKey(now)]]) {
+                for (const k of Object.keys(data[count])) if (k !== key) delete data[count][k];
+            }
+        }
         // Laufzeit seit dem letzten Zählerschritt, als Anzahl eingeschalteter Ablesungen je Stunde.
         const slots = data.pendingSlots && typeof data.pendingSlots === 'object' ? data.pendingSlots : {};
         // Neuer Lauf: Laufzeit des vorigen Laufs gehört zu keinem kommenden Schritt mehr.
@@ -293,6 +330,7 @@ async function pollEnergy(unit) {
     }
     const oldest = hourKey(new Date(now.getTime() - HOURLY_DAYS * 24 * 3600 * 1000));
     for (const key of Object.keys(data.hourly)) if (key < oldest) delete data.hourly[key];
+    if (data.outdoorHourly) for (const key of Object.keys(data.outdoorHourly)) if (key < oldest) delete data.outdoorHourly[key];
     await setStateAsync(id, JSON.stringify(data), true);
 }
 

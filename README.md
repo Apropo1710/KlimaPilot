@@ -84,6 +84,7 @@ Alle Datenpunkte unter `0_userdata.0.KlimaPilot`, die andere Programme (z. B. ei
 | `energy.units.<airconId>` | Skript | nur lesen |
 | `schedules.config` | App | lesen und schreiben (Revisionsverfahren) |
 | `schedules.status` | Skript | nur lesen |
+| `filter.config` | App | lesen und schreiben |
 | `diagnostics.config` | App | lesen und schreiben |
 | `diagnostics.log` | Skript | lesen; leeren erlaubt |
 | `profileSync.*`, `accounts` | App (intern) | nicht verwenden |
@@ -113,6 +114,11 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
   "daily": { "2026-11-20": 2.0, "2026-11-21": 1.5 },
   "totalKwh": 3.5,
   "lastRunKwh": 0.75,
+  "runMinutes": 12840,
+  "outdoorHourly": { "2026-11-21T10": 3.4, "2026-11-21T11": 3.9 },
+  "outdoorDaily": { "2026-11-20": 1.8, "2026-11-21": 3.1 },
+  "outdoorHourlyN": { "2026-11-21T11": 9 },
+  "outdoorDailyN": { "2026-11-21": 130 },
   "lastPollAt": "2026-11-21T10:45:00.000Z",
   "lastError": "2026-11-21T06:10:00.000Z connect ECONNREFUSED …",
   "pendingSlots": { "2026-11-21T11": 9 }
@@ -121,7 +127,9 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 
 - Schlüssel in Ortszeit von ioBroker: `hourly` als `JJJJ-MM-TTTHH` (31 Tage aufbewahrt), `daily` als `JJJJ-MM-TT` (unbegrenzt), Werte in kWh.
 - Der Zähler der Anlage meldet nur 0,25-kWh-Schritte. Jeder Schritt wird anteilig auf die Stunden verteilt, in denen die Anlage seit dem letzten Schritt lief. `daily` ist genau, einzelne Stunden sind angenähert.
-- `lastRunKwh` und `pendingSlots` sind interne Zwischenstände des Skripts. `lastError` fehlt, wenn die letzte Ablesung geklappt hat.
+- `runMinutes`: Betriebsminuten der Anlage, gezählt in 5-Minuten-Schritten, solange sie eingeschaltet ist. Grundlage der Filter-Erinnerung.
+- `outdoorHourly` (31 Tage) und `outdoorDaily` (unbegrenzt): mittlere Außentemperatur in °C, gemessen vom Außenfühler der Anlage. Die Werte gibt es auch, wenn die Anlage aus ist.
+- `lastRunKwh`, `pendingSlots`, `outdoorHourlyN` und `outdoorDailyN` sind interne Zwischenstände des Skripts. `lastError` fehlt, wenn die letzte Ablesung geklappt hat.
 
 ### `schedules.config` – Zeitpläne (lesen und schreiben)
 
@@ -153,6 +161,7 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 - `action`: `on` schaltet ein und setzt die Werte aus `settings`. `off` schaltet aus, `settings` wird dann nicht verwendet.
 - `settings`: Nur enthaltene Felder werden gesetzt, fehlende bleiben an der Anlage unverändert.
 - Mit Profil (`profileId`, `profileName`) ist `settings` eine Kopie der Profilwerte. Das Skript verwendet **nur `settings`**. Die App aktualisiert die Kopie, wenn sich das Profil ändert.
+- `quick: true` kennzeichnet einen Schnell-Timer „Aus in …“: `kind` `once`, `action` `off`. Er wird in der App nicht in der Liste geführt, es gibt höchstens einen je Anlage, und die App entfernt ihn, sobald er ausgeführt oder älter als 7 h ist. Fehlt das Feld, gilt `false`.
 - Die Reihenfolge von `items` ist die Anzeigereihenfolge in der App, die Nutzer selbst festlegen. Neue Zeitpläne kommen ans Ende.
 - Ausgeführte einmalige Zeitpläne (`once`) setzt die App danach auf `enabled: false`.
 - Ausführung: Wöchentliche Termine werden bis 10 min nach der Zeit jede Minute wiederholt, falls die Anlage nicht erreichbar ist. Einmalige werden bis 6 h nach `at` nachgeholt.
@@ -177,6 +186,20 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 - Ein Eintrag je Zeitplan-`id`, jeweils für den letzten fälligen Termin (`key`).
 - `done: true` heißt ausgeführt. Bei `false` steht in `result` der letzte Fehler.
 - Einträge gelöschter Zeitpläne entfernt das Skript.
+
+### `filter.config` – Filter-Erinnerung (lesen und schreiben)
+
+```json
+{
+  "intervalHours": 200,
+  "units": { "1cd1d717ebe8": { "cleanedRunMinutes": 12000 } },
+  "updatedAt": 1795260000000
+}
+```
+
+- `intervalHours`: Erinnerung nach so vielen Betriebsstunden. `0` heißt aus. Vorgabe ist 200.
+- `cleanedRunMinutes`: Stand von `runMinutes` aus `energy.units.<airconId>` bei der letzten Reinigung. Betriebsstunden seit der Reinigung = (`runMinutes` − `cleanedRunMinutes`) / 60. Fehlt eine Anlage, wird ab Aufzeichnungsbeginn gezählt.
+- „Gereinigt“ setzt `cleanedRunMinutes` auf den aktuellen `runMinutes`-Wert der Anlage. Schreiben immer als Lesen – Ändern – Schreiben und andere Anlagen unverändert lassen.
 
 ### `diagnostics.config` – Diagnose an/aus (lesen und schreiben)
 
