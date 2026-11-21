@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.key
@@ -165,6 +166,15 @@ internal object EnergyMath {
         EnergyPeriod.MONTH -> anchor.plusMonths(steps)
         EnergyPeriod.YEAR -> anchor.plusYears(steps)
         EnergyPeriod.ALL -> anchor
+    }
+
+    /** The next coarser view for the "up" button: day → week → month → year → all. */
+    fun coarser(period: EnergyPeriod): EnergyPeriod? = when (period) {
+        EnergyPeriod.DAY -> EnergyPeriod.WEEK
+        EnergyPeriod.WEEK -> EnergyPeriod.MONTH
+        EnergyPeriod.MONTH -> EnergyPeriod.YEAR
+        EnergyPeriod.YEAR -> EnergyPeriod.ALL
+        EnergyPeriod.ALL -> null
     }
 
     /** How many periods the one containing [anchor] lies before the one containing [today] (0 = current). */
@@ -542,7 +552,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     title = { Text("Energieansicht") },
                     text = {
                         Text(
-                            "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. Zurück-Geste oder Antippen von Woche, Monat oder Jahr geht wieder höher. " +
+                            "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. „↑“ über dem Diagramm oder die Zurück-Geste geht wieder eine Ebene höher. " +
                                 "Seitlich wischen oder mit ‹ › blättern, den Titel antippen springt zurück zum aktuellen Zeitraum.\n\n" +
                                 "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten; jeder Schritt wird auf die Laufzeit davor verteilt. " +
                                 "Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft. Kosten ohne Grundgebühr; " +
@@ -550,6 +560,19 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                         )
                     }
                 )
+                // One level up: back to where a bar tap came from, otherwise the next coarser period.
+                val up = drillStack.lastOrNull() ?: EnergyMath.coarser(period)
+                if (up != null) Row(Modifier.fillMaxWidth().padding(bottom = 0.dp), horizontalArrangement = Arrangement.End) {
+                    Text(
+                        "↑ ${up.label}", color = EnergyBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(EnergyBlue.copy(alpha = 0.10f))
+                            .clickable {
+                                if (drillStack.isNotEmpty()) drillStack = drillStack.dropLast(1)
+                                period = up
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
                 // Swipe sideways through the periods; the last page is the current one (no future pages).
                 key(period) {
                     val pageCount = if (period == EnergyPeriod.ALL) 1 else ENERGY_PAGES
