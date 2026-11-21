@@ -573,7 +573,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     Text("Summe im Zeitraum: ${formatNumber(total, 2)} $unitLabel", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     Text("ⓘ", fontSize = 20.sp, color = EnergyBlue, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { showInfo = true }.padding(horizontal = 8.dp, vertical = 2.dp))
                 }
-                if (showInfo) AlertDialog(
+                if (showInfo) KlimaPilotAlertDialog(
                     onDismissRequest = { showInfo = false },
                     confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } },
                     title = { Text("Energieansicht") },

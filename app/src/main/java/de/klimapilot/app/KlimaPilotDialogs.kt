@@ -1,87 +1,103 @@
 package de.klimapilot.app
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+
+private val DialogBlue = Color(0xFF1769AA)
+private val DialogBlueDark = Color(0xFF12558C)
+private val DialogTitle = Color(0xFF172B45)
+private val DialogText = Color(0xFF52657B)
 
 /**
- * Einheitlicher, dezent blau hinterlegter Dialograhmen für alle App-Dialoge.
- * Die übergebenen Aktions-Slots behalten ihre jeweilige Fachlogik unverändert.
+ * Uniform frame for every dialog in the app: white card with a fine blue border, a blue accent
+ * strip at the top and rounded, tinted buttons. Same slots as Material's AlertDialog, so the
+ * dialogs' own logic stays unchanged.
  */
 @Composable
 internal fun KlimaPilotAlertDialog(
     onDismissRequest: () -> Unit,
-    containerColor: Color = Color(0xFFEAF3FC),
-    title: @Composable () -> Unit,
-    text: @Composable () -> Unit,
-    confirmButton: @Composable () -> Unit,
-    dismissButton: @Composable (() -> Unit)? = null
+    containerColor: Color = Color.White,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null,
+    confirmButton: (@Composable () -> Unit)? = null,
+    dismissButton: (@Composable () -> Unit)? = null
 ) {
-    val shape = RoundedCornerShape(26.dp)
-    val accent = MaterialTheme.colorScheme.primary
-    Dialog(onDismissRequest = onDismissRequest) {
+    val shape = RoundedCornerShape(28.dp)
+    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
-            modifier = Modifier.fillMaxWidth().border(2.5.dp, Color(0xFF1769AA), shape),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             shape = shape,
             color = containerColor,
-            tonalElevation = 8.dp,
-            shadowElevation = 10.dp
+            border = BorderStroke(1.5.dp, DialogBlue.copy(alpha = 0.35f)),
+            shadowElevation = 16.dp
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                ProvideDialogTitle { title() }
-                ProvideDialogText { text() }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Column {
+                // Accent strip: the blue of the app, as on the main cards.
+                Box(Modifier.fillMaxWidth().height(6.dp).background(Brush.horizontalGradient(listOf(DialogBlue, DialogBlueDark, DialogBlue.copy(alpha = 0.6f)))))
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 44.dp)
-                            .background(Color(0xFFCFE3F7), RoundedCornerShape(13.dp)),
-                        contentAlignment = Alignment.Center
-                    ) { confirmButton() }
-                    if (dismissButton != null) {
-                        Box(
-                            modifier = Modifier.weight(1f).defaultMinSize(minHeight = 44.dp)
-                                .background(Color(0xFFDCE6F0), RoundedCornerShape(13.dp)),
-                            contentAlignment = Alignment.Center
-                        ) { dismissButton() }
+                    title?.let {
+                        ProvideTextStyle(MaterialTheme.typography.titleLarge.copy(color = DialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 21.sp)) {
+                            CompositionLocalProvider(LocalContentColor provides DialogTitle) { it() }
+                        }
+                    }
+                    text?.let {
+                        Box {
+                            ProvideTextStyle(MaterialTheme.typography.bodyLarge.copy(color = DialogText, fontSize = 15.sp, lineHeight = 22.sp)) {
+                                CompositionLocalProvider(LocalContentColor provides DialogText) { it() }
+                            }
+                        }
+                    }
+                    if (confirmButton != null || dismissButton != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            dismissButton?.let {
+                                Box(
+                                    Modifier.weight(1f).defaultMinSize(minHeight = 46.dp)
+                                        .background(Color(0xFFF0F4F8), RoundedCornerShape(50)),
+                                    contentAlignment = Alignment.Center
+                                ) { it() }
+                            }
+                            confirmButton?.let {
+                                Box(
+                                    Modifier.weight(1f).defaultMinSize(minHeight = 46.dp)
+                                        .background(DialogBlue.copy(alpha = 0.12f), RoundedCornerShape(50)),
+                                    contentAlignment = Alignment.Center
+                                ) { it() }
+                            }
+                        }
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun ProvideDialogTitle(content: @Composable () -> Unit) {
-    androidx.compose.material3.ProvideTextStyle(
-        MaterialTheme.typography.headlineSmall.copy(
-            color = Color(0xFF172B45),
-            fontWeight = FontWeight.SemiBold
-        ),
-        content = content
-    )
-}
-
-@Composable
-private fun ProvideDialogText(content: @Composable () -> Unit) {
-    androidx.compose.material3.ProvideTextStyle(
-        MaterialTheme.typography.bodyLarge.copy(color = Color(0xFF52657B)),
-        content = content
-    )
 }

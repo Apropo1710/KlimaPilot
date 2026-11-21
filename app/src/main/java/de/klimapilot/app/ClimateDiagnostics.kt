@@ -304,7 +304,7 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
     }
 
     if (showInfo) {
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { showInfo = false },
             confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } },
             title = { Text("Diagnose") },

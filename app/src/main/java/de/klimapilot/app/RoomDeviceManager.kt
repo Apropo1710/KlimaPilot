@@ -172,7 +172,7 @@ internal fun RoomDeviceManagerScreen(
     }
 
     if (showAddOptions) {
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { showAddOptions = false },
             containerColor = Color.White,
             title = { Text("Was möchtest du hinzufügen?", color = ManagerText) },
@@ -201,7 +201,7 @@ internal fun RoomDeviceManagerScreen(
 
     if (deletingDevice != null) {
         val target = deletingDevice!!
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { deletingDevice = null; deleteError = "" },
             containerColor = Color.White,
             title = { Text("Gerät wirklich löschen?", color = ManagerText) },
@@ -233,7 +233,7 @@ internal fun RoomDeviceManagerScreen(
 
     if (addRoom) {
         var name by remember { mutableStateOf("") }
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { addRoom = false },
             containerColor = Color.White,
             title = { Text("Raum anlegen", color = ManagerText) },
@@ -285,7 +285,7 @@ internal fun RoomDeviceManagerScreen(
         val original = editing
         var name by remember(original, addDevice) { mutableStateOf(original?.name ?: "") }
         var selectedRoom by remember(original, addDevice, rooms.size) { mutableStateOf(original?.room ?: rooms.first()) }
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { addDevice = false; editing = null },
             containerColor = Color.White,
             title = { Text(if (original == null) "Gerät anlegen" else "Gerät bearbeiten", color = ManagerText) },

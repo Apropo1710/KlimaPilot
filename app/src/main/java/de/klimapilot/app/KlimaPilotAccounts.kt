@@ -556,7 +556,7 @@ internal fun KlimaPilotAccountSettingsScreen(
     }
 
     setupQr?.let { bitmap ->
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { setupQr = null },
             title = { Text("Anderes Smartphone einrichten") },
             text = {
@@ -576,7 +576,7 @@ internal fun KlimaPilotAccountSettingsScreen(
         )
     }
 
-    if (showOwnPassword) AlertDialog(
+    if (showOwnPassword) KlimaPilotAlertDialog(
         onDismissRequest = { showOwnPassword = false },
         title = { Text("Eigenes Passwort ändern") },
         text = {
@@ -595,7 +595,7 @@ internal fun KlimaPilotAccountSettingsScreen(
         dismissButton = { TextButton(onClick = { showOwnPassword = false }) { Text("Abbrechen") } }
     )
 
-    if (showAdd) AlertDialog(
+    if (showAdd) KlimaPilotAlertDialog(
         onDismissRequest = { showAdd = false },
         title = { Text("KlimaPilot-Benutzer anlegen") },
         text = {
@@ -626,7 +626,7 @@ internal fun KlimaPilotAccountSettingsScreen(
     )
 
     resetTarget?.let { target ->
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { resetTarget = null },
             title = { Text("Passwort zurücksetzen") },
             text = {
@@ -648,7 +648,7 @@ internal fun KlimaPilotAccountSettingsScreen(
     }
 
     deleteTarget?.let { target ->
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text("Benutzer wirklich löschen?") },
             text = { Text("Das Konto „${target.username}“ wird dauerhaft aus diesem Gerät entfernt.") },

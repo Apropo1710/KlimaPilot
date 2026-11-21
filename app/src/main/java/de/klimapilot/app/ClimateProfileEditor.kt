@@ -237,7 +237,7 @@ internal fun ClimateProfileEditorDialog(
     }
 
     if (showInfo) {
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { showInfo = false },
             confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } },
             title = { Text("Was das Profil einstellt") },

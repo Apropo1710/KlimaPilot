@@ -639,7 +639,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
     }
 
     conflict?.let { pending ->
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { conflict = null },
             title = { Text("Zeitplan wurde geändert") },
             text = { Text("Dieser Zeitplan wurde inzwischen auf dem anderen Handy geändert oder gelöscht. Deine Änderung trotzdem speichern?") },
@@ -1002,7 +1002,7 @@ private fun ScheduleEditor(
 
     if (showTimePicker) {
         val pickerState = rememberTimePickerState(initialHour = time.hour, initialMinute = time.minute, is24Hour = true)
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { showTimePicker = false },
             confirmButton = { TextButton(onClick = { time = LocalTime.of(pickerState.hour, pickerState.minute); showTimePicker = false }) { Text("OK") } },
             dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Abbrechen") } },

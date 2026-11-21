@@ -268,7 +268,7 @@ internal fun FilterSettingsCard(units: List<EnergyUnitData>, expanded: Boolean, 
         }
     }
     if (showInfo) {
-        AlertDialog(
+        KlimaPilotAlertDialog(
             onDismissRequest = { showInfo = false },
             confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } },
             title = { Text("Filter-Erinnerung") },
