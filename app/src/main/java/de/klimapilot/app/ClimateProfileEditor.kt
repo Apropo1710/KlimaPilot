@@ -113,6 +113,7 @@ internal fun ClimateProfileEditorDialog(
     val preview = build().summary().ifBlank { "Noch nichts festgelegt" }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        DialogNavigationBar(SPage)
         Surface(Modifier.fillMaxSize(), color = SPage) {
           Column(Modifier.fillMaxSize()) {
             // Fixed header: close and save stay reachable while scrolling.

@@ -575,6 +575,22 @@ internal fun blueSwitchColors() = SwitchDefaults.colors(
     uncheckedThumbColor = Color(0xFF9AAABB), uncheckedTrackColor = SSegmentBg, uncheckedBorderColor = Color(0xFFC9D5E1)
 )
 
+/** Full-screen dialogs: navigation bar in the page colour with dark buttons, like the main screen. */
+@Composable
+internal fun DialogNavigationBar(color: Color) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    val window = (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window ?: return
+    androidx.compose.runtime.SideEffect {
+        @Suppress("DEPRECATION")
+        window.navigationBarColor = color.toArgbCompat()
+        androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = true
+    }
+}
+
+private fun Color.toArgbCompat(): Int = android.graphics.Color.argb(
+    (alpha * 255).toInt(), (red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt()
+)
+
 @Composable
 internal fun RowDivider() = androidx.compose.material3.HorizontalDivider(color = SDivider, thickness = 1.dp)
 
@@ -671,6 +687,7 @@ private fun ScheduleEditor(
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        DialogNavigationBar(SPage)
         Surface(Modifier.fillMaxSize(), color = SPage) {
           Column(Modifier.fillMaxSize()) {
             // Fixed header: close and save stay reachable while scrolling.

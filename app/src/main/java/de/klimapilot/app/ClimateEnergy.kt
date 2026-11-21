@@ -5,6 +5,8 @@ import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -500,6 +503,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     val unitLabel = if (inEuro) "€" else "kWh"
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        DialogNavigationBar(MaterialTheme.colorScheme.background)
         BackHandler(enabled = drillStack.isNotEmpty()) {
             period = drillStack.last()
             drillStack = drillStack.dropLast(1)
@@ -562,16 +566,22 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                 )
                 // One level up: back to where a bar tap came from, otherwise the next coarser period.
                 val up = drillStack.lastOrNull() ?: EnergyMath.coarser(period)
-                if (up != null) Row(Modifier.fillMaxWidth().padding(bottom = 0.dp), horizontalArrangement = Arrangement.End) {
-                    Text(
-                        "↑ ${up.label}", color = EnergyBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(EnergyBlue.copy(alpha = 0.10f))
+                if (up != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Row(
+                        Modifier.clip(RoundedCornerShape(50)).background(EnergyBlue.copy(alpha = 0.10f))
                             .clickable {
                                 if (drillStack.isNotEmpty()) drillStack = drillStack.dropLast(1)
                                 period = up
                             }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
+                            .padding(start = 6.dp, end = 10.dp, top = 2.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.Icon(
+                            Icons.Default.KeyboardArrowUp, contentDescription = null,
+                            tint = EnergyBlue, modifier = Modifier.size(20.dp)
+                        )
+                        Text(up.label, color = EnergyBlue, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
                 // Swipe sideways through the periods; the last page is the current one (no future pages).
                 key(period) {
