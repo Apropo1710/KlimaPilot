@@ -411,6 +411,26 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     )
     val showDirty = selectedProfileDirty && !switching
 
+    // A schedule (or the other phone) may have applied another profile in the meantime. If the
+    // unit now matches exactly one other profile of this room, show that one instead of
+    // "Tag (geändert)".
+    LaunchedEffect(deviceId, currentState, selectedProfileId, switching, loaded) {
+        if (managerMode || !loaded || switching || !selectedProfileDirty) return@LaunchedEffect
+        val state = currentState ?: return@LaunchedEffect
+        val vaneLR = modelSupportsVaneLR == true
+        val matches = deviceProfiles.filter { p ->
+            p.id != selectedProfileId && (p.mode != null || p.targetTemp != null) &&
+                (p.power == null || p.power == state.power) &&
+                (p.mode == null || p.mode == state.mode?.name) &&
+                (p.targetTemp == null || abs(p.targetTemp - state.presetTemp) < 0.01) &&
+                (p.fanSpeed == null || p.fanSpeed == state.airFlow) &&
+                (p.verticalSwing == null || p.verticalSwing == state.windUD) &&
+                (!vaneLR || p.horizontalSwing == null || p.horizontalSwing == state.windLR) &&
+                (!vaneLR || p.threeDAuto == null || p.threeDAuto == state.entrust)
+        }
+        if (matches.size == 1) persistActiveProfile(matches.single().id)
+    }
+
     fun updateSelectedProfileFromState() {
         val profile = selectedProfile ?: return
         val state = currentState ?: return

@@ -74,6 +74,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Profile je Anlage; Abweichung zeigt „(geändert)“ mit ✓, „Individuell“ speichert sofort, + legt neu an.
 - Editor (`ClimateProfileEditor.kt`): je Einstellung Schalter „Profil setzt diesen Wert“ (aus = unverändert); horizontale Luftführung und 3D-Auto immer verfügbar.
 - Jahreszeit: Profile Winter/Sommer/Ganzjährig (`season`, ohne Zuordnung nach Modus); Umschalter im Profilmenü, gilt für den Haushalt (Handy-Sync), kein automatischer Wechsel.
+- Profilanzeige folgt Zeitplänen (0.5.36): Zeitpläne setzen nur die Werte, nicht das aktive Profil. Weicht die Anlage vom gewählten Profil ab und passt genau ein anderes Profil des Raums, wird dieses als aktiv übernommen (Anlass 22.11.2026: Zeitplan 20:00 „Nacht“ lief, Anzeige blieb „Tag (geändert)“).
 - „Klimaprofile verwalten“: je Anlage eine Karte mit Profilzeilen, Papierkorb und „Neues Profil“.
 
 ### ioBroker-Skript (`scripts/iobroker/klimapilot.js` → `script.js.common.KlimaPilot`)
