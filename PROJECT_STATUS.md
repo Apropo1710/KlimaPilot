@@ -91,12 +91,15 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Hauptseite „Verbrauch heute“ (auch ohne lokale Verbindung). Energiefenster: Räume/Alle, Tag–Gesamt, kWh/€, seitlich wischbar, Balken öffnet feinere Ebene, „↑“ und Zurück-Geste gehen höher; Skalen links (Wert) und rechts (Außentemperatur), Werte an Balken bis 12 Stück, Tagesansicht zeigt Werte per Tipp. Fester Strompreis ohne Grundgebühr. Achsenbeschriftung unter den Balken wird zentriert gezeichnet und nicht mehr abgeschnitten (Monatsansicht zeigte „1 5 9 1 1 2“ statt „1 5 9 13 17 21“).
 
 ### Filter-Erinnerung
-- Abstände wie im Handbuch, gezählt in Betriebstagen (Tage mit Betrieb, `runDays`): Luftfilter 1–4 Wochen (Vorgabe 2), Allergen- und Geruchsfilter 1–6 Monate (Vorgabe 3). Hinweis auf der Anlagenseite mit „Erledigt“, Einstellungskachel für alle Konten. Zählung seit 21.11.2026.
+- Abstände wie im Handbuch, gezählt in Betriebstagen (Tage mit Betrieb, `runDays`): Luftfilter 1–4 Wochen (Vorgabe 2), Allergen- und Geruchsfilter 1–6 Monate (Vorgabe 3). Hinweis auf der Anlagenseite mit „Erledigt“, Einstellungskachel für alle Konten. Zugeklappt zeigt die Kachel „Nach Betriebstagen der Anlage“ (vorher noch „Betriebsstunden“). Zählung seit 21.11.2026.
 
 ### Diagnose und Benachrichtigungen
 - Diagnose (Einstellungen, an/aus über ioBroker): Skript prüft minütlich die Erreichbarkeit und protokolliert Wechsel; das Handy ergänzt nur echte Wechsel aus eigener Sicht (keine Prüfpausen, keine abgebrochenen Abrufe). Auswertung 21./22.11.2026: keine echten Ausfälle; Aussetzer vom Handy lagen am WLAN des Handys.
 - Gemeinsame ioBroker-Verbindung der App (`IoBrokerPool`), schließt nach 2 min Ruhe; Empfehlung ws.0-Log-Stufe „warn“.
 - Android-Benachrichtigungen (standardmäßig aus, je Art einschaltbar): WorkManager-Check etwa alle 2 h im WLAN für fällige Filter, endgültig fehlgeschlagene Zeitpläne und seit über 1 h nicht erreichbare Anlagen; Dauerzustände täglich erneut, erledigte werden entfernt. Berechtigungen `POST_NOTIFICATIONS` (Abfrage beim Einschalten), `VIBRATE` (Greifen beim Sortieren; auf dem Xiaomi des Nutzers ohne spürbare Wirkung).
+
+### Updater-Beobachtung (22.11.2026)
+- Gelegentlich erscheint nach „Update laden“ der Status „Android-Installationsdialog wurde angefordert“, der Dialog kommt aber nicht; ein zweites Tippen funktioniert immer. Der Code ruft `startActivity` ohne Fehler auf – das System zeigt den Dialog nur nicht (vermutlich bündelt Android/MIUI den Aufruf mit einer noch vorhandenen Installer-Aufgabe oder der Play-Protect-Prüfung). Ursache nicht sicher nachweisbar; **bewusst keine Änderung am Updater** (Nutzerpriorität: Updater darf nicht unbrauchbar werden). Umgehung: erneut tippen.
 
 ### Bestätigt / offen
 - Am Gerät bestätigt: Kopplung, Status, Solltemperatur, Profilwechsel, Kompressor-Anzeige, Energiezähler und -verlauf, einmaliger Zeitplan, Profil-Zuordnung im Zeitplan, Sortieren der Räume.

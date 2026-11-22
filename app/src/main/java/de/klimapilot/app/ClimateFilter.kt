@@ -228,7 +228,7 @@ internal fun FilterSettingsCard(units: List<EnergyUnitData>, expanded: Boolean, 
                     Text(
                         config?.let { c ->
                             FilterKind.entries.joinToString(" · ") { k -> "${k.label} ${c.intervalLabel(k)}" }
-                        } ?: "Nach Betriebsstunden der Anlage",
+                        } ?: "Nach Betriebstagen der Anlage",
                         color = SMuted, fontSize = 11.sp
                     )
                 }
