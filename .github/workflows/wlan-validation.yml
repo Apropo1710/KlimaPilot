@@ -72,6 +72,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+          # Auf test ist der Cache sonst nur lesbar; dann lädt jeder Lauf alle Abhängigkeiten neu
+          # von Maven Central und scheitert gelegentlich an dessen Drosselung (HTTP 429).
+          cache-read-only: false
 
       - name: Test-Signaturschlüssel bereitstellen
         env:
