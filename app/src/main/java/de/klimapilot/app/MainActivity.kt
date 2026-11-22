@@ -1,5 +1,14 @@
 package de.klimapilot.app
 
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableFloatStateOf
 import android.os.Bundle
 import android.content.Intent
 import androidx.activity.ComponentActivity
@@ -181,7 +190,14 @@ private fun KlimaPilotApp(appVersion: String) {
             .apply()
     }
 
-    var selectedRoom by remember { mutableStateOf(rooms.firstOrNull() ?: "Wohnzimmer") }
+    // Order of the room buttons: per phone, set by holding and dragging a room; the first one opens on start.
+    var roomOrder by remember {
+        mutableStateOf(prefs.getString("room_order", null)?.let { raw ->
+            runCatching { org.json.JSONArray(raw).let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrNull()
+        }.orEmpty())
+    }
+    val orderedRooms = rooms.sortedBy { room -> roomOrder.indexOf(room).let { if (it < 0) Int.MAX_VALUE else it } }
+    var selectedRoom by remember { mutableStateOf(orderedRooms.firstOrNull() ?: "Wohnzimmer") }
     var selectedDeviceId by remember {
         mutableStateOf(devices.firstOrNull { it.room == selectedRoom }?.id ?: devices.firstOrNull()?.id ?: "")
     }
@@ -712,7 +728,11 @@ private fun KlimaPilotApp(appVersion: String) {
     } else {
         MainScreen(
             selectedRoom = selectedRoom,
-            rooms = rooms,
+            rooms = orderedRooms,
+            onRoomOrder = { order ->
+                roomOrder = order
+                prefs.edit().putString("room_order", org.json.JSONArray(order).toString()).apply()
+            },
             onRoomSelect = { roomName ->
                 selectedRoom = roomName
                 selectedDeviceId = devices.firstOrNull { it.room == roomName }?.id ?: ""
@@ -722,9 +742,9 @@ private fun KlimaPilotApp(appVersion: String) {
             selectedDeviceId = selectedDevice?.id ?: "",
             onDeviceSelect = { deviceId -> selectedDeviceId = deviceId },
             onRoomSwipe = { direction ->
-                if (rooms.size > 1) {
-                    val current = rooms.indexOf(selectedRoom).coerceAtLeast(0)
-                    val nextRoom = rooms[(current + direction + rooms.size) % rooms.size]
+                if (orderedRooms.size > 1) {
+                    val current = orderedRooms.indexOf(selectedRoom).coerceAtLeast(0)
+                    val nextRoom = orderedRooms[(current + direction + orderedRooms.size) % orderedRooms.size]
                     selectedRoom = nextRoom
                     selectedDeviceId = devices.firstOrNull { it.room == nextRoom }?.id ?: ""
                 }
@@ -876,6 +896,7 @@ private fun StartupUpdateCheck(appVersion: String, onOpenSettings: () -> Unit) {
 private fun MainScreen(
     selectedRoom: String,
     rooms: List<String>,
+    onRoomOrder: (List<String>) -> Unit = {},
     onRoomSelect: (String) -> Unit,
     devicesInRoom: List<UserDevice>,
     allDevices: List<UserDevice>,
@@ -931,9 +952,55 @@ private fun MainScreen(
 
         // Rooms (and units, if a room has several) stay fixed under the header.
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Hold a room and drag it sideways to change the order.
+            var dragOrder by remember { mutableStateOf<List<String>?>(null) }
+            var dragRoom by remember { mutableStateOf<String?>(null) }
+            var dragOffset by remember { mutableFloatStateOf(0f) }
+            val chipWidths = remember { mutableStateMapOf<String, Int>() }
+            val roomGap = with(LocalDensity.current) { 7.dp.toPx() }
+            val roomHaptic = LocalHapticFeedback.current
+            val currentRooms by rememberUpdatedState(rooms)
+            val currentOnRoomOrder by rememberUpdatedState(onRoomOrder)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                rooms.forEach { room ->
+                (dragOrder ?: rooms).forEach { room ->
+                    val dragging = dragRoom == room
                     FilterChip(
+                        modifier = Modifier
+                            .zIndex(if (dragging) 1f else 0f)
+                            .graphicsLayer {
+                                translationX = if (dragging) dragOffset else 0f
+                                if (dragging) { scaleX = 1.06f; scaleY = 1.06f; shadowElevation = 8f }
+                            }
+                            .onGloballyPositioned { chipWidths[room] = it.size.width }
+                            .pointerInput(room) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = {
+                                        roomHaptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        dragOrder = currentRooms
+                                        dragRoom = room
+                                        dragOffset = 0f
+                                    },
+                                    onDrag = { change, amount ->
+                                        change.consume()
+                                        dragOffset += amount.x
+                                        val order = (dragOrder ?: return@detectDragGesturesAfterLongPress).toMutableList()
+                                        val index = order.indexOf(room)
+                                        if (dragOffset > 0 && index < order.lastIndex) {
+                                            val step = (chipWidths[order[index + 1]] ?: 0) + roomGap
+                                            if (dragOffset > step / 2f) { order.add(index + 1, order.removeAt(index)); dragOffset -= step }
+                                        } else if (dragOffset < 0 && index > 0) {
+                                            val step = (chipWidths[order[index - 1]] ?: 0) + roomGap
+                                            if (-dragOffset > step / 2f) { order.add(index - 1, order.removeAt(index)); dragOffset += step }
+                                        }
+                                        dragOrder = order
+                                    },
+                                    onDragEnd = {
+                                        dragOrder?.let { if (it != currentRooms) currentOnRoomOrder(it) }
+                                        dragOrder = null; dragRoom = null; dragOffset = 0f
+                                    },
+                                    onDragCancel = { dragOrder = null; dragRoom = null; dragOffset = 0f }
+                                )
+                            },
                         selected = selectedRoom == room,
                         onClick = { onRoomSelect(room) },
                         label = { Text(room, maxLines = 1) },
