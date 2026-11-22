@@ -42,6 +42,8 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.rememberUpdatedState
@@ -1047,8 +1049,8 @@ internal fun Modifier.holdToDrag(
 ): Modifier = this.pointerInput(key) {
     val slop = viewConfiguration.touchSlop
     val pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial
-    androidx.compose.foundation.gestures.awaitEachGesture {
-        val down = androidx.compose.foundation.gestures.awaitFirstDown(requireUnconsumed = false, pass = pass)
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = pass)
         if (!enabled()) return@awaitEachGesture
         // Wait for the long press; give up on release or on a move beyond the touch slop.
         val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
