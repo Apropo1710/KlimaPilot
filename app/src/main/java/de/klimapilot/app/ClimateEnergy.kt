@@ -379,6 +379,11 @@ internal class EnergyScriptInstaller(private val context: Context) {
             else -> null
         }
 
+        /**
+         * Removes every other copy of the script (found by its marker text, its old name or the
+         * old id), enabled or not. If ioBroker refuses the deletion, the copy is at least stopped,
+         * and the result says so, so it can be deleted by hand.
+         */
         fun disableOtherCopies(message: String) {
             val params = JSONObject().put("startkey", "script.js.").put("endkey", "script.js.\u9999")
             socket.emit("getObjectView", "system", "script", params, IoBrokerAck viewCallback@{ args ->
@@ -389,18 +394,33 @@ internal class EnergyScriptInstaller(private val context: Context) {
                     val id = row.optString("id")
                     val common = row.optJSONObject("value")?.optJSONObject("common") ?: return@mapNotNull null
                     val source = common.optString("source")
-                    id.takeIf { it != SCRIPT_ID && common.optBoolean("enabled") && (source.contains(MARKER) || source.contains(LEGACY_MARKER)) }
+                    val name = common.optString("name").replace('_', ' ').trim()
+                    id.takeIf {
+                        it != SCRIPT_ID && (it == LEGACY_SCRIPT_ID || name.equals("KlimaPilot Energie", ignoreCase = true) ||
+                            source.contains(MARKER) || source.contains(LEGACY_MARKER))
+                    }?.let { it to common.optString("name").ifBlank { it } }
                 }
+                val stuck = mutableListOf<String>()
                 fun next(index: Int) {
                     if (index >= others.size) {
-                        // The earlier energy-only script KlimaPilot set up itself is removed for good.
-                        socket.emit("delObject", LEGACY_SCRIPT_ID, IoBrokerAck {
-                            finish(true, if (others.isEmpty()) message else "$message Eine ältere Kopie wurde angehalten.")
-                        })
+                        val text = when {
+                            stuck.isNotEmpty() -> "$message Die alte Kopie „${stuck.joinToString()}“ konnte nicht gelöscht werden und wurde angehalten – bitte in ioBroker löschen."
+                            others.isNotEmpty() -> "$message Alte Kopie „${others.joinToString { it.second }}“ wurde entfernt."
+                            else -> message
+                        }
+                        finish(true, text)
                         return
                     }
-                    val update = JSONObject().put("common", JSONObject().put("enabled", false))
-                    socket.emit("extendObject", others[index], update, IoBrokerAck { next(index + 1) })
+                    val (id, name) = others[index]
+                    socket.emit("delObject", id, IoBrokerAck { delArgs ->
+                        // Check that it is really gone; otherwise stop it so it cannot run twice.
+                        socket.emit("getObject", id, IoBrokerAck { checkArgs ->
+                            if (err(delArgs) == null && asJson(checkArgs.getOrNull(1)) == null) { next(index + 1); return@IoBrokerAck }
+                            stuck += name
+                            val update = JSONObject().put("common", JSONObject().put("enabled", false))
+                            socket.emit("extendObject", id, update, IoBrokerAck { next(index + 1) })
+                        })
+                    })
                 }
                 next(0)
             })
