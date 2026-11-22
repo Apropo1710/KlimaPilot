@@ -49,6 +49,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -499,6 +500,339 @@ private fun EnergyPill(label: String, selected: Boolean, modifier: Modifier = Mo
             maxLines = 1,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+private fun formatNumber(value: Double, decimals: Int) = "%.${decimals}f".format(Locale.GERMANY, value)
+
+@Composable
+internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = remember { context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE) }
+    val io = remember { EnergyIoBroker() }
+    var period by remember { mutableStateOf(EnergyPeriod.WEEK) }
+    var showInfo by remember { mutableStateOf(false) }
+    val today = LocalDate.now()
+    var anchor by remember { mutableStateOf(today) }
+    // Periods left by tapping a bar; the back gesture returns to them one level at a time.
+    var drillStack by remember { mutableStateOf(listOf<EnergyPeriod>()) }
+    var inEuro by remember { mutableStateOf(false) }
+    // null = all units
+    var selectedUnit by remember { mutableStateOf(selectedDevice?.wfRacAirconId?.takeIf { it.isNotBlank() }) }
+    var price by remember { mutableStateOf(EnergyIoBroker.cachedPrice(context)) }
+    var priceText by remember { mutableStateOf(formatNumber(price, 3)) }
+    var units by remember { mutableStateOf<List<EnergyUnitData>?>(null) }
+    var status by remember { mutableStateOf("Energiedaten werden aus ioBroker geladen …") }
+    var refresh by remember { mutableStateOf(0) }
+    var pendingPrice by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(refresh) {
+        val address = prefs.getString("iobroker_server", null).orEmpty()
+        io.exchange(address, devices, pendingPrice) { result, error ->
+            if (result != null) {
+                price = result.priceEurPerKwh
+                EnergyIoBroker.cachePrice(context, price)
+                if (pendingPrice == null) priceText = formatNumber(price, 3)
+                pendingPrice = null
+                units = result.units
+                status = if (result.units.isEmpty()) "Noch keine Energiedaten. Das Energieskript wird in den Einstellungen unter „Energieaufzeichnung“ eingerichtet; danach dauert es bis zu 5 Minuten." else ""
+            } else status = error ?: "Energiedaten konnten nicht geladen werden."
+        }
+    }
+
+    val shown = units.orEmpty().filter { selectedUnit == null || it.airconId == selectedUnit }
+    val pairedDevices = devices.filter { !it.demoMode && it.wfRacAirconId.isNotBlank() }.distinctBy { it.wfRacAirconId }
+    val bars = EnergyMath.bars(period, shown, anchor, today)
+    val factor = if (inEuro) price else 1.0
+    val unitLabel = if (inEuro) "€" else "kWh"
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        DialogNavigationBar(MaterialTheme.colorScheme.background)
+        BackHandler(enabled = drillStack.isNotEmpty()) {
+            period = drillStack.last()
+            drillStack = drillStack.dropLast(1)
+        }
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Energie", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onDismiss) { Text("Schließen") }
+                }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    pairedDevices.forEach { device ->
+                        EnergyPill(device.room.ifBlank { device.name }, selectedUnit == device.wfRacAirconId) { selectedUnit = device.wfRacAirconId }
+                    }
+                    EnergyPill("Alle", selectedUnit == null) { selectedUnit = null }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    EnergyPeriod.entries.forEach { p ->
+                        EnergyPill(p.label, period == p, Modifier.weight(1f)) { period = p; drillStack = emptyList() }
+                    }
+                }
+                if (period != EnergyPeriod.ALL) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        EnergyPill("‹", false) { anchor = EnergyMath.shift(period, anchor, -1) }
+                        Text(
+                            EnergyMath.title(period, anchor),
+                            modifier = Modifier.weight(1f).clickable { anchor = today },
+                            textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
+                        )
+                        if (EnergyMath.isBeforeCurrent(period, anchor, today)) {
+                            EnergyPill("›", false) { anchor = EnergyMath.shift(period, anchor, 1) }
+                        } else {
+                            EnergyPill("›", false, Modifier.alpha(0.3f)) {}
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    EnergyPill("kWh", !inEuro) { inEuro = false }
+                    EnergyPill("Kosten (€)", inEuro) { inEuro = true }
+                }
+
+                val total = bars.sumOf { it.kWh } * factor
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Summe im Zeitraum: ${formatNumber(total, 2)} $unitLabel", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text("ⓘ", fontSize = 20.sp, color = EnergyBlue, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { showInfo = true }.padding(horizontal = 8.dp, vertical = 2.dp))
+                }
+                if (showInfo) KlimaPilotAlertDialog(
+                    onDismissRequest = { showInfo = false },
+                    confirmButton = { TextButton(onClick = { showInfo = false }) { Text("OK") } },
+                    title = { Text("Energieansicht") },
+                    text = {
+                        Text(
+                            "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. „↑“ über dem Diagramm oder die Zurück-Geste geht wieder eine Ebene höher. " +
+                                "Seitlich wischen oder mit ‹ › blättern, den Titel antippen springt zurück zum aktuellen Zeitraum.\n\n" +
+                                "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten; jeder Schritt wird auf die Laufzeit davor verteilt. Die orange Linie zeigt die mittlere Außentemperatur, gemessen vom Außenfühler der Anlage. " +
+                                "Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft. Kosten ohne Grundgebühr; " +
+                                "der Strompreis gilt für beide Smartphones."
+                        )
+                    }
+                )
+                // One level up: back to where a bar tap came from, otherwise the next coarser period.
+                val up = drillStack.lastOrNull() ?: EnergyMath.coarser(period)
+                if (up != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Row(
+                        Modifier.clip(RoundedCornerShape(50)).background(EnergyBlue.copy(alpha = 0.10f))
+                            .clickable {
+                                if (drillStack.isNotEmpty()) drillStack = drillStack.dropLast(1)
+                                period = up
+                            }
+                            .padding(start = 6.dp, end = 10.dp, top = 2.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.Icon(
+                            Icons.Default.KeyboardArrowUp, contentDescription = null,
+                            tint = EnergyBlue, modifier = Modifier.size(20.dp)
+                        )
+                        Text(up.label, color = EnergyBlue, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+                // Swipe sideways through the periods; the last page is the current one (no future pages).
+                key(period) {
+                    val pageCount = if (period == EnergyPeriod.ALL) 1 else ENERGY_PAGES
+                    val last = pageCount - 1
+                    fun pageOf(date: LocalDate) = (last - EnergyMath.stepsBack(period, date, today).coerceAtMost(last.toLong())).toInt()
+                    fun anchorOf(page: Int) = if (period == EnergyPeriod.ALL) today else EnergyMath.shift(period, today, (page - last).toLong())
+                    val pager = rememberPagerState(initialPage = pageOf(anchor)) { pageCount }
+                    LaunchedEffect(pager.settledPage) {
+                        val settled = anchorOf(pager.settledPage)
+                        if (pageOf(anchor) != pager.settledPage) anchor = settled
+                    }
+                    LaunchedEffect(anchor) {
+                        val target = pageOf(anchor)
+                        if (pager.currentPage != target) pager.animateScrollToPage(target)
+                    }
+                    HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), pageSpacing = 16.dp) { page ->
+                        val pageAnchor = anchorOf(page)
+                        val pageBars = if (pageAnchor == anchor) bars else EnergyMath.bars(period, shown, pageAnchor, today)
+                        EnergyChart(pageBars.map { it.label to it.kWh * factor }, unitLabel, pageBars.map { it.outdoor }, canDrillDown = EnergyMath.finer(period) != null) { index ->
+                            val target = pageBars.getOrNull(index)?.drillDown ?: return@EnergyChart
+                            val finer = EnergyMath.finer(period) ?: return@EnergyChart
+                            drillStack = drillStack + period
+                            period = finer
+                            anchor = target
+                        }
+                    }
+                }
+                if (period == EnergyPeriod.DAY && anchor.isBefore(today.minusDays(30))) {
+                    Text("Stundenwerte werden nur für die letzten 31 Tage aufbewahrt.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                if (status.isNotBlank()) Text(status, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                shown.forEach { unit ->
+                    val label = unit.name.ifBlank { unit.airconId } + if (unit.room.isNotBlank()) " (${unit.room})" else ""
+                    val last = unit.lastPollAt?.let { runCatching { java.time.OffsetDateTime.parse(it).atZoneSameInstant(java.time.ZoneId.systemDefault()) }.getOrNull() }
+                    val lastText = last?.let { "%02d.%02d. %02d:%02d".format(Locale.ROOT, it.dayOfMonth, it.monthValue, it.hour, it.minute) } ?: "noch nie"
+                    Text("$label – zuletzt gelesen: $lastText" + (unit.lastError?.let { "\nFehler: $it" } ?: ""), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text("Strompreis", fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = priceText,
+                        onValueChange = { priceText = it },
+                        label = { Text("€ pro kWh") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(onClick = {
+                        val parsed = priceText.trim().replace(',', '.').toDoubleOrNull()
+                        if (parsed == null || parsed < 0 || parsed > 5) {
+                            status = "Bitte einen Preis zwischen 0 und 5 € pro kWh eingeben."
+                        } else {
+                            pendingPrice = parsed
+                            price = parsed
+                            EnergyIoBroker.cachePrice(context, parsed)
+                            status = "Strompreis wird gespeichert …"
+                            refresh++
+                        }
+                    }) { Text("Speichern") }
+                }
+                Spacer(Modifier.height(96.dp))
+            }
+        }
+    }
+}
+
+private const val ENERGY_PAGES = 4000
+
+/** Outdoor temperature line: a warm orange that stands apart from the blue bars. */
+private val OutdoorColor = Color(0xFFE8833A)
+
+/** Round scale steps (1, 2, 2.5 or 5 × 10^n) so that about [ticks] lines fit up to [max]. */
+private fun niceStep(range: Double, ticks: Int): Double {
+    if (range <= 0) return 1.0
+    val raw = range / ticks
+    val magnitude = Math.pow(10.0, kotlin.math.floor(kotlin.math.log10(raw)))
+    val step = listOf(1.0, 2.0, 2.5, 5.0, 10.0).first { it * magnitude >= raw } * magnitude
+    return step
+}
+
+private fun scaleLabel(value: Double, step: Double): String =
+    formatNumber(value, if (step >= 1) 0 else if (step >= 0.1) 1 else 2)
+
+/**
+ * Bars with a value scale on the left, the outdoor temperature on its own scale on the right,
+ * light grid lines, and the exact values above the bars and points when there is room (up to
+ * 12 bars). Where a bar cannot be opened further (hours of a day), a tap shows its values.
+ */
+@Composable
+private fun EnergyChart(
+    values: List<Pair<String, Double>>,
+    unitLabel: String,
+    outdoor: List<Double?> = emptyList(),
+    canDrillDown: Boolean = true,
+    onBarTap: (Int) -> Unit
+) {
+    val rawMax = values.maxOfOrNull { it.second }?.takeIf { it > 0 } ?: 1.0
+    val step = niceStep(rawMax, 4)
+    val max = kotlin.math.ceil(rawMax / step) * step
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+    val axisText = MaterialTheme.colorScheme.onSurfaceVariant
+    val temps = outdoor.filterNotNull()
+    val tStep = if (temps.isEmpty()) 1.0 else niceStep((temps.max() - temps.min()).coerceAtLeast(2.0), 3)
+    val tMin = temps.minOrNull()?.let { kotlin.math.floor(it / tStep) * tStep }
+    val tMax = temps.maxOrNull()?.let { kotlin.math.ceil(it / tStep) * tStep }?.let { if (tMin != null && it - tMin < 2 * tStep) tMin + 2 * tStep else it }
+    val showValues = values.size <= 12
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    var selected by remember(values) { mutableStateOf<Int?>(null) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val leftAxis = with(density) { 34.dp.toPx() }
+    val rightAxis = if (temps.isNotEmpty()) with(density) { 30.dp.toPx() } else with(density) { 4.dp.toPx() }
+    val topPad = with(density) { (if (showValues) 16.dp else 8.dp).toPx() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(unitLabel, fontSize = 11.sp, color = axisText, modifier = Modifier.weight(1f))
+            if (temps.isNotEmpty()) Text("— Außen °C", fontSize = 11.sp, color = OutdoorColor)
+        }
+        selected?.let { index ->
+            val (label, value) = values[index]
+            val t = outdoor.getOrNull(index)
+            Text(
+                "$label Uhr: ${formatNumber(value, 2)} $unitLabel" + (t?.let { " · Außen ${formatNumber(it, 1)} °C" } ?: ""),
+                fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = EnergyBlue
+            )
+        }
+        Canvas(Modifier.fillMaxWidth().height(220.dp).pointerInput(values.size, canDrillDown) {
+            detectTapGestures { offset ->
+                val slot = (size.width - leftAxis - rightAxis) / values.size.coerceAtLeast(1)
+                val index = ((offset.x - leftAxis) / slot).toInt().coerceIn(0, values.size - 1)
+                if (canDrillDown) onBarTap(index) else selected = if (selected == index) null else index
+            }
+        }) {
+            val chartLeft = leftAxis
+            val chartRight = size.width - rightAxis
+            val chartBottom = size.height
+            val chartHeight = chartBottom - topPad
+            fun yValue(v: Double) = (chartBottom - v / max * chartHeight).toFloat()
+            val small = androidx.compose.ui.text.TextStyle(fontSize = 9.sp, color = axisText)
+            // Grid lines and value scale on the left.
+            var tick = 0.0
+            while (tick <= max + step / 2) {
+                val y = yValue(tick)
+                drawLine(gridColor, Offset(chartLeft, y), Offset(chartRight, y), strokeWidth = 1.dp.toPx())
+                val text = measurer.measure(scaleLabel(tick, step), small)
+                drawText(text, topLeft = Offset(chartLeft - text.size.width - 4.dp.toPx(), y - text.size.height / 2))
+                tick += step
+            }
+            val slot = (chartRight - chartLeft) / values.size.coerceAtLeast(1)
+            val gap = (slot * 0.18f).coerceIn(2.dp.toPx(), 6.dp.toPx())
+            val barWidth = (slot - gap).coerceAtLeast(1f)
+            values.forEachIndexed { index, (_, value) ->
+                val top = yValue(value)
+                val h = chartBottom - top
+                val color = if (selected == null || selected == index) EnergyBlue else EnergyBlue.copy(alpha = 0.35f)
+                if (h > 0f) drawRoundRect(
+                    color = color,
+                    topLeft = Offset(chartLeft + index * slot + gap / 2, top),
+                    size = Size(barWidth, h),
+                    cornerRadius = CornerRadius(3.dp.toPx())
+                )
+                if (showValues && value > 0) {
+                    val text = measurer.measure(formatNumber(value, if (value >= 10) 0 else 1), small.copy(color = EnergyBlue, fontWeight = FontWeight.SemiBold))
+                    drawText(text, topLeft = Offset(chartLeft + index * slot + slot / 2 - text.size.width / 2, top - text.size.height - 1.dp.toPx()))
+                }
+            }
+            if (tMin != null && tMax != null) {
+                fun yTemp(t: Double) = (chartBottom - (t - tMin) / (tMax - tMin) * chartHeight).toFloat()
+                // Temperature scale on the right.
+                val tempStyle = small.copy(color = OutdoorColor)
+                var t = tMin
+                while (t <= tMax + tStep / 2) {
+                    val text = measurer.measure(scaleLabel(t, tStep) + "°", tempStyle)
+                    drawText(text, topLeft = Offset(chartRight + 4.dp.toPx(), yTemp(t) - text.size.height / 2))
+                    t += tStep
+                }
+                var previous: Offset? = null
+                outdoor.forEachIndexed { index, value ->
+                    if (value == null) { previous = null; return@forEachIndexed }
+                    val point = Offset(chartLeft + index * slot + slot / 2, yTemp(value))
+                    previous?.let { drawLine(OutdoorColor, it, point, strokeWidth = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round) }
+                    drawCircle(Color.White, radius = 3.5.dp.toPx(), center = point)
+                    drawCircle(OutdoorColor, radius = 2.5.dp.toPx(), center = point)
+                    if (showValues) {
+                        val text = measurer.measure(formatNumber(value, 1), tempStyle.copy(fontWeight = FontWeight.SemiBold))
+                        drawText(text, topLeft = Offset(point.x - text.size.width / 2, point.y + 4.dp.toPx()))
+                    }
+                    previous = point
+                }
+            }
+        }
+        // Labels under the bars: at most about eight, evenly spread, so they stay readable.
+        val labelStep = ((values.size + 7) / 8).coerceAtLeast(1)
+        Row(Modifier.fillMaxWidth().padding(start = 34.dp, end = if (temps.isNotEmpty()) 30.dp else 4.dp)) {
+            values.forEachIndexed { index, (label, _) ->
+                Text(
+                    if (index % labelStep == 0) label else "",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 9.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    color = Color.Unspecified
+                )
+            }
+        }
     }
 }
 
