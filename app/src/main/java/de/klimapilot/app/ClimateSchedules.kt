@@ -573,34 +573,30 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                         .zIndex(if (dragging) 1f else 0f)
                         .graphicsLayer { translationY = if (dragging) dragOffset else 0f }
                         .onGloballyPositioned { heights[item.id] = it.size.height }
-                        .pointerInput(item.id) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    if (currentBusy) return@detectDragGesturesAfterLongPress
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    localOrder = localOrder ?: currentBaseIds
-                                    dragId = item.id
-                                    dragOffset = 0f
-                                },
-                                onDrag = { change, amount ->
-                                    if (dragId != item.id) return@detectDragGesturesAfterLongPress
-                                    change.consume()
-                                    dragOffset += amount.y
-                                    val order = (localOrder ?: return@detectDragGesturesAfterLongPress).toMutableList()
-                                    val index = order.indexOf(item.id)
-                                    if (dragOffset > 0 && index < order.lastIndex) {
-                                        val step = (heights[order[index + 1]] ?: 0) + gapPx
-                                        if (dragOffset > step / 2f) { order.add(index + 1, order.removeAt(index)); dragOffset -= step }
-                                    } else if (dragOffset < 0 && index > 0) {
-                                        val step = (heights[order[index - 1]] ?: 0) + gapPx
-                                        if (-dragOffset > step / 2f) { order.add(index - 1, order.removeAt(index)); dragOffset += step }
-                                    }
-                                    localOrder = order
-                                },
-                                onDragEnd = { if (dragId == item.id) currentFinish() },
-                                onDragCancel = { if (dragId == item.id) currentFinish() }
-                            )
-                        }
+                        .holdToDrag(
+                            key = item.id,
+                            enabled = { !currentBusy },
+                            onStart = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                localOrder = localOrder ?: currentBaseIds
+                                dragId = item.id
+                                dragOffset = 0f
+                            },
+                            onDrag = { amount ->
+                                dragOffset += amount.y
+                                val order = localOrder?.toMutableList() ?: return@holdToDrag
+                                val index = order.indexOf(item.id)
+                                if (dragOffset > 0 && index < order.lastIndex) {
+                                    val step = (heights[order[index + 1]] ?: 0) + gapPx
+                                    if (dragOffset > step / 2f) { order.add(index + 1, order.removeAt(index)); dragOffset -= step }
+                                } else if (dragOffset < 0 && index > 0) {
+                                    val step = (heights[order[index - 1]] ?: 0) + gapPx
+                                    if (-dragOffset > step / 2f) { order.add(index - 1, order.removeAt(index)); dragOffset += step }
+                                }
+                                localOrder = order
+                            },
+                            onEnd = { if (dragId == item.id) currentFinish() }
+                        )
                         .clip(RoundedCornerShape(16.dp)).clickable { editing = item }
                 ) {
                     Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1034,4 +1030,50 @@ internal fun ScheduleSettingsContent() {
         }, colors = blueSwitchColors())
     }
     if (status.isNotBlank()) Text(status, color = SMuted, fontSize = 11.sp)
+}
+
+/**
+ * Hold-and-drag for sortable lists. Works on the Initial pointer pass, i.e. before the item's own
+ * click handling and before a surrounding scroll container, so a long press reliably starts the
+ * drag (with vibration) and the drag is not taken over by scrolling. A short tap still reaches
+ * the item; moving before the long press lets the container scroll as usual.
+ */
+internal fun Modifier.holdToDrag(
+    key: Any,
+    enabled: () -> Boolean = { true },
+    onStart: () -> Unit,
+    onDrag: (androidx.compose.ui.geometry.Offset) -> Unit,
+    onEnd: () -> Unit
+): Modifier = this.pointerInput(key) {
+    val slop = viewConfiguration.touchSlop
+    val pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial
+    androidx.compose.foundation.gestures.awaitEachGesture {
+        val down = androidx.compose.foundation.gestures.awaitFirstDown(requireUnconsumed = false, pass = pass)
+        if (!enabled()) return@awaitEachGesture
+        // Wait for the long press; give up on release or on a move beyond the touch slop.
+        val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+            while (true) {
+                val event = awaitPointerEvent(pass)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull false
+                if (!change.pressed) return@withTimeoutOrNull false
+                if ((change.position - down.position).getDistance() > slop) return@withTimeoutOrNull false
+            }
+            @Suppress("UNREACHABLE_CODE")
+            false
+        } == null
+        if (!held) return@awaitEachGesture
+        onStart()
+        try {
+            while (true) {
+                val event = awaitPointerEvent(pass)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if (!change.pressed) { change.consume(); break }
+                val delta = change.position - change.previousPosition
+                change.consume()
+                if (delta != androidx.compose.ui.geometry.Offset.Zero) onDrag(delta)
+            }
+        } finally {
+            onEnd()
+        }
+    }
 }

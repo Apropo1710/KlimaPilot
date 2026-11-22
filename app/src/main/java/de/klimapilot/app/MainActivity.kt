@@ -982,35 +982,32 @@ private fun MainScreen(
                                 if (dragging) { scaleX = 1.06f; scaleY = 1.06f; shadowElevation = 8f }
                             }
                             .onGloballyPositioned { chipWidths[room] = it.size.width }
-                            .pointerInput(room) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = {
-                                        roomHaptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        dragOrder = currentRooms
-                                        dragRoom = room
-                                        dragOffset = 0f
-                                    },
-                                    onDrag = { change, amount ->
-                                        change.consume()
-                                        dragOffset += amount.x
-                                        val order = (dragOrder ?: return@detectDragGesturesAfterLongPress).toMutableList()
-                                        val index = order.indexOf(room)
-                                        if (dragOffset > 0 && index < order.lastIndex) {
-                                            val step = (chipWidths[order[index + 1]] ?: 0) + roomGap
-                                            if (dragOffset > step / 2f) { order.add(index + 1, order.removeAt(index)); dragOffset -= step }
-                                        } else if (dragOffset < 0 && index > 0) {
-                                            val step = (chipWidths[order[index - 1]] ?: 0) + roomGap
-                                            if (-dragOffset > step / 2f) { order.add(index - 1, order.removeAt(index)); dragOffset += step }
-                                        }
-                                        dragOrder = order
-                                    },
-                                    onDragEnd = {
-                                        dragOrder?.let { if (it != currentRooms) currentOnRoomOrder(it) }
-                                        dragOrder = null; dragRoom = null; dragOffset = 0f
-                                    },
-                                    onDragCancel = { dragOrder = null; dragRoom = null; dragOffset = 0f }
-                                )
-                            },
+                            .holdToDrag(
+                                key = room,
+                                onStart = {
+                                    roomHaptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    dragOrder = currentRooms
+                                    dragRoom = room
+                                    dragOffset = 0f
+                                },
+                                onDrag = { amount ->
+                                    dragOffset += amount.x
+                                    val order = dragOrder?.toMutableList() ?: return@holdToDrag
+                                    val index = order.indexOf(room)
+                                    if (dragOffset > 0 && index < order.lastIndex) {
+                                        val step = (chipWidths[order[index + 1]] ?: 0) + roomGap
+                                        if (dragOffset > step / 2f) { order.add(index + 1, order.removeAt(index)); dragOffset -= step }
+                                    } else if (dragOffset < 0 && index > 0) {
+                                        val step = (chipWidths[order[index - 1]] ?: 0) + roomGap
+                                        if (-dragOffset > step / 2f) { order.add(index - 1, order.removeAt(index)); dragOffset += step }
+                                    }
+                                    dragOrder = order
+                                },
+                                onEnd = {
+                                    dragOrder?.let { if (it != currentRooms) currentOnRoomOrder(it) }
+                                    dragOrder = null; dragRoom = null; dragOffset = 0f
+                                }
+                            ),
                         selected = selectedRoom == room,
                         onClick = { onRoomSelect(room) },
                         label = { Text(room, maxLines = 1) },
