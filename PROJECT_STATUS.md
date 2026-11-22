@@ -67,6 +67,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Hauptseite: Kopfzeile und Raum-Knöpfe fest; Raumreihenfolge per Halten und Ziehen, je Handy gespeichert (`room_order`), erster Raum öffnet beim Start, einmaliger Tipp dazu. Raumwechsel per Wischen, springt an den Seitenanfang. Reihenfolge der Anlagenseite: Klimaprofil, Temperatur, Modus, Lüfter, Luftführung, 3D-Auto, Zeitpläne, Verbrauch heute, Kompressor/Verbindung.
 - Temperatur: Klicks werden gesammelt (1,2 s); der Schieberegler bewegt sich nur am Knopf, damit Raum-Wischen nichts verstellt.
 - Einstellungen (0.5.34): ioBroker-Verbindung, ioBroker-Skript, Diagnose und Geräte koppeln stecken in der aufklappbaren Kachel „Systemeinstellungen“ direkt über „App-Version“ (Nicht-Admins sehen darin nur „Geräte koppeln“). „Zeitpläne verwenden“, Filter-Erinnerung und Benachrichtigungen bleiben einzeln.
+- Schriftgröße gilt seit 0.5.35 auch in Vollbild-Fenstern und Popups (`ScaledDialog` gibt die App-Dichte an das Dialogfenster weiter; vorher nutzten Dialoge die Systemschriftgröße).
 - Einheitliche Gestaltung: blaue Bedienelemente (kein Lila), Popups über `KlimaPilotAlertDialog`, Hinweise hinter ⓘ, Vollbild-Editoren mit fester Kopfzeile und lesbarer Navigationsleiste.
 
 ### Klimaprofile
@@ -89,7 +90,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ### Energie
 - Laufzähler der Anlage (0,25-kWh-Schritte, Rücksetzung beim Einschalten); Skript liest alle 5 min, verteilt jeden Schritt auf die Laufzeit davor, speichert Stunden (31 Tage) und Tage (dauerhaft) sowie Außentemperatur (Mittel je Stunde/Tag).
-- Hauptseite „Verbrauch heute“ (auch ohne lokale Verbindung). Energiefenster: Räume/Alle, Tag–Gesamt, kWh/€, seitlich wischbar, Balken öffnet feinere Ebene, „↑“ und Zurück-Geste gehen höher; Skalen links (Wert) und rechts (Außentemperatur), Werte an Balken bis 12 Stück, Tagesansicht zeigt Werte per Tipp. Fester Strompreis ohne Grundgebühr. Achsenbeschriftung unter den Balken wird zentriert gezeichnet und nicht mehr abgeschnitten (Monatsansicht zeigte „1 5 9 1 1 2“ statt „1 5 9 13 17 21“).
+- Hauptseite „Verbrauch heute“ (auch ohne lokale Verbindung). Energiefenster: Räume/Alle, Tag–Gesamt, kWh/€, seitlich wischbar, Balken öffnet feinere Ebene, „↑“ und Zurück-Geste gehen höher; Skalen links (Wert) und rechts (Außentemperatur), Werte an Balken bis 12 Stück, Tagesansicht zeigt Werte per Tipp. Fester Strompreis ohne Grundgebühr. Diagrammschrift seit 0.5.35 größer (Achsen 12 sp, Werte 13 sp, Diagramm 280 dp hoch), Achsenbreiten nach gemessener Schrift; Werte, die nicht über ihren Balken passen, entfallen. Achsenbeschriftung unter den Balken wird zentriert gezeichnet und nicht mehr abgeschnitten (Monatsansicht zeigte „1 5 9 1 1 2“ statt „1 5 9 13 17 21“).
 
 ### Filter-Erinnerung
 - Abstände wie im Handbuch, gezählt in Betriebstagen (Tage mit Betrieb, `runDays`): Luftfilter 1–4 Wochen (Vorgabe 2), Allergen- und Geruchsfilter 1–6 Monate (Vorgabe 3). Hinweis auf der Anlagenseite mit „Erledigt“, Einstellungskachel für alle Konten. Zugeklappt zeigt die Kachel „Nach Betriebstagen der Anlage“ (vorher noch „Betriebsstunden“). Zählung seit 21.11.2026.

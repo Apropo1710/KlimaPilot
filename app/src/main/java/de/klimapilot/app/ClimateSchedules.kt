@@ -69,7 +69,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import de.klimapilot.app.wfrac.AirconState
 import de.klimapilot.app.wfrac.Codec
@@ -831,7 +830,7 @@ private fun ScheduleEditor(
         )
     }
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    ScaledDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         DialogNavigationBar(SPage)
         Surface(Modifier.fillMaxSize(), color = SPage) {
           Column(Modifier.fillMaxSize()) {

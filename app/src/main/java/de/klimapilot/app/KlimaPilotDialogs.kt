@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 private val DialogBlue = Color(0xFF1769AA)
@@ -47,7 +46,7 @@ internal fun KlimaPilotAlertDialog(
     dismissButton: (@Composable () -> Unit)? = null
 ) {
     val shape = RoundedCornerShape(28.dp)
-    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    ScaledDialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             shape = shape,
@@ -99,5 +98,21 @@ internal fun KlimaPilotAlertDialog(
                 }
             }
         }
+    }
+}
+
+/**
+ * A dialog window gets its own density from the system, which drops the font size chosen in the
+ * app. This wrapper hands the app's density (including that font size) on to the dialog content.
+ */
+@Composable
+internal fun ScaledDialog(
+    onDismissRequest: () -> Unit,
+    properties: DialogProperties = DialogProperties(),
+    content: @Composable () -> Unit
+) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest, properties = properties) {
+        CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides density) { content() }
     }
 }

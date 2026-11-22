@@ -47,7 +47,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import de.klimapilot.app.wfrac.AirconState
 import java.util.Locale
@@ -112,7 +111,7 @@ internal fun ClimateProfileEditorDialog(
     val valid = name.isNotBlank() && anySetting
     val preview = build().summary().ifBlank { "Noch nichts festgelegt" }
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    ScaledDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         DialogNavigationBar(SPage)
         Surface(Modifier.fillMaxSize(), color = SPage) {
           Column(Modifier.fillMaxSize()) {

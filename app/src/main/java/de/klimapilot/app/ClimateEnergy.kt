@@ -55,7 +55,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -546,7 +545,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     val factor = if (inEuro) price else 1.0
     val unitLabel = if (inEuro) "€" else "kWh"
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    ScaledDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         DialogNavigationBar(MaterialTheme.colorScheme.background)
         BackHandler(enabled = drillStack.isNotEmpty()) {
             period = drillStack.last()
@@ -737,24 +736,32 @@ private fun EnergyChart(
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     var selected by remember(values) { mutableStateOf<Int?>(null) }
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val leftAxis = with(density) { 34.dp.toPx() }
-    val rightAxis = if (temps.isNotEmpty()) with(density) { 30.dp.toPx() } else with(density) { 4.dp.toPx() }
-    val topPad = with(density) { (if (showValues) 16.dp else 8.dp).toPx() }
+    val axisStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = axisText)
+    val valueStyle = axisStyle.copy(fontSize = 13.sp, color = EnergyBlue, fontWeight = FontWeight.SemiBold)
+    // Axis widths follow the measured labels, so larger fonts never get cut off.
+    val scaleWidth = generateSequence(0.0) { it + step }.takeWhile { it <= max + step / 2 }
+        .maxOfOrNull { measurer.measure(scaleLabel(it, step), axisStyle).size.width } ?: 0
+    val tempWidth = if (temps.isEmpty()) 0 else listOfNotNull(tMin, tMax)
+        .maxOf { measurer.measure(scaleLabel(it, tStep) + "°", axisStyle).size.width }
+    val leftAxis = scaleWidth + with(density) { 8.dp.toPx() }
+    val rightAxis = if (temps.isNotEmpty()) tempWidth + with(density) { 8.dp.toPx() } else with(density) { 4.dp.toPx() }
+    val valueHeight = measurer.measure("0", valueStyle).size.height
+    val topPad = if (showValues) valueHeight + with(density) { 4.dp.toPx() } else with(density) { 10.dp.toPx() }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(unitLabel, fontSize = 11.sp, color = axisText, modifier = Modifier.weight(1f))
-            if (temps.isNotEmpty()) Text("— Außen °C", fontSize = 11.sp, color = OutdoorColor)
+            Text(unitLabel, fontSize = 13.sp, color = axisText, modifier = Modifier.weight(1f))
+            if (temps.isNotEmpty()) Text("— Außen °C", fontSize = 13.sp, color = OutdoorColor)
         }
         selected?.let { index ->
             val (label, value) = values[index]
             val t = outdoor.getOrNull(index)
             Text(
                 "$label Uhr: ${formatNumber(value, 2)} $unitLabel" + (t?.let { " · Außen ${formatNumber(it, 1)} °C" } ?: ""),
-                fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = EnergyBlue
+                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = EnergyBlue
             )
         }
-        Canvas(Modifier.fillMaxWidth().height(220.dp).pointerInput(values.size, canDrillDown) {
+        Canvas(Modifier.fillMaxWidth().height(280.dp).pointerInput(values.size, canDrillDown) {
             detectTapGestures { offset ->
                 val slot = (size.width - leftAxis - rightAxis) / values.size.coerceAtLeast(1)
                 val index = ((offset.x - leftAxis) / slot).toInt().coerceIn(0, values.size - 1)
@@ -766,7 +773,7 @@ private fun EnergyChart(
             val chartBottom = size.height
             val chartHeight = chartBottom - topPad
             fun yValue(v: Double) = (chartBottom - v / max * chartHeight).toFloat()
-            val small = androidx.compose.ui.text.TextStyle(fontSize = 9.sp, color = axisText)
+            val small = axisStyle
             // Grid lines and value scale on the left.
             var tick = 0.0
             while (tick <= max + step / 2) {
@@ -790,8 +797,9 @@ private fun EnergyChart(
                     cornerRadius = CornerRadius(3.dp.toPx())
                 )
                 if (showValues && value > 0) {
-                    val text = measurer.measure(formatNumber(value, if (value >= 10) 0 else 1), small.copy(color = EnergyBlue, fontWeight = FontWeight.SemiBold))
-                    drawText(text, topLeft = Offset(chartLeft + index * slot + slot / 2 - text.size.width / 2, top - text.size.height - 1.dp.toPx()))
+                    val text = measurer.measure(formatNumber(value, if (value >= 10) 0 else 1), valueStyle)
+                    // Too narrow for the number (many bars, large font): leave it to the scale.
+                    if (text.size.width <= slot * 1.05f) drawText(text, topLeft = Offset(chartLeft + index * slot + slot / 2 - text.size.width / 2, top - text.size.height - 1.dp.toPx()))
                 }
             }
             if (tMin != null && tMax != null) {
@@ -812,8 +820,8 @@ private fun EnergyChart(
                     drawCircle(Color.White, radius = 3.5.dp.toPx(), center = point)
                     drawCircle(OutdoorColor, radius = 2.5.dp.toPx(), center = point)
                     if (showValues) {
-                        val text = measurer.measure(formatNumber(value, 1), tempStyle.copy(fontWeight = FontWeight.SemiBold))
-                        drawText(text, topLeft = Offset(point.x - text.size.width / 2, point.y + 4.dp.toPx()))
+                        val text = measurer.measure(formatNumber(value, 1), tempStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+                        if (text.size.width <= slot * 1.05f) drawText(text, topLeft = Offset(point.x - text.size.width / 2, point.y + 4.dp.toPx()))
                     }
                     previous = point
                 }
@@ -823,10 +831,12 @@ private fun EnergyChart(
         // free to be wider than one bar (two-digit days in the month view).
         val labelStep = ((values.size + 7) / 8).coerceAtLeast(1)
         val labelColor = MaterialTheme.colorScheme.onSurface
-        Canvas(Modifier.fillMaxWidth().height(14.dp)) {
+        val labelStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = labelColor)
+        val labelHeight = with(density) { measurer.measure("Mo", labelStyle).size.height.toDp() }
+        Canvas(Modifier.fillMaxWidth().height(labelHeight)) {
             val chartLeft = leftAxis
             val slot = (size.width - leftAxis - rightAxis) / values.size.coerceAtLeast(1)
-            val style = androidx.compose.ui.text.TextStyle(fontSize = 9.sp, color = labelColor)
+            val style = labelStyle
             values.forEachIndexed { index, (label, _) ->
                 if (index % labelStep != 0) return@forEachIndexed
                 val text = measurer.measure(label, style)
