@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.launch
 
@@ -74,18 +75,19 @@ internal fun GithubUpdateCard(appVersion: String) {
 
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("App-Version", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text("App-Version", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
             val isCurrentVersion = status == "Du verwendest bereits die aktuelle Version."
             val isUpdateAvailable = newerVersion != null
             Text(
                 status,
                 color = if (isCurrentVersion || isUpdateAvailable) androidx.compose.ui.graphics.Color(0xFF218838) else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = if (isCurrentVersion || isUpdateAvailable) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodySmall,
-                fontWeight = if (isCurrentVersion || isUpdateAvailable) FontWeight.Normal else FontWeight.Normal
+                fontWeight = if (isCurrentVersion || isUpdateAvailable) FontWeight.Normal else FontWeight.Normal,
+                fontSize = 12.sp
             )
-            Text("Installierte Version: $appVersion", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+            Text("Installierte Version: $appVersion", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium, fontSize = 12.sp)
             if (latestVersion != null) {
-                Text("Verfügbare Version: $latestVersion", color = if (newerVersion != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, fontWeight = if (newerVersion != null) FontWeight.SemiBold else FontWeight.Normal)
+                Text("Verfügbare Version: $latestVersion", color = if (newerVersion != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, fontWeight = if (newerVersion != null) FontWeight.SemiBold else FontWeight.Normal, fontSize = 12.sp)
             }
             if (code != null) {
                 Text("GitHub-Code: $code", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -120,9 +122,9 @@ internal fun GithubUpdateCard(appVersion: String) {
                 } else {
                     OutlinedButton(
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
                         onClick = { scope.launch { checkForUpdates() } }
-                    ) { Text("Nach Updates suchen", maxLines = 1, softWrap = false) }
+                    ) { Text("Nach Updates suchen", maxLines = 1, softWrap = false, fontSize = 13.sp) }
                 }
                 if (newerVersion != null && assetId != null) {
                     Button(
@@ -157,7 +159,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                                 }
                             }
                         }
-                    ) { Text("Update laden", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelLarge) }
+                    ) { Text("Update laden", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelLarge, fontSize = 13.sp) }
                 }
             }
             if (busy) {

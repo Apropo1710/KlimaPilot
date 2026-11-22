@@ -1755,22 +1755,22 @@ private fun SettingsScreen(
         if (isAdmin) {
             Button(
                 onClick = onManageRoomsDevices,
-                modifier = Modifier.fillMaxWidth().height(54.dp),
+                modifier = Modifier.fillMaxWidth().height(46.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(Icons.Default.Tune, contentDescription = null)
                 Spacer(Modifier.width(9.dp))
-                Text("Räume & Geräte verwalten", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Räume & Geräte verwalten", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         if (isAdmin) {
-            Button(onClick = onManageProfiles, modifier = Modifier.fillMaxWidth().height(54.dp),
+            Button(onClick = onManageProfiles, modifier = Modifier.fillMaxWidth().height(46.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
                 Icon(Icons.Default.Tune, contentDescription = null)
                 Spacer(Modifier.width(9.dp))
-                Text("Klimaprofile verwalten", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Klimaprofile verwalten", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
@@ -1819,8 +1819,8 @@ private fun SettingsScreen(
         NotificationSettingsCard(expanded = notificationsExpanded, onExpandedChange = { notificationsExpanded = it })
         SystemSettingsCard(isAdmin)
         GithubUpdateCard(appVersion)
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
-            Text("Zurück zur Klimaübersicht")
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(44.dp), shape = RoundedCornerShape(16.dp)) {
+            Text("Zurück zur Klimaübersicht", fontSize = 13.sp)
         }
         }
     }
