@@ -35,6 +35,7 @@ const DIAG_CONFIG_ID = `${DIAG_ROOT}.config`;
 const DIAG_LOG_ID = `${DIAG_ROOT}.log`;
 const DIAG_MAX_ENTRIES = 400;
 const DIAG_KEEP_DAYS = 14;
+const OWNER_ID = '0_userdata.0.KlimaPilot.script.owner';
 const POLL_MINUTES = 5;
 const HOURLY_DAYS = 31;          // Stundenwerte werden 31 Tage aufbewahrt, Tageswerte unbegrenzt.
 const SPREAD_MAX_SLOTS = 12 * 60 / 5; // Ein Zählerschritt wird auf höchstens 12 h Laufzeit verteilt.
@@ -436,7 +437,10 @@ async function probeAll() {
 }
 
 let diagWasEnabled = null;
+let watching = false;
 async function watchDiagnostics() {
+    if (watching) return; // Start- und Minutenaufruf dürfen sich nicht überschneiden.
+    watching = true;
     try {
         const enabled = await diagEnabled();
         if (diagWasEnabled !== null && enabled !== diagWasEnabled) {
@@ -448,6 +452,8 @@ async function watchDiagnostics() {
         diagWasEnabled = enabled;
     } catch (e) {
         log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
+    } finally {
+        watching = false;
     }
 }
 
@@ -568,9 +574,37 @@ async function runSchedules() {
     }
 }
 
-schedule(`*/${POLL_MINUTES} * * * *`, pollAllEnergy);
-schedule('* * * * *', runSchedules);
-schedule('* * * * *', async () => { await watchDiagnostics(); await probeAll(); });
-watchDiagnostics();
-pollAllEnergy();
+// ---------------------------------------------------------------------------------------------
+// Nur eine laufende Kopie: Jede Kopie trägt sich beim Start ein; nur die zuletzt gestartete arbeitet.
+// Eine zweite Kopie (z. B. versehentlich doppelt angelegt) meldet sich einmal und pausiert.
+// ---------------------------------------------------------------------------------------------
+
+const RUN_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const SELF = `${typeof scriptName !== 'undefined' ? scriptName : '?'} (javascript.${typeof instance !== 'undefined' ? instance : '?'})`;
+let duplicateReported = false;
+
+async function claimOwnership() {
+    await ensureJsonState(OWNER_ID, 'KlimaPilot – aktive Skriptkopie (intern)', {});
+    await setStateAsync(OWNER_ID, JSON.stringify({ id: RUN_ID, script: SELF, startedAt: new Date().toISOString() }), true);
+}
+
+async function isOwner() {
+    const owner = await readJson(OWNER_ID);
+    if (!owner || owner.id === RUN_ID) return true;
+    if (!duplicateReported) {
+        duplicateReported = true;
+        log(`KlimaPilot: Eine andere Kopie dieses Skripts ist aktiv (${owner.script}). Diese Kopie ${SELF} pausiert – bitte entfernen.`, 'warn');
+        try {
+            if (await diagEnabled()) await diagLog('ioBroker-Skript', 'doppelte Kopie pausiert', `${SELF}; aktiv: ${owner.script}`);
+        } catch (e) { /* nur Hinweis */ }
+    }
+    return false;
+}
+
+const whenOwner = task => async () => { if (await isOwner()) await task(); };
+
+schedule(`*/${POLL_MINUTES} * * * *`, whenOwner(pollAllEnergy));
+schedule('* * * * *', whenOwner(runSchedules));
+schedule('* * * * *', whenOwner(async () => { await watchDiagnostics(); await probeAll(); }));
+claimOwnership().then(() => { watchDiagnostics(); pollAllEnergy(); });
 runSchedules();

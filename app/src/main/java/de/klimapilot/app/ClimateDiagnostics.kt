@@ -86,6 +86,7 @@ internal object AppDiagnostics {
         if (prefs.getBoolean("enabled", false) == value) return
         prefs.edit().putBoolean("enabled", value).apply()
         lastReach.clear()
+        lastSeen.clear()
         log("Handy", if (value) "Diagnose eingeschaltet" else "Diagnose ausgeschaltet", "", force = true)
     }
 
@@ -111,18 +112,27 @@ internal object AppDiagnostics {
     @Synchronized
     fun clearLocal() { prefs()?.edit()?.remove("entries")?.commit() }
 
-    /** Called by every status poll; only changes are logged. */
+    private val lastSeen = mutableMapOf<String, Long>()
+
+    /**
+     * Called by every check of a unit or of ioBroker; only changes are logged. If the phone has
+     * not looked for a while (app closed, other room), the earlier state is forgotten, so no
+     * outage is reported for time in which the phone simply did not check.
+     */
     @Synchronized
-    fun reach(deviceName: String, ok: Boolean, error: String? = null) {
+    fun reach(subject: String, ok: Boolean, error: String? = null, gapMs: Long = 3 * 60_000L) {
         if (!enabled) return
         val now = System.currentTimeMillis()
-        val previous = lastReach[deviceName]
+        val seenBefore = lastSeen[subject]
+        lastSeen[subject] = now
+        if (seenBefore == null || now - seenBefore > gapMs) lastReach.remove(subject)
+        val previous = lastReach[subject]
         if (previous != null && previous.first == ok) return
-        lastReach[deviceName] = ok to now
+        lastReach[subject] = ok to now
         when {
             previous == null && ok -> Unit
-            ok -> log(deviceName, "wieder erreichbar", "nach ${((now - previous!!.second) / 60_000).coerceAtLeast(1)} min")
-            else -> log(deviceName, "nicht erreichbar", error.orEmpty())
+            ok -> log(subject, "wieder erreichbar", "nach ${((now - previous!!.second) / 60_000).coerceAtLeast(1)} min")
+            else -> log(subject, "nicht erreichbar", error.orEmpty())
         }
     }
 }

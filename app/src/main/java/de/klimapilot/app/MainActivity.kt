@@ -219,6 +219,8 @@ private fun KlimaPilotApp(appVersion: String) {
                     AppDiagnostics.reach(device.name, true)
                 }
                 .onFailure { error ->
+                    // Leaving the page or switching rooms cancels the poll; that is not a lost connection.
+                    if (error is kotlinx.coroutines.CancellationException) return@onFailure
                     airconConnected = false
                     controlStatus = error.message ?: "Gerätestatus konnte nicht gelesen werden."
                     AppDiagnostics.reach(device.name, false, error.message)
@@ -257,6 +259,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 controlStatus = "Einstellung übernommen."
                 onComplete?.invoke(true, controlStatus)
             } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
                 val message = error.message ?: "Steuerbefehl fehlgeschlagen."
                 AppDiagnostics.log(device.name, "Befehl fehlgeschlagen", message)
                 controlStatus = message

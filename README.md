@@ -89,6 +89,7 @@ Alle Datenpunkte unter `0_userdata.0.KlimaPilot`, die andere Programme (z. B. ei
 | `diagnostics.config` | App | lesen und schreiben |
 | `diagnostics.log` | Skript | lesen; leeren erlaubt |
 | `profileSync.*`, `accounts` | App (intern) | nicht verwenden |
+| `script.owner` | Skript (intern) | nicht verwenden |
 
 ### `energy.config` – Anlagen und Strompreis
 
@@ -238,6 +239,7 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 
 - `profileSync.*`: Ereignisprotokoll der Klimaprofil-Synchronisierung zwischen den Handys. Das Format ist intern und kann sich ändern. Profilwerte, die Zeitpläne brauchen, stehen als Kopie in `schedules.config` → `settings`.
 - `accounts`: früherer Kontodatenpunkt der App, nur noch zur Übernahme alter Daten.
+- `script.owner`: welche Kopie des Skripts gerade arbeitet (`{id, script, startedAt}`). Läuft das Skript versehentlich doppelt, arbeitet nur die zuletzt gestartete Kopie, die andere pausiert und meldet sich im ioBroker-Log bzw. im Diagnoseprotokoll.
 - Nicht in ioBroker, sondern nur auf den Handys (per Handy-zu-Handy-Synchronisierung): die Jahreszeit-Auswahl der Profile und das Ausblenden der Zeitpläne in der App.
 
 ## GitHub

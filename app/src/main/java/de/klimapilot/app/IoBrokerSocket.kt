@@ -92,6 +92,7 @@ internal class IoBrokerSocket(
                             isConnected = true
                             readyReceived = true
                             failedOpens = 0
+                            AppDiagnostics.reach("ioBroker", true, gapMs = 10 * 60_000L)
                             reconnectDelay = 1000L
                             notifyHandlers("connect", emptyArray())
                         } else {
@@ -156,8 +157,8 @@ internal class IoBrokerSocket(
         }
         if (wasReady) notifyHandlers("disconnect", emptyArray())
         else {
-            // Closing our own finished session is not a failure.
-            if (!stopped) AppDiagnostics.log("ioBroker", "nicht erreichbar", query.removePrefix("name=") + ": " + message)
+            // Closing our own finished session is not a failure; repeated failures are logged once.
+            if (!stopped) AppDiagnostics.reach("ioBroker", false, message, gapMs = 10 * 60_000L)
             notifyHandlers("connect_error", arrayOf(message))
         }
         if (!stopped) {
