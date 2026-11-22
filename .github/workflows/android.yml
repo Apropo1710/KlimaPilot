@@ -19,12 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Quellcode auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Java 17 einrichten
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -76,7 +76,7 @@ jobs:
       - name: APK als Build-Artefakt hochladen
         if: github.event_name == 'workflow_dispatch'
         id: artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: KlimaPilot-release-apk
           path: app/build/outputs/apk/release/KlimaPilot.apk

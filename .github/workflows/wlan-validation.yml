@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Quellcode auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -57,7 +57,7 @@ jobs:
           echo "In Ordnung: $(echo "$CODE" | grep -c . || true) Code-Datei(en) geändert, PROJECT_STATUS.md mitgepflegt bzw. keine Code-Änderung."
 
       - name: Java 17 einrichten
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -132,7 +132,7 @@ jobs:
           printf 'cert-sha256  %s\n' "$ACTUAL_CERT_SHA256" >> debug-apk.sha256
 
       - name: Debug-APK als Testartefakt bereitstellen
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: KlimaPilot-debug-test-${{ steps.version.outputs.name }}
           path: |

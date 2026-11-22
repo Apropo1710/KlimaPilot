@@ -114,6 +114,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - **API 35:** ungeprüft. Alle Versuche vom 18.11.2026 scheiterten an der CI-Umgebung, nicht an der App: Lauf #63 mit `Can't find service: package`, die Wiederholungen (auf inzwischen gelöschten Prüfbranches) an einem Shell-Syntaxfehler im Bereitschaftsschritt, bevor ein Test lief. API 35 ist optional und kein Freigabekriterium; keine weiteren Versuche ohne konkreten neuen Ansatz.
 - Status-Wächter in der WLAN-Validierung (seit 22.11.2026): schlägt fehl, wenn ein Push auf `test` App-Code (`app/src/main/**`, `app/build.gradle.kts`) oder `scripts/iobroker/**` ändert, `PROJECT_STATUS.md` aber nicht. Prüft nur das Mitpflegen, nicht den Inhalt.
 - `.github/workflows/docs-guard.yml` („Docs guard“): prüft bei jedem Push, jedem PR und täglich, dass `PROJECT_STATUS.md` die einzige Statusdatei bleibt.
+- Actions-Versionen (22.11.2026): `actions/checkout@v5`, `actions/setup-java@v5`, `actions/upload-artifact@v5` laufen auf Node.js 24 (v4 nutzte das abgekündigte Node.js 20). `android-actions/setup-android@v4`, `gradle/actions/setup-gradle@v4` und `reactivecircus/android-emulator-runner@v2` vorerst unverändert.
 - CI-Ergebnisse ersetzen keine Gerätetests.
 
 ## 7. Verlauf 18.11.2026 (kompakt)
