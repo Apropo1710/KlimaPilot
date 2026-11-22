@@ -516,24 +516,21 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
         }
     }
     val currentFinish by rememberUpdatedState(::finishDrag)
-    val next = (mine + listOfNotNull(quickTimer)).mapNotNull { item -> ScheduleMath.nextRun(item, now, current?.status?.get(item.id))?.let { item to it } }.minByOrNull { it.second }
-
     Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     SectionLabel("Zeitpläne")
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        when {
-                            current == null && error != null -> "ioBroker nicht erreichbar"
-                            current == null -> "Wird geladen …"
-                            next != null -> "Nächster: ${ScheduleMath.whenLabel(next.second, now)} → ${ScheduleMath.actionLabel(next.first)}"
-                            mine.isEmpty() -> "Noch keine Zeitpläne"
-                            else -> "Kein anstehender Termin"
-                        },
-                        color = SText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis
-                    )
+                    // Only states worth a line; the next run is visible in the list itself.
+                    val note = when {
+                        current == null && error != null -> "ioBroker nicht erreichbar"
+                        current != null && mine.isEmpty() -> "Noch keine Zeitpläne"
+                        else -> null
+                    }
+                    note?.let {
+                        Spacer(Modifier.height(4.dp))
+                        Text(it, color = SMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
                 Surface(
                     modifier = Modifier.size(40.dp).clip(CircleShape).clickable(enabled = current != null && !busy) { creating = true },

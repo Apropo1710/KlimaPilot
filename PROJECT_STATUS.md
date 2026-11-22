@@ -81,6 +81,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ### Zeitpläne (seit 0.4.92)
 - Je Anlage wöchentlich oder einmalig, Ein (Profil oder eigene Werte) bzw. Aus; Ausführung durch das Skript (minütlich, Wiederholung bis 10 min, einmalige bis 6 h nachgeholt); ausgeführte einmalige werden deaktiviert.
+- Zeitplan-Karte ohne Zeile „Nächster: …“ (Nutzerwunsch 22.11.2026, spart Platz); eine Zeile erscheint nur noch bei „ioBroker nicht erreichbar“ oder „Noch keine Zeitpläne“.
 - Feste, per Halten und Ziehen änderbare Reihenfolge (in ioBroker, gilt auf beiden Handys); Schnell-Timer „Aus in 30 min / 1 / 2 / 3 h“ (`quick`).
 - Schutz gegen gegenseitiges Überschreiben: `revision` mit erneutem Lesen vor dem Schreiben, Rückfrage im Editor bei Konflikt (`updatedAt`).
 - Globaler Schalter „Zeitpläne verwenden“ (Admin), auch per Handy-Sync. Am 20.11.2026 einmaliger Zeitplan am Gerät bestätigt; wöchentliche noch nicht ausdrücklich bestätigt.
