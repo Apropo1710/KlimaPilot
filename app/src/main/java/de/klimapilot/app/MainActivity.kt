@@ -196,6 +196,8 @@ private fun KlimaPilotApp(appVersion: String) {
             runCatching { org.json.JSONArray(raw).let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrNull()
         }.orEmpty())
     }
+    // One-time tip under the room buttons; gone after closing it or after the first sort.
+    var showRoomOrderTip by remember { mutableStateOf(!prefs.getBoolean("tip_room_order_done", false)) }
     val orderedRooms = rooms.sortedBy { room -> roomOrder.indexOf(room).let { if (it < 0) Int.MAX_VALUE else it } }
     var selectedRoom by remember { mutableStateOf(orderedRooms.firstOrNull() ?: "Wohnzimmer") }
     var selectedDeviceId by remember {
@@ -731,7 +733,13 @@ private fun KlimaPilotApp(appVersion: String) {
             rooms = orderedRooms,
             onRoomOrder = { order ->
                 roomOrder = order
-                prefs.edit().putString("room_order", org.json.JSONArray(order).toString()).apply()
+                prefs.edit().putString("room_order", org.json.JSONArray(order).toString()).putBoolean("tip_room_order_done", true).apply()
+                showRoomOrderTip = false
+            },
+            showRoomOrderTip = showRoomOrderTip,
+            onRoomOrderTipDone = {
+                showRoomOrderTip = false
+                prefs.edit().putBoolean("tip_room_order_done", true).apply()
             },
             onRoomSelect = { roomName ->
                 selectedRoom = roomName
@@ -897,6 +905,8 @@ private fun MainScreen(
     selectedRoom: String,
     rooms: List<String>,
     onRoomOrder: (List<String>) -> Unit = {},
+    showRoomOrderTip: Boolean = false,
+    onRoomOrderTipDone: () -> Unit = {},
     onRoomSelect: (String) -> Unit,
     devicesInRoom: List<UserDevice>,
     allDevices: List<UserDevice>,
@@ -1011,6 +1021,17 @@ private fun MainScreen(
                             labelColor = TextMain
                         )
                     )
+                }
+            }
+            if (showRoomOrderTip && rooms.size > 1) {
+                Row(
+                    Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFE3EEF7)).padding(start = 12.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Tipp: Raum gedrückt halten und ziehen, um zu sortieren", color = Color(0xFF123B60), fontSize = 12.sp)
+                    Box(Modifier.size(30.dp).clip(CircleShape).clickable(onClick = onRoomOrderTipDone), contentAlignment = Alignment.Center) {
+                        Text("✕", color = Color(0xFF123B60), fontSize = 12.sp)
+                    }
                 }
             }
             if (devicesInRoom.size > 1) {
