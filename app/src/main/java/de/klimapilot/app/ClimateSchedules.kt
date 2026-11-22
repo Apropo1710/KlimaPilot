@@ -579,7 +579,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                             key = item.id,
                             enabled = { !currentBusy },
                             onStart = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                pickUpVibration(context)
                                 localOrder = localOrder ?: currentBaseIds
                                 dragId = item.id
                                 dragOffset = 0f
@@ -1077,5 +1077,25 @@ internal fun Modifier.holdToDrag(
         } finally {
             onEnd()
         }
+    }
+}
+
+
+/**
+ * Short tick when an item is picked up for sorting. Vibrates directly, so it also works when the
+ * system's touch feedback for apps is switched off; silently does nothing if not possible.
+ */
+internal fun pickUpVibration(context: android.content.Context) {
+    runCatching {
+        val vibrator = if (android.os.Build.VERSION.SDK_INT >= 31) {
+            context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+        } ?: return
+        if (!vibrator.hasVibrator()) return
+        val effect = if (android.os.Build.VERSION.SDK_INT >= 29) android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_HEAVY_CLICK)
+            else android.os.VibrationEffect.createOneShot(40, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+        vibrator.vibrate(effect)
     }
 }

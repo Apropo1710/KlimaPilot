@@ -968,7 +968,7 @@ private fun MainScreen(
             var dragOffset by remember { mutableFloatStateOf(0f) }
             val chipWidths = remember { mutableStateMapOf<String, Int>() }
             val roomGap = with(LocalDensity.current) { 7.dp.toPx() }
-            val roomHaptic = LocalHapticFeedback.current
+            val roomContext = LocalContext.current
             val currentRooms by rememberUpdatedState(rooms)
             val currentOnRoomOrder by rememberUpdatedState(onRoomOrder)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -985,7 +985,7 @@ private fun MainScreen(
                             .holdToDrag(
                                 key = room,
                                 onStart = {
-                                    roomHaptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    pickUpVibration(roomContext)
                                     dragOrder = currentRooms
                                     dragRoom = room
                                     dragOffset = 0f
