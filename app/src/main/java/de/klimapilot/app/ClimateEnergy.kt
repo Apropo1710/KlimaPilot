@@ -819,18 +819,18 @@ private fun EnergyChart(
                 }
             }
         }
-        // Labels under the bars: at most about eight, evenly spread, so they stay readable.
+        // Labels under the bars: at most about eight, evenly spread, centred on their bar and
+        // free to be wider than one bar (two-digit days in the month view).
         val labelStep = ((values.size + 7) / 8).coerceAtLeast(1)
-        Row(Modifier.fillMaxWidth().padding(start = 34.dp, end = if (temps.isNotEmpty()) 30.dp else 4.dp)) {
+        val labelColor = MaterialTheme.colorScheme.onSurface
+        Canvas(Modifier.fillMaxWidth().height(14.dp)) {
+            val chartLeft = leftAxis
+            val slot = (size.width - leftAxis - rightAxis) / values.size.coerceAtLeast(1)
+            val style = androidx.compose.ui.text.TextStyle(fontSize = 9.sp, color = labelColor)
             values.forEachIndexed { index, (label, _) ->
-                Text(
-                    if (index % labelStep == 0) label else "",
-                    modifier = Modifier.weight(1f),
-                    fontSize = 9.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    color = Color.Unspecified
-                )
+                if (index % labelStep != 0) return@forEachIndexed
+                val text = measurer.measure(label, style)
+                drawText(text, topLeft = Offset(chartLeft + index * slot + slot / 2 - text.size.width / 2, 0f))
             }
         }
     }

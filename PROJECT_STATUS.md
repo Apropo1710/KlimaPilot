@@ -87,7 +87,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ### Energie
 - Laufzähler der Anlage (0,25-kWh-Schritte, Rücksetzung beim Einschalten); Skript liest alle 5 min, verteilt jeden Schritt auf die Laufzeit davor, speichert Stunden (31 Tage) und Tage (dauerhaft) sowie Außentemperatur (Mittel je Stunde/Tag).
-- Hauptseite „Verbrauch heute“ (auch ohne lokale Verbindung). Energiefenster: Räume/Alle, Tag–Gesamt, kWh/€, seitlich wischbar, Balken öffnet feinere Ebene, „↑“ und Zurück-Geste gehen höher; Skalen links (Wert) und rechts (Außentemperatur), Werte an Balken bis 12 Stück, Tagesansicht zeigt Werte per Tipp. Fester Strompreis ohne Grundgebühr.
+- Hauptseite „Verbrauch heute“ (auch ohne lokale Verbindung). Energiefenster: Räume/Alle, Tag–Gesamt, kWh/€, seitlich wischbar, Balken öffnet feinere Ebene, „↑“ und Zurück-Geste gehen höher; Skalen links (Wert) und rechts (Außentemperatur), Werte an Balken bis 12 Stück, Tagesansicht zeigt Werte per Tipp. Fester Strompreis ohne Grundgebühr. Achsenbeschriftung unter den Balken wird zentriert gezeichnet und nicht mehr abgeschnitten (Monatsansicht zeigte „1 5 9 1 1 2“ statt „1 5 9 13 17 21“).
 
 ### Filter-Erinnerung
 - Abstände wie im Handbuch, gezählt in Betriebstagen (Tage mit Betrieb, `runDays`): Luftfilter 1–4 Wochen (Vorgabe 2), Allergen- und Geruchsfilter 1–6 Monate (Vorgabe 3). Hinweis auf der Anlagenseite mit „Erledigt“, Einstellungskachel für alle Konten. Zählung seit 21.11.2026.
