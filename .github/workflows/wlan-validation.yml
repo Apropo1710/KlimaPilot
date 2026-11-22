@@ -32,6 +32,29 @@ jobs:
     steps:
       - name: Quellcode auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Status-Wächter: Wer App-Code oder das ioBroker-Skript ändert, muss im selben Push
+      # PROJECT_STATUS.md mitpflegen (Regel aus AGENTS.md). Prüft nur, ob die Datei geändert
+      # wurde, nicht den Inhalt.
+      - name: Status-Wächter (PROJECT_STATUS.md mitgepflegt?)
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            BASE=$(git merge-base HEAD origin/main)
+          else
+            BASE=$(git merge-base "$BEFORE" HEAD)
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD)
+          CODE=$(echo "$CHANGED" | grep -E '^(app/src/main/|app/build\.gradle\.kts$|scripts/iobroker/)' || true)
+          if [ -n "$CODE" ] && ! echo "$CHANGED" | grep -qx 'PROJECT_STATUS.md'; then
+            echo "::error::App-Code oder ioBroker-Skript geändert, aber PROJECT_STATUS.md nicht. Bitte den Status im selben Push aktualisieren (siehe AGENTS.md)."
+            echo "Geänderte Dateien:"; echo "$CODE"
+            exit 1
+          fi
+          echo "In Ordnung: $(echo "$CODE" | grep -c . || true) Code-Datei(en) geändert, PROJECT_STATUS.md mitgepflegt bzw. keine Code-Änderung."
 
       - name: Java 17 einrichten
         uses: actions/setup-java@v4
