@@ -66,6 +66,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Kopplung robust gegen Doppelzuordnung und Neukopplung; „nicht erreichbar“ statt Kopplungsaufforderung bei gekoppelter Anlage.
 - Hauptseite: Kopfzeile und Raum-Knöpfe fest; Raumreihenfolge per Halten und Ziehen, je Handy gespeichert (`room_order`), erster Raum öffnet beim Start, einmaliger Tipp dazu. Raumwechsel per Wischen, springt an den Seitenanfang. Reihenfolge der Anlagenseite: Klimaprofil, Temperatur, Modus, Lüfter, Luftführung, 3D-Auto, Zeitpläne, Verbrauch heute, Kompressor/Verbindung.
 - Temperatur: Klicks werden gesammelt (1,2 s); der Schieberegler bewegt sich nur am Knopf, damit Raum-Wischen nichts verstellt.
+- Einstellungen (0.5.34): ioBroker-Verbindung, ioBroker-Skript, Diagnose und Geräte koppeln stecken in der aufklappbaren Kachel „Systemeinstellungen“ direkt über „App-Version“ (Nicht-Admins sehen darin nur „Geräte koppeln“). „Zeitpläne verwenden“, Filter-Erinnerung und Benachrichtigungen bleiben einzeln.
 - Einheitliche Gestaltung: blaue Bedienelemente (kein Lila), Popups über `KlimaPilotAlertDialog`, Hinweise hinter ⓘ, Vollbild-Editoren mit fester Kopfzeile und lesbarer Navigationsleiste.
 
 ### Klimaprofile

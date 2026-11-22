@@ -46,6 +46,8 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.BorderStroke
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -1708,8 +1710,6 @@ private fun SettingsScreen(
     }
     var accountExpanded by remember { mutableStateOf(false) }
     var fontSizeExpanded by remember { mutableStateOf(false) }
-    var ioBrokerExpanded by remember { mutableStateOf(false) }
-    var energyExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
@@ -1806,21 +1806,10 @@ private fun SettingsScreen(
             }
         }
         if (isAdmin) {
-            IoBrokerConnectionSettingsCard(expanded = ioBrokerExpanded, onExpandedChange = { ioBrokerExpanded = it })
-            EnergyScriptSettingsCard(expanded = energyExpanded, onExpandedChange = { energyExpanded = it })
-            var diagnosticsExpanded by remember { mutableStateOf(false) }
-            DiagnosticsSettingsCard(expanded = diagnosticsExpanded, onExpandedChange = { diagnosticsExpanded = it })
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     ScheduleSettingsContent()
                 }
-            }
-        } else {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
-                Text(
-                    "Verbindungs-, Raum- und Gerätekonfiguration kann nur ein Administrator ändern.",
-                    modifier = Modifier.padding(14.dp), color = Muted, fontSize = 12.sp
-                )
             }
         }
         // For every account: each phone decides on its own notifications; filter state is shared.
@@ -1828,11 +1817,55 @@ private fun SettingsScreen(
         FilterSettingsCard(energyUnits, expanded = filterExpanded, onExpandedChange = { filterExpanded = it }, onChanged = onFilterChanged)
         var notificationsExpanded by remember { mutableStateOf(false) }
         NotificationSettingsCard(expanded = notificationsExpanded, onExpandedChange = { notificationsExpanded = it })
-        ClimatePairingSettingsCard()
+        SystemSettingsCard(isAdmin)
         GithubUpdateCard(appVersion)
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) {
             Text("Zurück zur Klimaübersicht")
         }
+        }
+    }
+}
+
+
+/**
+ * Groups the rarely used technical settings (ioBroker connection, script, diagnostics, pairing)
+ * in one collapsible card. The inner cards keep their own expand state while the group is open.
+ */
+@Composable
+private fun SystemSettingsCard(isAdmin: Boolean) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    var ioBrokerExpanded by rememberSaveable { mutableStateOf(false) }
+    var energyExpanded by rememberSaveable { mutableStateOf(false) }
+    var diagnosticsExpanded by rememberSaveable { mutableStateOf(false) }
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Panel),
+        border = BorderStroke(1.dp, PanelRaised)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Systemeinstellungen", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        if (isAdmin) "ioBroker, Skript, Diagnose, Geräte koppeln" else "Geräte koppeln",
+                        color = Muted, fontSize = 11.sp
+                    )
+                }
+                Text(if (expanded) "⌃" else "⌄", color = Muted, fontSize = 20.sp)
+            }
+            if (expanded) {
+                if (isAdmin) {
+                    IoBrokerConnectionSettingsCard(expanded = ioBrokerExpanded, onExpandedChange = { ioBrokerExpanded = it })
+                    EnergyScriptSettingsCard(expanded = energyExpanded, onExpandedChange = { energyExpanded = it })
+                    DiagnosticsSettingsCard(expanded = diagnosticsExpanded, onExpandedChange = { diagnosticsExpanded = it })
+                } else {
+                    Text(
+                        "Verbindungs-, Raum- und Gerätekonfiguration kann nur ein Administrator ändern.",
+                        color = Muted, fontSize = 12.sp
+                    )
+                }
+                ClimatePairingSettingsCard()
+            }
         }
     }
 }
