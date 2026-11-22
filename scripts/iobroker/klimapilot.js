@@ -398,23 +398,34 @@ async function diagLog(subject, event, detail) {
 
 const minutesSince = since => Math.max(1, Math.round((Date.now() - since) / 60000));
 
-/** Merkt sich die Erreichbarkeit einer Anlage und protokolliert Wechsel, wenn die Diagnose an ist. */
+/**
+ * Merkt sich die Erreichbarkeit einer Anlage und protokolliert Ausfälle, wenn die Diagnose an ist.
+ * Erst ab DIAG_MIN_OUTAGE_MS Dauer wird ein Ausfall eingetragen (die stündlichen Neustarts des
+ * WLAN-Moduls dauern rund 1 min und gehören nicht ins Protokoll); das Ende nur, wenn der Ausfall
+ * eingetragen wurde.
+ */
+const DIAG_MIN_OUTAGE_MS = 3 * 60000;
 async function diagReach(unit, ok, error) {
     const previous = reach[unit.airconId];
     const now = Date.now();
-    if (previous && previous.ok === ok && (ok || previous.error === error)) return;
-    reach[unit.airconId] = { ok, since: previous && previous.ok === ok ? previous.since : now, error };
+    if (ok) {
+        reach[unit.airconId] = { ok: true, since: now };
+        if (!previous || previous.ok || !previous.logged) return;
+        await diagWrite(unit, 'wieder erreichbar', `nach ${minutesSince(previous.since)} min`);
+        return;
+    }
+    const down = previous && !previous.ok ? previous : { ok: false, since: now, logged: false };
+    down.error = error;
+    reach[unit.airconId] = down;
+    if (down.logged || now - down.since < DIAG_MIN_OUTAGE_MS) return;
+    down.logged = true;
+    const since = new Date(down.since).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    await diagWrite(unit, 'nicht erreichbar', `seit ${since} – ${error || ''}`);
+}
+
+async function diagWrite(unit, event, detail) {
     try {
-        if (!(await diagEnabled())) return;
-        const name = unit.name || unit.airconId;
-        if (!previous) {
-            if (!ok) await diagLog(name, 'nicht erreichbar', error);
-        } else if (previous.ok !== ok) {
-            if (ok) await diagLog(name, 'wieder erreichbar', `nach ${minutesSince(previous.since)} min`);
-            else await diagLog(name, 'nicht erreichbar', error);
-        } else if (!ok) {
-            await diagLog(name, 'anderer Fehler', error);
-        }
+        if (await diagEnabled()) await diagLog(unit.name || unit.airconId, event, detail);
     } catch (e) {
         log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
     }

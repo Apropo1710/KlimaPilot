@@ -256,7 +256,7 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
             } else status = error.orEmpty()
         }
     }
-    val entries = remember(remote, localVersion, refresh) { (remote + AppDiagnostics.entries()).sortedByDescending { it.at } }
+    val entries = remember(remote, localVersion, refresh) { dedupeEntries(remote + AppDiagnostics.entries()) }
 
     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE3EEF7))) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -340,4 +340,17 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
             }
         )
     }
+}
+
+/** Newest first; the same message from the same source within 3 min is shown only once. */
+internal fun dedupeEntries(all: List<DiagEntry>): List<DiagEntry> {
+    val kept = mutableListOf<DiagEntry>()
+    for (entry in all.sortedBy { it.at }) {
+        val twin = kept.lastOrNull {
+            it.source == entry.source && it.subject == entry.subject && it.event == entry.event && it.detail == entry.detail
+        }
+        if (twin != null && entry.at - twin.at < 3 * 60_000L) continue
+        kept += entry
+    }
+    return kept.sortedByDescending { it.at }
 }

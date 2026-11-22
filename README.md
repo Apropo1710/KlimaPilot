@@ -51,7 +51,7 @@ Energieverlauf und Zeitpläne laufen über ein Skript im ioBroker-JavaScript-Ada
 - **Aktualisieren:** Beim Start prüft KlimaPilot, ob das eingerichtete Skript der mitgelieferten Fassung entspricht, und aktualisiert es bei Bedarf.
 - **Energie:** KlimaPilot trägt Anlagen und Strompreis unter `0_userdata.0.KlimaPilot.energy.config` ein; das Skript liest alle 5 Minuten und schreibt nach `0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>`. Aufgezeichnet wird ab der ersten Ablesung.
 - **Zeitpläne:** KlimaPilot schreibt sie nach `0_userdata.0.KlimaPilot.schedules.config`; das Skript prüft jede Minute, schaltet fällige Anlagen direkt am WLAN-Modul und schreibt das Ergebnis nach `0_userdata.0.KlimaPilot.schedules.status`. Schlägt ein Termin fehl (z. B. beim stündlichen Neustart des Moduls), wird er bis zu 10 Minuten lang jede Minute wiederholt. Der Schalter „Zeitpläne verwenden“ in den Einstellungen hält alle Zeitpläne an und blendet sie in der App aus – über ioBroker und zusätzlich über die Handy-zu-Handy-Synchronisierung auf beiden Handys.
-- **Diagnose:** Einstellungen → „Diagnose“ (nur Administrator). Eingeschaltet (`0_userdata.0.KlimaPilot.diagnostics.config`) prüft das Skript jede Minute die lokale Erreichbarkeit der Anlagen und protokolliert jeden Ausfall mit Beginn, Dauer und Fehler in `0_userdata.0.KlimaPilot.diagnostics.log` (14 Tage). Die App ergänzt, was das Handy sieht; das Protokoll lässt sich in der App ansehen, kopieren und leeren.
+- **Diagnose:** Einstellungen → „Diagnose“ (nur Administrator). Eingeschaltet (`0_userdata.0.KlimaPilot.diagnostics.config`) prüft das Skript jede Minute die lokale Erreichbarkeit der Anlagen und protokolliert jeden Ausfall ab 3 Minuten mit Beginn, Dauer und Fehler in `0_userdata.0.KlimaPilot.diagnostics.log` (14 Tage). Die App ergänzt, was das Handy sieht; das Protokoll lässt sich in der App ansehen, kopieren und leeren.
 - **Benachrichtigungen:** Die App prüft etwa alle 2 Stunden im Hintergrund (nur im WLAN) die Datenpunkte unten und meldet fällige Filter, endgültig fehlgeschlagene Zeitpläne und Anlagen, die seit über einer Stunde nicht erreichbar sind. Standardmäßig aus; einschalten unter Einstellungen → „Benachrichtigungen“.
 - Manuell geht es auch: neues JavaScript-Skript anlegen und den Dateiinhalt einfügen (am PC).
 
@@ -224,13 +224,14 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 ```json
 {
   "entries": [
-    { "at": "2026-11-21T06:10:00.000Z", "source": "ioBroker", "subject": "Klimaanlage Schlafzimmer", "event": "nicht erreichbar", "detail": "connect ECONNREFUSED 192.168.178.197:51443" },
+    { "at": "2026-11-21T06:10:00.000Z", "source": "ioBroker", "subject": "Klimaanlage Schlafzimmer", "event": "nicht erreichbar", "detail": "seit 07:07 – connect ECONNREFUSED 192.168.178.197:51443" },
     { "at": "2026-11-21T11:20:00.000Z", "source": "ioBroker", "subject": "Klimaanlage Schlafzimmer", "event": "wieder erreichbar", "detail": "nach 310 min" }
   ]
 }
 ```
 
-- `event`: `nicht erreichbar`, `wieder erreichbar`, `anderer Fehler`, `Skript gestartet`, `Diagnose eingeschaltet`, `Diagnose ausgeschaltet`.
+- `event`: `nicht erreichbar`, `wieder erreichbar`, `Skript gestartet`, `Diagnose eingeschaltet`, `Diagnose ausgeschaltet`, `doppelte Kopie pausiert`.
+- Ausfälle stehen erst ab 3 min Dauer im Protokoll (`detail` beginnt mit `seit HH:MM – `), das Ende nur zu eingetragenen Ausfällen. Die stündlichen Neustarts des WLAN-Moduls (rund 1 min) erscheinen deshalb nicht. Gleiche Einträge binnen 3 min werden nur einmal geschrieben.
 - Höchstens 400 Einträge, älter als 14 Tage wird entfernt.
 - Leeren: `{"entries":[]}` schreiben.
 - Die Einträge der Handys (`source: "Handy"`) liegen nur auf dem jeweiligen Handy, nicht in ioBroker.
