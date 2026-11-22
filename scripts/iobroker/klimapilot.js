@@ -387,6 +387,11 @@ async function diagLog(subject, event, detail) {
     const logData = await readJson(DIAG_LOG_ID) || {};
     const oldest = Date.now() - DIAG_KEEP_DAYS * 24 * 3600 * 1000;
     const entries = (Array.isArray(logData.entries) ? logData.entries : []).filter(e => Date.parse(e.at) >= oldest);
+    // Gleicher Eintrag binnen 3 min (z. B. Energieablesung und Minutenprüfung oder Neustart-Überlappung)
+    // nur einmal aufnehmen.
+    const recent = entries.slice(-10).some(e => e.source === 'ioBroker' && e.subject === subject && e.event === event &&
+        (e.detail || '') === (detail || '') && Date.now() - Date.parse(e.at) < 3 * 60000);
+    if (recent) return;
     entries.push({ at: new Date().toISOString(), source: 'ioBroker', subject, event, detail: detail || '' });
     await setStateAsync(DIAG_LOG_ID, JSON.stringify({ entries: entries.slice(-DIAG_MAX_ENTRIES) }), true);
 }
@@ -591,7 +596,8 @@ async function claimOwnership() {
 async function isOwner() {
     const owner = await readJson(OWNER_ID);
     if (!owner || owner.id === RUN_ID) return true;
-    if (!duplicateReported) {
+    // Dasselbe Skript wurde neu gestartet und die alte Laufzeit läuft noch kurz nach: kein Duplikat.
+    if (!duplicateReported && owner.script !== SELF) {
         duplicateReported = true;
         log(`KlimaPilot: Eine andere Kopie dieses Skripts ist aktiv (${owner.script}). Diese Kopie ${SELF} pausiert – bitte entfernen.`, 'warn');
         try {

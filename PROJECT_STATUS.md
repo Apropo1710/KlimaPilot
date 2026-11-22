@@ -98,6 +98,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ### Diagnose und Benachrichtigungen
 - Diagnose (Einstellungen, an/aus über ioBroker): Skript prüft minütlich die Erreichbarkeit und protokolliert Wechsel; das Handy ergänzt nur echte Wechsel aus eigener Sicht (keine Prüfpausen, keine abgebrochenen Abrufe). Auswertung 21./22.11.2026: keine echten Ausfälle; Aussetzer vom Handy lagen am WLAN des Handys.
+- Auswertung 22.11.2026 abends: Anlagen laut ioBroker nur bei den stündlichen Modul-Neustarts (ca. 1 min) und zweimal kurz („socket hang up“) weg; die vielen Handy-Einträge ohne Gegenstück in ioBroker stammen vom WLAN/Energiesparen des Handys. Skript seit 0.5.37: gleiche Diagnose-Einträge binnen 3 min werden nur einmal geschrieben (vorher doppelte „wieder erreichbar“ und mehrfaches „Skript gestartet“), und ein Neustart desselben Skripts meldet keine „doppelte Kopie“ mehr.
 - Gemeinsame ioBroker-Verbindung der App (`IoBrokerPool`), schließt nach 2 min Ruhe; Empfehlung ws.0-Log-Stufe „warn“.
 - Android-Benachrichtigungen (standardmäßig aus, je Art einschaltbar): WorkManager-Check etwa alle 2 h im WLAN für fällige Filter, endgültig fehlgeschlagene Zeitpläne und seit über 1 h nicht erreichbare Anlagen; Dauerzustände täglich erneut, erledigte werden entfernt. Berechtigungen `POST_NOTIFICATIONS` (Abfrage beim Einschalten), `VIBRATE` (Greifen beim Sortieren; auf dem Xiaomi des Nutzers ohne spürbare Wirkung).
 
