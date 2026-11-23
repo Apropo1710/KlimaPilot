@@ -443,10 +443,18 @@ internal class EnergyScriptInstaller(private val context: Context) {
                     .put("debug", false)
                     .put("verbose", false))
                 .put("native", JSONObject())
-            socket.emit("setObject", SCRIPT_ID, definition, IoBrokerAck setCallback@{ setArgs ->
-                if (err(setArgs) != null) { finish(false, "Skript konnte nicht angelegt werden: ${err(setArgs)}"); return@setCallback }
-                disableOtherCopies(if (existing == null) "KlimaPilot-Skript eingerichtet und gestartet." else "KlimaPilot-Skript aktualisiert.")
-            })
+            fun store() {
+                socket.emit("setObject", SCRIPT_ID, definition, IoBrokerAck setCallback@{ setArgs ->
+                    if (err(setArgs) != null) { finish(false, "Skript konnte nicht angelegt werden: ${err(setArgs)}"); return@setCallback }
+                    disableOtherCopies(if (existing == null) "KlimaPilot-Skript eingerichtet und gestartet." else "KlimaPilot-Skript aktualisiert.")
+                })
+            }
+            // A running script is stopped first and only then started with the new code, so that
+            // no old run keeps going next to the new one.
+            if (common != null && common.optBoolean("enabled")) {
+                val stop = JSONObject().put("common", JSONObject().put("enabled", false))
+                socket.emit("extendObject", SCRIPT_ID, stop, IoBrokerAck { main.postDelayed({ if (!done.get()) store() }, 3_000) })
+            } else store()
         }
 
         socket.on("connect") {

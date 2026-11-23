@@ -606,7 +606,12 @@ async function claimOwnership() {
 
 async function isOwner() {
     const owner = await readJson(OWNER_ID);
-    if (!owner || owner.id === RUN_ID) return true;
+    if (owner && owner.id === RUN_ID) return true;
+    if (!owner || !owner.id) {
+        // Eintrag fehlt (z. B. gelöscht): diese Laufzeit übernimmt, alle anderen sehen danach eine fremde Kennung.
+        await claimOwnership();
+        return true;
+    }
     // Dasselbe Skript wurde neu gestartet und die alte Laufzeit läuft noch kurz nach: kein Duplikat.
     if (!duplicateReported && owner.script !== SELF) {
         duplicateReported = true;
