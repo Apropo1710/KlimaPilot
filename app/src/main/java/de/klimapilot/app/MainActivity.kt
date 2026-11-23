@@ -867,9 +867,8 @@ private fun StartupUpdateCheck(appVersion: String, onOpenSettings: () -> Unit) {
     var availableVersion by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        if (!GithubPrivateUpdates.isConnected(context)) return@LaunchedEffect
         try {
-            val release = GithubPrivateUpdates.latestRelease(context)
+            val release = GithubUpdates.latestRelease(context)
             val installed = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
             val latest = release.version.split(".").map { it.toIntOrNull() ?: 0 }
             var comparison = 0

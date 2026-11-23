@@ -2,7 +2,6 @@ package de.klimapilot.app
 
 import android.content.ClipData
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -37,11 +36,8 @@ import kotlinx.coroutines.launch
 internal fun GithubUpdateCard(appVersion: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var connected by remember { mutableStateOf(GithubPrivateUpdates.isConnected(context)) }
-    var pending by remember { mutableStateOf(GithubPrivateUpdates.pendingDevice(context)) }
     var busy by remember { mutableStateOf(false) }
-    var code by remember { mutableStateOf(pending?.userCode) }
-    var status by rememberSaveable { mutableStateOf(if (connected) "GitHub-Verbindung gespeichert." else if (pending != null) "GitHub-Anmeldung wurde unterbrochen. Du kannst sie fortsetzen." else "Einmalig mit GitHub verbinden, um private Updates abzurufen.") }
+    var status by rememberSaveable { mutableStateOf("Suche nach Updates …") }
     var newerVersion by rememberSaveable { mutableStateOf<String?>(null) }
     var latestVersion by rememberSaveable { mutableStateOf<String?>(null) }
     var assetId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -50,7 +46,7 @@ internal fun GithubUpdateCard(appVersion: String) {
         busy = true
         status = "Suche nach Updates …"
         try {
-            val release = GithubPrivateUpdates.latestRelease(context)
+            val release = GithubUpdates.latestRelease(context)
             latestVersion = release.version
             assetId = release.assetId
             val current = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
@@ -69,8 +65,8 @@ internal fun GithubUpdateCard(appVersion: String) {
         }
     }
 
-    LaunchedEffect(connected) {
-        if (connected) checkForUpdates()
+    LaunchedEffect(Unit) {
+        checkForUpdates()
     }
 
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp)) {
@@ -89,43 +85,12 @@ internal fun GithubUpdateCard(appVersion: String) {
             if (latestVersion != null) {
                 Text("Verfügbare Version: $latestVersion", color = if (newerVersion != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, fontWeight = if (newerVersion != null) FontWeight.SemiBold else FontWeight.Normal, fontSize = 12.sp)
             }
-            if (code != null) {
-                Text("GitHub-Code: $code", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Gib diesen Code auf der geöffneten GitHub-Seite ein und bestätige den Zugriff.", style = MaterialTheme.typography.bodySmall)
-            }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                if (!connected) {
-                    Button(enabled = !busy, onClick = {
-                        scope.launch {
-                            busy = true
-                            try {
-                                val device = pending ?: GithubPrivateUpdates.begin().also {
-                                    GithubPrivateUpdates.savePending(context, it)
-                                    pending = it
-                                }
-                                code = device.userCode
-                                status = "GitHub im Browser öffnen und den Code bestätigen …"
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(device.verificationUri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                                GithubPrivateUpdates.authorize(context, device)
-                                connected = true
-                                pending = null
-                                code = null
-                                status = "GitHub erfolgreich verbunden."
-                            } catch (error: Exception) {
-                                code = pending?.userCode
-                                status = error.message ?: "GitHub-Verbindung fehlgeschlagen."
-                            } finally {
-                                busy = false
-                            }
-                        }
-                    }) { Text(if (pending != null) "Anmeldung fortsetzen" else "Mit GitHub verbinden") }
-                } else {
-                    OutlinedButton(
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().height(42.dp),
-                        onClick = { scope.launch { checkForUpdates() } }
-                    ) { Text("Nach Updates suchen", maxLines = 1, softWrap = false, fontSize = 13.sp) }
-                }
+                OutlinedButton(
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    onClick = { scope.launch { checkForUpdates() } }
+                ) { Text("Nach Updates suchen", maxLines = 1, softWrap = false, fontSize = 13.sp) }
                 if (newerVersion != null && assetId != null) {
                     Button(
                         enabled = !busy,
@@ -136,7 +101,7 @@ internal fun GithubUpdateCard(appVersion: String) {
                                 busy = true
                                 status = "APK wird sicher heruntergeladen …"
                                 try {
-                                    val file = GithubPrivateUpdates.download(context, assetId!!)
+                                    val file = GithubUpdates.download(context, assetId!!)
                                     status = "Download abgeschlossen. APK wird geprüft …"
                                     val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
                                         ?: error("Die heruntergeladene Datei ist keine gültige Android-APK.")

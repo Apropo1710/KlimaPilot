@@ -108,6 +108,12 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Gemeinsame ioBroker-Verbindung der App (`IoBrokerPool`), schließt nach 2 min Ruhe; Empfehlung ws.0-Log-Stufe „warn“.
 - Android-Benachrichtigungen (standardmäßig aus, je Art einschaltbar): WorkManager-Check etwa alle 2 h im WLAN für fällige Filter, endgültig fehlgeschlagene Zeitpläne und seit über 1 h nicht erreichbare Anlagen; Dauerzustände täglich erneut, erledigte werden entfernt. Berechtigungen `POST_NOTIFICATIONS` (Abfrage beim Einschalten), `VIBRATE` (Greifen beim Sortieren; auf dem Xiaomi des Nutzers ohne spürbare Wirkung).
 
+### Updater ohne GitHub-Anmeldung (0.5.52, 23.11.2026)
+- Auf ausdrückliche Anweisung des Nutzers: Die GitHub-Anmeldung (Device-Flow mit Zugriffs-/Erneuerungsschlüssel) ist entfernt, weil das Repo öffentlich ist. Anlass: Die Frau des Nutzers war plötzlich abgemeldet und konnte kein Update laden (Erneuerungsschlüssel sind bei GitHub nur einmal gültig; jeder Fehler beim Erneuern löschte die Anmeldung).
+- `GithubPrivateUpdates.kt` → `GithubUpdates.kt`: Release-Abfrage und APK-Download ohne `Authorization`, sonst unverändert (gleiche Endpunkte, Prüfungen, Größenprüfung). Alte Schlüssel und der Keystore-Eintrag werden beim ersten Abruf gelöscht.
+- `GithubUpdateCard.kt`: „Mit GitHub verbinden“ und Code-Anzeige entfernt; „Nach Updates suchen“ immer sichtbar, Prüfung beim Öffnen. **Download, APK-Prüfung und Installationsablauf (`ACTION_VIEW` + FileProvider + ClipData) unverändert.** Start-Popup prüft ohne Anmeldung.
+- Grenze ohne Anmeldung: 60 GitHub-API-Abfragen pro Stunde je Internetadresse (alle Geräte im Haushalt zusammen); die App braucht 1 je Start, 1 je Öffnen der Einstellungen, 2 je Update. Wird das Repo wieder privat, funktionieren Updates nicht mehr.
+
 ### Updater-Beobachtung (22.11.2026)
 - Gelegentlich erscheint nach „Update laden“ der Status „Android-Installationsdialog wurde angefordert“, der Dialog kommt aber nicht; ein zweites Tippen funktioniert immer. Der Code ruft `startActivity` ohne Fehler auf – das System zeigt den Dialog nur nicht (vermutlich bündelt Android/MIUI den Aufruf mit einer noch vorhandenen Installer-Aufgabe oder der Play-Protect-Prüfung). Ursache nicht sicher nachweisbar; **bewusst keine Änderung am Updater** (Nutzerpriorität: Updater darf nicht unbrauchbar werden). Umgehung: erneut tippen.
 
