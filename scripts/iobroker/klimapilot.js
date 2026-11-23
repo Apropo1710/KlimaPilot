@@ -525,6 +525,21 @@ const minuteKey = d => `${dayKey(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}
 const isoDay = d => ((d.getDay() + 6) % 7) + 1; // Montag = 1 … Sonntag = 7
 
 /**
+ * Wöchentliche Termine mit everyWeeks > 1 laufen nur jede n-te Woche, gezählt ab der Woche von
+ * weekAnchor (Datum eines Montags, JJJJ-MM-TT). Ohne diese Angaben: jede Woche.
+ */
+function activeInWeek(item, now) {
+    const n = Number(item.everyWeeks) || 1;
+    if (n <= 1 || typeof item.weekAnchor !== 'string') return true;
+    const p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(item.weekAnchor);
+    if (!p) return true;
+    const monday = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - (isoDay(x) - 1)); return x; };
+    const anchor = monday(new Date(Number(p[1]), Number(p[2]) - 1, Number(p[3])));
+    const weeks = Math.round((monday(now).getTime() - anchor.getTime()) / (7 * 86400000));
+    return ((weeks % n) + n) % n === 0;
+}
+
+/**
  * Liefert den Schlüssel des fälligen Termins oder null. Ein wöchentlicher Termin ist ab seiner
  * Uhrzeit bis RETRY_WINDOW_MS danach fällig, ein einmaliger bis ONCE_GRACE_MS danach.
  */
@@ -533,6 +548,7 @@ function dueKey(item, now) {
     if (item.kind === 'weekly') {
         const m = /^(\d{2}):(\d{2})$/.exec(item.time || '');
         if (!m || !(item.days || []).includes(isoDay(now))) return null;
+        if (!activeInWeek(item, now)) return null;
         const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(m[1]), Number(m[2]));
         const diff = now.getTime() - at.getTime();
         if (diff >= 0 && diff <= RETRY_WINDOW_MS) return `${dayKey(now)}T${item.time}`;

@@ -118,6 +118,9 @@ internal data class ClimateSchedule(
     val updatedAt: Long = System.currentTimeMillis(),
     /** Quick timer "off in …" from the schedules card: not listed, removed once it has run. */
     val quick: Boolean = false,
+    /** Weekly only: runs every [everyWeeks]th week (1 = every week), counted from the week of [weekAnchor] (ISO date of a Monday). */
+    val everyWeeks: Int = 1,
+    val weekAnchor: String? = null,
 )
 
 internal data class ScheduleRun(val key: String, val at: String?, val done: Boolean, val result: String?)
@@ -159,6 +162,7 @@ internal object ScheduleJson {
         i.settings?.let { put("settings", settingsToJson(it)) }
         put("updatedAt", i.updatedAt)
         if (i.quick) put("quick", true)
+        if (i.everyWeeks > 1 && i.weekAnchor != null) { put("everyWeeks", i.everyWeeks); put("weekAnchor", i.weekAnchor) }
     }
 
     fun itemFromJson(o: JSONObject): ClimateSchedule? {
@@ -178,6 +182,8 @@ internal object ScheduleJson {
             settings = o.optJSONObject("settings")?.let { settingsFromJson(it) },
             updatedAt = o.optLong("updatedAt", 0L),
             quick = o.optBoolean("quick", false),
+            everyWeeks = o.optInt("everyWeeks", 1).coerceIn(1, 4),
+            weekAnchor = o.optString("weekAnchor").ifBlank { null },
         )
     }
 
@@ -218,6 +224,19 @@ internal object ScheduleMath {
         }
     }
 
+    fun mondayOf(date: LocalDate): LocalDate = date.minusDays((date.dayOfWeek.value - 1).toLong())
+
+    /** Whether a weekly schedule runs in the week of [date] (every week, or every n-th week from its anchor). */
+    fun activeInWeek(item: ClimateSchedule, date: LocalDate): Boolean {
+        if (item.everyWeeks <= 1) return true
+        val anchor = item.weekAnchor?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return true
+        val weeks = java.time.temporal.ChronoUnit.DAYS.between(mondayOf(anchor), mondayOf(date)) / 7
+        return Math.floorMod(weeks, item.everyWeeks.toLong()) == 0L
+    }
+
+    /** Calendar week number (ISO). */
+    fun weekNumber(date: LocalDate): Int = date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+
     /** Next time this schedule fires, or null if it never will again. */
     fun nextRun(item: ClimateSchedule, now: LocalDateTime, run: ScheduleRun? = null): LocalDateTime? {
         if (!item.enabled) return null
@@ -225,8 +244,8 @@ internal object ScheduleMath {
             "weekly" -> {
                 val time = parseTime(item.time) ?: return null
                 if (item.days.isEmpty()) return null
-                (0..7).asSequence().map { now.toLocalDate().plusDays(it.toLong()).atTime(time) }
-                    .firstOrNull { it.isAfter(now) && it.dayOfWeek.value in item.days }
+                (0..7 * item.everyWeeks.coerceAtLeast(1)).asSequence().map { now.toLocalDate().plusDays(it.toLong()).atTime(time) }
+                    .firstOrNull { it.isAfter(now) && it.dayOfWeek.value in item.days && activeInWeek(item, it.toLocalDate()) }
             }
             "once" -> {
                 val at = item.at ?: return null
@@ -248,7 +267,7 @@ internal object ScheduleMath {
     }
 
     fun scheduleLabel(item: ClimateSchedule, now: LocalDateTime): String = when (item.kind) {
-        "weekly" -> "${daysLabel(item.days)} · ${item.time}"
+        "weekly" -> "${daysLabel(item.days)} · ${item.time}" + if (item.everyWeeks > 1) " · alle ${item.everyWeeks} Wochen" else ""
         else -> item.at?.let { "Einmalig · " + whenLabel(LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()), now) } ?: "Einmalig"
     }
 
@@ -787,6 +806,9 @@ private fun ScheduleEditor(
     val now = remember { LocalDateTime.now() }
     var kind by remember { mutableStateOf(existing?.kind ?: "weekly") }
     var days by remember { mutableStateOf(existing?.days?.toSet() ?: (1..5).toSet()) }
+    var everyWeeks by remember { mutableStateOf(existing?.everyWeeks ?: 1) }
+    // Week the rhythm counts from: a Monday; by default this week.
+    var weekAnchor by remember { mutableStateOf(existing?.weekAnchor?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: ScheduleMath.mondayOf(LocalDate.now())) }
     val initialTime = existing?.let { ScheduleMath.parseTime(it.time) }
         ?: existing?.at?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()).toLocalTime() }
         ?: LocalTime.of(now.hour, 0).plusHours(1)
@@ -823,6 +845,8 @@ private fun ScheduleEditor(
             kind = kind,
             days = if (kind == "weekly") days.sorted() else emptyList(),
             time = if (kind == "weekly") "%02d:%02d".format(Locale.ROOT, time.hour, time.minute) else "",
+            everyWeeks = if (kind == "weekly") everyWeeks else 1,
+            weekAnchor = if (kind == "weekly" && everyWeeks > 1) weekAnchor.toString() else null,
             at = if (kind == "once") onceAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() else null,
             action = action,
             profileId = if (usingProfile) profile!!.id else null,
@@ -896,6 +920,34 @@ private fun ScheduleEditor(
                             Chip("Täglich", days == (1..7).toSet()) { days = (1..7).toSet() }
                             Chip("Werktags", days == (1..5).toSet()) { days = (1..5).toSet() }
                             Chip("Wochenende", days == setOf(6, 7)) { days = setOf(6, 7) }
+                        }
+                    }
+                    // Rhythm for alternating weeks (shift work): runs only every 2nd, 3rd or 4th week.
+                    Group("Rhythmus") {
+                        FlowRow(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(1 to "Jede Woche", 2 to "Alle 2 Wochen", 3 to "Alle 3 Wochen", 4 to "Alle 4 Wochen").forEach { (n, label) ->
+                                Chip(label, everyWeeks == n) { everyWeeks = n }
+                            }
+                        }
+                        if (everyWeeks > 1) {
+                            RowDivider()
+                            Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Aktiv in", color = SMuted, fontSize = 12.sp)
+                                // The next n weeks: choosing one fixes the rhythm (that week and every n-th after it).
+                                val thisMonday = ScheduleMath.mondayOf(LocalDate.now())
+                                val options = (0 until everyWeeks).map { thisMonday.plusWeeks(it.toLong()) }
+                                val chosen = options.firstOrNull { monday -> ScheduleMath.activeInWeek(ClimateSchedule(id = "", airconId = "", kind = "weekly", action = "on", everyWeeks = everyWeeks, weekAnchor = weekAnchor.toString()), monday) }
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    options.forEachIndexed { index, monday ->
+                                        val label = "KW ${ScheduleMath.weekNumber(monday)}" + when (index) { 0 -> " (diese)"; 1 -> " (nächste)"; else -> "" }
+                                        Chip(label, chosen == monday) { weekAnchor = monday }
+                                    }
+                                }
+                                chosen?.let { first ->
+                                    val weeks = (0 until 3).map { first.plusWeeks(it.toLong() * everyWeeks) }.joinToString(", ") { "KW ${ScheduleMath.weekNumber(it)}" }
+                                    Text("Läuft in $weeks …", color = SMuted, fontSize = 12.sp)
+                                }
+                            }
                         }
                     }
                 } else {

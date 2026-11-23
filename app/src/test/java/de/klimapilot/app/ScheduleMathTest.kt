@@ -76,4 +76,17 @@ class ScheduleMathTest {
         val status = mapOf("q1" to ScheduleRun("once:${now - 60_000}", null, true, "ok"))
         assertEquals(listOf("q2"), ScheduleMath.disableFinished(listOf(ran, pending, expired), status, now).map { it.id })
     }
+
+    @Test
+    fun everyThirdWeekRunsOnlyInItsWeeks() {
+        val item = ClimateSchedule("r", "a", kind = "weekly", days = listOf(1, 2, 3, 4, 5), time = "10:00", action = "on", everyWeeks = 3, weekAnchor = "2026-11-30")
+        assertEquals(false, ScheduleMath.activeInWeek(item, java.time.LocalDate.of(2026, 11, 23)))
+        assertEquals(true, ScheduleMath.activeInWeek(item, java.time.LocalDate.of(2026, 12, 6)))
+        assertEquals(false, ScheduleMath.activeInWeek(item, java.time.LocalDate.of(2026, 12, 7)))
+        assertEquals(true, ScheduleMath.activeInWeek(item, java.time.LocalDate.of(2026, 12, 21)))
+        assertEquals(true, ScheduleMath.activeInWeek(item, java.time.LocalDate.of(2026, 11, 9)))
+        // Next run from Monday 23.11. is Monday 30.11., not earlier.
+        val next = ScheduleMath.nextRun(item, java.time.LocalDateTime.of(2026, 11, 23, 12, 0))
+        assertEquals(java.time.LocalDateTime.of(2026, 11, 30, 10, 0), next)
+    }
 }

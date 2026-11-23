@@ -166,6 +166,7 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 - `action`: `on` schaltet ein und setzt die Werte aus `settings`. `off` schaltet aus, `settings` wird dann nicht verwendet.
 - `settings`: Nur enthaltene Felder werden gesetzt, fehlende bleiben an der Anlage unverändert.
 - Mit Profil (`profileId`, `profileName`) ist `settings` eine Kopie der Profilwerte. Das Skript verwendet **nur `settings`**. Die App aktualisiert die Kopie, wenn sich das Profil ändert.
+- `everyWeeks` und `weekAnchor` (nur `weekly`, optional): Der Termin läuft nur jede `everyWeeks`-te Woche (2–4), gezählt ab der Woche, die mit dem Montag `weekAnchor` (`JJJJ-MM-TT`) beginnt; z. B. `"everyWeeks": 3, "weekAnchor": "2026-11-30"` → KW 49, 52, 3 … Fehlen die Felder oder ist `everyWeeks` 1, läuft er jede Woche.
 - `quick: true` kennzeichnet einen Schnell-Timer „Aus in …“: `kind` `once`, `action` `off`. Er wird in der App nicht in der Liste geführt, es gibt höchstens einen je Anlage, und die App entfernt ihn, sobald er ausgeführt oder älter als 7 h ist. Fehlt das Feld, gilt `false`.
 - Die Reihenfolge von `items` ist die Anzeigereihenfolge in der App, die Nutzer selbst festlegen. Neue Zeitpläne kommen ans Ende.
 - Ausgeführte einmalige Zeitpläne (`once`) setzt die App danach auf `enabled: false`.
