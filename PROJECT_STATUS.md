@@ -180,10 +180,11 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 10. Nächste Schritte
 
-1. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
-2. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
-3. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
-4. Später (eigenes Projekt): Desktop-Oberfläche über die ioBroker-Schnittstelle.
+1. Mit dem nächsten App-Release mitnehmen: Commit `5c4e30f` auf `test` (CI grün, 23.11.2026) – Skript-Einrichtung hält das laufende Skript beim Update erst an; fehlender `script.owner` wird übernommen. Vor dem nächsten Release auf `main` übernehmen, nicht durch Force-Push von `test` verlieren.
+2. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
+3. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
+4. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
+5. Später (eigenes Projekt): Desktop-Oberfläche über die ioBroker-Schnittstelle.
 
 ## 11. Dokumentationsstruktur und Pflege
 
