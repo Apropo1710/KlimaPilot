@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -609,7 +610,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                         Text(
                             "Einen Balken antippen, um eine Ebene tiefer zu gehen: Jahr → Monat → Tag. „↑“ über dem Diagramm oder die Zurück-Geste geht wieder eine Ebene höher. " +
                                 "Seitlich wischen oder mit ‹ › blättern, den Titel antippen springt zurück zum aktuellen Zeitraum.\n\n" +
-                                "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten; jeder Schritt wird auf die Laufzeit davor verteilt. Die orange Linie zeigt die mittlere Außentemperatur, gemessen vom Außenfühler der Anlage. " +
+                                "Die Anlage meldet ihren Verbrauch in 0,25-kWh-Schritten; jeder Schritt wird auf die Laufzeit davor verteilt. Die orange Linie zeigt die mittlere Außentemperatur, gemessen vom Außenfühler der Anlage. Unter „Alle“ ist jeder Balken nach Anlagen aufgeteilt (Farben siehe Legende), mit den Einzelwerten im Balken, wenn Platz ist. " +
                                 "Stundenwerte werden 31 Tage aufbewahrt, Tageswerte dauerhaft. Kosten ohne Grundgebühr; " +
                                 "der Strompreis gilt für beide Smartphones."
                         )
@@ -652,7 +653,11 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), pageSpacing = 16.dp) { page ->
                         val pageAnchor = anchorOf(page)
                         val pageBars = if (pageAnchor == anchor) bars else EnergyMath.bars(period, shown, pageAnchor, today)
-                        EnergyChart(pageBars.map { it.label to it.kWh * factor }, unitLabel, pageBars.map { it.outdoor }, canDrillDown = EnergyMath.finer(period) != null) { index ->
+                        // "Alle": every bar is split into one coloured part per unit.
+                        val perUnit = if (shown.size > 1) shown.map { unit -> EnergyMath.bars(period, listOf(unit), pageAnchor, today) } else emptyList()
+                        val parts = if (perUnit.isEmpty()) emptyList() else pageBars.indices.map { i -> perUnit.map { (it.getOrNull(i)?.kWh ?: 0.0) * factor } }
+                        val partNames = shown.map { it.room.ifBlank { it.name.ifBlank { it.airconId } } }
+                        EnergyChart(pageBars.map { it.label to it.kWh * factor }, unitLabel, pageBars.map { it.outdoor }, canDrillDown = EnergyMath.finer(period) != null, parts = parts, partNames = partNames) { index ->
                             val target = pageBars.getOrNull(index)?.drillDown ?: return@EnergyChart
                             val finer = EnergyMath.finer(period) ?: return@EnergyChart
                             drillStack = drillStack + period
@@ -706,6 +711,14 @@ private const val ENERGY_PAGES = 4000
 /** Outdoor temperature line: a warm orange that stands apart from the blue bars. */
 private val OutdoorColor = Color(0xFFE8833A)
 
+/** Colours of the units in split bars: blue shades of clearly different lightness (orange is the outdoor line). */
+private val PartColors = listOf(Color(0xFF1769AA), Color(0xFF8CC0E8), Color(0xFF0B3558), Color(0xFF4F95CC))
+private fun partColor(index: Int) = PartColors[index % PartColors.size]
+private fun partValueStyle(index: Int) = androidx.compose.ui.text.TextStyle(
+    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+    color = if (index % PartColors.size == 1) Color(0xFF0B3558) else Color.White
+)
+
 /** Round scale steps (1, 2, 2.5 or 5 × 10^n) so that about [ticks] lines fit up to [max]. */
 private fun niceStep(range: Double, ticks: Int): Double {
     if (range <= 0) return 1.0
@@ -729,6 +742,8 @@ private fun EnergyChart(
     unitLabel: String,
     outdoor: List<Double?> = emptyList(),
     canDrillDown: Boolean = true,
+    parts: List<List<Double>> = emptyList(),
+    partNames: List<String> = emptyList(),
     onBarTap: (Int) -> Unit
 ) {
     val rawMax = values.maxOfOrNull { it.second }?.takeIf { it > 0 } ?: 1.0
@@ -761,11 +776,25 @@ private fun EnergyChart(
             Text(unitLabel, fontSize = 13.sp, color = axisText, modifier = Modifier.weight(1f))
             if (temps.isNotEmpty()) Text("— Außen °C", fontSize = 13.sp, color = OutdoorColor)
         }
+        // Legend for the split bars, with each unit's total for the shown period.
+        if (parts.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                partNames.forEachIndexed { j, name ->
+                    val total = parts.sumOf { it.getOrNull(j) ?: 0.0 }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Box(Modifier.size(12.dp).clip(RoundedCornerShape(3.dp)).background(partColor(j)))
+                        Text("$name ${formatNumber(total, if (total >= 10) 1 else 2)} $unitLabel", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+        }
         selected?.let { index ->
             val (label, value) = values[index]
             val t = outdoor.getOrNull(index)
             Text(
-                "$label Uhr: ${formatNumber(value, 2)} $unitLabel" + (t?.let { " · Außen ${formatNumber(it, 1)} °C" } ?: ""),
+                "$label Uhr: ${formatNumber(value, 2)} $unitLabel" +
+                    (parts.getOrNull(index)?.let { split -> " (" + split.indices.joinToString(" · ") { j -> "${partNames.getOrNull(j).orEmpty()} ${formatNumber(split[j], 2)}" } + ")" } ?: "") +
+                    (t?.let { " · Außen ${formatNumber(it, 1)} °C" } ?: ""),
                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = EnergyBlue
             )
         }
@@ -797,9 +826,31 @@ private fun EnergyChart(
             values.forEachIndexed { index, (_, value) ->
                 val top = yValue(value)
                 val h = chartBottom - top
-                val color = if (selected == null || selected == index) EnergyBlue else EnergyBlue.copy(alpha = 0.35f)
-                if (h > 0f) drawRoundRect(
-                    color = color,
+                val dim = selected != null && selected != index
+                val split = parts.getOrNull(index)
+                if (split != null && split.sum() > 0.0) {
+                    // Stacked from the bottom, one part per unit; its value inside when there is room.
+                    var bottom = chartBottom
+                    split.forEachIndexed { j, part ->
+                        if (part <= 0.0) return@forEachIndexed
+                        val partHeight = (part / max * chartHeight).toFloat()
+                        val color = partColor(j).let { if (dim) it.copy(alpha = 0.35f) else it }
+                        drawRoundRect(
+                            color = color,
+                            topLeft = Offset(chartLeft + index * slot + gap / 2, bottom - partHeight),
+                            size = Size(barWidth, (partHeight - 1.dp.toPx()).coerceAtLeast(1f)),
+                            cornerRadius = CornerRadius(3.dp.toPx())
+                        )
+                        if (showValues) {
+                            val text = measurer.measure(formatNumber(part, if (part >= 10) 0 else 1), partValueStyle(j))
+                            if (text.size.height + 2.dp.toPx() <= partHeight && text.size.width <= barWidth) {
+                                drawText(text, topLeft = Offset(chartLeft + index * slot + slot / 2 - text.size.width / 2, bottom - partHeight / 2 - text.size.height / 2))
+                            }
+                        }
+                        bottom -= partHeight
+                    }
+                } else if (h > 0f) drawRoundRect(
+                    color = if (dim) EnergyBlue.copy(alpha = 0.35f) else EnergyBlue,
                     topLeft = Offset(chartLeft + index * slot + gap / 2, top),
                     size = Size(barWidth, h),
                     cornerRadius = CornerRadius(3.dp.toPx())
