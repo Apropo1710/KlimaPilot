@@ -79,6 +79,29 @@ object Codec {
         return bytes + intArrayOf(crc and 0xff, crc shr 8)
     }
 
+    /**
+     * All bytes of a status as named fields, for finding functions the protocol does not
+     * describe yet: H = header byte, K = state block byte, S = data segment (code → value).
+     * Room/outdoor temperature and the energy counter are left out, they change all the time.
+     */
+    fun rawFields(base64: String): Map<String, Int> {
+        val d = Base64.getDecoder().decode(base64).map { it.toInt() and 0xff }
+        val start = d[18] * 4 + 21
+        val out = linkedMapOf<String, Int>()
+        for (i in 0 until start) out["H%02d".format(i)] = d[i]
+        for (i in 0 until 18) out["K%02d".format(i)] = d[start + i]
+        val segments = d.subList(start + 19, d.size - 2)
+        var i = 0
+        while (i + 3 < segments.size) {
+            val code = (segments[i] shl 8) or segments[i + 1]
+            if (code != 0x8010 && code != 0x8020 && code != 0x9410) {
+                out["S%04X".format(code)] = (segments[i + 3] shl 8) or segments[i + 2]
+            }
+            i += 4
+        }
+        return out
+    }
+
     fun decode(base64: String): AirconState {
         val d = Base64.getDecoder().decode(base64).map { it.toInt() and 0xff }
         val start = d[18] * 4 + 21

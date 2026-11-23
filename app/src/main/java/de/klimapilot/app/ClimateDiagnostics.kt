@@ -242,8 +242,14 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
     var status by remember { mutableStateOf("") }
     var refresh by remember { mutableIntStateOf(0) }
     var showInfo by remember { mutableStateOf(false) }
+    var showRawInfo by remember { mutableStateOf(false) }
+    var rawOn by remember { mutableStateOf(RawStatusRecorder.enabled(context)) }
     // The phone's own entries are not Compose state; this counter makes the list re-read them.
     var localVersion by remember { mutableIntStateOf(0) }
+    // While a recording runs, new entries arrive with every status read; refresh the list now and then.
+    LaunchedEffect(rawOn, expanded) {
+        while (rawOn && expanded) { kotlinx.coroutines.delay(5_000); localVersion++ }
+    }
 
     LaunchedEffect(expanded, refresh) {
         if (!expanded) return@LaunchedEffect
@@ -281,6 +287,17 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
                             if (result != null) { remote = result.entries; status = "" }
                             else status = error.orEmpty()
                         }
+                    }, colors = blueSwitchColors())
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Rohdaten aufzeichnen", color = SText, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                    Box(Modifier.padding(end = 6.dp).size(26.dp).clip(CircleShape).clickable { showRawInfo = true }, contentAlignment = Alignment.Center) {
+                        Text("ⓘ", color = SMuted, fontSize = 15.sp)
+                    }
+                    Switch(rawOn, { value ->
+                        rawOn = value
+                        RawStatusRecorder.set(context, value)
+                        localVersion++
                     }, colors = blueSwitchColors())
                 }
                 if (status.isNotBlank()) Text(status, color = SMuted, fontSize = 11.sp)
@@ -326,6 +343,23 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
         }
     }
 
+    if (showRawInfo) {
+        KlimaPilotAlertDialog(
+            onDismissRequest = { showRawInfo = false },
+            confirmButton = { TextButton(onClick = { showRawInfo = false }) { Text("OK") } },
+            title = { Text("Rohdaten aufzeichnen") },
+            text = {
+                Text(
+                    "Für die Suche nach Funktionen der Fernbedienung (z. B. Hi Power, Eco, Silent), die die App noch nicht kennt. " +
+                        "Solange der Schalter an ist, schreibt die App jede Änderung in den Statusdaten der Anlage ins Protokoll – " +
+                        "nur für die Anlage, die gerade angezeigt wird. Es wird nur gelesen, nichts an die Anlage gesendet.\n\n" +
+                        "So geht's: Raum öffnen, eine Minute warten, dann an der Fernbedienung eine Taste drücken und wieder eine " +
+                        "Minute warten. Danach Protokoll kopieren und schicken. Raumtemperatur und Energiezähler werden ausgelassen; " +
+                        "Werte, die ständig schwanken, nach einigen Änderungen ebenfalls."
+                )
+            }
+        )
+    }
     if (showInfo) {
         KlimaPilotAlertDialog(
             onDismissRequest = { showInfo = false },
@@ -353,4 +387,66 @@ internal fun dedupeEntries(all: List<DiagEntry>): List<DiagEntry> {
         kept += entry
     }
     return kept.sortedByDescending { it.at }
+}
+
+/**
+ * Writes every change in the raw status bytes of a unit to the phone's diagnostics log, to find
+ * out whether remote control functions (Hi Power, Economy, Silent …) show up in the WLAN data.
+ * Purely reading; nothing is sent to the unit. Bytes that keep changing are dropped after a few
+ * changes so they do not drown the interesting ones.
+ */
+internal object RawStatusRecorder {
+    private const val KEY = "raw_recording"
+    private val last = mutableMapOf<String, Map<String, Int>>()
+    private val changes = mutableMapOf<String, Int>()
+    private val ignored = mutableSetOf<String>()
+    private var names: Map<String, String> = emptyMap()
+
+    private fun prefs(context: Context) = context.getSharedPreferences("klimapilot_diagnostics", Context.MODE_PRIVATE)
+
+    fun enabled(context: Context) = prefs(context).getBoolean(KEY, false)
+
+    /** [hostNames]: IP address → room name, for readable entries. */
+    fun apply(context: Context, hostNames: Map<String, String>) {
+        names = hostNames
+        if (enabled(context)) start() else de.klimapilot.app.wfrac.RawStatTap.listener = null
+    }
+
+    fun set(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean(KEY, on).apply()
+        AppDiagnostics.log("Rohdaten", if (on) "Aufzeichnung gestartet" else "Aufzeichnung beendet", "", force = true)
+        apply(context, names)
+    }
+
+    @Synchronized
+    private fun start() {
+        if (de.klimapilot.app.wfrac.RawStatTap.listener != null) return
+        last.clear(); changes.clear(); ignored.clear()
+        de.klimapilot.app.wfrac.RawStatTap.listener = { host, stat -> observe(host, stat) }
+    }
+
+    @Synchronized
+    private fun observe(host: String, stat: String) {
+        val fields = runCatching { de.klimapilot.app.wfrac.Codec.rawFields(stat) }.getOrNull() ?: return
+        val name = names[host] ?: host
+        val before = last.put(host, fields)
+        if (before == null) {
+            AppDiagnostics.log("Rohdaten $name", "Ausgangswerte", fields.entries.joinToString(" ") { "${it.key}=${hex(it.value)}" }, force = true)
+            return
+        }
+        val diff = (before.keys + fields.keys).filter { before[it] != fields[it] && "$host/$it" !in ignored }
+        if (diff.isEmpty()) return
+        val shown = diff.filter { key ->
+            val count = (changes["$host/$key"] ?: 0) + 1
+            changes["$host/$key"] = count
+            if (count > 6) { ignored += "$host/$key"; false } else true
+        }
+        val dropped = diff.filter { "$host/$it" in ignored && (changes["$host/$it"] ?: 0) == 7 }
+        if (shown.isEmpty() && dropped.isEmpty()) return
+        val text = shown.joinToString(", ") { "$it ${hex(before[it])}→${hex(fields[it])}" } +
+            if (dropped.isNotEmpty()) " (schwankt, ab jetzt ignoriert: ${dropped.joinToString()})" else ""
+        AppDiagnostics.log("Rohdaten $name", "geändert", text, force = true)
+    }
+
+    private fun hex(value: Int?) = value?.let { if (it > 0xff) "%04X".format(it) else "%02X".format(it) } ?: "–"
 }
