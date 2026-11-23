@@ -167,7 +167,8 @@ private fun KlimaPilotApp(appVersion: String) {
                         item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
                         item.optString("rootObjectId", ""), mappings, item.optString("model", ""), item.optString("syncDeviceKey", ""),
                         item.optString("wfRacHost", ""), item.optString("wfRacAirconId", ""), item.optBoolean("demoMode", false),
-                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0
+                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0,
+                        item.optBoolean("heatOffsetAuto", false)
                     ))
                 }
             }
@@ -187,7 +188,7 @@ private fun KlimaPilotApp(appVersion: String) {
                         .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
                         .put("model", device.model).put("syncDeviceKey", device.syncDeviceKey)
                         .put("wfRacHost", device.wfRacHost).put("wfRacAirconId", device.wfRacAirconId)
-                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset))
+                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset).put("heatOffsetAuto", device.heatOffsetAuto))
                 }
             }.toString())
             .apply()
@@ -836,6 +837,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 }
             }
             FilterIoBroker().load(address) { result, _ -> result?.let { filterConfig = it } }
+            HeatOffsetIoBroker.load(address) { learned -> LearnedHeatOffsets.store(context, learned) }
             // Brings an energy script installed by KlimaPilot up to the version shipped with the app.
             if (first) {
                 EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
@@ -1122,7 +1124,7 @@ private fun MainScreen(
                 val shownDevice = devicesInRoom.firstOrNull { it.id == deviceId } ?: devicesInRoom.firstOrNull()
                 TemperatureCard(
                     deviceName = shownDevice?.name ?: selectedRoom,
-                    heatOffset = shownDevice?.heatOffset ?: 0.0,
+                    heatOffset = LearnedHeatOffsets.effective(LocalContext.current, shownDevice),
                     deviceKey = shownDevice?.id ?: selectedRoom,
                     state = state,
                     connected = airconConnected,
