@@ -77,6 +77,12 @@ internal object AppDiagnostics {
 
     fun init(context: Context) { this.context = context.applicationContext }
 
+    private fun onWlan(): Boolean {
+        val manager = context?.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return true
+        val caps = runCatching { manager.getNetworkCapabilities(manager.activeNetwork) }.getOrNull() ?: return false
+        return caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+    }
+
     private fun prefs() = context?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     val enabled: Boolean get() = prefs()?.getBoolean("enabled", false) == true
@@ -125,6 +131,8 @@ internal object AppDiagnostics {
     @Synchronized
     fun reach(subject: String, ok: Boolean, error: String? = null, gapMs: Long = 3 * 60_000L) {
         if (!enabled) return
+        // Off the home WLAN (mobile data) the units and ioBroker are out of reach anyway: nothing to log.
+        if (!onWlan()) return
         val now = System.currentTimeMillis()
         val seenBefore = lastSeen[subject]
         lastSeen[subject] = now
