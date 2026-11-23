@@ -536,9 +536,14 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                     color = if (current != null) SBlue else SLight, shape = CircleShape
                 ) { Box(contentAlignment = Alignment.Center) { Text("+", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold) } }
             }
-            // Quick timer: switch off in … without the editor; one per unit.
-            if (current != null && (quickTimer != null || currentState?.power == true)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Quick timer: switch off in … without the editor; one per unit. While the unit is off
+            // the row stays in place, greyed out, so the page does not jump.
+            if (current != null) {
+                val quickUsable = quickTimer != null || currentState?.power == true
+                Row(
+                    Modifier.graphicsLayer { alpha = if (quickUsable) 1f else 0.4f },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     if (quickTimer != null) {
                         val at = java.time.Instant.ofEpochMilli(quickTimer.at ?: 0L).atZone(java.time.ZoneId.systemDefault())
                         Text("⏱ Aus um %02d:%02d".format(at.hour, at.minute), color = SBlue, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
@@ -547,7 +552,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                         Text("⏱ Aus in", color = SMuted, fontSize = 13.sp)
                         listOf(30 to "30 min", 60 to "1 h", 120 to "2 h", 180 to "3 h").forEach { (minutes, label) ->
                             Chip(label, false) {
-                                if (busy) return@Chip
+                                if (busy || !quickUsable) return@Chip
                                 val airconId = device.wfRacAirconId
                                 change { list ->
                                     list.filterNot { it.quick && it.airconId == airconId } + ClimateSchedule(

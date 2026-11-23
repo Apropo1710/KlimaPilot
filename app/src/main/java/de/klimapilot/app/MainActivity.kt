@@ -1013,12 +1013,14 @@ private fun MainScreen(
                         selected = selectedRoom == room,
                         onClick = { onRoomSelect(room) },
                         label = { Text(room, maxLines = 1) },
+                        // Selected: solid blue with white text, so the shown unit is obvious at a glance.
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFE3EEF7),
-                            selectedLabelColor = Color(0xFF123B60),
-                            containerColor = Panel,
-                            labelColor = TextMain
-                        )
+                            selectedContainerColor = Color(0xFF1769AA),
+                            selectedLabelColor = Color.White,
+                            containerColor = Color(0xFFE3EEF7),
+                            labelColor = Color(0xFF123B60)
+                        ),
+                        border = null
                     )
                 }
             }
@@ -1040,12 +1042,14 @@ private fun MainScreen(
                             selected = selectedDeviceId == device.id,
                             onClick = { onDeviceSelect(device.id) },
                             label = { Text(device.name, maxLines = 1, softWrap = false) },
+                            // Selected: solid blue with white text, so the shown unit is obvious at a glance.
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFE3EEF7),
-                                selectedLabelColor = Color(0xFF123B60),
-                                containerColor = Panel,
-                                labelColor = TextMain
-                            )
+                                selectedContainerColor = Color(0xFF1769AA),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFE3EEF7),
+                                labelColor = Color(0xFF123B60)
+                            ),
+                            border = null
                         )
                     }
                 }
