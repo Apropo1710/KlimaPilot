@@ -287,6 +287,16 @@ internal fun RoomDeviceManagerScreen(
         var selectedRoom by remember(original, addDevice, rooms.size) { mutableStateOf(original?.room ?: rooms.first()) }
         var heatOffset by remember(original, addDevice) { mutableStateOf(original?.heatOffset ?: 0.0) }
         var showOffsetInfo by remember { mutableStateOf(false) }
+        // Suggestion learned by the ioBroker script (only if ioBroker is set up and has learned something).
+        val editorContext = androidx.compose.ui.platform.LocalContext.current
+        var learned by remember(original) { mutableStateOf<Pair<Double, Int>?>(null) }
+        LaunchedEffect(original) {
+            val aircon = original?.wfRacAirconId.orEmpty()
+            if (aircon.isBlank()) return@LaunchedEffect
+            val address = editorContext.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE).getString("iobroker_server", null).orEmpty()
+            if (address.isBlank()) return@LaunchedEffect
+            HeatOffsetIoBroker.load(address) { all -> learned = all[aircon]?.takeIf { it.second > 0 } }
+        }
         KlimaPilotAlertDialog(
             onDismissRequest = { addDevice = false; editing = null },
             containerColor = Color.White,
@@ -329,6 +339,16 @@ internal fun RoomDeviceManagerScreen(
                         )
                         OutlinedButton(onClick = { heatOffset = (heatOffset + 0.5).coerceAtMost(8.0) }, enabled = heatOffset < 8.0) { Text("+") }
                     }
+                    learned?.let { (value, samples) ->
+                        val rounded = Math.round(value * 2) / 2.0
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Von ioBroker gelernt: " + String.format(java.util.Locale.GERMANY, "%.1f", value) + " °C (aus $samples Messung" + (if (samples == 1) ")" else "en)"),
+                                color = ManagerMuted, fontSize = 12.sp, modifier = Modifier.weight(1f)
+                            )
+                            if (rounded != heatOffset) TextButton(onClick = { heatOffset = rounded.coerceIn(0.0, 8.0) }) { Text("Übernehmen") }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -357,11 +377,52 @@ internal fun RoomDeviceManagerScreen(
             text = {
                 Text(
                     "Der Temperaturfühler sitzt oben im Innengerät, wo sich beim Heizen die warme Luft sammelt. Er misst deshalb mehr als ein Thermometer im Raum.\n\n" +
-                        "Im Betriebsmodus Heizen zeigt die App als Innentemperatur den Fühlerwert minus diese Korrektur. " +
+                        "Im Betriebsmodus Heizen zieht die App diese Korrektur ab, solange der Verdichter heizt. Steht er, wird sie innerhalb von 10 Minuten bis auf null zurückgenommen, weil sich die warme Luft dann verteilt. " +
                         "Am besten über ein paar Tage mit einem Thermometer im Raum vergleichen und anpassen. " +
+                        "Ist ioBroker eingerichtet, lernt das Skript den Wert mit: Es vergleicht die Temperatur kurz vor und 10–20 Minuten nach einem Verdichterstopp und zeigt hier einen Vorschlag zum Übernehmen. " +
                         "Nur Anzeige: An der Regelung der Anlage ändert sich nichts."
                 )
             }
         )
+    }
+}
+
+
+/** Heating correction learned by the ioBroker script, per unit (airconId → value, samples). Optional: without ioBroker nothing is shown. */
+internal object HeatOffsetIoBroker {
+    const val STATE_ID = "0_userdata.0.KlimaPilot.heatOffset"
+
+    fun load(address: String, callback: (Map<String, Pair<Double, Int>>) -> Unit) {
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        val url = address.trim().trimEnd('/')
+        if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(emptyMap()); return }
+        val socket = IoBrokerLease(url)
+        val done = java.util.concurrent.atomic.AtomicBoolean(false)
+        val finish: (Map<String, Pair<Double, Int>>) -> Unit = { data ->
+            if (done.compareAndSet(false, true)) {
+                runCatching { socket.off() }
+                runCatching { socket.disconnect() }
+                main.post { callback(data) }
+            }
+        }
+        main.postDelayed({ finish(emptyMap()) }, 15_000)
+        socket.on("connect") {
+            socket.emit("authenticate", IoBrokerAck { args ->
+                if (args.firstOrNull() as? Boolean != true) { finish(emptyMap()); return@IoBrokerAck }
+                socket.emit("getState", STATE_ID, IoBrokerAck { stateArgs ->
+                    val raw = (stateArgs.getOrNull(1) as? org.json.JSONObject)?.opt("val") as? String
+                    val json = raw?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
+                    val result = mutableMapOf<String, Pair<Double, Int>>()
+                    json?.keys()?.forEach { id ->
+                        val e = json.optJSONObject(id) ?: return@forEach
+                        val value = e.optDouble("learned", Double.NaN)
+                        if (!value.isNaN()) result[id] = value to e.optInt("samples", 0)
+                    }
+                    finish(result)
+                })
+            })
+        }
+        socket.on("connect_error") { finish(emptyMap()) }
+        socket.connect()
     }
 }

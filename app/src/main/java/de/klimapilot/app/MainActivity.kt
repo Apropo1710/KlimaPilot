@@ -1123,6 +1123,7 @@ private fun MainScreen(
                 TemperatureCard(
                     deviceName = shownDevice?.name ?: selectedRoom,
                     heatOffset = shownDevice?.heatOffset ?: 0.0,
+                    deviceKey = shownDevice?.id ?: selectedRoom,
                     state = state,
                     connected = airconConnected,
                     busy = controlBusy,
@@ -1248,6 +1249,7 @@ private fun MainScreen(
 private fun TemperatureCard(
     deviceName: String,
     heatOffset: Double,
+    deviceKey: String,
     state: AirconState?,
     connected: Boolean,
     busy: Boolean,
@@ -1300,7 +1302,12 @@ private fun TemperatureCard(
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                     // While heating, the sensor (high up, in the warm air) reads too high; show the room value instead.
-                    val shownIndoor = state?.indoorTemp?.let { if (state?.mode == Mode.HEAT) it - heatOffset else it }
+                    // Full correction while the compressor heats, fading out over 10 min after it stops.
+                    val shownIndoor = state?.let { st ->
+                        val raw = st.indoorTemp ?: return@let null
+                        if (st.mode != Mode.HEAT || heatOffset <= 0.0) raw
+                        else raw - heatOffset * HeatingTracker.weight(deviceKey, st.compressorRunning && st.power)
+                    }
                     Text(shownIndoor?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1930,5 +1937,19 @@ private fun TemperatureSlider(value: Float, enabled: Boolean, onValueChange: (Fl
         }
         drawCircle(Color.White, radius = knobRadius.toPx() + 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(knobX, y))
         drawCircle(active, radius = knobRadius.toPx(), center = androidx.compose.ui.geometry.Offset(knobX, y))
+    }
+}
+
+
+/** Remembers when each unit's compressor last heated, so the heating correction can fade out after it stops. */
+internal object HeatingTracker {
+    private val lastHeating = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private const val FADE_MS = 10 * 60_000L
+
+    /** 1 while heating, falling to 0 over 10 min after the compressor stopped; 0 if not seen heating since app start. */
+    fun weight(key: String, heating: Boolean, now: Long = System.currentTimeMillis()): Double {
+        if (heating) { lastHeating[key] = now; return 1.0 }
+        val last = lastHeating[key] ?: return 0.0
+        return (1.0 - (now - last).toDouble() / FADE_MS).coerceIn(0.0, 1.0)
     }
 }
