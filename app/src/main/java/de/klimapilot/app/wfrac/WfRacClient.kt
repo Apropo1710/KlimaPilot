@@ -139,7 +139,6 @@ class WfRacClient(
             mcu = contents.optJSONObject("mcu")?.optString("firmVer")?.ifEmpty { null },
             accounts = if (contents.has("numOfAccount")) contents.optInt("numOfAccount") else null,
         )
-        RawStatTap.listener?.let { listener -> runCatching { listener(host, contents.getString("airconStat")) } }
         return UnitStatus(
             Codec.decode(contents.getString("airconStat")),
             lockedForS = lockedForS(airconId, contents),
@@ -201,7 +200,3 @@ class WfRacClient(
     }
 }
 
-/** Lets the diagnostics see every raw status that was read (only while a recording runs). */
-object RawStatTap {
-    @Volatile var listener: ((host: String, airconStat: String) -> Unit)? = null
-}

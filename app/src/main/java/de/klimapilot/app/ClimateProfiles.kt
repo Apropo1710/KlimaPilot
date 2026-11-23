@@ -401,7 +401,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     val selectedProfile = deviceProfiles.firstOrNull { it.id == selectedProfileId }
     val modelSupportsVaneLR = currentState?.let { Codec.modelHasVaneLR(it.modelNrRaw) }
     val selectedProfileDirty = selectedProfile != null && currentState != null && (
-        (selectedProfile.power != null && selectedProfile.power != currentState.power) ||
+        // A unit that is switched off does not count as changed: that it is off shows anyway.
+        (selectedProfile.power != null && currentState.power && selectedProfile.power != currentState.power) ||
         (selectedProfile.mode != null && selectedProfile.mode != currentState.mode?.name) ||
         (selectedProfile.targetTemp != null && abs(selectedProfile.targetTemp - currentState.presetTemp) >= 0.01) ||
         (selectedProfile.fanSpeed != null && selectedProfile.fanSpeed != currentState.airFlow) ||
@@ -420,7 +421,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         val vaneLR = modelSupportsVaneLR == true
         val matches = deviceProfiles.filter { p ->
             p.id != selectedProfileId && (p.mode != null || p.targetTemp != null) &&
-                (p.power == null || p.power == state.power) &&
+                (p.power == null || !state.power || p.power == state.power) &&
                 (p.mode == null || p.mode == state.mode?.name) &&
                 (p.targetTemp == null || abs(p.targetTemp - state.presetTemp) < 0.01) &&
                 (p.fanSpeed == null || p.fanSpeed == state.airFlow) &&
@@ -482,6 +483,19 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             }
             switching = false
         }
+    }
+
+    // The active profile was edited (here, in "Klimaprofile verwalten" or on the other phone):
+    // a running unit takes over the new values right away; a switched-off unit stays off.
+    LaunchedEffect(deviceId, selectedProfile, loaded, switching) {
+        if (managerMode || !loaded || switching) return@LaunchedEffect
+        val profile = selectedProfile ?: return@LaunchedEffect
+        val seen = SeenActiveProfiles.map[deviceId]
+        SeenActiveProfiles.map[deviceId] = profile
+        if (seen == null || seen.id != profile.id) return@LaunchedEffect
+        if (seen.copy(name = profile.name, season = profile.season, updatedAt = profile.updatedAt) == profile) return@LaunchedEffect
+        if (currentState?.power != true || !selectedProfileDirty) return@LaunchedEffect
+        switchTo(profile, profile.id, "Die geänderten Profilwerte konnten nicht an die Anlage gesendet werden.")
     }
 
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
@@ -789,4 +803,9 @@ private fun ManagerProfileRow(profile: ClimateProfile, onEdit: () -> Unit, onDel
             Icon(Icons.Outlined.Delete, contentDescription = "Profil löschen", tint = SMuted, modifier = Modifier.size(20.dp))
         }
     }
+}
+
+/** Last seen version of each room's active profile, to notice edits to it (lives as long as the app). */
+internal object SeenActiveProfiles {
+    val map = java.util.concurrent.ConcurrentHashMap<String, ClimateProfile>()
 }

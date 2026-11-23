@@ -75,6 +75,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Editor (`ClimateProfileEditor.kt`): je Einstellung Schalter „Profil setzt diesen Wert“ (aus = unverändert); horizontale Luftführung und 3D-Auto immer verfügbar.
 - Jahreszeit: Profile Winter/Sommer/Ganzjährig (`season`, ohne Zuordnung nach Modus); Umschalter im Profilmenü, gilt für den Haushalt (Handy-Sync), kein automatischer Wechsel.
 - Profilanzeige folgt Zeitplänen (0.5.36): Zeitpläne setzen nur die Werte, nicht das aktive Profil. Weicht die Anlage vom gewählten Profil ab und passt genau ein anderes Profil des Raums, wird dieses als aktiv übernommen (Anlass 22.11.2026: Zeitplan 20:00 „Nacht“ lief, Anzeige blieb „Tag (geändert)“).
+- Aktives Profil (0.5.42): Eine ausgeschaltete Anlage gilt nicht als „(geändert)“, nur die übrigen Werte werden verglichen. Wird das aktive Profil bearbeitet (Hauptseite, „Klimaprofile verwalten“ oder anderes Handy) und läuft die Anlage, übernimmt sie die neuen Werte sofort; ausgeschaltet bleibt sie aus. Erkannt über die zuletzt gesehene Profilfassung je Raum (nur solange die App läuft).
 - „Klimaprofile verwalten“: je Anlage eine Karte mit Profilzeilen, Papierkorb und „Neues Profil“.
 
 ### ioBroker-Skript (`scripts/iobroker/klimapilot.js` → `script.js.common.KlimaPilot`)
@@ -99,7 +100,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 ### Diagnose und Benachrichtigungen
 - Diagnose (Einstellungen, an/aus über ioBroker): Skript prüft minütlich die Erreichbarkeit und protokolliert Wechsel; das Handy ergänzt nur echte Wechsel aus eigener Sicht (keine Prüfpausen, keine abgebrochenen Abrufe). Auswertung 21./22.11.2026: keine echten Ausfälle; Aussetzer vom Handy lagen am WLAN des Handys.
 - Auswertung 22.11.2026 abends: Anlagen laut ioBroker nur bei den stündlichen Modul-Neustarts (ca. 1 min) und zweimal kurz („socket hang up“) weg; die vielen Handy-Einträge ohne Gegenstück in ioBroker stammen vom WLAN/Energiesparen des Handys. Skript seit 0.5.37: gleiche Diagnose-Einträge binnen 3 min werden nur einmal geschrieben (vorher doppelte „wieder erreichbar“ und mehrfaches „Skript gestartet“), und ein Neustart desselben Skripts meldet keine „doppelte Kopie“ mehr. Doppelte ioBroker-Einträge traten trotzdem weiter auf (vermutlich gleichzeitig schreibende Skript-Laufzeiten). Seit 0.5.39 trägt auch das Skript Ausfälle erst ab 3 min ein, die stündlichen Modul-Neustarts erscheinen also nicht mehr; die App zeigt gleiche Einträge binnen 3 min nur einmal. Schnittstelle: README „diagnostics.log“ angepasst (`detail` mit „seit HH:MM – “, kein `anderer Fehler` mehr). Am 23.11. schrieb trotzdem noch eine alte Skript-Laufzeit Einträge im alten Format (neuer Code nachweislich installiert); Abhilfe: Instanz `javascript.0` neu starten. Absicherung: Die Skript-Einrichtung hält ein laufendes Skript beim Update erst an und startet es 3 s später mit dem neuen Code; fehlt `script.owner`, übernimmt nur eine Laufzeit. Seit 0.5.38 trägt das Handy Ausfälle erst ab 2 min Dauer ein („nicht erreichbar · seit HH:MM“) und nur dann auch das Ende; kurze Aussetzer des Handy-WLANs erscheinen nicht mehr.
-- Rohdaten-Aufzeichnung (0.5.41, Diagnose → „Rohdaten aufzeichnen“, je Handy): rein lesend; jede Änderung der Statusbytes (Kopf H, Zustandsblock K, Segmente S ohne Temperaturen/Energie) der abgefragten Anlage geht ins Handy-Protokoll, ständig schwankende Bytes nach 6 Änderungen ignoriert. Ergebnis 23.11.2026 (Büro): Hi Power und Eco haben kein eigenes Kennzeichen, die Anlage meldet nur die Lüfterstufe (Hi Power → Rohwert 2 „Mittel“, Eco → 0 „Leise“, zurück → 7 Auto); Silent ändert nichts im Status. Nicht über WLAN steuerbar; ein Versuch mit den unbenutzten Lüfterwerten 3–5 wurde auf Wunsch des Nutzers nicht gemacht. Aufzeichnung wird mit dem nächsten Update entfernt.
+- Rohdaten-Aufzeichnung (nur 0.5.41, Diagnose → „Rohdaten aufzeichnen“, je Handy): rein lesend; jede Änderung der Statusbytes (Kopf H, Zustandsblock K, Segmente S ohne Temperaturen/Energie) der abgefragten Anlage geht ins Handy-Protokoll, ständig schwankende Bytes nach 6 Änderungen ignoriert. Ergebnis 23.11.2026 (Büro): Hi Power und Eco haben kein eigenes Kennzeichen, die Anlage meldet nur die Lüfterstufe (Hi Power → Rohwert 2 „Mittel“, Eco → 0 „Leise“, zurück → 7 Auto); Silent ändert nichts im Status. Nicht über WLAN steuerbar; ein Versuch mit den unbenutzten Lüfterwerten 3–5 wurde auf Wunsch des Nutzers nicht gemacht. Aufzeichnung in 0.5.42 wieder entfernt.
 - Gemeinsame ioBroker-Verbindung der App (`IoBrokerPool`), schließt nach 2 min Ruhe; Empfehlung ws.0-Log-Stufe „warn“.
 - Android-Benachrichtigungen (standardmäßig aus, je Art einschaltbar): WorkManager-Check etwa alle 2 h im WLAN für fällige Filter, endgültig fehlgeschlagene Zeitpläne und seit über 1 h nicht erreichbare Anlagen; Dauerzustände täglich erneut, erledigte werden entfernt. Berechtigungen `POST_NOTIFICATIONS` (Abfrage beim Einschalten), `VIBRATE` (Greifen beim Sortieren; auf dem Xiaomi des Nutzers ohne spürbare Wirkung).
 
@@ -182,10 +183,9 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 ## 10. Nächste Schritte
 
 1. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
-2. Mit dem nächsten App-Update die Rohdaten-Aufzeichnung (`RawStatusRecorder`, `RawStatTap`, `Codec.rawFields`, Test, Schalter in der Diagnose) wieder entfernen – Auswertung abgeschlossen, siehe Abschnitt 5.
-3. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
-4. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
-5. Später (eigenes Projekt): Desktop-Oberfläche über die ioBroker-Schnittstelle.
+2. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
+3. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
+4. Später (eigenes Projekt): Desktop-Oberfläche über die ioBroker-Schnittstelle.
 
 ## 11. Dokumentationsstruktur und Pflege
 

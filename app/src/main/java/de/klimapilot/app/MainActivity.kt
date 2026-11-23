@@ -823,7 +823,6 @@ private fun KlimaPilotApp(appVersion: String) {
     val energyConfigSignature = devices.joinToString("|") { "${it.wfRacAirconId}@${it.wfRacHost}/${it.name}/${it.room}/${it.demoMode}" }
     LaunchedEffect(accountAuthenticated, energyConfigSignature, showEnergy) {
         if (!accountAuthenticated || showEnergy) return@LaunchedEffect
-        RawStatusRecorder.apply(context, devices.filter { it.wfRacHost.isNotBlank() }.associate { it.wfRacHost to it.room.ifBlank { it.name } })
         val address = prefs.getString("iobroker_server", null).orEmpty()
         if (address.isBlank() || devices.none { it.wfRacAirconId.isNotBlank() }) return@LaunchedEffect
         var first = true
