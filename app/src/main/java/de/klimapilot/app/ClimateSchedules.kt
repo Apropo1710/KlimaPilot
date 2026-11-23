@@ -924,10 +924,9 @@ private fun ScheduleEditor(
                     }
                     // Rhythm for alternating weeks (shift work): runs only every 2nd, 3rd or 4th week.
                     Group("Rhythmus") {
-                        FlowRow(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(1 to "Jede Woche", 2 to "Alle 2 Wochen", 3 to "Alle 3 Wochen", 4 to "Alle 4 Wochen").forEach { (n, label) ->
-                                Chip(label, everyWeeks == n) { everyWeeks = n }
-                            }
+                        Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Wochen", color = SMuted, fontSize = 12.sp)
+                            Segmented(listOf("Jede", "Alle 2", "Alle 3", "Alle 4"), everyWeeks - 1) { everyWeeks = it + 1 }
                         }
                         if (everyWeeks > 1) {
                             RowDivider()
@@ -937,15 +936,10 @@ private fun ScheduleEditor(
                                 val thisMonday = ScheduleMath.mondayOf(LocalDate.now())
                                 val options = (0 until everyWeeks).map { thisMonday.plusWeeks(it.toLong()) }
                                 val chosen = options.firstOrNull { monday -> ScheduleMath.activeInWeek(ClimateSchedule(id = "", airconId = "", kind = "weekly", action = "on", everyWeeks = everyWeeks, weekAnchor = weekAnchor.toString()), monday) }
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    options.forEachIndexed { index, monday ->
-                                        val label = "KW ${ScheduleMath.weekNumber(monday)}" + when (index) { 0 -> " (diese)"; 1 -> " (nächste)"; else -> "" }
-                                        Chip(label, chosen == monday) { weekAnchor = monday }
-                                    }
-                                }
+                                Segmented(options.map { "KW ${ScheduleMath.weekNumber(it)}" }, options.indexOf(chosen)) { weekAnchor = options[it] }
                                 chosen?.let { first ->
                                     val weeks = (0 until 3).map { first.plusWeeks(it.toLong() * everyWeeks) }.joinToString(", ") { "KW ${ScheduleMath.weekNumber(it)}" }
-                                    Text("Läuft in $weeks …", color = SMuted, fontSize = 12.sp)
+                                    Text("Diese Woche ist KW ${ScheduleMath.weekNumber(thisMonday)} · läuft in $weeks …", color = SMuted, fontSize = 12.sp)
                                 }
                             }
                         }
