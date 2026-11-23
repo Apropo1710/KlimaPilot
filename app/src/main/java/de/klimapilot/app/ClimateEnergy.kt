@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -650,19 +651,42 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                         val target = pageOf(anchor)
                         if (pager.currentPage != target) pager.animateScrollToPage(target)
                     }
-                    HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), pageSpacing = 16.dp) { page ->
-                        val pageAnchor = anchorOf(page)
-                        val pageBars = if (pageAnchor == anchor) bars else EnergyMath.bars(period, shown, pageAnchor, today)
-                        // "Alle": every bar is split into one coloured part per unit.
-                        val perUnit = if (shown.size > 1) shown.map { unit -> EnergyMath.bars(period, listOf(unit), pageAnchor, today) } else emptyList()
-                        val parts = if (perUnit.isEmpty()) emptyList() else pageBars.indices.map { i -> perUnit.map { (it.getOrNull(i)?.kWh ?: 0.0) * factor } }
-                        val partNames = shown.map { it.room.ifBlank { it.name.ifBlank { it.airconId } } }
-                        EnergyChart(pageBars.map { it.label to it.kWh * factor }, unitLabel, pageBars.map { it.outdoor }, canDrillDown = EnergyMath.finer(period) != null, parts = parts, partNames = partNames) { index ->
-                            val target = pageBars.getOrNull(index)?.drillDown ?: return@EnergyChart
-                            val finer = EnergyMath.finer(period) ?: return@EnergyChart
-                            drillStack = drillStack + period
-                            period = finer
-                            anchor = target
+                    fun barsAt(at: LocalDate) = if (at == anchor) bars else EnergyMath.bars(period, shown, at, today)
+                    // "Alle": every bar is split into one coloured part per unit.
+                    fun partsAt(at: LocalDate, atBars: List<EnergyBar>): List<List<Double>> {
+                        if (shown.size < 2) return emptyList()
+                        val perUnit = shown.map { unit -> EnergyMath.bars(period, listOf(unit), at, today) }
+                        return atBars.indices.map { i -> perUnit.map { (it.getOrNull(i)?.kWh ?: 0.0) * factor } }
+                    }
+                    // One scale for this page and its neighbours: while swiping, both visible pages
+                    // use the same scale, so equal bars mean equal values.
+                    val neighbours = if (period == EnergyPeriod.ALL) listOf(bars)
+                        else listOf(-1L, 0L, 1L).map { barsAt(EnergyMath.shift(period, anchor, it)) }
+                    val scale = chartScale(neighbours, factor)
+                    val partNames = shown.map { it.room.ifBlank { it.name.ifBlank { it.airconId } } }
+                    var selectedBar by remember(period, anchor) { mutableStateOf<Int?>(null) }
+                    val currentParts = partsAt(anchor, bars)
+                    val selectedText = selectedBar?.let { index ->
+                        val bar = bars.getOrNull(index) ?: return@let null
+                        "${bar.label} Uhr: ${formatNumber(bar.kWh * factor, 2)} $unitLabel" +
+                            (currentParts.getOrNull(index)?.let { split -> " (" + split.indices.joinToString(" · ") { j -> "${partNames.getOrNull(j).orEmpty()} ${formatNumber(split[j], 2)}" } + ")" } ?: "") +
+                            (bar.outdoor?.let { " · Außen ${formatNumber(it, 1)} °C" } ?: "")
+                    }
+                    EnergyChartFrame(scale, unitLabel, partNames, currentParts, selectedText) {
+                        HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), pageSpacing = 16.dp) { page ->
+                            val pageAnchor = anchorOf(page)
+                            val pageBars = barsAt(pageAnchor)
+                            EnergyBarsPage(
+                                pageBars.map { it.label to it.kWh * factor }, pageBars.map { it.outdoor }, partsAt(pageAnchor, pageBars), scale,
+                                selected = if (pageAnchor == anchor) selectedBar else null
+                            ) { index ->
+                                val finer = EnergyMath.finer(period)
+                                if (finer == null) { selectedBar = if (selectedBar == index) null else index; return@EnergyBarsPage }
+                                val target = pageBars.getOrNull(index)?.drillDown ?: return@EnergyBarsPage
+                                drillStack = drillStack + period
+                                period = finer
+                                anchor = target
+                            }
                         }
                     }
                 }
@@ -731,96 +755,148 @@ private fun niceStep(range: Double, ticks: Int): Double {
 private fun scaleLabel(value: Double, step: Double): String =
     formatNumber(value, if (step >= 1) 0 else if (step >= 0.1) 1 else 2)
 
-/**
- * Bars with a value scale on the left, the outdoor temperature on its own scale on the right,
- * light grid lines, and the exact values above the bars and points when there is room (up to
- * 12 bars). Where a bar cannot be opened further (hours of a day), a tap shows its values.
- */
-@Composable
-private fun EnergyChart(
-    values: List<Pair<String, Double>>,
-    unitLabel: String,
-    outdoor: List<Double?> = emptyList(),
-    canDrillDown: Boolean = true,
-    parts: List<List<Double>> = emptyList(),
-    partNames: List<String> = emptyList(),
-    onBarTap: (Int) -> Unit
-) {
-    val rawMax = values.maxOfOrNull { it.second }?.takeIf { it > 0 } ?: 1.0
+/** Value and temperature scale, shared by neighbouring pages so swiping keeps bars comparable. */
+internal data class ChartScale(
+    val max: Double, val step: Double,
+    val tMin: Double?, val tMax: Double?, val tStep: Double,
+    val showValues: Boolean
+)
+
+private fun chartScale(pages: List<List<EnergyBar>>, factor: Double): ChartScale {
+    val all = pages.flatten()
+    val rawMax = all.maxOfOrNull { it.kWh * factor }?.takeIf { it > 0 } ?: 1.0
     val step = niceStep(rawMax, 4)
     val max = kotlin.math.ceil(rawMax / step) * step
-    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-    val axisText = MaterialTheme.colorScheme.onSurfaceVariant
-    val temps = outdoor.filterNotNull()
+    val temps = all.mapNotNull { it.outdoor }
     val tStep = if (temps.isEmpty()) 1.0 else niceStep((temps.max() - temps.min()).coerceAtLeast(2.0), 3)
     val tMin = temps.minOrNull()?.let { kotlin.math.floor(it / tStep) * tStep }
     val tMax = temps.maxOrNull()?.let { kotlin.math.ceil(it / tStep) * tStep }?.let { if (tMin != null && it - tMin < 2 * tStep) tMin + 2 * tStep else it }
-    val showValues = values.size <= 12
-    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
-    var selected by remember(values) { mutableStateOf<Int?>(null) }
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val axisStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = axisText)
-    val valueStyle = axisStyle.copy(fontSize = 13.sp, color = EnergyBlue, fontWeight = FontWeight.SemiBold)
-    // Axis widths follow the measured labels, so larger fonts never get cut off.
-    val scaleWidth = generateSequence(0.0) { it + step }.takeWhile { it <= max + step / 2 }
-        .maxOfOrNull { measurer.measure(scaleLabel(it, step), axisStyle).size.width } ?: 0
-    val tempWidth = if (temps.isEmpty()) 0 else listOfNotNull(tMin, tMax)
-        .maxOf { measurer.measure(scaleLabel(it, tStep) + "°", axisStyle).size.width }
-    val leftAxis = scaleWidth + with(density) { 8.dp.toPx() }
-    val rightAxis = if (temps.isNotEmpty()) tempWidth + with(density) { 8.dp.toPx() } else with(density) { 4.dp.toPx() }
-    val valueHeight = measurer.measure("0", valueStyle).size.height
-    val topPad = if (showValues) valueHeight + with(density) { 4.dp.toPx() } else with(density) { 10.dp.toPx() }
+    return ChartScale(max, step, tMin, tMax, tStep, showValues = (pages.maxOfOrNull { it.size } ?: 0) <= 12)
+}
 
+private val ChartHeight = 280.dp
+
+/** Space above the highest bar: room for its value label. */
+@Composable
+private fun chartTopPadPx(showValues: Boolean): Float {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val valueHeight = measurer.measure("0", chartValueStyle()).size.height
+    return with(density) { if (showValues) valueHeight + 4.dp.toPx() else 10.dp.toPx() }
+}
+
+@Composable
+private fun chartAxisStyle() = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+@Composable
+private fun chartValueStyle() = chartAxisStyle().copy(fontSize = 13.sp, color = EnergyBlue, fontWeight = FontWeight.SemiBold)
+
+/**
+ * Everything around the bars that stays put while swiping: the unit and temperature headings,
+ * the legend of the split bars, the tapped hour's values and both scales. [content] is the pager
+ * with the bars; it fills the space between the scales.
+ */
+@Composable
+private fun EnergyChartFrame(
+    scale: ChartScale,
+    unitLabel: String,
+    partNames: List<String>,
+    parts: List<List<Double>>,
+    selectedText: String?,
+    content: @Composable () -> Unit
+) {
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val axisStyle = chartAxisStyle()
+    val tempStyle = axisStyle.copy(color = OutdoorColor)
+    val hasTemps = scale.tMin != null && scale.tMax != null
+    val topPad = chartTopPadPx(scale.showValues)
+    // Axis widths follow the measured labels, so larger fonts never get cut off.
+    val ticks = generateSequence(0.0) { it + scale.step }.takeWhile { it <= scale.max + scale.step / 2 }.toList()
+    val leftWidth = with(density) { ((ticks.maxOfOrNull { measurer.measure(scaleLabel(it, scale.step), axisStyle).size.width } ?: 0) + 8.dp.toPx()).toDp() }
+    val tempTicks = scale.tMin?.let { lo -> val hi = scale.tMax ?: lo; generateSequence(lo) { it + scale.tStep }.takeWhile { it <= hi + scale.tStep / 2 }.toList() } ?: emptyList()
+    val rightWidth = with(density) {
+        if (hasTemps) ((tempTicks.maxOfOrNull { measurer.measure(scaleLabel(it, scale.tStep) + "°", tempStyle).size.width } ?: 0) + 8.dp.toPx()).toDp() else 4.dp
+    }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(unitLabel, fontSize = 13.sp, color = axisText, modifier = Modifier.weight(1f))
-            if (temps.isNotEmpty()) Text("— Außen °C", fontSize = 13.sp, color = OutdoorColor)
+            Text(unitLabel, fontSize = 13.sp, color = axisStyle.color, modifier = Modifier.weight(1f))
+            if (hasTemps) Text("— Außen °C", fontSize = 13.sp, color = OutdoorColor)
         }
         // Legend for the split bars, with each unit's total for the shown period.
         if (parts.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 partNames.forEachIndexed { j, name ->
                     val total = parts.sumOf { it.getOrNull(j) ?: 0.0 }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(Modifier.size(12.dp).clip(RoundedCornerShape(3.dp)).background(partColor(j)))
                         Text("$name ${formatNumber(total, if (total >= 10) 1 else 2)} $unitLabel", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
         }
-        selected?.let { index ->
-            val (label, value) = values[index]
-            val t = outdoor.getOrNull(index)
-            Text(
-                "$label Uhr: ${formatNumber(value, 2)} $unitLabel" +
-                    (parts.getOrNull(index)?.let { split -> " (" + split.indices.joinToString(" · ") { j -> "${partNames.getOrNull(j).orEmpty()} ${formatNumber(split[j], 2)}" } + ")" } ?: "") +
-                    (t?.let { " · Außen ${formatNumber(it, 1)} °C" } ?: ""),
-                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = EnergyBlue
-            )
+        selectedText?.let { Text(it, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = EnergyBlue) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Canvas(Modifier.width(leftWidth).height(ChartHeight)) {
+                val chartHeight = size.height - topPad
+                ticks.forEach { tick ->
+                    val y = (size.height - tick / scale.max * chartHeight).toFloat()
+                    val text = measurer.measure(scaleLabel(tick, scale.step), axisStyle)
+                    drawText(text, topLeft = Offset(size.width - text.size.width - 4.dp.toPx(), y - text.size.height / 2))
+                }
+            }
+            Box(Modifier.weight(1f)) { content() }
+            Canvas(Modifier.width(rightWidth).height(ChartHeight)) {
+                val lo = scale.tMin ?: return@Canvas
+                val hi = scale.tMax ?: return@Canvas
+                val chartHeight = size.height - topPad
+                tempTicks.forEach { t ->
+                    val y = (size.height - (t - lo) / (hi - lo) * chartHeight).toFloat()
+                    val text = measurer.measure(scaleLabel(t, scale.tStep) + "°", tempStyle)
+                    drawText(text, topLeft = Offset(4.dp.toPx(), y - text.size.height / 2))
+                }
+            }
         }
-        Canvas(Modifier.fillMaxWidth().height(280.dp).pointerInput(values.size, canDrillDown) {
+    }
+}
+
+/**
+ * One period's bars on the shared [scale]: grid lines, bars (split per unit under "Alle"), the
+ * outdoor temperature line and, when there is room, the values; the labels underneath.
+ */
+@Composable
+private fun EnergyBarsPage(
+    values: List<Pair<String, Double>>,
+    outdoor: List<Double?>,
+    parts: List<List<Double>>,
+    scale: ChartScale,
+    selected: Int?,
+    onBarTap: (Int) -> Unit
+) {
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+    val valueStyle = chartValueStyle()
+    val tempStyle = chartAxisStyle().copy(color = OutdoorColor, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    val topPad = chartTopPadPx(scale.showValues)
+    val max = scale.max
+    Column {
+        Canvas(Modifier.fillMaxWidth().height(ChartHeight).pointerInput(values.size) {
             detectTapGestures { offset ->
-                val slot = (size.width - leftAxis - rightAxis) / values.size.coerceAtLeast(1)
-                val index = ((offset.x - leftAxis) / slot).toInt().coerceIn(0, values.size - 1)
-                if (canDrillDown) onBarTap(index) else selected = if (selected == index) null else index
+                val slot = size.width / values.size.coerceAtLeast(1)
+                onBarTap((offset.x / slot).toInt().coerceIn(0, values.size - 1))
             }
         }) {
-            val chartLeft = leftAxis
-            val chartRight = size.width - rightAxis
             val chartBottom = size.height
             val chartHeight = chartBottom - topPad
             fun yValue(v: Double) = (chartBottom - v / max * chartHeight).toFloat()
-            val small = axisStyle
-            // Grid lines and value scale on the left.
             var tick = 0.0
-            while (tick <= max + step / 2) {
+            while (tick <= max + scale.step / 2) {
                 val y = yValue(tick)
-                drawLine(gridColor, Offset(chartLeft, y), Offset(chartRight, y), strokeWidth = 1.dp.toPx())
-                val text = measurer.measure(scaleLabel(tick, step), small)
-                drawText(text, topLeft = Offset(chartLeft - text.size.width - 4.dp.toPx(), y - text.size.height / 2))
-                tick += step
+                drawLine(gridColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                tick += scale.step
             }
-            val slot = (chartRight - chartLeft) / values.size.coerceAtLeast(1)
+            val slot = size.width / values.size.coerceAtLeast(1)
             val gap = (slot * 0.18f).coerceIn(2.dp.toPx(), 6.dp.toPx())
             val barWidth = (slot - gap).coerceAtLeast(1f)
             values.forEachIndexed { index, (_, value) ->
@@ -834,52 +910,45 @@ private fun EnergyChart(
                     split.forEachIndexed { j, part ->
                         if (part <= 0.0) return@forEachIndexed
                         val partHeight = (part / max * chartHeight).toFloat()
-                        val color = partColor(j).let { if (dim) it.copy(alpha = 0.35f) else it }
                         drawRoundRect(
-                            color = color,
-                            topLeft = Offset(chartLeft + index * slot + gap / 2, bottom - partHeight),
+                            color = partColor(j).let { if (dim) it.copy(alpha = 0.35f) else it },
+                            topLeft = Offset(index * slot + gap / 2, bottom - partHeight),
                             size = Size(barWidth, (partHeight - 1.dp.toPx()).coerceAtLeast(1f)),
                             cornerRadius = CornerRadius(3.dp.toPx())
                         )
-                        if (showValues) {
+                        if (scale.showValues) {
                             val text = measurer.measure(formatNumber(part, if (part >= 10) 0 else 1), partValueStyle(j))
                             if (text.size.height + 2.dp.toPx() <= partHeight && text.size.width <= barWidth) {
-                                drawText(text, topLeft = Offset(chartLeft + index * slot + slot / 2 - text.size.width / 2, bottom - partHeight / 2 - text.size.height / 2))
+                                drawText(text, topLeft = Offset(index * slot + slot / 2 - text.size.width / 2, bottom - partHeight / 2 - text.size.height / 2))
                             }
                         }
                         bottom -= partHeight
                     }
                 } else if (h > 0f) drawRoundRect(
                     color = if (dim) EnergyBlue.copy(alpha = 0.35f) else EnergyBlue,
-                    topLeft = Offset(chartLeft + index * slot + gap / 2, top),
+                    topLeft = Offset(index * slot + gap / 2, top),
                     size = Size(barWidth, h),
                     cornerRadius = CornerRadius(3.dp.toPx())
                 )
-                if (showValues && value > 0) {
+                if (scale.showValues && value > 0) {
                     val text = measurer.measure(formatNumber(value, if (value >= 10) 0 else 1), valueStyle)
                     // Too narrow for the number (many bars, large font): leave it to the scale.
-                    if (text.size.width <= slot * 1.05f) drawText(text, topLeft = Offset(chartLeft + index * slot + slot / 2 - text.size.width / 2, top - text.size.height - 1.dp.toPx()))
+                    if (text.size.width <= slot * 1.05f) drawText(text, topLeft = Offset(index * slot + slot / 2 - text.size.width / 2, top - text.size.height - 1.dp.toPx()))
                 }
             }
+            val tMin = scale.tMin
+            val tMax = scale.tMax
             if (tMin != null && tMax != null) {
                 fun yTemp(t: Double) = (chartBottom - (t - tMin) / (tMax - tMin) * chartHeight).toFloat()
-                // Temperature scale on the right.
-                val tempStyle = small.copy(color = OutdoorColor)
-                var t = tMin
-                while (t <= tMax + tStep / 2) {
-                    val text = measurer.measure(scaleLabel(t, tStep) + "°", tempStyle)
-                    drawText(text, topLeft = Offset(chartRight + 4.dp.toPx(), yTemp(t) - text.size.height / 2))
-                    t += tStep
-                }
                 var previous: Offset? = null
                 outdoor.forEachIndexed { index, value ->
                     if (value == null) { previous = null; return@forEachIndexed }
-                    val point = Offset(chartLeft + index * slot + slot / 2, yTemp(value))
+                    val point = Offset(index * slot + slot / 2, yTemp(value))
                     previous?.let { drawLine(OutdoorColor, it, point, strokeWidth = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round) }
                     drawCircle(Color.White, radius = 3.5.dp.toPx(), center = point)
                     drawCircle(OutdoorColor, radius = 2.5.dp.toPx(), center = point)
-                    if (showValues) {
-                        val text = measurer.measure(formatNumber(value, 1), tempStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+                    if (scale.showValues) {
+                        val text = measurer.measure(formatNumber(value, 1), tempStyle)
                         if (text.size.width <= slot * 1.05f) drawText(text, topLeft = Offset(point.x - text.size.width / 2, point.y + 4.dp.toPx()))
                     }
                     previous = point
@@ -889,17 +958,14 @@ private fun EnergyChart(
         // Labels under the bars: at most about eight, evenly spread, centred on their bar and
         // free to be wider than one bar (two-digit days in the month view).
         val labelStep = ((values.size + 7) / 8).coerceAtLeast(1)
-        val labelColor = MaterialTheme.colorScheme.onSurface
-        val labelStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = labelColor)
+        val labelStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
         val labelHeight = with(density) { measurer.measure("Mo", labelStyle).size.height.toDp() }
         Canvas(Modifier.fillMaxWidth().height(labelHeight)) {
-            val chartLeft = leftAxis
-            val slot = (size.width - leftAxis - rightAxis) / values.size.coerceAtLeast(1)
-            val style = labelStyle
+            val slot = size.width / values.size.coerceAtLeast(1)
             values.forEachIndexed { index, (label, _) ->
                 if (index % labelStep != 0) return@forEachIndexed
-                val text = measurer.measure(label, style)
-                drawText(text, topLeft = Offset(chartLeft + index * slot + slot / 2 - text.size.width / 2, 0f))
+                val text = measurer.measure(label, labelStyle)
+                drawText(text, topLeft = Offset(index * slot + slot / 2 - text.size.width / 2, 0f))
             }
         }
     }
