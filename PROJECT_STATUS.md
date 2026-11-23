@@ -113,6 +113,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Auf ausdrückliche Anweisung des Nutzers: Die GitHub-Anmeldung (Device-Flow mit Zugriffs-/Erneuerungsschlüssel) ist entfernt, weil das Repo öffentlich ist. Anlass: Die Frau des Nutzers war plötzlich abgemeldet und konnte kein Update laden (Erneuerungsschlüssel sind bei GitHub nur einmal gültig; jeder Fehler beim Erneuern löschte die Anmeldung).
 - `GithubPrivateUpdates.kt` → `GithubUpdates.kt`: Release-Abfrage und APK-Download ohne `Authorization`, sonst unverändert (gleiche Endpunkte, Prüfungen, Größenprüfung). Alte Schlüssel und der Keystore-Eintrag werden beim ersten Abruf gelöscht.
 - `GithubUpdateCard.kt`: „Mit GitHub verbinden“ und Code-Anzeige entfernt; „Nach Updates suchen“ immer sichtbar, Prüfung beim Öffnen. **Download, APK-Prüfung und Installationsablauf (`ACTION_VIEW` + FileProvider + ClipData) unverändert.** Start-Popup prüft ohne Anmeldung.
+- Gerätetest 24.11.2026 00:2x (Handy des Nutzers): Update 0.5.52 → 0.5.53 ohne Anmeldung geladen und installiert – bestätigt. Zweites Handy noch offen.
 - Grenze ohne Anmeldung: 60 GitHub-API-Abfragen pro Stunde je Internetadresse (alle Geräte im Haushalt zusammen); die App braucht 1 je Start, 1 je Öffnen der Einstellungen, 2 je Update. Wird das Repo wieder privat, funktionieren Updates nicht mehr.
 
 ### Updater-Beobachtung (22.11.2026)
