@@ -180,7 +180,6 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Geräte: zwei Mitsubishi Heavy SRK15ZS-WF, seit 19.11.2026 in Betrieb; bestätigte Funktionen siehe Abschnitt 5, alles andere gilt bis zum Test als unbestätigt.
 - Adapter `mhi-wfrac` ist nicht eingerichtet; für KlimaPilot nicht erforderlich, da die App die Anlagen direkt steuert.
 - SENEC/`energyfluss` nicht als Datenquelle einplanen.
-- Keine zusätzlichen Abfragen an den WLAN-Modulen (nur die angezeigte Anlage wird abgefragt) und die App nicht stärker von ioBroker abhängig machen. Deshalb am 23.11.2026 zurückgestellt: Startseite mit Übersicht aller Räume.
 - Produktionsverbindung zu ioBroker: WebSocket `ws.0`, Port 8084; Alive-Prüfung über `system.adapter.admin.0.alive`.
 
 ## 10. Nächste Schritte
