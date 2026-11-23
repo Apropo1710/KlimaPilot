@@ -825,10 +825,10 @@ private fun EnergyChartFrame(
         }
         // Legend for the split bars, with each unit's total for the shown period.
         if (parts.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 partNames.forEachIndexed { j, name ->
                     val total = parts.sumOf { it.getOrNull(j) ?: 0.0 }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Box(Modifier.size(12.dp).clip(RoundedCornerShape(3.dp)).background(partColor(j)))
                         Text("$name ${formatNumber(total, if (total >= 10) 1 else 2)} $unitLabel", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                     }
