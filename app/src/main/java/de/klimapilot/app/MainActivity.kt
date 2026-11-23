@@ -166,7 +166,8 @@ private fun KlimaPilotApp(appVersion: String) {
                         item.getString("id"), item.getString("name"), item.getString("room"),
                         item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
                         item.optString("rootObjectId", ""), mappings, item.optString("model", ""), item.optString("syncDeviceKey", ""),
-                        item.optString("wfRacHost", ""), item.optString("wfRacAirconId", ""), item.optBoolean("demoMode", false)
+                        item.optString("wfRacHost", ""), item.optString("wfRacAirconId", ""), item.optBoolean("demoMode", false),
+                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0
                     ))
                 }
             }
@@ -186,7 +187,7 @@ private fun KlimaPilotApp(appVersion: String) {
                         .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
                         .put("model", device.model).put("syncDeviceKey", device.syncDeviceKey)
                         .put("wfRacHost", device.wfRacHost).put("wfRacAirconId", device.wfRacAirconId)
-                        .put("demoMode", device.demoMode))
+                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset))
                 }
             }.toString())
             .apply()
@@ -1119,8 +1120,10 @@ private fun MainScreen(
                     0 -> "Auto"; 1 -> "Leise"; 2 -> "Niedrig"; 3 -> "Mittel"; 4 -> "Hoch"; else -> "Unbekannt"
                 }
 
+                val shownDevice = devicesInRoom.firstOrNull { it.id == deviceId } ?: devicesInRoom.firstOrNull()
                 TemperatureCard(
-                    deviceName = devicesInRoom.firstOrNull { it.id == deviceId }?.name ?: devicesInRoom.firstOrNull()?.name ?: selectedRoom,
+                    deviceName = shownDevice?.name ?: selectedRoom,
+                    heatOffset = shownDevice?.heatOffset ?: 0.0,
                     state = state,
                     connected = airconConnected,
                     busy = controlBusy,
@@ -1245,6 +1248,7 @@ private fun MainScreen(
 @Composable
 private fun TemperatureCard(
     deviceName: String,
+    heatOffset: Double,
     state: AirconState?,
     connected: Boolean,
     busy: Boolean,
@@ -1296,7 +1300,9 @@ private fun TemperatureCard(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-                    Text(state?.indoorTemp?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    // While heating, the sensor (high up, in the warm air) reads too high; show the room value instead.
+                    val shownIndoor = state?.indoorTemp?.let { if (state?.mode == Mode.HEAT) it - heatOffset else it }
+                    Text(shownIndoor?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(
@@ -1544,7 +1550,7 @@ internal fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
                                 append("\nBetriebsmodus: ").append(state.mode?.name ?: "unbekannt")
                                 append("\nSolltemperatur: ").append(state.presetTemp).append(" °C")
                                 append("\nLüfterstufe: ").append(state.airFlow)
-                                append("\nRaumtemperatur: ").append(state.indoorTemp?.let { "$it °C" } ?: "nicht gemeldet")
+                                append("\nFühlertemperatur innen (unkorrigiert): ").append(state.indoorTemp?.let { "$it °C" } ?: "nicht gemeldet")
                                 append("\nAußentemperatur: ").append(state.outdoorTemp?.let { "$it °C" } ?: "nicht gemeldet")
                                 append("\nFehlercode: ").append(state.errorCode ?: "keiner gemeldet")
                                 if (status.lockedForS > 0) append("\nSchreibsperre eines anderen Clients: ").append(status.lockedForS).append(" s")
@@ -1862,11 +1868,6 @@ private fun SystemSettingsCard(isAdmin: Boolean) {
                     IoBrokerConnectionSettingsCard(expanded = ioBrokerExpanded, onExpandedChange = { ioBrokerExpanded = it })
                     EnergyScriptSettingsCard(expanded = energyExpanded, onExpandedChange = { energyExpanded = it })
                     DiagnosticsSettingsCard(expanded = diagnosticsExpanded, onExpandedChange = { diagnosticsExpanded = it })
-                } else {
-                    Text(
-                        "Verbindungs-, Raum- und Gerätekonfiguration kann nur ein Administrator ändern.",
-                        color = Muted, fontSize = 12.sp
-                    )
                 }
                 ClimatePairingSettingsCard()
             }

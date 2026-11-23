@@ -23,7 +23,7 @@ private val ManagerText = Color(0xFF172334)
 private val ManagerMuted = Color(0xFF63748A)
 private val ManagerBorder = Color(0xFFCBD5E1)
 
-internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap(), val model: String = "", val syncDeviceKey: String = "", val wfRacHost: String = "", val wfRacAirconId: String = "", val demoMode: Boolean = false)
+internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap(), val model: String = "", val syncDeviceKey: String = "", val wfRacHost: String = "", val wfRacAirconId: String = "", val demoMode: Boolean = false, val heatOffset: Double = 0.0)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -285,6 +285,8 @@ internal fun RoomDeviceManagerScreen(
         val original = editing
         var name by remember(original, addDevice) { mutableStateOf(original?.name ?: "") }
         var selectedRoom by remember(original, addDevice, rooms.size) { mutableStateOf(original?.room ?: rooms.first()) }
+        var heatOffset by remember(original, addDevice) { mutableStateOf(original?.heatOffset ?: 0.0) }
+        var showOffsetInfo by remember { mutableStateOf(false) }
         KlimaPilotAlertDialog(
             onDismissRequest = { addDevice = false; editing = null },
             containerColor = Color.White,
@@ -314,16 +316,29 @@ internal fun RoomDeviceManagerScreen(
                             )
                         }
                     }
+                    // Heating: the sensor sits high up where warm air collects; this is taken off the shown room temperature.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Raumtemperatur beim Heizen", color = ManagerText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { showOffsetInfo = true }, colors = ButtonDefaults.textButtonColors(contentColor = ManagerMuted)) { Text("ⓘ") }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { heatOffset = (heatOffset - 0.5).coerceAtLeast(0.0) }, enabled = heatOffset > 0.0) { Text("−") }
+                        Text(
+                            if (heatOffset == 0.0) "keine Korrektur" else "Fühler − " + String.format(java.util.Locale.GERMANY, "%.1f", heatOffset) + " °C",
+                            color = ManagerText, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        OutlinedButton(onClick = { heatOffset = (heatOffset + 0.5).coerceAtMost(8.0) }, enabled = heatOffset < 8.0) { Text("+") }
+                    }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         if (name.trim().isNotEmpty()) {
-                            if (original == null) devices.add(UserDevice(java.util.UUID.randomUUID().toString(), name.trim(), selectedRoom))
+                            if (original == null) devices.add(UserDevice(java.util.UUID.randomUUID().toString(), name.trim(), selectedRoom, heatOffset = heatOffset))
                             else {
                                 val index = devices.indexOfFirst { it.id == original.id }
-                                if (index >= 0) devices[index] = original.copy(name = name.trim(), room = selectedRoom)
+                                if (index >= 0) devices[index] = original.copy(name = name.trim(), room = selectedRoom, heatOffset = heatOffset)
                             }
                             save()
                             addDevice = false
@@ -334,6 +349,19 @@ internal fun RoomDeviceManagerScreen(
                 ) { Text("Speichern") }
             },
             dismissButton = { TextButton(onClick = { addDevice = false; editing = null }, colors = ButtonDefaults.textButtonColors(contentColor = ManagerMuted)) { Text("Abbrechen") } }
+        )
+        if (showOffsetInfo) KlimaPilotAlertDialog(
+            onDismissRequest = { showOffsetInfo = false },
+            confirmButton = { TextButton(onClick = { showOffsetInfo = false }) { Text("OK") } },
+            title = { Text("Raumtemperatur beim Heizen") },
+            text = {
+                Text(
+                    "Der Temperaturfühler sitzt oben im Innengerät, wo sich beim Heizen die warme Luft sammelt. Er misst deshalb mehr als ein Thermometer im Raum.\n\n" +
+                        "Im Betriebsmodus Heizen zeigt die App als Innentemperatur den Fühlerwert minus diese Korrektur. " +
+                        "Am besten über ein paar Tage mit einem Thermometer im Raum vergleichen und anpassen. " +
+                        "Nur Anzeige: An der Regelung der Anlage ändert sich nichts."
+                )
+            }
         )
     }
 }
