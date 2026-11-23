@@ -562,11 +562,13 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
             drillStack = drillStack.dropLast(1)
         }
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            // Fixed header; everything below scrolls.
+            Column(Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Energie", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text("Schließen") }
                 }
+            Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     pairedDevices.forEach { device ->
                         EnergyPill(device.room.ifBlank { device.name }, selectedUnit == device.wfRacAirconId) { selectedUnit = device.wfRacAirconId }
@@ -725,6 +727,7 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                     }) { Text("Speichern") }
                 }
                 Spacer(Modifier.height(96.dp))
+            }
             }
         }
     }
