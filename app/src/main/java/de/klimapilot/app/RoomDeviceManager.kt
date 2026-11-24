@@ -316,9 +316,9 @@ internal fun RoomDeviceManagerScreen(
                             )
                         }
                     }
-                    // Heating: the sensor sits high up where warm air collects; this is taken off the shown room temperature.
+                    // The sensor sits high up where warm air collects; this is always taken off the shown room temperature.
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Raumtemperatur beim Heizen", color = ManagerText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("Korrektur Raumtemperatur", color = ManagerText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         TextButton(onClick = { showOffsetInfo = true }, colors = ButtonDefaults.textButtonColors(contentColor = ManagerMuted)) { Text("ⓘ") }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -353,11 +353,11 @@ internal fun RoomDeviceManagerScreen(
         if (showOffsetInfo) KlimaPilotAlertDialog(
             onDismissRequest = { showOffsetInfo = false },
             confirmButton = { TextButton(onClick = { showOffsetInfo = false }) { Text("OK") } },
-            title = { Text("Raumtemperatur beim Heizen") },
+            title = { Text("Korrektur Raumtemperatur") },
             text = {
                 Text(
-                    "Der Fühler sitzt oben im Innengerät, wo sich beim Heizen die warme Luft sammelt, und misst deshalb mehr als ein Thermometer im Raum.\n\n" +
-                        "Beim Heizen folgt die Korrektur dem Fühler: Nach dem Start des Verdichters wächst sie so weit, wie der Fühler steigt, bis zum eingestellten Wert. Nach dem Stopp schrumpft sie so weit, wie er fällt.\n\n" +
+                    "Der Fühler sitzt oben im Innengerät, wo sich die warme Luft sammelt, und misst deshalb mehr als ein Thermometer im Raum – ob die Anlage läuft oder nicht.\n\n" +
+                        "Der eingestellte Wert wird immer abgezogen, in jedem Modus. Antippen von „Innen“ zeigt kurz den Fühlerwert.\n\n" +
                         "Am besten ein paar Tage mit einem Thermometer im Raum vergleichen und anpassen.\n\n" +
                         "Nur Anzeige – die Regelung der Anlage ändert sich nicht."
                 )
