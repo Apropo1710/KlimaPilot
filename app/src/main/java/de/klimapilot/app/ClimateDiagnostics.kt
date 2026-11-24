@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -252,6 +254,11 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
     var showInfo by remember { mutableStateOf(false) }
     // The phone's own entries are not Compose state; this counter makes the list re-read them.
     var localVersion by remember { mutableIntStateOf(0) }
+    // One-off check whether the modules deliver operation data (compressor frequency, coil temperature).
+    var showProbeConfirm by remember { mutableStateOf(false) }
+    var probeRunning by remember { mutableStateOf(false) }
+    var probeText by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(expanded, refresh) {
         if (!expanded) return@LaunchedEffect
@@ -330,8 +337,66 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
                         modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
                     ) { Text("Leeren", fontSize = 12.sp) }
                 }
+                OutlinedButton(
+                    onClick = { showProbeConfirm = true }, enabled = !probeRunning,
+                    modifier = Modifier.fillMaxWidth().height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                ) { Text(if (probeRunning) "Betriebsdaten werden geprüft …" else "Betriebsdaten der Anlagen prüfen", fontSize = 12.sp) }
             }
         }
+    }
+
+    if (showProbeConfirm) {
+        KlimaPilotAlertDialog(
+            onDismissRequest = { showProbeConfirm = false },
+            title = { Text("Betriebsdaten prüfen") },
+            text = {
+                Text(
+                    "Das ioBroker-Skript fragt jede Anlage einmal nach Verdichterfrequenz, Strom und Wärmetauscher-Temperatur. " +
+                        "Damit klären wir, ob diese Werte für die Raumtemperatur nutzbar sind.\n\n" +
+                        "Danach kann für etwa 1 Minute kein Handy die Anlagen steuern. Sollte sich eine Anlage dabei ausschalten, " +
+                        "schaltet das Skript sie sofort wieder ein. Am besten zu Hause in der Nähe der Anlagen starten."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showProbeConfirm = false
+                    probeRunning = true
+                    val started = System.currentTimeMillis()
+                    val io2 = RoomTempIoBroker()
+                    io2.startProbe(address) { ok, error ->
+                        if (ok != true) { probeRunning = false; probeText = error ?: "Prüfung konnte nicht gestartet werden."; return@startProbe }
+                        scope.launch {
+                            repeat(30) {
+                                kotlinx.coroutines.delay(3_000L)
+                                var done = false
+                                io2.loadProbeResult(address) { result, _ ->
+                                    if (result != null && RoomTempModel.parseIso(result.optString("at")) >= started - 5_000L && probeRunning) {
+                                        probeRunning = false; probeText = probeResultText(result); done = true
+                                    }
+                                }
+                                if (done || !probeRunning) return@launch
+                            }
+                            if (probeRunning) { probeRunning = false; probeText = "Keine Antwort vom ioBroker-Skript. Läuft es in der aktuellen Fassung (App einmal neu öffnen)?" }
+                        }
+                    }
+                }) { Text("Prüfen") }
+            },
+            dismissButton = { TextButton(onClick = { showProbeConfirm = false }) { Text("Abbrechen") } }
+        )
+    }
+    probeText?.let { text ->
+        KlimaPilotAlertDialog(
+            onDismissRequest = { probeText = null },
+            title = { Text("Ergebnis Betriebsdaten") },
+            text = { Text(text, fontSize = 13.sp) },
+            confirmButton = { TextButton(onClick = { probeText = null }) { Text("OK") } },
+            dismissButton = {
+                TextButton(onClick = {
+                    (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                        .setPrimaryClip(ClipData.newPlainText("KlimaPilot Betriebsdaten", text))
+                }) { Text("Kopieren") }
+            }
+        )
     }
 
     if (showInfo) {

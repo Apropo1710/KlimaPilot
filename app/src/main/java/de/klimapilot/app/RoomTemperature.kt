@@ -150,7 +150,34 @@ internal class RoomTempIoBroker {
             })
         }
 
+    /** Starts the one-off operation-data check of the script (roomTemp.probe). */
+    fun startProbe(address: String, callback: (Boolean?, String?) -> Unit) =
+        session<Boolean>(address, callback) { socket, finish ->
+            val definition = JSONObject().put("type", "state")
+                .put("common", JSONObject().put("name", "KlimaPilot – Betriebsdaten einmal prüfen: beliebigen Wert setzen")
+                    .put("type", "string").put("role", "text").put("read", true).put("write", true))
+                .put("native", JSONObject())
+            socket.emit("setObject", PROBE_ID, definition, IoBrokerAck { objectArgs ->
+                if (objectArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL } != null) { finish(null, "Prüfung konnte nicht gestartet werden."); return@IoBrokerAck }
+                socket.emit("setState", PROBE_ID, JSONObject().put("val", "start ${System.currentTimeMillis()}").put("ack", false), IoBrokerAck { stateArgs ->
+                    if (stateArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL } != null) finish(null, "Prüfung konnte nicht gestartet werden.")
+                    else finish(true, null)
+                })
+            })
+        }
+
+    /** Result of the operation-data check, or null while none exists. */
+    fun loadProbeResult(address: String, callback: (JSONObject?, String?) -> Unit) =
+        session<JSONObject>(address, callback) { socket, finish ->
+            socket.emit("getState", PROBE_RESULT_ID, IoBrokerAck { args ->
+                val raw = (args.getOrNull(1) as? JSONObject)?.opt("val") as? String
+                finish(raw?.let { runCatching { JSONObject(it) }.getOrNull() }, null)
+            })
+        }
+
     companion object {
+        const val PROBE_ID = "0_userdata.0.KlimaPilot.roomTemp.probe"
+        const val PROBE_RESULT_ID = "0_userdata.0.KlimaPilot.roomTemp.probeResult"
         const val INPUT_ID = "0_userdata.0.KlimaPilot.roomTemp.input"
         const val MODEL_ID = "0_userdata.0.KlimaPilot.roomTemp.model"
     }
@@ -275,4 +302,26 @@ private val ThermometerComma = androidx.compose.ui.text.input.VisualTransformati
             override fun transformedToOriginal(offset: Int) = if (raw.length == 3 && offset >= 3) (offset - 1).coerceAtMost(raw.length) else offset.coerceAtMost(raw.length)
         }
     )
+}
+
+/** Readable lines of a probe result (one block per unit). */
+internal fun probeResultText(result: JSONObject): String {
+    val units = result.optJSONObject("units") ?: return "Kein Ergebnis."
+    fun num(o: JSONObject, key: String, unit: String) =
+        if (o.has(key) && !o.isNull(key)) String.format(Locale.GERMANY, "%.1f %s", o.optDouble(key), unit) else "—"
+    return units.keys().asSequence().joinToString("\n\n") { name ->
+        val u = units.optJSONObject(name) ?: JSONObject()
+        buildString {
+            append(name).append(": ")
+            append(if (u.optBoolean("ok")) "Antwort erhalten" else "keine Antwort (${u.optString("error")})")
+            append("\nVerdichter: ").append(num(u, "compressorHz", "Hz")).append(" · Strom: ").append(num(u, "currentA", "A"))
+            append("\nWärmetauscher: ").append(num(u, "coilC", "°C")).append(" / ").append(num(u, "coilGasC", "°C"))
+            append("\nSollwert intern: ").append(num(u, "setpointC", "°C"))
+            append("\nVerdichter laut Status: ").append(if (u.optBoolean("compressorRunning")) "läuft" else "steht")
+            append("\nAnlage vorher/nachher: ").append(if (u.optBoolean("powerBefore")) "an" else "aus").append(" / ")
+                .append(if (!u.has("powerAfter")) "?" else if (u.optBoolean("powerAfter")) "an" else "aus")
+            if (u.optBoolean("switchedOff")) append("\n⚠ Hat sich ausgeschaltet – wieder eingeschaltet.")
+            u.optJSONArray("raw")?.let { append("\nRohdaten: ").append((0 until it.length()).joinToString(" | ") { i -> it.optString(i) }) }
+        }
+    }
 }
