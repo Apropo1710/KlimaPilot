@@ -167,7 +167,8 @@ private fun KlimaPilotApp(appVersion: String) {
                         item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
                         item.optString("rootObjectId", ""), mappings, item.optString("model", ""), item.optString("syncDeviceKey", ""),
                         item.optString("wfRacHost", ""), item.optString("wfRacAirconId", ""), item.optBoolean("demoMode", false),
-                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0
+                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0,
+                        item.optDouble("heatExtra", 0.0).takeIf { !it.isNaN() } ?: 0.0
                     ))
                 }
             }
@@ -187,7 +188,7 @@ private fun KlimaPilotApp(appVersion: String) {
                         .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
                         .put("model", device.model).put("syncDeviceKey", device.syncDeviceKey)
                         .put("wfRacHost", device.wfRacHost).put("wfRacAirconId", device.wfRacAirconId)
-                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset))
+                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset).put("heatExtra", device.heatExtra))
                 }
             }.toString())
             .apply()
@@ -1123,6 +1124,8 @@ private fun MainScreen(
                 TemperatureCard(
                     deviceName = shownDevice?.name ?: selectedRoom,
                     heatOffset = shownDevice?.heatOffset ?: 0.0,
+                    heatExtra = shownDevice?.heatExtra ?: 0.0,
+                    deviceKey = shownDevice?.id ?: selectedRoom,
                     state = state,
                     connected = airconConnected,
                     busy = controlBusy,
@@ -1248,6 +1251,8 @@ private fun MainScreen(
 private fun TemperatureCard(
     deviceName: String,
     heatOffset: Double,
+    heatExtra: Double,
+    deviceKey: String,
     state: AirconState?,
     connected: Boolean,
     busy: Boolean,
@@ -1305,9 +1310,15 @@ private fun TemperatureCard(
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(if (showRaw) "FÜHLER" else "INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-                    // The sensor sits high up in the indoor unit where warm air collects, on or off;
-                    // the set correction is always taken off to show the room value.
-                    val shownIndoor = state?.indoorTemp?.let { raw -> raw - heatOffset }
+                    // The sensor sits high up in the indoor unit where warm air collects: the base correction
+                    // always applies (on or off, any mode). While heating an extra follows the sensor: it grows
+                    // as the sensor rises with the compressor running and shrinks as it falls, up to the set value.
+                    val shownIndoor = state?.let { st ->
+                        val raw = st.indoorTemp ?: return@let null
+                        val extra = if (st.mode != Mode.HEAT || heatExtra <= 0.0) 0.0
+                            else HeatingTracker.correction(deviceKey, raw, st.compressorRunning && st.power, heatExtra, unitOn = st.power)
+                        raw - heatOffset - extra
+                    }
                     val displayed = if (showRaw) state?.indoorTemp else shownIndoor
                     Text(displayed?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = if (showRaw) Muted else TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
@@ -1810,4 +1821,24 @@ private fun TemperatureSlider(value: Float, enabled: Boolean, onValueChange: (Fl
     }
 }
 
+/**
+ * Extra heating correction per unit on top of the base correction, following the sensor instead of a
+ * fixed time: while the compressor heats it grows by as much as the sensor rises (up to the set value),
+ * when the compressor rests it shrinks by as much as the sensor falls. On first sight: full while the
+ * unit is switched on in heating mode, none while it is off.
+ */
+internal object HeatingTracker {
+    private data class Track(val raw: Double, val correction: Double)
+    private val tracks = java.util.concurrent.ConcurrentHashMap<String, Track>()
 
+    fun correction(key: String, raw: Double, heating: Boolean, offset: Double, unitOn: Boolean = heating): Double {
+        val last = tracks[key]
+        val next = when {
+            last == null -> if (unitOn) offset else 0.0
+            heating -> last.correction + (raw - last.raw).coerceAtLeast(0.0)
+            else -> last.correction - (last.raw - raw).coerceAtLeast(0.0)
+        }.coerceIn(0.0, offset)
+        tracks[key] = Track(raw, next)
+        return next
+    }
+}

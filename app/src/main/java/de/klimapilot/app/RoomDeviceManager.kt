@@ -23,7 +23,7 @@ private val ManagerText = Color(0xFF172334)
 private val ManagerMuted = Color(0xFF63748A)
 private val ManagerBorder = Color(0xFFCBD5E1)
 
-internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap(), val model: String = "", val syncDeviceKey: String = "", val wfRacHost: String = "", val wfRacAirconId: String = "", val demoMode: Boolean = false, val heatOffset: Double = 0.0)
+internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap(), val model: String = "", val syncDeviceKey: String = "", val wfRacHost: String = "", val wfRacAirconId: String = "", val demoMode: Boolean = false, val heatOffset: Double = 0.0, val heatExtra: Double = 0.0)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -286,6 +286,7 @@ internal fun RoomDeviceManagerScreen(
         var name by remember(original, addDevice) { mutableStateOf(original?.name ?: "") }
         var selectedRoom by remember(original, addDevice, rooms.size) { mutableStateOf(original?.room ?: rooms.first()) }
         var heatOffset by remember(original, addDevice) { mutableStateOf(original?.heatOffset ?: 0.0) }
+        var heatExtra by remember(original, addDevice) { mutableStateOf(original?.heatExtra ?: 0.0) }
         var showOffsetInfo by remember { mutableStateOf(false) }
         KlimaPilotAlertDialog(
             onDismissRequest = { addDevice = false; editing = null },
@@ -316,29 +317,23 @@ internal fun RoomDeviceManagerScreen(
                             )
                         }
                     }
-                    // The sensor sits high up where warm air collects; this is always taken off the shown room temperature.
+                    // The sensor sits high up where warm air collects: a base value always, plus an extra while heating that follows the sensor.
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Korrektur Raumtemperatur", color = ManagerText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         TextButton(onClick = { showOffsetInfo = true }, colors = ButtonDefaults.textButtonColors(contentColor = ManagerMuted)) { Text("ⓘ") }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { heatOffset = (heatOffset - 0.5).coerceAtLeast(0.0) }, enabled = heatOffset > 0.0) { Text("−") }
-                        Text(
-                            if (heatOffset == 0.0) "keine Korrektur" else "Fühler − " + String.format(java.util.Locale.GERMANY, "%.1f", heatOffset) + " °C",
-                            color = ManagerText, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        OutlinedButton(onClick = { heatOffset = (heatOffset + 0.5).coerceAtMost(8.0) }, enabled = heatOffset < 8.0) { Text("+") }
-                    }
+                    OffsetStepper("immer", heatOffset) { heatOffset = it }
+                    OffsetStepper("beim Heizen zusätzlich", heatExtra) { heatExtra = it }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         if (name.trim().isNotEmpty()) {
-                            if (original == null) devices.add(UserDevice(java.util.UUID.randomUUID().toString(), name.trim(), selectedRoom, heatOffset = heatOffset))
+                            if (original == null) devices.add(UserDevice(java.util.UUID.randomUUID().toString(), name.trim(), selectedRoom, heatOffset = heatOffset, heatExtra = heatExtra))
                             else {
                                 val index = devices.indexOfFirst { it.id == original.id }
-                                if (index >= 0) devices[index] = original.copy(name = name.trim(), room = selectedRoom, heatOffset = heatOffset)
+                                if (index >= 0) devices[index] = original.copy(name = name.trim(), room = selectedRoom, heatOffset = heatOffset, heatExtra = heatExtra)
                             }
                             save()
                             addDevice = false
@@ -357,7 +352,9 @@ internal fun RoomDeviceManagerScreen(
             text = {
                 Text(
                     "Der Fühler sitzt oben im Innengerät, wo sich die warme Luft sammelt, und misst deshalb mehr als ein Thermometer im Raum – ob die Anlage läuft oder nicht.\n\n" +
-                        "Der eingestellte Wert wird immer abgezogen, in jedem Modus. Antippen von „Innen“ zeigt kurz den Fühlerwert.\n\n" +
+                        "„Immer“ wird stets abgezogen, in jedem Modus und auch bei ausgeschalteter Anlage.\n\n" +
+                        "„Beim Heizen zusätzlich“ folgt dem Fühler: Läuft der Verdichter, wächst der Zuschlag so weit, wie der Fühler steigt, bis zum eingestellten Wert; nach dem Stopp schrumpft er so weit, wie der Fühler fällt.\n\n" +
+                        "Antippen von „Innen“ zeigt kurz den Fühlerwert.\n\n" +
                         "Am besten ein paar Tage mit einem Thermometer im Raum vergleichen und anpassen.\n\n" +
                         "Nur Anzeige – die Regelung der Anlage ändert sich nicht."
                 )
@@ -366,3 +363,17 @@ internal fun RoomDeviceManagerScreen(
     }
 }
 
+@Composable
+private fun OffsetStepper(label: String, value: Double, onChange: (Double) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, color = ManagerMuted, fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { onChange((value - 0.5).coerceAtLeast(0.0)) }, enabled = value > 0.0) { Text("−") }
+            Text(
+                if (value == 0.0) "keine" else "− " + String.format(java.util.Locale.GERMANY, "%.1f", value) + " °C",
+                color = ManagerText, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            OutlinedButton(onClick = { onChange((value + 0.5).coerceAtMost(8.0)) }, enabled = value < 8.0) { Text("+") }
+        }
+    }
+}
