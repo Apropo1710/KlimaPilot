@@ -795,11 +795,98 @@ async function roomPublish() {
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Einmalige Prüfung: liefert das Modul Betriebsdaten (Verdichterfrequenz, Strom, Wärmetauscher)?
+// ---------------------------------------------------------------------------------------------
+// Ausgelöst von Hand: in ioBroker 0_userdata.0.KlimaPilot.roomTemp.probe auf einen beliebigen Wert setzen.
+// Protokoll nach der WF-RAC-Referenz der Home-Assistant-Integration jeatheak/Mitsubishi-WF-RAC-Integration
+// (docs/wf-rac-module-reference.md, §5.3/5.4): setAirconStat mit leerem Befehlsblock (keine Set-Bits,
+// ändert nichts) und angehängten Anfragen; die Antworten stehen in derselben Antwort.
+// Hinweise der Referenz: (1) jede solche Anfrage gibt dem Skript 60 s Schreibrecht – Handys können in
+// der Zeit nicht steuern; (2) eine einzelne gemeldete Anlage schaltete sich bei leerem Befehlsblock aus –
+// deshalb wird der Ein/Aus-Zustand danach geprüft und notfalls wiederhergestellt.
+
+const ROOM_PROBE_ID = `${ROOM_ROOT}.probe`;
+const ROOM_PROBE_RESULT_ID = `${ROOM_ROOT}.probeResult`;
+const PROBE_CODES = [0x11, 0x90, 0x81, 0x87, 0x05];
+
+/** Thermistorkurve der Wärmetauscher-Fühler (Referenz §5.4): byte = G·Rs/(Rs+R(T)). */
+function coilTemp(byte) {
+    if (!(byte > 0 && byte < 367)) return null;
+    const r = 1912 * (367 / byte - 1);
+    return Math.round((1 / (1 / 298.15 + Math.log(r / 5200) / 3900) - 273.15) * 10) / 10;
+}
+
+function receiveSegments(base64) {
+    const d = [...Buffer.from(base64, 'base64')];
+    const start = d[18] * 4 + 21;
+    const segments = d.slice(start + 19, d.length - 2);
+    const out = [];
+    for (let i = 0; i + 3 < segments.length; i += 4) out.push(segments.slice(i, i + 4));
+    return out;
+}
+
+async function probeUnit(unit) {
+    const before = decodeStat((await serial(unit, () => readStat(unit))).airconStat);
+    const block = emptyBlock();
+    if (!before.coolHotJudge) block[8] |= 8; // wie bei einem echten Befehl mitführen (Referenz §5.3)
+    const trailer = [PROBE_CODES.length];
+    for (const code of PROBE_CODES) trailer.push(code, 0xff, 0xff, 0xff);
+    const bytes = withCrc(block.concat(trailer)).concat(withCrc(receiveBlock(before).concat(NO_SEGMENTS)));
+    const result = { at: new Date().toISOString(), powerBefore: before.power, compressorRunning: before.compressorRunning };
+    try {
+        const contents = await serial(unit, () => request(unit, 'setAirconStat', { airconId: unit.airconId, airconStat: Buffer.from(bytes).toString('base64') }));
+        const segs = receiveSegments(contents.airconStat);
+        result.ok = true;
+        result.raw = segs.map(s => s.map(b => b.toString(16).padStart(2, '0')).join(' '));
+        for (const [code, sel, op2] of segs) {
+            if (code === 0x11) result.compressorHz = Math.round(((sel - 0x10) * 25.6 + 0.1 * op2) * 10) / 10;
+            if (code === 0x90) result.currentA = Math.round(op2 * 14 / 51 * 100) / 100;
+            if (code === 0x81) result.coilC = coilTemp(op2);
+            if (code === 0x87) result.coilGasC = coilTemp(op2);
+            if (code === 0x05) result.setpointC = op2 / 2;
+        }
+    } catch (e) {
+        result.ok = false;
+        result.error = e.message;
+    }
+    // Sicherheitsnetz: Hat sich die Anlage dadurch ausgeschaltet, sofort wieder einschalten.
+    await sleep(3000);
+    try {
+        const after = decodeStat((await serial(unit, () => readStat(unit))).airconStat);
+        result.powerAfter = after.power;
+        if (before.power && !after.power) {
+            result.switchedOff = true;
+            await serial(unit, () => request(unit, 'setAirconStat', { airconId: unit.airconId, airconStat: encodeStat(before) }));
+            result.restored = true;
+            await diagLog(unit.name || unit.airconId, 'Betriebsdaten-Prüfung hat die Anlage ausgeschaltet – wieder eingeschaltet', 'Betriebsdaten bei dieser Anlage nicht abfragen');
+        }
+    } catch (e) {
+        result.afterError = e.message;
+    }
+    return result;
+}
+
+async function roomProbe() {
+    const out = { at: new Date().toISOString(), units: {} };
+    for (const unit of await units()) {
+        try { out.units[unit.name || unit.airconId] = await probeUnit(unit); } catch (e) { out.units[unit.name || unit.airconId] = { ok: false, error: e.message }; }
+    }
+    await ensureJsonState(ROOM_PROBE_RESULT_ID, 'KlimaPilot – Ergebnis der Prüfung der Betriebsdaten (nur lesen)', {});
+    await setStateAsync(ROOM_PROBE_RESULT_ID, JSON.stringify(out), true);
+    log(`KlimaPilot Betriebsdaten-Prüfung: ${JSON.stringify(out)}`);
+}
+
 async function roomStart() {
     await roomLoadTrack();
     await ensureJsonState(ROOM_INPUT_ID, 'KlimaPilot – Raumtemperatur: Thermometerwert aus der App (wird von KlimaPilot geschrieben)', {});
     on({ id: ROOM_INPUT_ID, change: 'any', ack: false }, async obj => {
         try { if (await isOwner()) await roomInput(String(obj.state.val || '')); } catch (e) { log(`KlimaPilot Raumtemperatur: ${e.message}`, 'warn'); }
+    });
+    await ensureJsonState(ROOM_PROBE_ID, 'KlimaPilot – Betriebsdaten einmal prüfen: beliebigen Wert setzen', '');
+    on({ id: ROOM_PROBE_ID, change: 'any', ack: false }, async () => {
+        try { if (await isOwner()) { await setStateAsync(ROOM_PROBE_ID, 'läuft …', true); await roomProbe(); await setStateAsync(ROOM_PROBE_ID, 'fertig', true); } }
+        catch (e) { log(`KlimaPilot Betriebsdaten-Prüfung: ${e.message}`, 'warn'); }
     });
     // Eine Eingabe, die während eines Neustarts kam, noch übernehmen (bis 10 min alt).
     const pending = await getStateAsync(ROOM_INPUT_ID);

@@ -93,6 +93,8 @@ Alle Datenpunkte unter `0_userdata.0.KlimaPilot`, die andere Programme (z. B. ei
 | `roomTemp.samples` | Skript | nur lesen |
 | `roomTemp.model` | Skript | nur lesen |
 | `roomTemp.track` | Skript (intern) | nicht verwenden |
+| `roomTemp.probe` | Nutzer | schreiben (beliebiger Wert startet die einmalige Betriebsdaten-Prüfung) |
+| `roomTemp.probeResult` | Skript | nur lesen |
 | `profileSync.*`, `accounts` | App (intern) | nicht verwenden |
 | `script.owner` | Skript (intern) | nicht verwenden |
 
@@ -279,6 +281,10 @@ Werte verfallen nicht mit der Zeit; je Anlage und Lage (`scenario`) höchstens 1
 - `offset`: aktuelle Abweichung (Raum = Fühler − offset), `null` ohne aktuelle Daten. Wird jede Minute (Diagnose an) bzw. alle 5 min neu geschrieben.
 - `using`: `none` (unter 3 Werten), `mean` (Mittelwert), `model` (Ridge-Regression über die Merkmale; nur wenn sie in der Kreuzprüfung um mehr als 0,05 °C besser trifft als der Mittelwert, ab 8 Werten). Vorhersagen bleiben höchstens 1 °C außerhalb der gemessenen Abweichungen.
 - `errorModel`/`errorMean`: mittlerer Fehler in der Kreuzprüfung (°C). `weights`: Einfluss je Merkmalseinheit (nur zur Ansicht).
+
+### `roomTemp.probe` / `roomTemp.probeResult` – Betriebsdaten einmal prüfen
+
+Setzt man `roomTemp.probe` in ioBroker auf einen beliebigen Wert, fragt das Skript jede Anlage einmal nach Verdichterfrequenz (`0x11`), Betriebsstrom (`0x90`), Wärmetauscher-Temperatur innen (`0x81`, `0x87`) und intern verwendetem Sollwert (`0x05`) – per `setAirconStat` mit leerem Befehlsblock, der nichts verändert. Ergebnis in `roomTemp.probeResult` (Rohbytes und umgerechnete Werte, Ein/Aus vorher und nachher). Schaltet sich eine Anlage dabei aus, schaltet das Skript sie sofort wieder ein und vermerkt das im Diagnoseprotokoll. Jede solche Anfrage gibt dem Skript 60 s lang das alleinige Schreibrecht am Modul; Handys können in dieser Zeit nicht steuern. Protokoll nach der WF-RAC-Referenz der Home-Assistant-Integration [jeatheak/Mitsubishi-WF-RAC-Integration](https://github.com/jeatheak/Mitsubishi-WF-RAC-Integration) (`docs/wf-rac-module-reference.md`).
 
 ### Interne Datenpunkte (nicht verwenden)
 
