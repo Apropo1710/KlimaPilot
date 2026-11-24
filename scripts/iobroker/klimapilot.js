@@ -522,7 +522,10 @@ const ROOM_INPUT_ID = `${ROOM_ROOT}.input`;
 const ROOM_SAMPLES_ID = `${ROOM_ROOT}.samples`;
 const ROOM_MODEL_ID = `${ROOM_ROOT}.model`;
 const ROOM_TRACK_ID = `${ROOM_ROOT}.track`;
-const ROOM_MAX_SAMPLES = 400;
+// Messwerte verfallen nie mit der Zeit. Nur wenn eine Lage (z. B. „Heizen, Pause lang“) mehr als
+// ROOM_MAX_PER_SCENARIO Werte hat, ersetzt ein neuer Wert den ältesten derselben Lage – so verdrängen
+// Sommerwerte (Kühlen) nie die Winterwerte (Heizen) und umgekehrt.
+const ROOM_MAX_PER_SCENARIO = 100;
 const ROOM_MIN_MEAN = 3;    // ab 3 Messwerten: Mittelwert
 const ROOM_MIN_MODEL = 8;   // ab 8 Messwerten: Modell, wenn es in der Kreuzprüfung besser trifft
 const ROOM_FEATURES = ['on', 'heat', 'comp', 'runFresh', 'restFresh', 'offFresh', 'trend', 'outdoor', 'fan', 'setDiff'];
@@ -702,10 +705,15 @@ function roomOffset(fit, f) {
     return Math.round(clamp(raw, fit.min - 1, fit.max + 1) * 10) / 10;
 }
 
+let roomSamplesCache = null;
+
+/** Messwerte einmal laden und im Speicher halten (die Veröffentlichung läuft jede Minute). */
 async function roomReadSamples() {
+    if (roomSamplesCache) return roomSamplesCache;
     await ensureJsonState(ROOM_SAMPLES_ID, 'KlimaPilot – Raumtemperatur: Thermometerwerte mit Anlagenzustand', { units: {} });
     const data = await readJson(ROOM_SAMPLES_ID) || {};
     data.units = data.units && typeof data.units === 'object' ? data.units : {};
+    roomSamplesCache = data;
     return data;
 }
 
@@ -733,7 +741,8 @@ async function roomInput(text) {
             const f = roomFeatures(tr, t);
             for (const k of Object.keys(f)) f[k] = Math.round(f[k] * 1000) / 1000;
             list.push({ id: input.id || String(t), at: new Date(t).toISOString(), thermo, raw, offset: Math.round((raw - thermo) * 10) / 10, scenario: roomScenario(tr, t), f });
-            data.units[input.airconId] = list.slice(-ROOM_MAX_SAMPLES);
+            const same = list.filter(s => s.scenario === list[list.length - 1].scenario);
+            if (same.length > ROOM_MAX_PER_SCENARIO) list.splice(list.indexOf(same[0]), 1);
             result.ok = true;
             result.message = `Messwert ${String(thermo).replace('.', ',')} °C übernommen (${list.length} gesamt).`;
         }

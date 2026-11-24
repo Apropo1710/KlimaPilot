@@ -261,7 +261,7 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 ] } }
 ```
 
-Höchstens 400 Werte je Anlage. Merkmale `f`: eingeschaltet, Modus Heizen, Verdichter läuft, `runFresh`/`restFresh` = e^(−Minuten seit Verdichter-Start bzw. -Stopp / 15), `offFresh` = e^(−Minuten seit Ausschalten / 30), `trend` = Fühleränderung der letzten ~10 min, Außentemperatur, Lüfterstufe (Auto = 2), Soll minus Fühler.
+Werte verfallen nicht mit der Zeit; je Anlage und Lage (`scenario`) höchstens 100 – darüber ersetzt ein neuer Wert den ältesten derselben Lage, Werte anderer Lagen (z. B. Heizen im Winter, Kühlen im Sommer) bleiben unberührt. Merkmale `f`: eingeschaltet, Modus Heizen, Verdichter läuft, `runFresh`/`restFresh` = e^(−Minuten seit Verdichter-Start bzw. -Stopp / 15), `offFresh` = e^(−Minuten seit Ausschalten / 30), `trend` = Fühleränderung der letzten ~10 min, Außentemperatur, Lüfterstufe (Auto = 2), Soll minus Fühler.
 
 ### `roomTemp.model` – gelernte Abweichung (nur lesen)
 
