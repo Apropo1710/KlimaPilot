@@ -52,7 +52,9 @@ internal class ClimateDeviceController(context: Context) {
         val airconId = device.wfRacAirconId.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Für dieses Gerät ist noch kein WLAN-Modul gekoppelt.")
         ensurePaired(device, airconId)
-        return real.apply(airconId, waitUpToS = 0, change = change)
+        // After a command from another device the module locks control for a few seconds;
+        // wait out short locks and retry once instead of failing (diagnostics 24.11.2026).
+        return real.apply(airconId, waitUpToS = 10, change = change)
     }
 
     fun forget(airconId: String): Boolean = real.forget(airconId)
