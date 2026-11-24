@@ -176,8 +176,9 @@ internal fun RoomTempDialog(
     onDeleteLast: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // Digits only (number pad without searching for the comma): "175" = 17,5 °C, "17" = 17 °C.
     var text by remember { mutableStateOf("") }
-    val value = text.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it in 5.0..40.0 }
+    val value = thermometerValue(text)
     KlimaPilotAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Raumtemperatur", color = DialogText) },
@@ -197,10 +198,13 @@ internal fun RoomTempDialog(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = text,
-                        onValueChange = { text = it.filter { c -> c.isDigit() || c == ',' || c == '.' }.take(5) },
-                        label = { Text("Thermometer zeigt (°C)") },
+                        onValueChange = { text = it.filter { c -> c.isDigit() }.take(3) },
+                        label = { Text("Thermometer (°C)") },
+                        placeholder = { Text("z. B. 175 = 17,5") },
+                        supportingText = { Text("Nur Ziffern – das Komma setzt die App", fontSize = 11.sp) },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        visualTransformation = ThermometerComma,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = DialogBlue, focusedLabelColor = DialogBlue, cursorColor = DialogBlue),
                         modifier = Modifier.weight(1f)
                     )
@@ -252,3 +256,23 @@ internal class RoomTempUi(
     val submit: (airconId: String, thermometer: Double, raw: Double) -> Unit,
     val delete: (airconId: String, sampleId: String) -> Unit,
 )
+
+/** "175" → 17.5, "17" → 17.0; anything outside 5–40 °C → null. */
+internal fun thermometerValue(digits: String): Double? {
+    if (digits.length !in 2..3 || !digits.all { it.isDigit() }) return null
+    val value = if (digits.length == 3) digits.toInt() / 10.0 else digits.toDouble()
+    return value.takeIf { it in 5.0..40.0 }
+}
+
+/** Shows the comma before the last of three digits: 175 → 17,5. */
+private val ThermometerComma = androidx.compose.ui.text.input.VisualTransformation { text ->
+    val raw = text.text
+    val shown = if (raw.length == 3) raw.substring(0, 2) + "," + raw.substring(2) else raw
+    androidx.compose.ui.text.input.TransformedText(
+        androidx.compose.ui.text.AnnotatedString(shown),
+        object : androidx.compose.ui.text.input.OffsetMapping {
+            override fun originalToTransformed(offset: Int) = if (raw.length == 3 && offset >= 3) offset + 1 else offset
+            override fun transformedToOriginal(offset: Int) = if (raw.length == 3 && offset >= 3) (offset - 1).coerceAtMost(raw.length) else offset.coerceAtMost(raw.length)
+        }
+    )
+}

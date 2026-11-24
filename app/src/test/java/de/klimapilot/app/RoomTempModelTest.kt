@@ -37,4 +37,12 @@ class RoomTempModelTest {
         assertNull(RoomTempModel.parse(JSONObject("""{"using":"mean","samples":4,"offset":null}"""), now).currentOffset(now))
         assertNull(RoomTempModel.parse(JSONObject("""{"using":"none","samples":1,"offset":2.0}"""), now).currentOffset(now))
     }
+
+    @Test
+    fun thermometerDigitsGetTheCommaBeforeTheLastDigit() {
+        assertEquals(17.5, thermometerValue("175")!!, 1e-9)
+        assertEquals(17.0, thermometerValue("17")!!, 1e-9)
+        assertNull(thermometerValue("1"))
+        assertNull(thermometerValue("450"))
+    }
 }
