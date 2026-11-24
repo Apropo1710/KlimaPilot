@@ -52,6 +52,7 @@ Energieverlauf und Zeitpläne laufen über ein Skript im ioBroker-JavaScript-Ada
 - **Energie:** KlimaPilot trägt Anlagen und Strompreis unter `0_userdata.0.KlimaPilot.energy.config` ein; das Skript liest alle 5 Minuten und schreibt nach `0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>`. Aufgezeichnet wird ab der ersten Ablesung.
 - **Zeitpläne:** KlimaPilot schreibt sie nach `0_userdata.0.KlimaPilot.schedules.config`; das Skript prüft jede Minute, schaltet fällige Anlagen direkt am WLAN-Modul und schreibt das Ergebnis nach `0_userdata.0.KlimaPilot.schedules.status`. Schlägt ein Termin fehl (z. B. beim stündlichen Neustart des Moduls), wird er bis zu 10 Minuten lang jede Minute wiederholt. Der Schalter „Zeitpläne verwenden“ in den Einstellungen hält alle Zeitpläne an und blendet sie in der App aus – über ioBroker und zusätzlich über die Handy-zu-Handy-Synchronisierung auf beiden Handys.
 - **Diagnose:** Einstellungen → „Diagnose“ (nur Administrator). Eingeschaltet (`0_userdata.0.KlimaPilot.diagnostics.config`) prüft das Skript jede Minute die lokale Erreichbarkeit der Anlagen und protokolliert jeden Ausfall ab 3 Minuten mit Beginn, Dauer und Fehler in `0_userdata.0.KlimaPilot.diagnostics.log` (14 Tage). Die App ergänzt, was das Handy sieht; das Protokoll lässt sich in der App ansehen, kopieren und leeren.
+- **Raumtemperatur lernen:** Der Fühler im Innengerät misst je nach Lage zu warm. Auf der Hauptseite „Innen“ antippen und den Wert eines Thermometers im Raum eintragen; das Skript speichert ihn mit dem Zustand der Anlage und lernt je Anlage die Abweichung (Details unter `roomTemp.*`). Bis genug gelernt ist, gilt die feste Korrektur des Geräts. Mit eingeschalteter Diagnose beobachtet das Skript jede Minute, sonst alle 5 Minuten.
 - **Benachrichtigungen:** Die App prüft etwa alle 2 Stunden im Hintergrund (nur im WLAN) die Datenpunkte unten und meldet fällige Filter, endgültig fehlgeschlagene Zeitpläne und Anlagen, die seit über einer Stunde nicht erreichbar sind. Standardmäßig aus; einschalten unter Einstellungen → „Benachrichtigungen“.
 - Manuell geht es auch: neues JavaScript-Skript anlegen und den Dateiinhalt einfügen (am PC).
 
@@ -88,6 +89,10 @@ Alle Datenpunkte unter `0_userdata.0.KlimaPilot`, die andere Programme (z. B. ei
 | `filter.config` | App | lesen und schreiben |
 | `diagnostics.config` | App | lesen und schreiben |
 | `diagnostics.log` | Skript | lesen; leeren erlaubt |
+| `roomTemp.input` | App | schreiben (Thermometerwert eintragen) |
+| `roomTemp.samples` | Skript | nur lesen |
+| `roomTemp.model` | Skript | nur lesen |
+| `roomTemp.track` | Skript (intern) | nicht verwenden |
 | `profileSync.*`, `accounts` | App (intern) | nicht verwenden |
 | `script.owner` | Skript (intern) | nicht verwenden |
 
@@ -237,11 +242,49 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 - Leeren: `{"entries":[]}` schreiben.
 - Die Einträge der Handys (`source: "Handy"`) liegen nur auf dem jeweiligen Handy, nicht in ioBroker.
 
+### `roomTemp.input` – Thermometerwert eintragen (schreiben)
+
+```json
+{ "id": "1795251000000-4711", "airconId": "1cd1d717d1e2", "thermometer": 18.2, "raw": 21.5 }
+```
+
+- `thermometer`: Wert eines Thermometers im Raum (5–40 °C); `raw`: Fühlerwert der Anlage zum selben Zeitpunkt (fehlt er, nimmt das Skript seinen letzten Wert).
+- Löschen eines gespeicherten Messwerts: `{ "id": "…", "airconId": "…", "delete": "<id des Messwerts>" }`.
+- Das Skript übernimmt den Wert nur, wenn es Daten der Anlage aus den letzten 10 min hat und die Abweichung zwischen −5 und +12 °C liegt; das Ergebnis steht danach in `roomTemp.model` → `units.<airconId>.input`.
+
+### `roomTemp.samples` – gespeicherte Messwerte (nur lesen)
+
+```json
+{ "units": { "1cd1d717d1e2": [
+  { "id": "…", "at": "2026-11-24T06:44:00.000Z", "thermo": 18.2, "raw": 21.5, "offset": 3.3, "scenario": "Heizen, Verdichter läuft",
+    "f": { "on": 1, "heat": 1, "comp": 1, "runFresh": 0.264, "restFresh": 0, "offFresh": 0, "trend": -1.5, "outdoor": -3, "fan": 2, "setDiff": -3.5 } }
+] } }
+```
+
+Höchstens 400 Werte je Anlage. Merkmale `f`: eingeschaltet, Modus Heizen, Verdichter läuft, `runFresh`/`restFresh` = e^(−Minuten seit Verdichter-Start bzw. -Stopp / 15), `offFresh` = e^(−Minuten seit Ausschalten / 30), `trend` = Fühleränderung der letzten ~10 min, Außentemperatur, Lüfterstufe (Auto = 2), Soll minus Fühler.
+
+### `roomTemp.model` – gelernte Abweichung (nur lesen)
+
+```json
+{ "updatedAt": "2026-11-24T06:45:00.000Z", "units": { "1cd1d717d1e2": {
+  "using": "model", "samples": 14, "offset": 3.4, "scenario": "Heizen, Verdichter läuft",
+  "scenarios": ["Aus", "Aus, kürzlich abgeschaltet", "Heizen, Verdichter startet", "Heizen, Verdichter läuft", "Heizen, Pause kurz", "Heizen, Pause lang"],
+  "coverage": { "Heizen, Verdichter läuft": 5, "Heizen, Pause lang": 4 },
+  "errorModel": 0.31, "errorMean": 0.62, "minForModel": 8, "weights": { "comp": -1.2 },
+  "last": { "id": "…", "at": "…", "thermo": 18.2, "raw": 21.5 },
+  "input": { "id": "…", "at": "…", "ok": true, "message": "Messwert gespeichert." }
+} } }
+```
+
+- `offset`: aktuelle Abweichung (Raum = Fühler − offset), `null` ohne aktuelle Daten. Wird jede Minute (Diagnose an) bzw. alle 5 min neu geschrieben.
+- `using`: `none` (unter 3 Werten), `mean` (Mittelwert), `model` (Ridge-Regression über die Merkmale; nur wenn sie in der Kreuzprüfung um mehr als 0,05 °C besser trifft als der Mittelwert, ab 8 Werten). Vorhersagen bleiben höchstens 1 °C außerhalb der gemessenen Abweichungen.
+- `errorModel`/`errorMean`: mittlerer Fehler in der Kreuzprüfung (°C). `weights`: Einfluss je Merkmalseinheit (nur zur Ansicht).
 
 ### Interne Datenpunkte (nicht verwenden)
 
 - `profileSync.*`: Ereignisprotokoll der Klimaprofil-Synchronisierung zwischen den Handys. Das Format ist intern und kann sich ändern. Profilwerte, die Zeitpläne brauchen, stehen als Kopie in `schedules.config` → `settings`.
 - `accounts`: früherer Kontodatenpunkt der App, nur noch zur Übernahme alter Daten.
+- `roomTemp.track`: letzte Wechsel von Ein/Aus und Verdichter je Anlage, damit die Dauer einen Skript-Neustart übersteht.
 - `script.owner`: welche Kopie des Skripts gerade arbeitet (`{id, script, startedAt}`). Läuft das Skript versehentlich doppelt, arbeitet nur die zuletzt gestartete Kopie, die andere pausiert und meldet sich im ioBroker-Log bzw. im Diagnoseprotokoll.
 - Nicht in ioBroker, sondern nur auf den Handys (per Handy-zu-Handy-Synchronisierung): die Jahreszeit-Auswahl der Profile und das Ausblenden der Zeitpläne in der App.
 

@@ -167,8 +167,7 @@ private fun KlimaPilotApp(appVersion: String) {
                         item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
                         item.optString("rootObjectId", ""), mappings, item.optString("model", ""), item.optString("syncDeviceKey", ""),
                         item.optString("wfRacHost", ""), item.optString("wfRacAirconId", ""), item.optBoolean("demoMode", false),
-                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0,
-                        item.optDouble("heatExtra", 0.0).takeIf { !it.isNaN() } ?: 0.0
+                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0
                     ))
                 }
             }
@@ -188,7 +187,7 @@ private fun KlimaPilotApp(appVersion: String) {
                         .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
                         .put("model", device.model).put("syncDeviceKey", device.syncDeviceKey)
                         .put("wfRacHost", device.wfRacHost).put("wfRacAirconId", device.wfRacAirconId)
-                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset).put("heatExtra", device.heatExtra))
+                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset))
                 }
             }.toString())
             .apply()
@@ -213,6 +212,12 @@ private fun KlimaPilotApp(appVersion: String) {
     var showEnergy by remember { mutableStateOf(false) }
     var energyUnits by remember { mutableStateOf<List<EnergyUnitData>>(emptyList()) }
     var filterConfig by remember { mutableStateOf<FilterConfig?>(null) }
+    // Learned room temperature from the ioBroker script (see RoomTemperature.kt).
+    var roomTempModels by remember { mutableStateOf<Map<String, RoomTempModel>>(emptyMap()) }
+    var roomTempReachable by remember { mutableStateOf(false) }
+    var roomTempStatus by remember { mutableStateOf<String?>(null) }
+    var roomTempSentId by remember { mutableStateOf<String?>(null) }
+    var roomTempRefresh by remember { mutableIntStateOf(0) }
     // Set by the update popup: the settings open scrolled down to the update card.
     var settingsFocusUpdate by remember { mutableStateOf(false) }
     var energyPrice by remember { mutableStateOf(EnergyIoBroker.cachedPrice(context)) }
@@ -809,6 +814,31 @@ private fun KlimaPilotApp(appVersion: String) {
             energyPrice = energyPrice,
             filtersDue = energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }
                 ?.let { unit -> filterConfig?.dueFilters(unit) }.orEmpty(),
+            roomTemp = RoomTempUi(
+                models = roomTempModels,
+                reachable = roomTempReachable,
+                status = roomTempStatus,
+                submit = { airconId, thermometer, raw ->
+                    val id = "${System.currentTimeMillis()}-${(1000..9999).random()}"
+                    roomTempSentId = id
+                    roomTempStatus = "Wird gesendet …"
+                    val input = org.json.JSONObject().put("id", id).put("airconId", airconId).put("thermometer", thermometer).put("raw", raw)
+                    RoomTempIoBroker().send(prefs.getString("iobroker_server", null).orEmpty(), input) { ok, error ->
+                        roomTempStatus = if (ok == true) "Gesendet – wird eingerechnet …" else error
+                        roomTempRefresh++
+                    }
+                },
+                delete = { airconId, sampleId ->
+                    val id = "${System.currentTimeMillis()}-${(1000..9999).random()}"
+                    roomTempSentId = id
+                    roomTempStatus = "Wird gelöscht …"
+                    val input = org.json.JSONObject().put("id", id).put("airconId", airconId).put("delete", sampleId)
+                    RoomTempIoBroker().send(prefs.getString("iobroker_server", null).orEmpty(), input) { ok, error ->
+                        roomTempStatus = if (ok == true) "Gesendet …" else error
+                        roomTempRefresh++
+                    }
+                },
+            ),
             onFilterDone = { kind ->
                 energyUnits.firstOrNull { it.airconId == selectedDevice?.wfRacAirconId }?.let { unit ->
                     FilterIoBroker().update(prefs.getString("iobroker_server", null).orEmpty(), { it.cleaned(kind, unit) }) { result, _ ->
@@ -845,6 +875,26 @@ private fun KlimaPilotApp(appVersion: String) {
             }
             first = false
             delay(300_000L)
+        }
+    }
+
+    // Learned room temperature: every minute, and a few seconds after a reading was sent.
+    LaunchedEffect(accountAuthenticated, roomTempRefresh) {
+        if (!accountAuthenticated) return@LaunchedEffect
+        val address = prefs.getString("iobroker_server", null).orEmpty()
+        if (address.isBlank()) return@LaunchedEffect
+        if (roomTempRefresh > 0) delay(4_000L)
+        while (true) {
+            RoomTempIoBroker().load(address) { result, _ ->
+                roomTempReachable = result != null
+                result?.let { models ->
+                    roomTempModels = models
+                    roomTempSentId?.let { sent ->
+                        models.values.firstOrNull { it.input?.id == sent }?.input?.let { roomTempStatus = it.message; roomTempSentId = null }
+                    }
+                }
+            }
+            delay(60_000L)
         }
     }
 
@@ -937,7 +987,8 @@ private fun MainScreen(
     todayEnergyKwh: Double?,
     energyPrice: Double,
     filtersDue: List<Triple<FilterKind, Int, Int>> = emptyList(),
-    onFilterDone: (FilterKind) -> Unit = {}
+    onFilterDone: (FilterKind) -> Unit = {},
+    roomTemp: RoomTempUi? = null
 ) {
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
@@ -1124,8 +1175,8 @@ private fun MainScreen(
                 TemperatureCard(
                     deviceName = shownDevice?.name ?: selectedRoom,
                     heatOffset = shownDevice?.heatOffset ?: 0.0,
-                    heatExtra = shownDevice?.heatExtra ?: 0.0,
-                    deviceKey = shownDevice?.id ?: selectedRoom,
+                    airconId = shownDevice?.wfRacAirconId.orEmpty(),
+                    roomTemp = roomTemp,
                     state = state,
                     connected = airconConnected,
                     busy = controlBusy,
@@ -1251,8 +1302,8 @@ private fun MainScreen(
 private fun TemperatureCard(
     deviceName: String,
     heatOffset: Double,
-    heatExtra: Double,
-    deviceKey: String,
+    airconId: String,
+    roomTemp: RoomTempUi?,
     state: AirconState?,
     connected: Boolean,
     busy: Boolean,
@@ -1302,26 +1353,31 @@ private fun TemperatureCard(
                 Text(if (connected) "● Lokal verbunden" else "○ Offline", color = if (connected) Green else Muted, fontSize = 10.sp)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                // Tap shows the raw sensor value for a few seconds (to compare with a thermometer).
-                var showRaw by remember { mutableStateOf(false) }
-                LaunchedEffect(showRaw) { if (showRaw) { kotlinx.coroutines.delay(5_000); showRaw = false } }
+                // Tap opens the room temperature dialog: sensor value, origin of the shown value and
+                // entry of a thermometer reading for the learning in the ioBroker script.
+                var showRoomTemp by remember { mutableStateOf(false) }
+                val model = roomTemp?.models?.get(airconId)
+                val learned = model?.currentOffset()
+                // The sensor sits high up in the indoor unit and reads too warm; the learned offset applies
+                // when current, otherwise the fixed correction of the device.
+                val shownIndoor = state?.indoorTemp?.let { raw -> raw - (learned ?: heatOffset) }
                 Column(
-                    Modifier.clip(RoundedCornerShape(10.dp)).clickable(enabled = state?.indoorTemp != null) { showRaw = !showRaw }.padding(horizontal = 4.dp),
+                    Modifier.clip(RoundedCornerShape(10.dp)).clickable(enabled = state?.indoorTemp != null) { showRoomTemp = true }.padding(horizontal = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(if (showRaw) "FÜHLER" else "INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-                    // The sensor sits high up in the indoor unit where warm air collects: the base correction
-                    // always applies (on or off, any mode). On top, a heating extra (see HeatingTracker).
-                    val shownIndoor = state?.let { st ->
-                        val raw = st.indoorTemp ?: return@let null
-                        val heatingOn = st.power && st.mode == Mode.HEAT
-                        val extra = if (heatExtra <= 0.0) 0.0
-                            else HeatingTracker.correction(deviceKey, raw, heating = heatingOn && st.compressorRunning, offset = heatExtra, unitOn = heatingOn)
-                        raw - heatOffset - extra
-                    }
-                    val displayed = if (showRaw) state?.indoorTemp else shownIndoor
-                    Text(displayed?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = if (showRaw) Muted else TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                    Text(shownIndoor?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
+                if (showRoomTemp) RoomTempDialog(
+                    raw = state?.indoorTemp,
+                    shown = shownIndoor,
+                    model = model,
+                    ioBrokerReachable = roomTemp?.reachable == true && airconId.isNotBlank(),
+                    status = roomTemp?.status,
+                    onSubmit = { thermo -> state?.indoorTemp?.let { raw -> roomTemp?.submit?.invoke(airconId, thermo, raw) } },
+                    onDeleteLast = { id -> roomTemp?.delete?.invoke(airconId, id) },
+                    onDismiss = { showRoomTemp = false }
+                )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(
                         modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = state != null && draftTemp > 16f) {
@@ -1818,29 +1874,5 @@ private fun TemperatureSlider(value: Float, enabled: Boolean, onValueChange: (Fl
         }
         drawCircle(Color.White, radius = knobRadius.toPx() + 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(knobX, y))
         drawCircle(active, radius = knobRadius.toPx(), center = androidx.compose.ui.geometry.Offset(knobX, y))
-    }
-}
-
-/**
- * Extra heating correction per unit on top of the base correction: while the compressor heats it grows
- * by as much as the sensor rises (up to the set value). While the unit stays on in heating mode it is
- * kept even when the compressor pauses, because the sensor stays too warm (24.11.2026 Büro: sensor 23 °C,
- * thermometer 18.2 °C, compressor idle). Only when the unit is off or in another mode it shrinks by as
- * much as the sensor falls. On first sight: full while on in heating mode, otherwise none.
- */
-internal object HeatingTracker {
-    private data class Track(val raw: Double, val correction: Double)
-    private val tracks = java.util.concurrent.ConcurrentHashMap<String, Track>()
-
-    fun correction(key: String, raw: Double, heating: Boolean, offset: Double, unitOn: Boolean = heating): Double {
-        val last = tracks[key]
-        val next = when {
-            last == null -> if (unitOn) offset else 0.0
-            heating -> last.correction + (raw - last.raw).coerceAtLeast(0.0)
-            unitOn -> last.correction
-            else -> last.correction - (last.raw - raw).coerceAtLeast(0.0)
-        }.coerceIn(0.0, offset)
-        tracks[key] = Track(raw, next)
-        return next
     }
 }

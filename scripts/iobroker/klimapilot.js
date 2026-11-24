@@ -17,6 +17,11 @@
  * 3. Diagnose (nur wenn in KlimaPilot eingeschaltet): prüft jede Minute die lokale Erreichbarkeit
  *    und protokolliert Ausfälle in 0_userdata.0.KlimaPilot.diagnostics.log.
  *
+ * 4. Raumtemperatur lernen: Der Fühler im Innengerät misst je nach Lage zu viel. Zu jedem in der App
+ *    eingetragenen Thermometerwert merkt sich das Skript den Zustand der Anlage (Modus, Verdichter
+ *    und wie lange er schon läuft bzw. steht, Fühlertrend, Lüfter, Außentemperatur …) und lernt
+ *    daraus je Anlage die Abweichung. Nutzt nur die ohnehin laufenden Abfragen.
+ *
  * Anlagen (IP, Geräte-ID), Strompreis und Zeitpläne schreibt KlimaPilot selbst.
  * Anfragen an dieselbe Anlage laufen nacheinander, weil das WLAN-Modul nur eine Verbindung
  * gleichzeitig verträgt.
@@ -134,7 +139,26 @@ const RCV_AIRFLOW = [0x07, 0x00, 0x01, 0x02, 0x06];
 const CMD_WIND_UD = [[192, 128], [128, 128], [128, 144], [128, 160], [128, 176]];
 const CMD_WIND_LR = [[3, 16], [2, 16], [2, 17], [2, 18], [2, 19], [2, 20], [2, 21], [2, 22]];
 const NO_SEGMENTS = [1, 255, 255, 255, 255];
-// Thermistortabelle Außentemperatur des WF-RAC-Moduls (Index = Rohwert, aus pywfrac, MIT; wie TempTables.kt).
+// Thermistortabellen Innen- und Außentemperatur des WF-RAC-Moduls (Index = Rohwert, aus pywfrac, MIT; wie TempTables.kt).
+const INDOOR_TEMPS = [
+    -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0,
+    -29.0, -28.0, -27.0, -26.0, -25.0, -24.0, -23.0, -22.5, -22.0, -21.0, -20.0, -19.5, -19.0, -18.0, -17.5, -17.0,
+    -16.5, -16.0, -15.0, -14.5, -14.0, -13.5, -13.0, -12.5, -12.0, -11.5, -11.0, -10.5, -10.0, -9.5, -9.0, -8.6,
+    -8.3, -8.0, -7.5, -7.0, -6.5, -6.0, -5.6, -5.3, -5.0, -4.5, -4.0, -3.6, -3.3, -3.0, -2.6, -2.3,
+    -2.0, -1.6, -1.3, -1.0, -0.5, 0.0, 0.3, 0.6, 1.0, 1.3, 1.6, 2.0, 2.3, 2.6, 3.0, 3.2,
+    3.5, 3.7, 4.0, 4.3, 4.6, 5.0, 5.3, 5.6, 6.0, 6.3, 6.6, 7.0, 7.2, 7.5, 7.7, 8.0,
+    8.3, 8.6, 9.0, 9.2, 9.5, 9.7, 10.0, 10.3, 10.6, 11.0, 11.2, 11.5, 11.7, 12.0, 12.3, 12.6,
+    13.0, 13.2, 13.5, 13.7, 14.0, 14.2, 14.5, 14.7, 15.0, 15.3, 15.6, 16.0, 16.2, 16.5, 16.7, 17.0,
+    17.2, 17.5, 17.7, 18.0, 18.2, 18.5, 18.7, 19.0, 19.2, 19.5, 19.7, 20.0, 20.2, 20.5, 20.7, 21.0,
+    21.2, 21.5, 21.7, 22.0, 22.2, 22.5, 22.7, 23.0, 23.2, 23.5, 23.7, 24.0, 24.2, 24.5, 24.7, 25.0,
+    25.2, 25.5, 25.7, 26.0, 26.2, 26.5, 26.7, 27.0, 27.2, 27.5, 27.7, 28.0, 28.2, 28.5, 28.7, 29.0,
+    29.2, 29.5, 29.7, 30.0, 30.2, 30.5, 30.7, 31.0, 31.3, 31.6, 32.0, 32.2, 32.5, 32.7, 33.0, 33.2,
+    33.5, 33.7, 34.0, 34.2, 34.5, 34.7, 35.0, 35.3, 35.6, 36.0, 36.2, 36.5, 36.7, 37.0, 37.2, 37.5,
+    37.7, 38.0, 38.3, 38.6, 39.0, 39.2, 39.5, 39.7, 40.0, 40.3, 40.6, 41.0, 41.2, 41.5, 41.7, 42.0,
+    42.3, 42.6, 43.0, 43.2, 43.5, 43.7, 44.0, 44.3, 44.6, 45.0, 45.3, 45.6, 46.0, 46.2, 46.5, 46.7,
+    47.0, 47.3, 47.6, 48.0, 48.3, 48.6, 49.0, 49.3, 49.6, 50.0, 50.3, 50.6, 51.0, 51.3, 51.6, 52.0
+];
+
 const OUTDOOR_TEMPS = [
     -50.0, -50.0, -50.0, -50.0, -50.0, -48.9, -46.0, -44.0, -42.0, -41.0, -39.0, -38.0, -37.0, -36.0, -35.0, -34.0,
     -33.0, -32.0, -31.0, -30.0, -29.0, -28.5, -28.0, -27.0, -26.0, -25.5, -25.0, -24.0, -23.5, -23.0, -22.5, -22.0,
@@ -172,7 +196,9 @@ function decodeStat(base64) {
     const segments = d.slice(start + 19, d.length - 2);
     let energy = null;
     let outdoor = null;
+    let indoor = null;
     for (let i = 0; i + 3 < segments.length; i += 4) {
+        if (segments[i] === 0x80 && segments[i + 1] === 0x20 && segments[i + 2] < INDOOR_TEMPS.length) indoor = INDOOR_TEMPS[segments[i + 2]];
         if (segments[i] === 0x94 && segments[i + 1] === 0x10) energy = ((segments[i + 3] << 8) | segments[i + 2]) * 0.25;
         if (segments[i] === 0x80 && segments[i + 1] === 0x10 && segments[i + 2] < OUTDOOR_TEMPS.length) outdoor = OUTDOOR_TEMPS[segments[i + 2]];
     }
@@ -194,6 +220,8 @@ function decodeStat(base64) {
         selfClean: (modelNr === 1 || modelNr === 2) ? (c[15] & 1) !== 0 : false,
         runEnergyKwh: energy,
         outdoorTemp: outdoor,
+        indoorTemp: indoor,
+        compressorRunning: (c[9] & 0x02) !== 0,
     };
 }
 
@@ -281,6 +309,7 @@ async function pollEnergy(unit) {
     try {
         const contents = await serial(unit, () => readStat(unit));
         const stat = decodeStat(contents.airconStat);
+        roomObserve(unit, stat, now);
         const value = stat.runEnergyKwh;
         if (value === null) throw new Error('Anlage meldet keinen Energiezähler');
         // Betriebszeit (Betriebstage für die Filter-Erinnerung in der App) und Außentemperatur (Mittel je Stunde und Tag).
@@ -364,6 +393,7 @@ async function pollAllEnergy() {
     energyRunning = true;
     try {
         for (const unit of await units()) await pollEnergy(unit);
+        await roomPublish();
     } catch (e) {
         log(`KlimaPilot Energie: ${e.message}`, 'warn');
     } finally {
@@ -442,12 +472,14 @@ async function probeAll() {
         if (!(await diagEnabled())) return;
         for (const unit of await units()) {
             try {
-                await serial(unit, () => readStat(unit));
+                const contents = await serial(unit, () => readStat(unit));
+                try { roomObserve(unit, decodeStat(contents.airconStat), new Date()); } catch (e) { /* nur Lernen */ }
                 await diagReach(unit, true);
             } catch (e) {
                 await diagReach(unit, !!e.refused, e.message);
             }
         }
+        await roomPublish();
     } catch (e) {
         log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
     } finally {
@@ -473,6 +505,296 @@ async function watchDiagnostics() {
         log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
     } finally {
         watching = false;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// 4. Raumtemperatur lernen
+// ---------------------------------------------------------------------------------------------
+// Die App schreibt einen Thermometerwert nach roomTemp.input. Das Skript speichert ihn mit dem
+// Zustand der Anlage in roomTemp.samples und lernt je Anlage, wie weit der Fühler vom Raum abweicht:
+// Ridge-Regression über standardisierte Merkmale, Stärke der Glättung per Kreuzprüfung gewählt.
+// Das Modell gilt nur, wenn es in der Kreuzprüfung besser trifft als der einfache Mittelwert.
+// Ergebnis (aktuelle Abweichung je Anlage) steht in roomTemp.model; die App zieht sie vom Fühler ab.
+
+const ROOM_ROOT = '0_userdata.0.KlimaPilot.roomTemp';
+const ROOM_INPUT_ID = `${ROOM_ROOT}.input`;
+const ROOM_SAMPLES_ID = `${ROOM_ROOT}.samples`;
+const ROOM_MODEL_ID = `${ROOM_ROOT}.model`;
+const ROOM_TRACK_ID = `${ROOM_ROOT}.track`;
+const ROOM_MAX_SAMPLES = 400;
+const ROOM_MIN_MEAN = 3;    // ab 3 Messwerten: Mittelwert
+const ROOM_MIN_MODEL = 8;   // ab 8 Messwerten: Modell, wenn es in der Kreuzprüfung besser trifft
+const ROOM_FEATURES = ['on', 'heat', 'comp', 'runFresh', 'restFresh', 'offFresh', 'trend', 'outdoor', 'fan', 'setDiff'];
+const ROOM_LAMBDAS = [0.3, 1, 3, 10, 30];
+const MODE_NAMES = { HEAT: 'Heizen', COOL: 'Kühlen', DRY: 'Trocknen', FAN: 'Lüfter', AUTO: 'Auto' };
+
+const roomTrack = {};   // airconId → { power, comp, powerSince, compSince, raws, raw, stat, at }
+const roomFits = {};    // airconId → gelerntes Modell
+const roomResults = {}; // airconId → Ergebnis der letzten Eingabe
+let roomTrackLoaded = false;
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const roomMinutes = (since, t) => since == null ? 240 : Math.min(240, Math.max(0, (t - since) / 60000));
+
+/** Merkt sich je Minute (bzw. 5 min ohne Diagnose) den Zustand; Wechsel von Ein/Aus und Verdichter mit Zeitpunkt. */
+function roomObserve(unit, stat, now) {
+    if (typeof stat.indoorTemp !== 'number') return;
+    const t = now.getTime();
+    const tr = roomTrack[unit.airconId] = roomTrack[unit.airconId] || { raws: [] };
+    const comp = !!(stat.power && stat.compressorRunning);
+    let changed = false;
+    // Unbekannter Vorzustand (erster Lauf): Dauer unbekannt, gilt als „lange“.
+    if (tr.power !== stat.power) { tr.powerSince = tr.power === undefined ? null : t; tr.power = stat.power; changed = true; }
+    if (tr.comp !== comp) { tr.compSince = tr.comp === undefined ? null : t; tr.comp = comp; changed = true; }
+    tr.raws = (tr.raws || []).filter(([at]) => t - at <= 20 * 60000);
+    tr.raws.push([t, stat.indoorTemp]);
+    tr.raw = stat.indoorTemp;
+    tr.stat = { power: stat.power, mode: stat.mode, airFlow: stat.airFlow, presetTemp: stat.presetTemp, outdoorTemp: stat.outdoorTemp };
+    tr.at = t;
+    if (changed) roomSaveTrack();
+}
+
+function roomSaveTrack() {
+    const data = {};
+    for (const [id, tr] of Object.entries(roomTrack)) data[id] = { power: tr.power, comp: tr.comp, powerSince: tr.powerSince, compSince: tr.compSince };
+    ensureJsonState(ROOM_TRACK_ID, 'KlimaPilot – Raumtemperatur: Zustandswechsel (intern)', {})
+        .then(() => setStateAsync(ROOM_TRACK_ID, JSON.stringify(data), true))
+        .catch(e => log(`KlimaPilot Raumtemperatur: ${e.message}`, 'warn'));
+}
+
+async function roomLoadTrack() {
+    if (roomTrackLoaded) return;
+    roomTrackLoaded = true;
+    await ensureJsonState(ROOM_TRACK_ID, 'KlimaPilot – Raumtemperatur: Zustandswechsel (intern)', {});
+    const data = await readJson(ROOM_TRACK_ID) || {};
+    for (const [id, saved] of Object.entries(data)) {
+        if (!roomTrack[id]) roomTrack[id] = Object.assign({ raws: [] }, saved);
+    }
+}
+
+function roomFeatures(tr, t) {
+    const s = tr.stat;
+    const on = s.power ? 1 : 0;
+    const comp = tr.comp ? 1 : 0;
+    const old = tr.raws.find(([at]) => t - at <= 12 * 60000) || tr.raws[0];
+    return {
+        on,
+        heat: on && s.mode === 'HEAT' ? 1 : 0,
+        comp,
+        runFresh: comp ? Math.exp(-roomMinutes(tr.compSince, t) / 15) : 0,      // 1 = Verdichter gerade gestartet
+        restFresh: on && !comp ? Math.exp(-roomMinutes(tr.compSince, t) / 15) : 0, // 1 = Verdichter gerade gestoppt
+        offFresh: !on ? Math.exp(-roomMinutes(tr.powerSince, t) / 30) : 0,        // 1 = Anlage gerade ausgeschaltet
+        trend: old ? clamp(tr.raw - old[1], -3, 3) : 0,                            // Fühleränderung der letzten ~10 min
+        outdoor: typeof s.outdoorTemp === 'number' ? s.outdoorTemp : 5,
+        fan: on ? (s.airFlow > 0 ? s.airFlow : 2) : 0,                             // Auto zählt als mittlere Stufe
+        setDiff: on && typeof s.presetTemp === 'number' ? clamp(s.presetTemp - tr.raw, -10, 10) : 0,
+    };
+}
+
+function roomScenario(tr, t) {
+    const s = tr.stat;
+    if (!s.power) return roomMinutes(tr.powerSince, t) < 30 ? 'Aus, kürzlich abgeschaltet' : 'Aus';
+    const mode = MODE_NAMES[s.mode] || 'An';
+    if (s.mode === 'FAN') return mode;
+    if (tr.comp) return `${mode}, Verdichter ${roomMinutes(tr.compSince, t) < 10 ? 'startet' : 'läuft'}`;
+    return `${mode}, Pause ${roomMinutes(tr.compSince, t) < 10 ? 'kurz' : 'lang'}`;
+}
+
+function roomScenarioList(tr) {
+    const mode = tr && tr.stat && tr.stat.power && MODE_NAMES[tr.stat.mode] && tr.stat.mode !== 'FAN' ? MODE_NAMES[tr.stat.mode] : 'Heizen';
+    return ['Aus', 'Aus, kürzlich abgeschaltet', `${mode}, Verdichter startet`, `${mode}, Verdichter läuft`, `${mode}, Pause kurz`, `${mode}, Pause lang`];
+}
+
+/** Löst A·x = b (A symmetrisch positiv definit) per Gauß-Elimination mit Pivotsuche. */
+function solve(A, b) {
+    const n = b.length;
+    const M = A.map((row, i) => [...row, b[i]]);
+    for (let c = 0; c < n; c++) {
+        let p = c;
+        for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+        [M[c], M[p]] = [M[p], M[c]];
+        const d = M[c][c] || 1e-9;
+        for (let r = 0; r < n; r++) {
+            if (r === c) continue;
+            const f = M[r][c] / d;
+            if (f) for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+        }
+    }
+    return M.map((row, i) => row[n] / (row[i] || 1e-9));
+}
+
+function ridgeFit(X, y, lambda) {
+    const n = X.length, k = X[0].length;
+    const mean = Array(k).fill(0), sd = Array(k).fill(0);
+    for (const x of X) x.forEach((v, j) => { mean[j] += v / n; });
+    for (const x of X) x.forEach((v, j) => { sd[j] += (v - mean[j]) ** 2 / n; });
+    for (let j = 0; j < k; j++) sd[j] = Math.sqrt(sd[j]) > 1e-6 ? Math.sqrt(sd[j]) : 1;
+    const ym = y.reduce((a, v) => a + v, 0) / n;
+    const Z = X.map(x => x.map((v, j) => (v - mean[j]) / sd[j]));
+    const A = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (i === j ? lambda : 0)));
+    const b = Array(k).fill(0);
+    Z.forEach((z, r) => {
+        for (let i = 0; i < k; i++) {
+            b[i] += z[i] * (y[r] - ym);
+            for (let j = 0; j < k; j++) A[i][j] += z[i] * z[j];
+        }
+    });
+    return { mean, sd, w: solve(A, b), ym };
+}
+
+const ridgePredict = (m, x) => m.ym + x.reduce((a, v, j) => a + m.w[j] * (v - m.mean[j]) / m.sd[j], 0);
+
+/** Mittlerer Fehler in der Kreuzprüfung (bis 60 Werte: jeder einzeln weggelassen, sonst 10 Teile). */
+function crossValidate(X, y, lambda) {
+    const n = y.length, folds = n <= 60 ? n : 10;
+    let errModel = 0, errMean = 0;
+    for (let f = 0; f < folds; f++) {
+        const trainX = [], trainY = [], testI = [];
+        for (let i = 0; i < n; i++) {
+            if (i % folds === f) testI.push(i);
+            else { trainX.push(X[i]); trainY.push(y[i]); }
+        }
+        if (!testI.length || trainY.length < 2) continue;
+        const m = lambda === null ? null : ridgeFit(trainX, trainY, lambda);
+        const avg = trainY.reduce((a, v) => a + v, 0) / trainY.length;
+        for (const i of testI) {
+            if (m) errModel += Math.abs(ridgePredict(m, X[i]) - y[i]);
+            errMean += Math.abs(avg - y[i]);
+        }
+    }
+    return { model: errModel / n, mean: errMean / n };
+}
+
+function roomFit(airconId, samples) {
+    const usable = samples.filter(s => s && s.f && typeof s.offset === 'number');
+    const n = usable.length;
+    const y = usable.map(s => s.offset);
+    const fit = { n, using: 'none', min: n ? Math.min(...y) : 0, max: n ? Math.max(...y) : 0 };
+    if (n >= ROOM_MIN_MEAN) {
+        fit.using = 'mean';
+        fit.mean = y.reduce((a, v) => a + v, 0) / n;
+        fit.cvMean = crossValidate(usable.map(() => [0]), y, null).mean;
+    }
+    if (n >= ROOM_MIN_MODEL) {
+        const X = usable.map(s => ROOM_FEATURES.map(name => Number(s.f[name]) || 0));
+        let best = null;
+        for (const lambda of ROOM_LAMBDAS) {
+            const cv = crossValidate(X, y, lambda);
+            if (!best || cv.model < best.cv) best = { lambda, cv: cv.model };
+        }
+        fit.cvModel = best.cv;
+        fit.lambda = best.lambda;
+        // Nur übernehmen, wenn das Modell spürbar besser trifft als der einfache Mittelwert.
+        if (best.cv < fit.cvMean - 0.05) {
+            fit.using = 'model';
+            fit.ridge = ridgeFit(X, y, best.lambda);
+            fit.weights = Object.fromEntries(ROOM_FEATURES.map((name, j) => [name, Math.round(fit.ridge.w[j] / fit.ridge.sd[j] * 1000) / 1000]));
+        }
+    }
+    roomFits[airconId] = fit;
+}
+
+function roomOffset(fit, f) {
+    if (!fit || fit.using === 'none') return null;
+    const raw = fit.using === 'model' ? ridgePredict(fit.ridge, ROOM_FEATURES.map(name => f[name])) : fit.mean;
+    // Nie weiter hinaus raten als 1 °C über die bisher gemessenen Abweichungen.
+    return Math.round(clamp(raw, fit.min - 1, fit.max + 1) * 10) / 10;
+}
+
+async function roomReadSamples() {
+    await ensureJsonState(ROOM_SAMPLES_ID, 'KlimaPilot – Raumtemperatur: Thermometerwerte mit Anlagenzustand', { units: {} });
+    const data = await readJson(ROOM_SAMPLES_ID) || {};
+    data.units = data.units && typeof data.units === 'object' ? data.units : {};
+    return data;
+}
+
+async function roomInput(text) {
+    let input;
+    try { input = JSON.parse(text); } catch (e) { return; }
+    if (!input || !input.airconId) return;
+    const data = await roomReadSamples();
+    const list = data.units[input.airconId] = Array.isArray(data.units[input.airconId]) ? data.units[input.airconId] : [];
+    const result = { id: input.id || '', at: new Date().toISOString(), ok: false, message: '' };
+    if (input.delete) {
+        const before = list.length;
+        data.units[input.airconId] = list.filter(s => s.id !== input.delete);
+        result.ok = data.units[input.airconId].length < before;
+        result.message = result.ok ? 'Messwert gelöscht.' : 'Messwert nicht gefunden.';
+    } else {
+        const tr = roomTrack[input.airconId];
+        const thermo = Number(input.thermometer);
+        const raw = typeof input.raw === 'number' ? input.raw : tr && tr.raw;
+        const t = Date.now();
+        if (!tr || !tr.stat || t - tr.at > 10 * 60000) result.message = 'Keine aktuellen Daten der Anlage im Skript – später noch einmal versuchen.';
+        else if (!(thermo >= 5 && thermo <= 40)) result.message = 'Thermometerwert unplausibel.';
+        else if (typeof raw !== 'number' || raw - thermo < -5 || raw - thermo > 12) result.message = 'Abweichung zum Fühler unplausibel – Wert nicht übernommen.';
+        else {
+            const f = roomFeatures(tr, t);
+            for (const k of Object.keys(f)) f[k] = Math.round(f[k] * 1000) / 1000;
+            list.push({ id: input.id || String(t), at: new Date(t).toISOString(), thermo, raw, offset: Math.round((raw - thermo) * 10) / 10, scenario: roomScenario(tr, t), f });
+            data.units[input.airconId] = list.slice(-ROOM_MAX_SAMPLES);
+            result.ok = true;
+            result.message = 'Messwert gespeichert.';
+        }
+    }
+    if (result.ok) {
+        await setStateAsync(ROOM_SAMPLES_ID, JSON.stringify(data), true);
+        roomFit(input.airconId, data.units[input.airconId]);
+    }
+    roomResults[input.airconId] = result;
+    await setStateAsync(ROOM_INPUT_ID, text, true);
+    await roomPublish();
+}
+
+/** Schreibt je Anlage die aktuelle Abweichung, den Lernstand und die Abdeckung der Lagen. */
+async function roomPublish() {
+    try {
+        const data = await roomReadSamples();
+        const out = { updatedAt: new Date().toISOString(), units: {} };
+        const t = Date.now();
+        const ids = new Set([...Object.keys(roomTrack), ...Object.keys(data.units)]);
+        for (const id of ids) {
+            const list = data.units[id] || [];
+            if (!roomFits[id]) roomFit(id, list);
+            const fit = roomFits[id];
+            const tr = roomTrack[id];
+            const fresh = tr && tr.stat && t - tr.at <= 10 * 60000;
+            const coverage = {};
+            for (const s of list) coverage[s.scenario] = (coverage[s.scenario] || 0) + 1;
+            const last = list[list.length - 1];
+            out.units[id] = {
+                using: fit.using,
+                samples: fit.n,
+                offset: fresh ? roomOffset(fit, roomFeatures(tr, t)) : null,
+                scenario: fresh ? roomScenario(tr, t) : '',
+                scenarios: roomScenarioList(tr),
+                coverage,
+                errorModel: typeof fit.cvModel === 'number' ? Math.round(fit.cvModel * 100) / 100 : null,
+                errorMean: typeof fit.cvMean === 'number' ? Math.round(fit.cvMean * 100) / 100 : null,
+                minForModel: ROOM_MIN_MODEL,
+                weights: fit.weights || null,
+                last: last ? { id: last.id, at: last.at, thermo: last.thermo, raw: last.raw } : null,
+                input: roomResults[id] || null,
+            };
+        }
+        await ensureJsonState(ROOM_MODEL_ID, 'KlimaPilot – Raumtemperatur: gelernte Abweichung je Anlage (nur lesen)', { units: {} });
+        await setStateAsync(ROOM_MODEL_ID, JSON.stringify(out), true);
+    } catch (e) {
+        log(`KlimaPilot Raumtemperatur: ${e.message}`, 'warn');
+    }
+}
+
+async function roomStart() {
+    await roomLoadTrack();
+    await ensureJsonState(ROOM_INPUT_ID, 'KlimaPilot – Raumtemperatur: Thermometerwert aus der App (wird von KlimaPilot geschrieben)', {});
+    on({ id: ROOM_INPUT_ID, change: 'any', ack: false }, async obj => {
+        try { if (await isOwner()) await roomInput(String(obj.state.val || '')); } catch (e) { log(`KlimaPilot Raumtemperatur: ${e.message}`, 'warn'); }
+    });
+    // Eine Eingabe, die während eines Neustarts kam, noch übernehmen (bis 10 min alt).
+    const pending = await getStateAsync(ROOM_INPUT_ID);
+    if (pending && pending.ack === false && pending.val && Date.now() - pending.ts < 10 * 60000) {
+        setTimeout(() => { isOwner().then(own => own && roomInput(String(pending.val))).catch(() => {}); }, 90 * 1000);
     }
 }
 
@@ -647,5 +969,11 @@ const whenOwner = task => async () => { if (await isOwner()) await task(); };
 schedule(`*/${POLL_MINUTES} * * * *`, whenOwner(pollAllEnergy));
 schedule('* * * * *', whenOwner(runSchedules));
 schedule('* * * * *', whenOwner(async () => { await watchDiagnostics(); await probeAll(); }));
-claimOwnership().then(() => { watchDiagnostics(); pollAllEnergy(); });
+claimOwnership().then(async () => {
+    // Gespeicherte Zustandswechsel vor der ersten Ablesung laden, sonst gilt die Dauer als unbekannt.
+    await roomLoadTrack().catch(e => log(`KlimaPilot Raumtemperatur: ${e.message}`, 'warn'));
+    watchDiagnostics();
+    pollAllEnergy();
+    roomStart().catch(e => log(`KlimaPilot Raumtemperatur: ${e.message}`, 'warn'));
+});
 runSchedules();

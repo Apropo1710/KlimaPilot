@@ -23,7 +23,7 @@ private val ManagerText = Color(0xFF172334)
 private val ManagerMuted = Color(0xFF63748A)
 private val ManagerBorder = Color(0xFFCBD5E1)
 
-internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap(), val model: String = "", val syncDeviceKey: String = "", val wfRacHost: String = "", val wfRacAirconId: String = "", val demoMode: Boolean = false, val heatOffset: Double = 0.0, val heatExtra: Double = 0.0)
+internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap(), val model: String = "", val syncDeviceKey: String = "", val wfRacHost: String = "", val wfRacAirconId: String = "", val demoMode: Boolean = false, val heatOffset: Double = 0.0)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -286,7 +286,6 @@ internal fun RoomDeviceManagerScreen(
         var name by remember(original, addDevice) { mutableStateOf(original?.name ?: "") }
         var selectedRoom by remember(original, addDevice, rooms.size) { mutableStateOf(original?.room ?: rooms.first()) }
         var heatOffset by remember(original, addDevice) { mutableStateOf(original?.heatOffset ?: 0.0) }
-        var heatExtra by remember(original, addDevice) { mutableStateOf(original?.heatExtra ?: 0.0) }
         var showOffsetInfo by remember { mutableStateOf(false) }
         KlimaPilotAlertDialog(
             onDismissRequest = { addDevice = false; editing = null },
@@ -317,23 +316,22 @@ internal fun RoomDeviceManagerScreen(
                             )
                         }
                     }
-                    // The sensor sits high up where warm air collects: a base value always, plus an extra while heating that follows the sensor.
+                    // The sensor sits high up where warm air collects: fixed correction until the ioBroker script has learned enough readings.
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Korrektur Raumtemperatur", color = ManagerText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         TextButton(onClick = { showOffsetInfo = true }, colors = ButtonDefaults.textButtonColors(contentColor = ManagerMuted)) { Text("ⓘ") }
                     }
-                    OffsetStepper("immer", heatOffset) { heatOffset = it }
-                    OffsetStepper("beim Heizen zusätzlich", heatExtra) { heatExtra = it }
+                    OffsetStepper("fest, bis genug Messwerte gelernt sind", heatOffset) { heatOffset = it }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         if (name.trim().isNotEmpty()) {
-                            if (original == null) devices.add(UserDevice(java.util.UUID.randomUUID().toString(), name.trim(), selectedRoom, heatOffset = heatOffset, heatExtra = heatExtra))
+                            if (original == null) devices.add(UserDevice(java.util.UUID.randomUUID().toString(), name.trim(), selectedRoom, heatOffset = heatOffset))
                             else {
                                 val index = devices.indexOfFirst { it.id == original.id }
-                                if (index >= 0) devices[index] = original.copy(name = name.trim(), room = selectedRoom, heatOffset = heatOffset, heatExtra = heatExtra)
+                                if (index >= 0) devices[index] = original.copy(name = name.trim(), room = selectedRoom, heatOffset = heatOffset)
                             }
                             save()
                             addDevice = false
@@ -352,11 +350,9 @@ internal fun RoomDeviceManagerScreen(
             text = {
                 Text(
                     "Der Fühler sitzt oben im Innengerät, wo sich die warme Luft sammelt, und misst deshalb mehr als ein Thermometer im Raum – ob die Anlage läuft oder nicht.\n\n" +
-                        "„Immer“ wird stets abgezogen, in jedem Modus und auch bei ausgeschalteter Anlage.\n\n" +
-                        "„Beim Heizen zusätzlich“ folgt dem Fühler: Läuft der Verdichter, wächst der Zuschlag so weit, wie der Fühler steigt, bis zum eingestellten Wert. Solange die Anlage heizt, bleibt er auch in Verdichterpausen; erst ausgeschaltet oder in einem anderen Modus schrumpft er so weit, wie der Fühler fällt.\n\n" +
-                        "Antippen von „Innen“ zeigt kurz den Fühlerwert.\n\n" +
-                        "Am besten ein paar Tage mit einem Thermometer im Raum vergleichen und anpassen.\n\n" +
-                        "Nur Anzeige – die Regelung der Anlage ändert sich nicht."
+                        "Diese feste Korrektur gilt, bis das ioBroker-Skript aus eingetragenen Thermometerwerten genug gelernt hat, und wenn ioBroker nicht erreichbar ist.\n\n" +
+                        "Thermometerwerte trägt man auf der Hauptseite ein: „Innen“ antippen.\n\n" +
+                                                "Nur Anzeige – die Regelung der Anlage ändert sich nicht."
                 )
             }
         )
