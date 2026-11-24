@@ -195,7 +195,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 10. Nächste Schritte
 
-1. Mit dem nächsten App-Update: Schalter „Gelernten Wert automatisch verwenden“ im Geräte-Editor (`RoomDeviceManager.kt`) auf blaue Schalterfarben umstellen (zeigt noch Standard-Lila).
+1. Mit dem nächsten App-Update: (a) Schalter „Gelernten Wert automatisch verwenden“ im Geräte-Editor (`RoomDeviceManager.kt`) auf blaue Schalterfarben umstellen (zeigt noch Standard-Lila); (b) lange ⓘ-Texte in `KlimaPilotAlertDialog` (z. B. „Raumtemperatur beim Heizen“) laufen unten in die Navigationsleiste – Text scrollbar mit begrenzter Höhe, Abstand zur Navigationsleiste, Info-Text kürzen/absetzen.
 2. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
 3. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
 4. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
