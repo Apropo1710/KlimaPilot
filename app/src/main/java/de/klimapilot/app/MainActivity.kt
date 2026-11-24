@@ -1299,8 +1299,14 @@ private fun TemperatureCard(
                 Text(if (connected) "● Lokal verbunden" else "○ Offline", color = if (connected) Green else Muted, fontSize = 10.sp)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                // Tap shows the raw sensor value for a few seconds (to compare with a thermometer).
+                var showRaw by remember { mutableStateOf(false) }
+                LaunchedEffect(showRaw) { if (showRaw) { kotlinx.coroutines.delay(5_000); showRaw = false } }
+                Column(
+                    Modifier.clip(RoundedCornerShape(10.dp)).clickable(enabled = state?.indoorTemp != null) { showRaw = !showRaw }.padding(horizontal = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(if (showRaw) "FÜHLER" else "INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                     // While heating, the sensor (high up, in the warm air) reads too high; show the room value instead.
                     // The correction follows the sensor: it grows as the sensor rises while the compressor
                     // heats and shrinks as it falls after a stop, up to the set value.
@@ -1309,7 +1315,8 @@ private fun TemperatureCard(
                         if (st.mode != Mode.HEAT || heatOffset <= 0.0) raw
                         else raw - HeatingTracker.correction(deviceKey, raw, st.compressorRunning && st.power, heatOffset)
                     }
-                    Text(shownIndoor?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    val displayed = if (showRaw) state?.indoorTemp else shownIndoor
+                    Text(displayed?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = if (showRaw) Muted else TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(
@@ -1443,137 +1450,6 @@ private fun CompactMetricCard(modifier: Modifier, title: String, value: String, 
 @Composable
 private fun SectionTitle(text: String) {
     Text(text, color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
-}
-
-@Composable
-internal fun WfRacConnectionCard(onConnectionChanged: (Boolean) -> Unit) {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE) }
-    val discovery = remember(context) { de.klimapilot.app.wfrac.WfRacDiscovery(context) }
-    val connectionRepository = remember(context) { de.klimapilot.app.wfrac.WfRacConnectionRepository(context) }
-    var host by remember { mutableStateOf(prefs.getString("wf_rac_host", "") ?: "") }
-    var busy by remember { mutableStateOf(false) }
-    var scanning by remember { mutableStateOf(false) }
-    var scanMessage by remember { mutableStateOf("Noch keine Suche durchgeführt") }
-    var foundModules by remember { mutableStateOf<List<de.klimapilot.app.wfrac.WfRacDiscoveredService>>(emptyList()) }
-    var result by remember { mutableStateOf("Noch nicht getestet") }
-    var details by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
-
-    DisposableEffect(discovery) {
-        onDispose { discovery.stop() }
-    }
-
-    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PanelRaised)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Direkte Klimaanlagen-Verbindung", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Text("Read-only Verbindungstest zum WF-RAC-Modul. Es werden keine Steuerbefehle gesendet und kein Bedienerkonto registriert.", color = Muted, fontSize = 12.sp)
-            OutlinedButton(
-                enabled = !scanning && !busy,
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    foundModules = emptyList()
-                    scanning = true
-                    scanMessage = "Suche im lokalen WLAN …"
-                    val started = discovery.start(
-                        onFound = { found ->
-                            if (foundModules.none { it.host == found.host }) foundModules = foundModules + found
-                        },
-                        onError = { message ->
-                            scanMessage = message
-                            scanning = false
-                        }
-                    )
-                    if (started) {
-                        scope.launch {
-                            delay(10_000)
-                            discovery.stop()
-                            scanning = false
-                            scanMessage = if (foundModules.isEmpty()) {
-                                "Keine WF-RAC-Module gefunden. Prüfe WLAN und Modul."
-                            } else {
-                                "${foundModules.size} Modul(e) gefunden"
-                            }
-                        }
-                    } else {
-                        scanning = false
-                        scanMessage = "Die Suche konnte nicht gestartet werden."
-                    }
-                }
-            ) { Text(if (scanning) "Suche läuft …" else "WLAN-Modul automatisch suchen") }
-            Text(scanMessage, color = Muted, fontSize = 12.sp)
-            foundModules.forEach { found ->
-                OutlinedButton(
-                    onClick = {
-                        host = found.host
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !busy
-                ) {
-                    Text("${found.name} · ${found.host}")
-                }
-            }
-            OutlinedTextField(
-                value = host,
-                onValueChange = { host = it },
-                label = { Text("IP-Adresse des WLAN-Moduls") },
-                placeholder = { Text("z. B. 192.168.178.100") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(result, color = if (result.startsWith("Erfolgreich")) Green else Muted, fontSize = 12.sp)
-            if (details.isNotBlank()) Text(details, color = TextMain, fontSize = 12.sp)
-            Button(
-                enabled = !busy && !scanning && host.trim().isNotEmpty(),
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    val address = host.trim()
-                    busy = true
-                    result = "Verbindung wird geprüft …"
-                    onConnectionChanged(false)
-                    details = ""
-                    scope.launch {
-                        try {
-                            val connection = withContext(Dispatchers.IO) {
-                                connectionRepository.readStatus(address)
-                            }
-                            val status = connection.status
-                            val module = connection.module
-                            val state = status.state
-                            result = "Erfolgreich verbunden – Identität geprüft, Status nur gelesen"
-                            onConnectionChanged(true)
-                            details = buildString {
-                                append("Aircon-ID: ").append(connection.airconId)
-                                append("\nVerfahren: ").append(connection.scheme.name)
-                                if (connection.scheme == de.klimapilot.app.wfrac.Scheme.HTTPS) {
-                                    append("\nHTTPS-Fingerprint: ").append(connection.certificatePin ?: "fehlt")
-                                }
-                                append("\nGeräteidentität dauerhaft gespeichert")
-                                append("\nWLAN-Firmware: ").append(module?.wireless ?: "nicht gemeldet")
-                                append("\nMCU-Firmware: ").append(module?.mcu ?: "nicht gemeldet")
-                                append("\nModultyp: ").append(module?.firmType ?: "nicht gemeldet")
-                                append("\nBelegte Konten: ").append(status.accounts?.toString() ?: "unbekannt").append(" / 4")
-                                append("\nGerätestatus: ").append(if (state.power) "Ein" else "Aus")
-                                append("\nBetriebsmodus: ").append(state.mode?.name ?: "unbekannt")
-                                append("\nSolltemperatur: ").append(state.presetTemp).append(" °C")
-                                append("\nLüfterstufe: ").append(state.airFlow)
-                                append("\nFühlertemperatur innen (unkorrigiert): ").append(state.indoorTemp?.let { "$it °C" } ?: "nicht gemeldet")
-                                append("\nAußentemperatur: ").append(state.outdoorTemp?.let { "$it °C" } ?: "nicht gemeldet")
-                                append("\nFehlercode: ").append(state.errorCode ?: "keiner gemeldet")
-                                if (status.lockedForS > 0) append("\nSchreibsperre eines anderen Clients: ").append(status.lockedForS).append(" s")
-                            }
-                        } catch (error: Exception) {
-                            onConnectionChanged(false)
-                            result = if (error is SecurityException) "Sicherheitsprüfung fehlgeschlagen" else "Verbindung fehlgeschlagen"
-                            details = error.message ?: error.javaClass.simpleName
-                        } finally {
-                            busy = false
-                        }
-                    }
-                }
-            ) { Text(if (busy) "Prüfe Verbindung …" else "WLAN-Modul auslesen") }
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

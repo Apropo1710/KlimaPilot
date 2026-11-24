@@ -3,7 +3,6 @@ package de.klimapilot.app.wfrac
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
 
 /** A locally trusted WF-RAC module identity and its transport security binding. */
 data class WfRacStoredIdentity(
@@ -107,81 +106,3 @@ data class WfRacConnectionResult(
     val scheme: Scheme,
     val certificatePin: String?,
 )
-
-/**
- * Performs a read-only connection and enforces the identity/pin binding before reading status.
- * A new certificate is accepted only for the very first trusted module. Known modules must
- * retain their scheme and HTTPS SHA-256 fingerprint.
- */
-class WfRacConnectionRepository(context: Context) {
-    private val appContext = context.applicationContext
-    private val settings = appContext.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE)
-    val identities = WfRacIdentityStore(appContext)
-
-    suspend fun readStatus(host: String): WfRacConnectionResult {
-        val address = host.trim()
-        require(address.isNotBlank()) { "IP-Adresse des WLAN-Moduls fehlt." }
-
-        val deviceId = settings.getString("wf_rac_device_id", null) ?: UUID.randomUUID().toString().also {
-            settings.edit().putString("wf_rac_device_id", it).apply()
-        }
-        val knownAtHost = identities.findByHost(address)
-        val knownScheme = knownAtHost?.scheme
-        val client = WfRacClient(
-            host = address,
-            deviceId = deviceId,
-            scheme = knownScheme,
-            certificatePin = knownAtHost?.certificatePin,
-        )
-
-        // getDeviceInfo is read-only. It establishes the module identity and observes the TLS pin.
-        val airconId = client.getDeviceInfo()
-        val actualScheme = client.scheme
-            ?: throw SecurityException("Das WF-RAC-Modul hat kein gültiges Verbindungsverfahren gemeldet.")
-
-        if (knownAtHost != null && knownAtHost.airconId != airconId) {
-            throw SecurityException(
-                "Sicherheitsprüfung abgebrochen: An dieser IP wurde eine andere Klimaanlagen-ID erkannt."
-            )
-        }
-
-        val knownIdentity = identities.findByAirconId(airconId)
-        if (knownIdentity != null) {
-            if (knownIdentity.scheme != actualScheme) {
-                throw SecurityException(
-                    "Sicherheitsprüfung abgebrochen: Das Verbindungsverfahren des bekannten Moduls hat sich geändert."
-                )
-            }
-            if (actualScheme == Scheme.HTTPS && knownIdentity.certificatePin != client.certificatePin) {
-                throw SecurityException(
-                    "Sicherheitsprüfung abgebrochen: Der HTTPS-Zertifikat-Fingerprint stimmt nicht mit dem gespeicherten Wert überein."
-                )
-            }
-        } else if (identities.all().isNotEmpty()) {
-            throw SecurityException(
-                "Unbekanntes WF-RAC-Modul erkannt. Es wurde nicht automatisch als vertrauenswürdig gespeichert."
-            )
-        }
-
-        // No status request is sent until the known identity and, for HTTPS, its fingerprint match.
-        val status = client.getStatus(airconId)
-        val pin = client.certificatePin
-        if (actualScheme == Scheme.HTTPS && pin.isNullOrBlank()) {
-            throw SecurityException("Das HTTPS-Zertifikat konnte nicht dauerhaft identifiziert werden.")
-        }
-
-        val saved = identities.save(
-            WfRacStoredIdentity(
-                airconId = airconId,
-                host = address,
-                scheme = actualScheme,
-                certificatePin = pin,
-                lastVerifiedAt = System.currentTimeMillis(),
-            )
-        )
-        if (!saved) throw IllegalStateException("Die Geräteidentität konnte nicht dauerhaft gespeichert werden.")
-
-        settings.edit().putString("wf_rac_host", address).apply()
-        return WfRacConnectionResult(airconId, status, client.trace.module, actualScheme, pin)
-    }
-}
