@@ -167,8 +167,7 @@ private fun KlimaPilotApp(appVersion: String) {
                         item.optString("adapterKey", "generic"), item.optString("adapterInstance", ""),
                         item.optString("rootObjectId", ""), mappings, item.optString("model", ""), item.optString("syncDeviceKey", ""),
                         item.optString("wfRacHost", ""), item.optString("wfRacAirconId", ""), item.optBoolean("demoMode", false),
-                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0,
-                        item.optBoolean("heatOffsetAuto", false)
+                        item.optDouble("heatOffset", 0.0).takeIf { !it.isNaN() } ?: 0.0
                     ))
                 }
             }
@@ -188,7 +187,7 @@ private fun KlimaPilotApp(appVersion: String) {
                         .put("rootObjectId", device.rootObjectId).put("mappings", org.json.JSONObject(device.mappings))
                         .put("model", device.model).put("syncDeviceKey", device.syncDeviceKey)
                         .put("wfRacHost", device.wfRacHost).put("wfRacAirconId", device.wfRacAirconId)
-                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset).put("heatOffsetAuto", device.heatOffsetAuto))
+                        .put("demoMode", device.demoMode).put("heatOffset", device.heatOffset))
                 }
             }.toString())
             .apply()
@@ -837,7 +836,6 @@ private fun KlimaPilotApp(appVersion: String) {
                 }
             }
             FilterIoBroker().load(address) { result, _ -> result?.let { filterConfig = it } }
-            HeatOffsetIoBroker.load(address) { learned -> LearnedHeatOffsets.store(context, learned) }
             // Brings an energy script installed by KlimaPilot up to the version shipped with the app.
             if (first) {
                 EnergyScriptInstaller(context).install(address, updateOnly = true) { _, _ -> }
@@ -1124,7 +1122,7 @@ private fun MainScreen(
                 val shownDevice = devicesInRoom.firstOrNull { it.id == deviceId } ?: devicesInRoom.firstOrNull()
                 TemperatureCard(
                     deviceName = shownDevice?.name ?: selectedRoom,
-                    heatOffset = LearnedHeatOffsets.effective(LocalContext.current, shownDevice),
+                    heatOffset = shownDevice?.heatOffset ?: 0.0,
                     deviceKey = shownDevice?.id ?: selectedRoom,
                     state = state,
                     connected = airconConnected,
@@ -1304,11 +1302,12 @@ private fun TemperatureCard(
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                     // While heating, the sensor (high up, in the warm air) reads too high; show the room value instead.
-                    // Full correction while the compressor heats, fading out over 10 min after it stops.
+                    // The correction follows the sensor: it grows as the sensor rises while the compressor
+                    // heats and shrinks as it falls after a stop, up to the set value.
                     val shownIndoor = state?.let { st ->
                         val raw = st.indoorTemp ?: return@let null
                         if (st.mode != Mode.HEAT || heatOffset <= 0.0) raw
-                        else raw - heatOffset * HeatingTracker.weight(deviceKey, st.compressorRunning && st.power)
+                        else raw - HeatingTracker.correction(deviceKey, raw, st.compressorRunning && st.power, heatOffset)
                     }
                     Text(shownIndoor?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
@@ -1943,15 +1942,25 @@ private fun TemperatureSlider(value: Float, enabled: Boolean, onValueChange: (Fl
 }
 
 
-/** Remembers when each unit's compressor last heated, so the heating correction can fade out after it stops. */
+/**
+ * Heating correction per unit that follows the sensor instead of a fixed time: while the compressor
+ * heats it grows by as much as the sensor rises (up to the set value), when the compressor rests it
+ * shrinks by as much as the sensor falls. So the shown room temperature stays steady when warm air
+ * builds up under the ceiling or spreads again. On first sight the unit's current state is assumed
+ * to have settled: full correction while heating, none while resting.
+ */
 internal object HeatingTracker {
-    private val lastHeating = java.util.concurrent.ConcurrentHashMap<String, Long>()
-    private const val FADE_MS = 10 * 60_000L
+    private data class Track(val raw: Double, val correction: Double)
+    private val tracks = java.util.concurrent.ConcurrentHashMap<String, Track>()
 
-    /** 1 while heating, falling to 0 over 10 min after the compressor stopped; 0 if not seen heating since app start. */
-    fun weight(key: String, heating: Boolean, now: Long = System.currentTimeMillis()): Double {
-        if (heating) { lastHeating[key] = now; return 1.0 }
-        val last = lastHeating[key] ?: return 0.0
-        return (1.0 - (now - last).toDouble() / FADE_MS).coerceIn(0.0, 1.0)
+    fun correction(key: String, raw: Double, heating: Boolean, offset: Double): Double {
+        val last = tracks[key]
+        val next = when {
+            last == null -> if (heating) offset else 0.0
+            heating -> last.correction + (raw - last.raw).coerceAtLeast(0.0)
+            else -> last.correction - (last.raw - raw).coerceAtLeast(0.0)
+        }.coerceIn(0.0, offset)
+        tracks[key] = Track(raw, next)
+        return next
     }
 }

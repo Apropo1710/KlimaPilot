@@ -23,7 +23,7 @@ private val ManagerText = Color(0xFF172334)
 private val ManagerMuted = Color(0xFF63748A)
 private val ManagerBorder = Color(0xFFCBD5E1)
 
-internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap(), val model: String = "", val syncDeviceKey: String = "", val wfRacHost: String = "", val wfRacAirconId: String = "", val demoMode: Boolean = false, val heatOffset: Double = 0.0, val heatOffsetAuto: Boolean = false)
+internal data class UserDevice(val id: String, val name: String, val room: String, val adapterKey: String = "generic", val adapterInstance: String = "", val rootObjectId: String = "", val mappings: Map<String, String> = emptyMap(), val model: String = "", val syncDeviceKey: String = "", val wfRacHost: String = "", val wfRacAirconId: String = "", val demoMode: Boolean = false, val heatOffset: Double = 0.0)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -286,18 +286,7 @@ internal fun RoomDeviceManagerScreen(
         var name by remember(original, addDevice) { mutableStateOf(original?.name ?: "") }
         var selectedRoom by remember(original, addDevice, rooms.size) { mutableStateOf(original?.room ?: rooms.first()) }
         var heatOffset by remember(original, addDevice) { mutableStateOf(original?.heatOffset ?: 0.0) }
-        var heatOffsetAuto by remember(original, addDevice) { mutableStateOf(original?.heatOffsetAuto ?: false) }
         var showOffsetInfo by remember { mutableStateOf(false) }
-        // Suggestion learned by the ioBroker script (only if ioBroker is set up and has learned something).
-        val editorContext = androidx.compose.ui.platform.LocalContext.current
-        var learned by remember(original) { mutableStateOf<Pair<Double, Int>?>(null) }
-        LaunchedEffect(original) {
-            val aircon = original?.wfRacAirconId.orEmpty()
-            if (aircon.isBlank()) return@LaunchedEffect
-            val address = editorContext.getSharedPreferences("klimapilot_settings", android.content.Context.MODE_PRIVATE).getString("iobroker_server", null).orEmpty()
-            if (address.isBlank()) return@LaunchedEffect
-            HeatOffsetIoBroker.load(address) { all -> learned = all[aircon]?.takeIf { it.second > 0 } }
-        }
         KlimaPilotAlertDialog(
             onDismissRequest = { addDevice = false; editing = null },
             containerColor = Color.White,
@@ -340,38 +329,16 @@ internal fun RoomDeviceManagerScreen(
                         )
                         OutlinedButton(onClick = { heatOffset = (heatOffset + 0.5).coerceAtMost(8.0) }, enabled = heatOffset < 8.0) { Text("+") }
                     }
-                    learned?.let { (value, samples) ->
-                        val rounded = Math.round(value * 2) / 2.0
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "Von ioBroker gelernt: " + String.format(java.util.Locale.GERMANY, "%.1f", value) + " °C (aus $samples Messung" + (if (samples == 1) ")" else "en)"),
-                                color = ManagerMuted, fontSize = 12.sp, modifier = Modifier.weight(1f)
-                            )
-                            if (!heatOffsetAuto && rounded != heatOffset) TextButton(onClick = { heatOffset = rounded.coerceIn(0.0, 8.0) }) { Text("Übernehmen") }
-                        }
-                    }
-                    if (!original?.wfRacAirconId.isNullOrBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Gelernten Wert automatisch verwenden", color = ManagerText, fontSize = 14.sp)
-                                Text(
-                                    if (heatOffsetAuto) "Ab 5 Messungen gilt der von ioBroker gelernte Wert; sonst der Wert oben." else "Aus: Es gilt der Wert oben.",
-                                    color = ManagerMuted, fontSize = 12.sp
-                                )
-                            }
-                            Switch(heatOffsetAuto, { heatOffsetAuto = it }, colors = blueSwitchColors())
-                        }
-                    }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         if (name.trim().isNotEmpty()) {
-                            if (original == null) devices.add(UserDevice(java.util.UUID.randomUUID().toString(), name.trim(), selectedRoom, heatOffset = heatOffset, heatOffsetAuto = heatOffsetAuto))
+                            if (original == null) devices.add(UserDevice(java.util.UUID.randomUUID().toString(), name.trim(), selectedRoom, heatOffset = heatOffset))
                             else {
                                 val index = devices.indexOfFirst { it.id == original.id }
-                                if (index >= 0) devices[index] = original.copy(name = name.trim(), room = selectedRoom, heatOffset = heatOffset, heatOffsetAuto = heatOffsetAuto)
+                                if (index >= 0) devices[index] = original.copy(name = name.trim(), room = selectedRoom, heatOffset = heatOffset)
                             }
                             save()
                             addDevice = false
@@ -390,9 +357,8 @@ internal fun RoomDeviceManagerScreen(
             text = {
                 Text(
                     "Der Fühler sitzt oben im Innengerät, wo sich beim Heizen die warme Luft sammelt, und misst deshalb mehr als ein Thermometer im Raum.\n\n" +
-                        "Beim Heizen zieht die App die Korrektur ab, solange der Verdichter läuft. Steht er, wird sie über 10 Minuten zurückgenommen.\n\n" +
-                        "ioBroker lernt den Wert mit (Temperatur vor und nach einem Verdichterstopp bei eingeschalteter Anlage) und zeigt hier einen Vorschlag. " +
-                        "„Automatisch verwenden“ nimmt ihn ab 5 Messungen selbst.\n\n" +
+                        "Beim Heizen folgt die Korrektur dem Fühler: Nach dem Start des Verdichters wächst sie so weit, wie der Fühler steigt, bis zum eingestellten Wert. Nach dem Stopp schrumpft sie so weit, wie er fällt.\n\n" +
+                        "Am besten ein paar Tage mit einem Thermometer im Raum vergleichen und anpassen.\n\n" +
                         "Nur Anzeige – die Regelung der Anlage ändert sich nicht."
                 )
             }
@@ -400,75 +366,3 @@ internal fun RoomDeviceManagerScreen(
     }
 }
 
-
-/** Heating correction learned by the ioBroker script, per unit (airconId → value, samples). Optional: without ioBroker nothing is shown. */
-internal object HeatOffsetIoBroker {
-    const val STATE_ID = "0_userdata.0.KlimaPilot.heatOffset"
-
-    fun load(address: String, callback: (Map<String, Pair<Double, Int>>) -> Unit) {
-        val main = android.os.Handler(android.os.Looper.getMainLooper())
-        val url = address.trim().trimEnd('/')
-        if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(emptyMap()); return }
-        val socket = IoBrokerLease(url)
-        val done = java.util.concurrent.atomic.AtomicBoolean(false)
-        val finish: (Map<String, Pair<Double, Int>>) -> Unit = { data ->
-            if (done.compareAndSet(false, true)) {
-                runCatching { socket.off() }
-                runCatching { socket.disconnect() }
-                main.post { callback(data) }
-            }
-        }
-        main.postDelayed({ finish(emptyMap()) }, 15_000)
-        socket.on("connect") {
-            socket.emit("authenticate", IoBrokerAck { args ->
-                if (args.firstOrNull() as? Boolean != true) { finish(emptyMap()); return@IoBrokerAck }
-                socket.emit("getState", STATE_ID, IoBrokerAck { stateArgs ->
-                    val raw = (stateArgs.getOrNull(1) as? org.json.JSONObject)?.opt("val") as? String
-                    val json = raw?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
-                    val result = mutableMapOf<String, Pair<Double, Int>>()
-                    json?.keys()?.forEach { id ->
-                        val e = json.optJSONObject(id) ?: return@forEach
-                        val value = e.optDouble("learned", Double.NaN)
-                        if (!value.isNaN()) result[id] = value to e.optInt("samples", 0)
-                    }
-                    finish(result)
-                })
-            })
-        }
-        socket.on("connect_error") { finish(emptyMap()) }
-        socket.connect()
-    }
-}
-
-
-/** Last learned heating corrections read from ioBroker (airconId → value, samples), kept for the "automatic" switch. */
-internal object LearnedHeatOffsets {
-    private const val PREFS = "klimapilot_settings"
-    private const val KEY = "learned_heat_offsets"
-    @Volatile private var cache: Map<String, Pair<Double, Int>>? = null
-
-    fun store(context: android.content.Context, values: Map<String, Pair<Double, Int>>) {
-        if (values.isEmpty()) return
-        cache = values
-        val json = org.json.JSONObject()
-        values.forEach { (id, v) -> json.put(id, org.json.JSONObject().put("learned", v.first).put("samples", v.second)) }
-        context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(KEY, json.toString()).apply()
-    }
-
-    private fun all(context: android.content.Context): Map<String, Pair<Double, Int>> = cache ?: run {
-        val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(KEY, null)
-        val json = raw?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
-        val map = mutableMapOf<String, Pair<Double, Int>>()
-        json?.keys()?.forEach { id -> json.optJSONObject(id)?.let { map[id] = it.optDouble("learned") to it.optInt("samples") } }
-        map.also { cache = it }
-    }
-
-    /** The correction that applies: the learned one (rounded to 0.5, from 5 measurements) if switched on, else the set one. */
-    fun effective(context: android.content.Context, device: UserDevice?): Double {
-        device ?: return 0.0
-        if (device.heatOffsetAuto) {
-            all(context)[device.wfRacAirconId]?.takeIf { it.second >= 5 && !it.first.isNaN() }?.let { return (Math.round(it.first * 2) / 2.0).coerceIn(0.0, 8.0) }
-        }
-        return device.heatOffset
-    }
-}

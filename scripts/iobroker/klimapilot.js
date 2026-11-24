@@ -135,25 +135,6 @@ const CMD_WIND_UD = [[192, 128], [128, 128], [128, 144], [128, 160], [128, 176]]
 const CMD_WIND_LR = [[3, 16], [2, 16], [2, 17], [2, 18], [2, 19], [2, 20], [2, 21], [2, 22]];
 const NO_SEGMENTS = [1, 255, 255, 255, 255];
 // Thermistortabelle Außentemperatur des WF-RAC-Moduls (Index = Rohwert, aus pywfrac, MIT; wie TempTables.kt).
-const INDOOR_TEMPS = [
-    -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0,
-    -29.0, -28.0, -27.0, -26.0, -25.0, -24.0, -23.0, -22.5, -22.0, -21.0, -20.0, -19.5, -19.0, -18.0, -17.5, -17.0,
-    -16.5, -16.0, -15.0, -14.5, -14.0, -13.5, -13.0, -12.5, -12.0, -11.5, -11.0, -10.5, -10.0, -9.5, -9.0, -8.6,
-    -8.3, -8.0, -7.5, -7.0, -6.5, -6.0, -5.6, -5.3, -5.0, -4.5, -4.0, -3.6, -3.3, -3.0, -2.6, -2.3,
-    -2.0, -1.6, -1.3, -1.0, -0.5, 0.0, 0.3, 0.6, 1.0, 1.3, 1.6, 2.0, 2.3, 2.6, 3.0, 3.2,
-    3.5, 3.7, 4.0, 4.3, 4.6, 5.0, 5.3, 5.6, 6.0, 6.3, 6.6, 7.0, 7.2, 7.5, 7.7, 8.0,
-    8.3, 8.6, 9.0, 9.2, 9.5, 9.7, 10.0, 10.3, 10.6, 11.0, 11.2, 11.5, 11.7, 12.0, 12.3, 12.6,
-    13.0, 13.2, 13.5, 13.7, 14.0, 14.2, 14.5, 14.7, 15.0, 15.3, 15.6, 16.0, 16.2, 16.5, 16.7, 17.0,
-    17.2, 17.5, 17.7, 18.0, 18.2, 18.5, 18.7, 19.0, 19.2, 19.5, 19.7, 20.0, 20.2, 20.5, 20.7, 21.0,
-    21.2, 21.5, 21.7, 22.0, 22.2, 22.5, 22.7, 23.0, 23.2, 23.5, 23.7, 24.0, 24.2, 24.5, 24.7, 25.0,
-    25.2, 25.5, 25.7, 26.0, 26.2, 26.5, 26.7, 27.0, 27.2, 27.5, 27.7, 28.0, 28.2, 28.5, 28.7, 29.0,
-    29.2, 29.5, 29.7, 30.0, 30.2, 30.5, 30.7, 31.0, 31.3, 31.6, 32.0, 32.2, 32.5, 32.7, 33.0, 33.2,
-    33.5, 33.7, 34.0, 34.2, 34.5, 34.7, 35.0, 35.3, 35.6, 36.0, 36.2, 36.5, 36.7, 37.0, 37.2, 37.5,
-    37.7, 38.0, 38.3, 38.6, 39.0, 39.2, 39.5, 39.7, 40.0, 40.3, 40.6, 41.0, 41.2, 41.5, 41.7, 42.0,
-    42.3, 42.6, 43.0, 43.2, 43.5, 43.7, 44.0, 44.3, 44.6, 45.0, 45.3, 45.6, 46.0, 46.2, 46.5, 46.7,
-    47.0, 47.3, 47.6, 48.0, 48.3, 48.6, 49.0, 49.3, 49.6, 50.0, 50.3, 50.6, 51.0, 51.3, 51.6, 52.0
-];
-
 const OUTDOOR_TEMPS = [
     -50.0, -50.0, -50.0, -50.0, -50.0, -48.9, -46.0, -44.0, -42.0, -41.0, -39.0, -38.0, -37.0, -36.0, -35.0, -34.0,
     -33.0, -32.0, -31.0, -30.0, -29.0, -28.5, -28.0, -27.0, -26.0, -25.5, -25.0, -24.0, -23.5, -23.0, -22.5, -22.0,
@@ -191,9 +172,7 @@ function decodeStat(base64) {
     const segments = d.slice(start + 19, d.length - 2);
     let energy = null;
     let outdoor = null;
-    let indoor = null;
     for (let i = 0; i + 3 < segments.length; i += 4) {
-        if (segments[i] === 0x80 && segments[i + 1] === 0x20 && segments[i + 2] < INDOOR_TEMPS.length) indoor = INDOOR_TEMPS[segments[i + 2]];
         if (segments[i] === 0x94 && segments[i + 1] === 0x10) energy = ((segments[i + 3] << 8) | segments[i + 2]) * 0.25;
         if (segments[i] === 0x80 && segments[i + 1] === 0x10 && segments[i + 2] < OUTDOOR_TEMPS.length) outdoor = OUTDOOR_TEMPS[segments[i + 2]];
     }
@@ -215,8 +194,6 @@ function decodeStat(base64) {
         selfClean: (modelNr === 1 || modelNr === 2) ? (c[15] & 1) !== 0 : false,
         runEnergyKwh: energy,
         outdoorTemp: outdoor,
-        indoorTemp: indoor,
-        compressorRunning: (c[9] & 0x02) !== 0,
     };
 }
 
@@ -290,37 +267,8 @@ async function units() {
 // 1. Energieaufzeichnung
 // ---------------------------------------------------------------------------------------------
 
-/**
- * Lernt je Anlage, wie viel der Fühler beim Heizen zu hoch misst (warme Luft unter der Decke):
- * Temperatur bei laufendem Verdichter gegen die Temperatur 10–20 min nach seinem Stopp.
- * Nutzt nur die ohnehin laufende Energieablesung, keine zusätzlichen Abfragen der Anlage.
- */
-const HEAT_OFFSET_ID = '0_userdata.0.KlimaPilot.heatOffset';
-const heatLearn = {};
-async function learnHeatOffset(unit, stat, now) {
-    const t = heatLearn[unit.airconId] = heatLearn[unit.airconId] || { runTemp: null, stopAt: null };
-    // Nur bei eingeschalteter Anlage im Modus Heizen: Ausschalten ist kein Verdichterstopp im Betrieb
-    // (Lüfter steht, Raum kühlt aus) und verwirft eine angefangene Messung.
-    if (!stat.power || stat.mode !== 'HEAT' || typeof stat.indoorTemp !== 'number') { t.runTemp = null; t.stopAt = null; return; }
-    const running = stat.compressorRunning;
-    if (running) { t.runTemp = stat.indoorTemp; t.stopAt = null; return; }
-    if (t.runTemp === null) return;
-    if (t.stopAt === null) { t.stopAt = now.getTime(); return; }
-    const minutes = (now.getTime() - t.stopAt) / 60000;
-    if (minutes < 10) return;
-    const delta = t.runTemp - stat.indoorTemp;
-    t.runTemp = null; t.stopAt = null;
-    if (minutes > 20 || !(delta > 0 && delta < 8)) return;
-    await ensureJsonState(HEAT_OFFSET_ID, 'KlimaPilot – gelernte Heiz-Korrektur der Innentemperatur je Anlage', {});
-    const all = await readJson(HEAT_OFFSET_ID) || {};
-    const entry = all[unit.airconId] || { learned: 0, samples: 0 };
-    const n = Math.min(entry.samples, 19);
-    entry.learned = Math.round(((entry.learned * n) + delta) / (n + 1) * 10) / 10;
-    entry.samples = entry.samples + 1;
-    entry.updatedAt = now.toISOString();
-    all[unit.airconId] = entry;
-    await setStateAsync(HEAT_OFFSET_ID, JSON.stringify(all), true);
-}
+// Aufräumen: Datenpunkt der wieder entfernten Heiz-Korrektur-Lernfunktion (0.5.53–0.5.55).
+try { if (existsObject('0_userdata.0.KlimaPilot.heatOffset')) deleteState('0_userdata.0.KlimaPilot.heatOffset'); } catch (e) { /* nichts zu tun */ }
 
 async function pollEnergy(unit) {
     const id = `${ENERGY_ROOT}.units.${unit.airconId}`;
@@ -333,7 +281,6 @@ async function pollEnergy(unit) {
     try {
         const contents = await serial(unit, () => readStat(unit));
         const stat = decodeStat(contents.airconStat);
-        try { await learnHeatOffset(unit, stat, now); } catch (e) { log(`KlimaPilot Heiz-Korrektur: ${e.message}`, 'warn'); }
         const value = stat.runEnergyKwh;
         if (value === null) throw new Error('Anlage meldet keinen Energiezähler');
         // Betriebszeit (Betriebstage für die Filter-Erinnerung in der App) und Außentemperatur (Mittel je Stunde und Tag).

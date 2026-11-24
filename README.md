@@ -84,7 +84,6 @@ Alle Datenpunkte unter `0_userdata.0.KlimaPilot`, die andere Programme (z. B. ei
 | `energy.config` | App | lesen; nur `priceEurPerKwh` ändern |
 | `energy.units.<airconId>` | Skript | nur lesen |
 | `schedules.config` | App | lesen und schreiben (Revisionsverfahren) |
-| `heatOffset` | Skript | nur lesen |
 | `schedules.status` | Skript | nur lesen |
 | `filter.config` | App | lesen und schreiben |
 | `diagnostics.config` | App | lesen und schreiben |
@@ -238,15 +237,6 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 - Leeren: `{"entries":[]}` schreiben.
 - Die Einträge der Handys (`source: "Handy"`) liegen nur auf dem jeweiligen Handy, nicht in ioBroker.
 
-
-### `heatOffset` – gelernte Heiz-Korrektur (nur lesen)
-
-```json
-{ "1cd1d717ebe8": { "learned": 2.6, "samples": 12, "updatedAt": "2026-11-24T10:20:00.000Z" } }
-```
-
-- Schreibt das Skript. Je Anlage (`airconId`): Wie viel der Fühler beim Heizen zu hoch misst. Gemessen wird aus der ohnehin laufenden Energieablesung (alle 5 min, keine zusätzlichen Abfragen): Innentemperatur bei laufendem Verdichter gegen die Innentemperatur 10–20 min nach dessen Stopp, nur im Modus Heizen bei eingeschalteter Anlage (Ausschalten zählt nicht als Verdichterstopp). `learned` ist der gleitende Mittelwert der letzten bis zu 20 Messungen, `samples` die Anzahl.
-- Die App zeigt den Wert in „Räume & Geräte verwalten“ beim Bearbeiten einer Anlage als Vorschlag zum Übernehmen. Maßgeblich ist der in der App eingestellte Wert (`heatOffset` im Gerätedatensatz), außer bei eingeschaltetem „Gelernten Wert automatisch verwenden“ (`heatOffsetAuto`): dann ab 5 Messungen `learned`, auf 0,5 °C gerundet.
 
 ### Interne Datenpunkte (nicht verwenden)
 
