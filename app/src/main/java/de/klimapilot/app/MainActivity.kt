@@ -1313,7 +1313,7 @@ private fun TemperatureCard(
                     val shownIndoor = state?.let { st ->
                         val raw = st.indoorTemp ?: return@let null
                         if (st.mode != Mode.HEAT || heatOffset <= 0.0) raw
-                        else raw - HeatingTracker.correction(deviceKey, raw, st.compressorRunning && st.power, heatOffset)
+                        else raw - HeatingTracker.correction(deviceKey, raw, st.compressorRunning && st.power, heatOffset, unitOn = st.power)
                     }
                     val displayed = if (showRaw) state?.indoorTemp else shownIndoor
                     Text(displayed?.let { String.format(Locale.GERMANY, "%.1f°", it) } ?: "—", color = if (showRaw) Muted else TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -1822,17 +1822,18 @@ private fun TemperatureSlider(value: Float, enabled: Boolean, onValueChange: (Fl
  * Heating correction per unit that follows the sensor instead of a fixed time: while the compressor
  * heats it grows by as much as the sensor rises (up to the set value), when the compressor rests it
  * shrinks by as much as the sensor falls. So the shown room temperature stays steady when warm air
- * builds up under the ceiling or spreads again. On first sight the unit's current state is assumed
- * to have settled: full correction while heating, none while resting.
+ * builds up under the ceiling or spreads again. On first sight: full correction while the unit is
+ * switched on in heating mode (the warm air stays at the sensor even while the compressor pauses;
+ * seen 24.11.2026: sensor 23 °C, room about 18 °C, compressor idle), none while it is off.
  */
 internal object HeatingTracker {
     private data class Track(val raw: Double, val correction: Double)
     private val tracks = java.util.concurrent.ConcurrentHashMap<String, Track>()
 
-    fun correction(key: String, raw: Double, heating: Boolean, offset: Double): Double {
+    fun correction(key: String, raw: Double, heating: Boolean, offset: Double, unitOn: Boolean = heating): Double {
         val last = tracks[key]
         val next = when {
-            last == null -> if (heating) offset else 0.0
+            last == null -> if (unitOn) offset else 0.0
             heating -> last.correction + (raw - last.raw).coerceAtLeast(0.0)
             else -> last.correction - (last.raw - raw).coerceAtLeast(0.0)
         }.coerceIn(0.0, offset)

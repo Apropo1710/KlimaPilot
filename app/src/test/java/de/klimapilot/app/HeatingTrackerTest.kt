@@ -18,5 +18,7 @@ class HeatingTrackerTest {
         assertEquals(0.0, HeatingTracker.correction(key, 21.5, heating = false, offset = 3.0), 1e-9)
         // Seen first while heating: full correction.
         assertEquals(3.0, HeatingTracker.correction(key + "b", 23.0, heating = true, offset = 3.0), 1e-9)
+        // Seen first switched on but with the compressor pausing: warm air still at the sensor, full correction.
+        assertEquals(3.0, HeatingTracker.correction(key + "c", 23.0, heating = false, offset = 3.0, unitOn = true), 1e-9)
     }
 }
