@@ -299,8 +299,10 @@ const HEAT_OFFSET_ID = '0_userdata.0.KlimaPilot.heatOffset';
 const heatLearn = {};
 async function learnHeatOffset(unit, stat, now) {
     const t = heatLearn[unit.airconId] = heatLearn[unit.airconId] || { runTemp: null, stopAt: null };
-    if (stat.mode !== 'HEAT' || typeof stat.indoorTemp !== 'number') { t.runTemp = null; t.stopAt = null; return; }
-    const running = stat.power && stat.compressorRunning;
+    // Nur bei eingeschalteter Anlage im Modus Heizen: Ausschalten ist kein Verdichterstopp im Betrieb
+    // (Lüfter steht, Raum kühlt aus) und verwirft eine angefangene Messung.
+    if (!stat.power || stat.mode !== 'HEAT' || typeof stat.indoorTemp !== 'number') { t.runTemp = null; t.stopAt = null; return; }
+    const running = stat.compressorRunning;
     if (running) { t.runTemp = stat.indoorTemp; t.stopAt = null; return; }
     if (t.runTemp === null) return;
     if (t.stopAt === null) { t.stopAt = now.getTime(); return; }

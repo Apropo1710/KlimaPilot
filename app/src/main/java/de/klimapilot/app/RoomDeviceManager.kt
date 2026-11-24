@@ -359,7 +359,7 @@ internal fun RoomDeviceManagerScreen(
                                     color = ManagerMuted, fontSize = 12.sp
                                 )
                             }
-                            Switch(heatOffsetAuto, { heatOffsetAuto = it })
+                            Switch(heatOffsetAuto, { heatOffsetAuto = it }, colors = blueSwitchColors())
                         }
                     }
                 }
@@ -389,12 +389,11 @@ internal fun RoomDeviceManagerScreen(
             title = { Text("Raumtemperatur beim Heizen") },
             text = {
                 Text(
-                    "Der Temperaturfühler sitzt oben im Innengerät, wo sich beim Heizen die warme Luft sammelt. Er misst deshalb mehr als ein Thermometer im Raum.\n\n" +
-                        "Im Betriebsmodus Heizen zieht die App diese Korrektur ab, solange der Verdichter heizt. Steht er, wird sie innerhalb von 10 Minuten bis auf null zurückgenommen, weil sich die warme Luft dann verteilt. " +
-                        "Am besten über ein paar Tage mit einem Thermometer im Raum vergleichen und anpassen. " +
-                        "Ist ioBroker eingerichtet, lernt das Skript den Wert mit: Es vergleicht die Temperatur kurz vor und 10–20 Minuten nach einem Verdichterstopp und zeigt hier einen Vorschlag zum Übernehmen. " +
-                        "Mit „Gelernten Wert automatisch verwenden“ nimmt die App diesen Wert selbst (ab 5 Messungen, auf 0,5 °C gerundet) und passt sich so an Winter und Übergangszeit an; ohne ioBroker gilt der eingestellte Wert. " +
-                        "Nur Anzeige: An der Regelung der Anlage ändert sich nichts."
+                    "Der Fühler sitzt oben im Innengerät, wo sich beim Heizen die warme Luft sammelt, und misst deshalb mehr als ein Thermometer im Raum.\n\n" +
+                        "Beim Heizen zieht die App die Korrektur ab, solange der Verdichter läuft. Steht er, wird sie über 10 Minuten zurückgenommen.\n\n" +
+                        "ioBroker lernt den Wert mit (Temperatur vor und nach einem Verdichterstopp bei eingeschalteter Anlage) und zeigt hier einen Vorschlag. " +
+                        "„Automatisch verwenden“ nimmt ihn ab 5 Messungen selbst.\n\n" +
+                        "Nur Anzeige – die Regelung der Anlage ändert sich nicht."
                 )
             }
         )

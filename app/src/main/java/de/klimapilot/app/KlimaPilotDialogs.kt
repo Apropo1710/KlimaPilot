@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -48,7 +51,8 @@ internal fun KlimaPilotAlertDialog(
     val shape = RoundedCornerShape(28.dp)
     ScaledDialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            // Clear of status and navigation bar, also with long texts.
+            modifier = Modifier.fillMaxWidth().systemBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
             shape = shape,
             color = containerColor,
             border = BorderStroke(1.5.dp, DialogBlue.copy(alpha = 0.35f)),
@@ -67,7 +71,8 @@ internal fun KlimaPilotAlertDialog(
                         }
                     }
                     text?.let {
-                        Box {
+                        // Long texts scroll inside the dialog; title and buttons stay visible.
+                        Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                             ProvideTextStyle(MaterialTheme.typography.bodyLarge.copy(color = DialogText, fontSize = 15.sp, lineHeight = 22.sp)) {
                                 CompositionLocalProvider(LocalContentColor provides DialogText) { it() }
                             }

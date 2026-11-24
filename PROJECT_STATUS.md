@@ -76,6 +76,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Jahreszeit: Profile Winter/Sommer/Ganzjährig (`season`, ohne Zuordnung nach Modus); Umschalter im Profilmenü, gilt für den Haushalt (Handy-Sync), kein automatischer Wechsel.
 - Profilanzeige folgt Zeitplänen (0.5.36): Zeitpläne setzen nur die Werte, nicht das aktive Profil. Weicht die Anlage vom gewählten Profil ab und passt genau ein anderes Profil des Raums, wird dieses als aktiv übernommen (Anlass 22.11.2026: Zeitplan 20:00 „Nacht“ lief, Anzeige blieb „Tag (geändert)“).
 - Schnell-Timer „⏱ Aus in …“ (0.5.43): bei ausgeschalteter Anlage ausgegraut und ohne Funktion statt ausgeblendet.
+- 0.5.55: Skript lernt nur bei eingeschalteter Anlage (Ausschalten verwirft eine angefangene Messung); Schalter „automatisch verwenden“ in Blau; lange Texte in `KlimaPilotAlertDialog` scrollen innerhalb des Dialogs, Dialog hält Abstand zu Status- und Navigationsleiste; Info-Text zur Heiz-Korrektur gekürzt.
 - Automatische Heiz-Korrektur (0.5.54): Schalter je Anlage „Gelernten Wert automatisch verwenden“ (Standard aus, synchronisiert als `heatOffsetAuto`). An: ab 5 Messungen gilt der von ioBroker gelernte Wert (auf 0,5 °C gerundet), sonst der eingestellte. Die App liest `heatOffset` in der ohnehin laufenden 5-Minuten-Schleife über die geteilte ioBroker-Verbindung und speichert ihn lokal; ohne ioBroker gilt der eingestellte Wert.
 - Heiz-Korrektur nur bei laufendem Verdichter (0.5.53): voller Abzug, solange der Verdichter heizt; nach dem Stopp über 10 min auf null ausgeblendet; Anlage aus oder Verdichter lange aus → Fühlerwert. Das Skript lernt den Wert zusätzlich aus der 5-Minuten-Energieablesung (Temperatur vor vs. 10–20 min nach Verdichterstopp) und schreibt ihn nach `0_userdata.0.KlimaPilot.heatOffset`; die App zeigt ihn im Geräte-Editor als Vorschlag „Übernehmen“. **Schnittstelle geändert:** neuer Datenpunkt `heatOffset` (README ergänzt).
 - Heiz-Korrektur der Innentemperatur (0.5.47): je Anlage in „Räume & Geräte verwalten“ (nur Admin) einstellbar, 0–8 °C in 0,5er-Schritten (`heatOffset` im synchronisierten Gerätedatensatz). Im Modus Heizen zeigt die Hauptseite Fühlerwert minus Korrektur; nur Anzeige, keine Regelung. Grundsatz: Admin-Funktionen sind für normale Benutzer ausgeblendet, ohne Ersatztext (Hinweis in den Systemeinstellungen entfernt).
@@ -195,11 +196,10 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 10. Nächste Schritte
 
-1. Mit dem nächsten App-Update: (a) Schalter „Gelernten Wert automatisch verwenden“ im Geräte-Editor (`RoomDeviceManager.kt`) auf blaue Schalterfarben umstellen (zeigt noch Standard-Lila); (b) lange ⓘ-Texte in `KlimaPilotAlertDialog` (z. B. „Raumtemperatur beim Heizen“) laufen unten in die Navigationsleiste – Text scrollbar mit begrenzter Höhe, Abstand zur Navigationsleiste, Info-Text kürzen/absetzen.
-2. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
-3. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
-4. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
-5. Später (eigenes Projekt): Desktop-Oberfläche über die ioBroker-Schnittstelle.
+1. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
+2. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
+3. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
+4. Später (eigenes Projekt): Desktop-Oberfläche über die ioBroker-Schnittstelle.
 
 ## 11. Dokumentationsstruktur und Pflege
 
