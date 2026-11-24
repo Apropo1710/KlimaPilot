@@ -171,6 +171,7 @@ internal fun RoomTempDialog(
     model: RoomTempModel?,
     ioBrokerReachable: Boolean,
     status: String?,
+    statusOk: Boolean?,
     onSubmit: (Double) -> Unit,
     onDeleteLast: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -207,7 +208,14 @@ internal fun RoomTempDialog(
                         Text("Speichern", color = if (value != null && raw != null && ioBrokerReachable) DialogBlue else DialogMuted)
                     }
                 }
-                status?.let { Text(it, color = DialogBlue, fontSize = 13.sp) }
+                status?.let {
+                    Text(
+                        it,
+                        color = when (statusOk) { true -> Color(0xFF16845B); false -> Color(0xFFB3261E); null -> DialogMuted },
+                        fontSize = 14.sp,
+                        fontWeight = if (statusOk != null) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                }
                 if (model != null && model.scenarios.isNotEmpty()) {
                     Text("Messwerte je Lage – möglichst alle füllen:", color = DialogText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     val names = (model.scenarios + model.coverage.keys).distinct()
@@ -238,6 +246,9 @@ internal class RoomTempUi(
     val models: Map<String, RoomTempModel>,
     val reachable: Boolean,
     val status: String?,
+    /** null = waiting, true = confirmed by the script, false = failed. */
+    val statusOk: Boolean?,
+    val clearStatus: () -> Unit,
     val submit: (airconId: String, thermometer: Double, raw: Double) -> Unit,
     val delete: (airconId: String, sampleId: String) -> Unit,
 )

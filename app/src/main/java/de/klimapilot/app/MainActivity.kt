@@ -216,6 +216,7 @@ private fun KlimaPilotApp(appVersion: String) {
     var roomTempModels by remember { mutableStateOf<Map<String, RoomTempModel>>(emptyMap()) }
     var roomTempReachable by remember { mutableStateOf(false) }
     var roomTempStatus by remember { mutableStateOf<String?>(null) }
+    var roomTempStatusOk by remember { mutableStateOf<Boolean?>(null) }
     var roomTempSentId by remember { mutableStateOf<String?>(null) }
     var roomTempRefresh by remember { mutableIntStateOf(0) }
     // Set by the update popup: the settings open scrolled down to the update card.
@@ -818,23 +819,29 @@ private fun KlimaPilotApp(appVersion: String) {
                 models = roomTempModels,
                 reachable = roomTempReachable,
                 status = roomTempStatus,
+                statusOk = roomTempStatusOk,
+                clearStatus = { roomTempStatus = null; roomTempStatusOk = null; roomTempSentId = null },
                 submit = { airconId, thermometer, raw ->
                     val id = "${System.currentTimeMillis()}-${(1000..9999).random()}"
                     roomTempSentId = id
-                    roomTempStatus = "Wird gesendet …"
+                    roomTempStatusOk = null
+                    roomTempStatus = "Wird übertragen …"
                     val input = org.json.JSONObject().put("id", id).put("airconId", airconId).put("thermometer", thermometer).put("raw", raw)
                     RoomTempIoBroker().send(prefs.getString("iobroker_server", null).orEmpty(), input) { ok, error ->
-                        roomTempStatus = if (ok == true) "Gesendet – wird eingerechnet …" else error
+                        if (ok == true) roomTempStatus = "Warte auf Bestätigung vom ioBroker-Skript …"
+                        else { roomTempStatus = "✗ " + (error ?: "Senden fehlgeschlagen."); roomTempStatusOk = false; roomTempSentId = null }
                         roomTempRefresh++
                     }
                 },
                 delete = { airconId, sampleId ->
                     val id = "${System.currentTimeMillis()}-${(1000..9999).random()}"
                     roomTempSentId = id
+                    roomTempStatusOk = null
                     roomTempStatus = "Wird gelöscht …"
                     val input = org.json.JSONObject().put("id", id).put("airconId", airconId).put("delete", sampleId)
                     RoomTempIoBroker().send(prefs.getString("iobroker_server", null).orEmpty(), input) { ok, error ->
-                        roomTempStatus = if (ok == true) "Gesendet …" else error
+                        if (ok == true) roomTempStatus = "Warte auf Bestätigung vom ioBroker-Skript …"
+                        else { roomTempStatus = "✗ " + (error ?: "Senden fehlgeschlagen."); roomTempStatusOk = false; roomTempSentId = null }
                         roomTempRefresh++
                     }
                 },
@@ -883,17 +890,30 @@ private fun KlimaPilotApp(appVersion: String) {
         if (!accountAuthenticated) return@LaunchedEffect
         val address = prefs.getString("iobroker_server", null).orEmpty()
         if (address.isBlank()) return@LaunchedEffect
-        if (roomTempRefresh > 0) delay(4_000L)
+        var waits = 0
         while (true) {
+            // After sending: ask every 3 s for the script's confirmation, up to 45 s.
+            if (roomTempSentId != null) delay(3_000L)
             RoomTempIoBroker().load(address) { result, _ ->
                 roomTempReachable = result != null
                 result?.let { models ->
                     roomTempModels = models
                     roomTempSentId?.let { sent ->
-                        models.values.firstOrNull { it.input?.id == sent }?.input?.let { roomTempStatus = it.message; roomTempSentId = null }
+                        models.values.firstOrNull { it.input?.id == sent }?.input?.let {
+                            roomTempStatusOk = it.ok
+                            roomTempStatus = (if (it.ok) "✓ " else "✗ ") + it.message
+                            roomTempSentId = null
+                        }
                     }
                 }
             }
+            if (roomTempSentId != null && ++waits <= 15) continue
+            if (roomTempSentId != null) {
+                roomTempStatusOk = false
+                roomTempStatus = "✗ Keine Bestätigung vom ioBroker-Skript. Läuft es in der aktuellen Fassung (App einmal neu starten)?"
+                roomTempSentId = null
+            }
+            waits = 0
             delay(60_000L)
         }
     }
@@ -1374,9 +1394,10 @@ private fun TemperatureCard(
                     model = model,
                     ioBrokerReachable = roomTemp?.reachable == true && airconId.isNotBlank(),
                     status = roomTemp?.status,
+                    statusOk = roomTemp?.statusOk,
                     onSubmit = { thermo -> state?.indoorTemp?.let { raw -> roomTemp?.submit?.invoke(airconId, thermo, raw) } },
                     onDeleteLast = { id -> roomTemp?.delete?.invoke(airconId, id) },
-                    onDismiss = { showRoomTemp = false }
+                    onDismiss = { showRoomTemp = false; roomTemp?.clearStatus?.invoke() }
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(

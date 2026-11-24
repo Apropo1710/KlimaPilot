@@ -735,7 +735,7 @@ async function roomInput(text) {
             list.push({ id: input.id || String(t), at: new Date(t).toISOString(), thermo, raw, offset: Math.round((raw - thermo) * 10) / 10, scenario: roomScenario(tr, t), f });
             data.units[input.airconId] = list.slice(-ROOM_MAX_SAMPLES);
             result.ok = true;
-            result.message = 'Messwert gespeichert.';
+            result.message = `Messwert ${String(thermo).replace('.', ',')} °C übernommen (${list.length} gesamt).`;
         }
     }
     if (result.ok) {
@@ -753,7 +753,8 @@ async function roomPublish() {
         const data = await roomReadSamples();
         const out = { updatedAt: new Date().toISOString(), units: {} };
         const t = Date.now();
-        const ids = new Set([...Object.keys(roomTrack), ...Object.keys(data.units)]);
+        // Auch Anlagen ohne aktuelle Beobachtung, damit die App das Ergebnis jeder Eingabe sieht.
+        const ids = new Set([...Object.keys(roomTrack), ...Object.keys(data.units), ...Object.keys(roomResults)]);
         for (const id of ids) {
             const list = data.units[id] || [];
             if (!roomFits[id]) roomFit(id, list);

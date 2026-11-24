@@ -272,7 +272,7 @@ Höchstens 400 Werte je Anlage. Merkmale `f`: eingeschaltet, Modus Heizen, Verdi
   "coverage": { "Heizen, Verdichter läuft": 5, "Heizen, Pause lang": 4 },
   "errorModel": 0.31, "errorMean": 0.62, "minForModel": 8, "weights": { "comp": -1.2 },
   "last": { "id": "…", "at": "…", "thermo": 18.2, "raw": 21.5 },
-  "input": { "id": "…", "at": "…", "ok": true, "message": "Messwert gespeichert." }
+  "input": { "id": "…", "at": "…", "ok": true, "message": "Messwert 18,2 °C übernommen (5 gesamt)." }
 } } }
 ```
 
