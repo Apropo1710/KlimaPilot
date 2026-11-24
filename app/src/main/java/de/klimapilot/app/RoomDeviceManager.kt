@@ -353,7 +353,7 @@ internal fun RoomDeviceManagerScreen(
                 Text(
                     "Der Fühler sitzt oben im Innengerät, wo sich die warme Luft sammelt, und misst deshalb mehr als ein Thermometer im Raum – ob die Anlage läuft oder nicht.\n\n" +
                         "„Immer“ wird stets abgezogen, in jedem Modus und auch bei ausgeschalteter Anlage.\n\n" +
-                        "„Beim Heizen zusätzlich“ folgt dem Fühler: Läuft der Verdichter, wächst der Zuschlag so weit, wie der Fühler steigt, bis zum eingestellten Wert; nach dem Stopp schrumpft er so weit, wie der Fühler fällt.\n\n" +
+                        "„Beim Heizen zusätzlich“ folgt dem Fühler: Läuft der Verdichter, wächst der Zuschlag so weit, wie der Fühler steigt, bis zum eingestellten Wert. Solange die Anlage heizt, bleibt er auch in Verdichterpausen; erst ausgeschaltet oder in einem anderen Modus schrumpft er so weit, wie der Fühler fällt.\n\n" +
                         "Antippen von „Innen“ zeigt kurz den Fühlerwert.\n\n" +
                         "Am besten ein paar Tage mit einem Thermometer im Raum vergleichen und anpassen.\n\n" +
                         "Nur Anzeige – die Regelung der Anlage ändert sich nicht."

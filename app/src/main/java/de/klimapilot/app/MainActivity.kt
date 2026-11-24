@@ -1311,12 +1311,12 @@ private fun TemperatureCard(
                 ) {
                     Text(if (showRaw) "FÜHLER" else "INNEN", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                     // The sensor sits high up in the indoor unit where warm air collects: the base correction
-                    // always applies (on or off, any mode). While heating an extra follows the sensor: it grows
-                    // as the sensor rises with the compressor running and shrinks as it falls, up to the set value.
+                    // always applies (on or off, any mode). On top, a heating extra (see HeatingTracker).
                     val shownIndoor = state?.let { st ->
                         val raw = st.indoorTemp ?: return@let null
-                        val extra = if (st.mode != Mode.HEAT || heatExtra <= 0.0) 0.0
-                            else HeatingTracker.correction(deviceKey, raw, st.compressorRunning && st.power, heatExtra, unitOn = st.power)
+                        val heatingOn = st.power && st.mode == Mode.HEAT
+                        val extra = if (heatExtra <= 0.0) 0.0
+                            else HeatingTracker.correction(deviceKey, raw, heating = heatingOn && st.compressorRunning, offset = heatExtra, unitOn = heatingOn)
                         raw - heatOffset - extra
                     }
                     val displayed = if (showRaw) state?.indoorTemp else shownIndoor
@@ -1822,10 +1822,11 @@ private fun TemperatureSlider(value: Float, enabled: Boolean, onValueChange: (Fl
 }
 
 /**
- * Extra heating correction per unit on top of the base correction, following the sensor instead of a
- * fixed time: while the compressor heats it grows by as much as the sensor rises (up to the set value),
- * when the compressor rests it shrinks by as much as the sensor falls. On first sight: full while the
- * unit is switched on in heating mode, none while it is off.
+ * Extra heating correction per unit on top of the base correction: while the compressor heats it grows
+ * by as much as the sensor rises (up to the set value). While the unit stays on in heating mode it is
+ * kept even when the compressor pauses, because the sensor stays too warm (24.11.2026 Büro: sensor 23 °C,
+ * thermometer 18.2 °C, compressor idle). Only when the unit is off or in another mode it shrinks by as
+ * much as the sensor falls. On first sight: full while on in heating mode, otherwise none.
  */
 internal object HeatingTracker {
     private data class Track(val raw: Double, val correction: Double)
@@ -1836,6 +1837,7 @@ internal object HeatingTracker {
         val next = when {
             last == null -> if (unitOn) offset else 0.0
             heating -> last.correction + (raw - last.raw).coerceAtLeast(0.0)
+            unitOn -> last.correction
             else -> last.correction - (last.raw - raw).coerceAtLeast(0.0)
         }.coerceIn(0.0, offset)
         tracks[key] = Track(raw, next)
