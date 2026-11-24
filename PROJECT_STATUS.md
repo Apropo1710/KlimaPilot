@@ -196,10 +196,11 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 10. Nächste Schritte
 
-1. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
-2. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
-3. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
-4. Später (eigenes Projekt): Desktop-Oberfläche über die ioBroker-Schnittstelle.
+1. Heiz-Korrektur-Lernen beobachten (Nutzer vergleicht mit Thermometer): erste Messung 24.11. ergab 0,5 °C gegenüber beobachteten ~3 °C – Verdacht, dass die Methode (vor vs. 10–20 min nach Verdichterstopp) unterschätzt, weil die warme Luft am Fühler unter der Decke hängen bleibt. Je nach Ergebnis: Logik anpassen (längere Wartezeit, Verlauf nach dem Stopp auswerten oder Kalibrierfaktor aus Thermometer-Vergleich) oder Lernen/Vorschlag/Schalter wieder ausbauen. Mit dem nächsten Update: Beschriftung „Von ioBroker gelernt: 0,5 °C“ → „Vorschlag: Fühler − 0,5 °C“.
+2. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
+3. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
+4. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
+5. Später (eigenes Projekt): Desktop-Oberfläche über die ioBroker-Schnittstelle.
 
 ## 11. Dokumentationsstruktur und Pflege
 
