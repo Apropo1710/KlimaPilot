@@ -219,6 +219,10 @@ private fun KlimaPilotApp(appVersion: String) {
     var roomTempStatusOk by remember { mutableStateOf<Boolean?>(null) }
     var roomTempSentId by remember { mutableStateOf<String?>(null) }
     var roomTempRefresh by remember { mutableIntStateOf(0) }
+    // True from opening the room temperature dialog until the immediate ioBroker query has answered.
+    var roomTempChecking by remember { mutableStateOf(false) }
+    // Back on the main page asks before the app is closed.
+    var showExitConfirm by remember { mutableStateOf(false) }
     // Set by the update popup: the settings open scrolled down to the update card.
     var settingsFocusUpdate by remember { mutableStateOf(false) }
     var energyPrice by remember { mutableStateOf(EnergyIoBroker.cachedPrice(context)) }
@@ -641,6 +645,9 @@ private fun KlimaPilotApp(appVersion: String) {
             else -> showSettings = false
         }
     }
+    BackHandler(enabled = accountAuthenticated && !(showSettings || showManager || showProfileManager || showAccountSettings)) {
+        showExitConfirm = true
+    }
 
     CompositionLocalProvider(
         LocalDensity provides Density(
@@ -818,6 +825,8 @@ private fun KlimaPilotApp(appVersion: String) {
             roomTemp = RoomTempUi(
                 models = roomTempModels,
                 reachable = roomTempReachable,
+                checking = roomTempChecking,
+                refresh = { if (prefs.getString("iobroker_server", null).orEmpty().isNotBlank()) roomTempChecking = true; roomTempRefresh++ },
                 status = roomTempStatus,
                 statusOk = roomTempStatusOk,
                 clearStatus = { roomTempStatus = null; roomTempStatusOk = null; roomTempSentId = null },
@@ -855,6 +864,13 @@ private fun KlimaPilotApp(appVersion: String) {
             }
         )
         if (showEnergy) EnergyDialog(devices.toList(), selectedDevice) { showEnergy = false }
+        if (showExitConfirm) KlimaPilotAlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = { Text("KlimaPilot beenden?", color = TextMain) },
+            text = { Text("Die App wird geschlossen. Zeitpläne laufen weiter über ioBroker.", color = Muted) },
+            confirmButton = { TextButton(onClick = { showExitConfirm = false; (context as? android.app.Activity)?.finish() }) { Text("Beenden", color = Blue) } },
+            dismissButton = { TextButton(onClick = { showExitConfirm = false }) { Text("Abbrechen", color = Muted) } }
+        )
     }
 
     // Keeps the unit list of the ioBroker energy script current (writes only on changes) and
@@ -896,6 +912,7 @@ private fun KlimaPilotApp(appVersion: String) {
             if (roomTempSentId != null) delay(3_000L)
             RoomTempIoBroker().load(address) { result, _ ->
                 roomTempReachable = result != null
+                roomTempChecking = false
                 result?.let { models ->
                     roomTempModels = models
                     roomTempSentId?.let { sent ->
@@ -1393,6 +1410,8 @@ private fun TemperatureCard(
                     shown = shownIndoor,
                     model = model,
                     ioBrokerReachable = roomTemp?.reachable == true && airconId.isNotBlank(),
+                    checking = roomTemp?.checking == true,
+                    onOpen = { roomTemp?.refresh?.invoke() },
                     status = roomTemp?.status,
                     statusOk = roomTemp?.statusOk,
                     onSubmit = { thermo -> state?.indoorTemp?.let { raw -> roomTemp?.submit?.invoke(airconId, thermo, raw) } },
