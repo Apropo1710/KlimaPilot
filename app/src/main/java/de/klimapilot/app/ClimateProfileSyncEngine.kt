@@ -89,6 +89,14 @@ internal class ClimateProfileSyncEngine {
                 throw InvalidRemoteProfileEventException(error.message ?: "Ungültige Remote-Daten.", error)
             }
             check(store.recordRemoteEvent(event)) { "Versionsstand konnte nicht lokal gespeichert werden." }
+            val name = event.optJSONObject("profile")?.optString("name").orEmpty()
+            val what = when (event.optString("type")) {
+                "selection" -> "aktive Profilauswahl"
+                "individual" -> "individuelle Einstellungen"
+                "delete" -> "Profil gelöscht"
+                else -> "Profil" + if (name.isNotBlank()) " „$name“" else ""
+            }
+            EventJournal.log("Sync", "", "von anderem Gerät übernommen: $what")
             true
         }
     }

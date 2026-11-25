@@ -469,8 +469,9 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         if (!unchanged) captureIndividualSettings()?.let { status = it }
     }
 
-    fun switchTo(profile: ClimateProfile, profileId: String?, failure: String) {
+    fun switchTo(profile: ClimateProfile, profileId: String?, failure: String, source: String = "Profil „${profile.name}“ gewählt") {
         val previous = selectedProfileId
+        CommandSource.set(source)
         selectedProfileId = profileId
         switching = true
         status = ""
@@ -495,7 +496,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         if (seen == null || seen.id != profile.id) return@LaunchedEffect
         if (seen.copy(name = profile.name, season = profile.season, updatedAt = profile.updatedAt) == profile) return@LaunchedEffect
         if (currentState?.power != true || !selectedProfileDirty) return@LaunchedEffect
-        switchTo(profile, profile.id, "Die geänderten Profilwerte konnten nicht an die Anlage gesendet werden.")
+        switchTo(profile, profile.id, "Die geänderten Profilwerte konnten nicht an die Anlage gesendet werden.", "Automatik: aktives Profil „${profile.name}“ wurde geändert")
     }
 
     val deviceSyncSignature = devices.joinToString("|") { it.id + "=" + it.syncDeviceKey }
@@ -585,7 +586,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                         if (snapshot == null) {
                                             status = persistActiveProfile(null) ?: "Noch keine individuellen Einstellungen gespeichert. Die aktuellen Geräteeinstellungen bleiben unverändert."
                                         } else {
-                                            switchTo(snapshot, null, "Individuelle Einstellungen konnten nicht wiederhergestellt werden.")
+                                            switchTo(snapshot, null, "Individuelle Einstellungen konnten nicht wiederhergestellt werden.", "Individuelle Einstellungen gewählt")
                                         }
                                     })
                                 deviceProfiles.filter { ProfileSeason.matches(it, season) || it.id == selectedProfileId }.forEach { profile ->

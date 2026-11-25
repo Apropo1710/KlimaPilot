@@ -119,6 +119,12 @@ internal class ClimatePeerDataSync(context: Context) : ClimatePeerSessionHandler
             remote = readFrame(input)
         }
         val result = applySnapshot(remote)
+        if (result.accountsChanged || result.configChanged || result.profileEventsApplied > 0) {
+            EventJournal.log("Sync", "", "vom anderen Handy übernommen: " + listOfNotNull(
+                "Konten".takeIf { result.accountsChanged }, "Räume/Geräte/Einstellungen".takeIf { result.configChanged },
+                "${result.profileEventsApplied} Profiländerungen".takeIf { result.profileEventsApplied > 0 }
+            ).joinToString(", "))
+        }
         val message = "Mit gekoppeltem Gerät abgeglichen: " +
             (if (result.accountsChanged) "Konten aktualisiert, " else "") +
             (if (result.configChanged) "Räume und Geräte aktualisiert, " else "") +

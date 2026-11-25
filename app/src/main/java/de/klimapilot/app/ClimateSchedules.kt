@@ -499,7 +499,10 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                 data = result; error = null
                 // Season: take a newer choice from ioBroker, or hand a newer one of this phone to it.
                 val reconcile = ProfileSeason.reconcile(context, result.season, result.seasonUpdatedAt)
-                if (reconcile.adopted) PeerSyncSignals.dataRevision++
+                if (reconcile.adopted) {
+                    EventJournal.log("Sync", "", "Jahreszeit von ioBroker übernommen: ${ProfileSeason.label(ProfileSeason.current(context))}")
+                    PeerSyncSignals.dataRevision++
+                }
                 reconcile.push?.let { push -> io.update(address, { e, i -> e to i }, push) { updated, _ -> if (updated != null) data = updated } }
                 // Hand changed profile values to ioBroker, and switch off one-time timers that have run.
                 fun tidy(items: List<ClimateSchedule>, status: Map<String, ScheduleRun>) =
@@ -1167,6 +1170,7 @@ internal fun ScheduleSettingsContent() {
             val at = System.currentTimeMillis()
             season = chosen
             ProfileSeason.set(context, chosen, at)
+            EventJournal.log("Einstellung", "", "Jahreszeit auf ${ProfileSeason.label(chosen)} gestellt")
             PeerSyncSignals.dataRevision++
             status = "Wird gespeichert …"
             io.update(prefs.getString("iobroker_server", null).orEmpty(), { e, items -> e to items }, chosen to at) { result, _ ->

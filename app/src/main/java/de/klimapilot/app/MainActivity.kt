@@ -93,9 +93,20 @@ private val Muted = Color(0xFF63748A)
 private val TextMain = Color(0xFF172334)
 
 class MainActivity : ComponentActivity() {
+    override fun onStart() {
+        super.onStart()
+        EventJournal.log("App", "", "geöffnet")
+    }
+
+    override fun onStop() {
+        EventJournal.log("App", "", "im Hintergrund oder geschlossen")
+        super.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AppDiagnostics.init(this)
+        EventJournal.init(this)
         // Occasional background check for filter, schedule and reachability hints.
         runCatching { KlimaNotifications.schedule(this) }
         val installedAppVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "Unbekannt"
@@ -246,7 +257,14 @@ private fun KlimaPilotApp(appVersion: String) {
             val seqAtStart = commandSeq
             runCatching { withContext(Dispatchers.IO) { controller.read(device) } }
                 .onSuccess { state ->
-                    if (seqAtStart == commandSeq && !controlBusy) { currentAirconState = state; controlStatus = "" }
+                    if (seqAtStart == commandSeq && !controlBusy) {
+                        // A change this phone did not send: remote control, the other phone or a schedule.
+                        val before = currentAirconState
+                        if (before != null) EventJournal.diff(before, state).takeIf { it.isNotBlank() }?.let {
+                            EventJournal.log("Anlage", device.name, "geändert, nicht von diesem Handy: $it")
+                        }
+                        currentAirconState = state; controlStatus = ""
+                    }
                     airconConnected = true
                     AppDiagnostics.reach(device.name, true)
                 }
@@ -265,6 +283,8 @@ private fun KlimaPilotApp(appVersion: String) {
         onComplete: ((Boolean, String?) -> Unit)? = null,
         change: (AirconState) -> AirconState
     ) {
+        // Taken first so a refused command does not leave its source for the next one.
+        val source = CommandSource.take()
         val device = selectedDevice
         if (device == null) {
             onComplete?.invoke(false, "Kein Gerät ausgewählt.")
@@ -280,12 +300,14 @@ private fun KlimaPilotApp(appVersion: String) {
             onComplete?.invoke(false, message)
             return
         }
+        val before = currentAirconState
         controlScope.launch {
             controlBusy = true
             commandSeq++
             controlStatus = "Befehl wird übertragen …"
             try {
                 val updated = withContext(Dispatchers.IO) { controller.apply(device, change) }
+                EventJournal.log("Befehl", device.name, "$source: ${EventJournal.diff(before, updated).ifBlank { "keine Änderung" }} – übernommen")
                 currentAirconState = updated
                 airconConnected = true
                 controlStatus = "Einstellung übernommen."
@@ -293,7 +315,11 @@ private fun KlimaPilotApp(appVersion: String) {
             } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 val message = error.message ?: "Steuerbefehl fehlgeschlagen."
-                AppDiagnostics.log(device.name, "Befehl fehlgeschlagen", message)
+                val lockedS = (error as? de.klimapilot.app.wfrac.WfRacException)?.retryAfterS
+                val lock = lockedS?.let { " Sperre noch $it s." }.orEmpty()
+                val wanted = before?.let { runCatching { EventJournal.diff(it, change(it)) }.getOrNull() }.orEmpty().ifBlank { "?" }
+                EventJournal.log("Befehl", device.name, "$source: $wanted – fehlgeschlagen: $message$lock")
+                AppDiagnostics.log(device.name, "Befehl fehlgeschlagen", "$message Auslöser: $source.$lock")
                 controlStatus = message
                 onComplete?.invoke(false, message)
             } finally {
