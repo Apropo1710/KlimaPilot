@@ -164,7 +164,7 @@ internal object AppDiagnostics {
 internal class DiagnosticsIoBroker {
     private val main = Handler(Looper.getMainLooper())
 
-    data class Result(val enabled: Boolean, val entries: List<DiagEntry>)
+    data class Result(val enabled: Boolean, val entries: List<DiagEntry>, val events: List<EventJournal.Entry> = emptyList())
 
     private fun session(address: String, callback: (Result?, String?) -> Unit, block: (IoBrokerLease, (Result?, String?) -> Unit) -> Unit) {
         val url = address.trim().trimEnd('/')
@@ -201,7 +201,17 @@ internal class DiagnosticsIoBroker {
             readJson(socket, LOG_ID) { log ->
                 val array = log?.optJSONArray("entries") ?: JSONArray()
                 val entries = (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(DiagEntry::fromJson) }
-                next(Result(config?.optBoolean("enabled", false) == true, entries))
+                // Event journal of the script (always on, 48 h); shown together with the phone's own.
+                readJson(socket, EVENTS_ID) { journal ->
+                    val list = journal?.optJSONArray("entries") ?: JSONArray()
+                    val events = (0 until list.length()).mapNotNull { i ->
+                        list.optJSONObject(i)?.let { o ->
+                            runCatching { java.time.Instant.parse(o.optString("at")).toEpochMilli() }.getOrNull()
+                                ?.let { at -> EventJournal.Entry(at, "ioBroker", o.optString("subject"), o.optString("text")) }
+                        }
+                    }
+                    next(Result(config?.optBoolean("enabled", false) == true, entries, events))
+                }
             }
         }
     }
@@ -238,6 +248,7 @@ internal class DiagnosticsIoBroker {
     companion object {
         const val CONFIG_ID = "0_userdata.0.KlimaPilot.diagnostics.config"
         const val LOG_ID = "0_userdata.0.KlimaPilot.diagnostics.log"
+        const val EVENTS_ID = "0_userdata.0.KlimaPilot.events.log"
     }
 }
 
@@ -249,6 +260,7 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
     val io = remember { DiagnosticsIoBroker() }
     var on by remember { mutableStateOf(AppDiagnostics.enabled) }
     var remote by remember { mutableStateOf<List<DiagEntry>>(emptyList()) }
+    var scriptEvents by remember { mutableStateOf<List<EventJournal.Entry>>(emptyList()) }
     var status by remember { mutableStateOf("") }
     var refresh by remember { mutableIntStateOf(0) }
     var showInfo by remember { mutableStateOf(false) }
@@ -268,6 +280,7 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
                 on = result.enabled
                 AppDiagnostics.setEnabledLocal(result.enabled)
                 remote = result.entries
+                scriptEvents = result.events
                 status = ""
             } else status = error.orEmpty()
         }
@@ -344,9 +357,9 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
                 ) { Text(if (probeRunning) "Betriebsdaten werden geprüft …" else "Betriebsdaten der Anlagen prüfen", fontSize = 12.sp) }
 
                 // Event journal of this phone (always on, 48 h): commands with trigger, outside changes, sync.
-                val journal = remember(journalVersion, expanded) { EventJournal.entries() }
-                Text("Ereignisprotokoll dieses Handys (48 h)", color = SText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-                Text("Immer aktiv: App geöffnet/geschlossen, jeder Befehl mit Auslöser und Ergebnis, Änderungen an der Anlage, die nicht von diesem Handy kamen (nur solange die App offen ist), übernommene Synchronisierung.", color = SMuted, fontSize = 11.sp, lineHeight = 14.sp)
+                val journal = remember(journalVersion, expanded, scriptEvents) { (EventJournal.entries() + scriptEvents).sortedByDescending { it.at } }
+                Text("Ereignisprotokoll (48 h) – dieses Handy und ioBroker", color = SText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                Text("Immer aktiv. Handy: App geöffnet/geschlossen, jeder Befehl mit Auslöser und Ergebnis, Änderungen an der Anlage, die nicht von diesem Handy kamen (solange die App offen ist), übernommene Synchronisierung. ioBroker: rund um die Uhr jede Änderung an den Anlagen (alle 5 min geprüft), Zeitpläne und Prüfungen des Skripts.", color = SMuted, fontSize = 11.sp, lineHeight = 14.sp)
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -359,11 +372,11 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        onClick = { journalVersion++ }, modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                        onClick = { journalVersion++; refresh++ }, modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
                     ) { Text("Aktualisieren", fontSize = 12.sp) }
                     OutlinedButton(
                         onClick = {
-                            val text = EventJournal.entries().joinToString("\n") { it.line() }.ifBlank { "Keine Einträge." }
+                            val text = journal.joinToString("\n") { it.line() }.ifBlank { "Keine Einträge." }
                             (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
                                 .setPrimaryClip(ClipData.newPlainText("KlimaPilot Ereignisprotokoll", text))
                             status = "Ereignisprotokoll kopiert – du kannst es jetzt einfügen und mir schicken."

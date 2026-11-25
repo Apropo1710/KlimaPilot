@@ -23,6 +23,12 @@
  *    und wie lange er schon läuft bzw. steht, Fühlertrend, Lüfter, Außentemperatur …) und lernt
  *    daraus je Anlage die Abweichung. Nutzt nur die ohnehin laufenden Abfragen.
  *
+ * 5. Ereignisprotokoll (immer aktiv, 48 h, 0_userdata.0.KlimaPilot.events.log): jede Änderung an einer
+ *    Anlage zwischen zwei Abfragen (alle 5 min), jedes Schalten durch das Skript (Zeitplan,
+ *    Betriebsdaten-Prüfung) und Wartezeiten wegen einer Sperre durch ein anderes Gerät. Zeigt auch,
+ *    was passiert, während keine App offen ist. KlimaPilot zeigt es in der Diagnose zusammen mit dem
+ *    Protokoll des Handys.
+ *
  * Anlagen (IP, Geräte-ID), Strompreis und Zeitpläne schreibt KlimaPilot selbst.
  * Anfragen an dieselbe Anlage laufen nacheinander, weil das WLAN-Modul nur eine Verbindung
  * gleichzeitig verträgt.
@@ -42,6 +48,9 @@ const DIAG_LOG_ID = `${DIAG_ROOT}.log`;
 const DIAG_MAX_ENTRIES = 400;
 const DIAG_KEEP_DAYS = 14;
 const OWNER_ID = '0_userdata.0.KlimaPilot.script.owner';
+const EVENTS_ID = '0_userdata.0.KlimaPilot.events.log';
+const EVENTS_KEEP_MS = 48 * 3600 * 1000;
+const EVENTS_MAX = 1500;
 const POLL_MINUTES = 5;
 const HOURLY_DAYS = 31;          // Stundenwerte werden 31 Tage aufbewahrt, Tageswerte unbegrenzt.
 const SPREAD_MAX_SLOTS = 12 * 60 / 5; // Ein Zählerschritt wird auf höchstens 12 h Laufzeit verteilt.
@@ -311,6 +320,7 @@ async function pollEnergy(unit) {
         const contents = await serial(unit, () => readStat(unit));
         const stat = decodeStat(contents.airconStat);
         roomObserve(unit, stat, now);
+        eventObserve(unit, stat, now);
         const value = stat.runEnergyKwh;
         if (value === null) throw new Error('Anlage meldet keinen Energiezähler');
         // Betriebszeit (Betriebstage für die Filter-Erinnerung in der App) und Außentemperatur (Mittel je Stunde und Tag).
@@ -400,6 +410,58 @@ async function pollAllEnergy() {
     } finally {
         energyRunning = false;
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// 5. Ereignisprotokoll (immer aktiv, 48 h)
+// ---------------------------------------------------------------------------------------------
+
+let eventsQueue = Promise.resolve();
+const lastSeen = {};  // airconId → { stat, at } der letzten Abfrage
+const ownWrite = {};  // airconId → Zeitpunkt, zu dem das Skript zuletzt geschaltet hat
+
+/** Hängt einen Eintrag an; Schreibvorgänge laufen nacheinander, damit keiner verloren geht. */
+function eventLog(subject, text) {
+    eventsQueue = eventsQueue.then(async () => {
+        await ensureJsonState(EVENTS_ID, 'KlimaPilot – Ereignisprotokoll des Skripts (48 h)', { entries: [] });
+        const data = await readJson(EVENTS_ID) || {};
+        const oldest = Date.now() - EVENTS_KEEP_MS;
+        const entries = (Array.isArray(data.entries) ? data.entries : []).filter(e => Date.parse(e.at) >= oldest);
+        entries.push({ at: new Date().toISOString(), subject: subject || '', text });
+        await setStateAsync(EVENTS_ID, JSON.stringify({ entries: entries.slice(-EVENTS_MAX) }), true);
+    }).catch(e => log(`KlimaPilot Ereignisprotokoll: ${e.message}`, 'warn'));
+    return eventsQueue;
+}
+
+const MODE_LABEL = { HEAT: 'Heizen', COOL: 'Kühlen', DRY: 'Trocknen', FAN: 'Lüfter', AUTO: 'Auto' };
+const FAN_LABEL = ['Auto', 'Leise', 'Niedrig', 'Mittel', 'Hoch'];
+const fmtTemp = v => typeof v === 'number' ? v.toFixed(1).replace('.', ',') : '?';
+
+/** Lesbarer Unterschied der einstellbaren Werte, z. B. „Soll 20,5 → 21,0 °C, Lüfter Auto → Hoch“. */
+function statDiff(a, b) {
+    const parts = [];
+    if (a.power !== b.power) parts.push(b.power ? 'eingeschaltet' : 'ausgeschaltet');
+    if (a.mode !== b.mode) parts.push(`Modus ${MODE_LABEL[a.mode] || a.mode} → ${MODE_LABEL[b.mode] || b.mode}`);
+    if (a.presetTemp !== b.presetTemp) parts.push(`Soll ${fmtTemp(a.presetTemp)} → ${fmtTemp(b.presetTemp)} °C`);
+    if (a.airFlow !== b.airFlow) parts.push(`Lüfter ${FAN_LABEL[a.airFlow] || a.airFlow} → ${FAN_LABEL[b.airFlow] || b.airFlow}`);
+    if (a.windUD !== b.windUD) parts.push(`Lamelle oben/unten ${a.windUD} → ${b.windUD}`);
+    if (a.windLR !== b.windLR) parts.push(`Lamelle links/rechts ${a.windLR} → ${b.windLR}`);
+    if (a.entrust !== b.entrust) parts.push(`3D-Auto ${b.entrust ? 'an' : 'aus'}`);
+    return parts.join(', ');
+}
+
+/** Vergleicht mit der vorigen Abfrage und protokolliert Änderungen samt möglicher Quelle. */
+function eventObserve(unit, stat, now) {
+    const id = unit.airconId;
+    const prev = lastSeen[id];
+    lastSeen[id] = { stat, at: now.getTime() };
+    if (!prev) return;
+    const diff = statDiff(prev.stat, stat);
+    if (!diff) return;
+    const byScript = ownWrite[id] && ownWrite[id] > prev.at;
+    eventLog(unit.name || id, byScript
+        ? `geändert seit ${new Date(prev.at).toTimeString().slice(0, 5)} (das Skript hat dazwischen geschaltet): ${diff}`
+        : `geändert seit ${new Date(prev.at).toTimeString().slice(0, 5)} – nicht vom Skript (Handy, Fernbedienung oder anderes Gerät): ${diff}`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -849,6 +911,8 @@ async function probeUnit(unit) {
     const result = { at: new Date().toISOString(), powerBefore: before.power, compressorRunning: before.compressorRunning };
     try {
         const contents = await serial(unit, () => request(unit, 'setAirconStat', { airconId: unit.airconId, airconStat: Buffer.from(bytes).toString('base64') }));
+        ownWrite[unit.airconId] = Date.now();
+        eventLog(unit.name || unit.airconId, 'Betriebsdaten-Prüfung (sperrt das Modul für die Handys rund 60 s)');
         const segs = receiveSegments(contents.airconStat);
         result.ok = true;
         result.raw = segs.map(s => s.map(b => b.toString(16).padStart(2, '0')).join(' '));
@@ -871,6 +935,8 @@ async function probeUnit(unit) {
         if (before.power && !after.power) {
             result.switchedOff = true;
             await serial(unit, () => request(unit, 'setAirconStat', { airconId: unit.airconId, airconStat: encodeStat(before) }));
+            ownWrite[unit.airconId] = Date.now();
+            eventLog(unit.name || unit.airconId, 'Betriebsdaten-Prüfung hatte die Anlage ausgeschaltet – wieder eingeschaltet');
             result.restored = true;
             await diagLog(unit.name || unit.airconId, 'Betriebsdaten-Prüfung hat die Anlage ausgeschaltet – wieder eingeschaltet', 'Betriebsdaten bei dieser Anlage nicht abfragen');
         }
@@ -939,6 +1005,7 @@ async function execute(unit, item) {
             const next = applyAction(current, item);
             try {
                 await request(unit, 'setAirconStat', { airconId: unit.airconId, airconStat: encodeStat(next) });
+                ownWrite[unit.airconId] = Date.now();
                 return;
             } catch (e) {
                 if (!e.refused || attempt === 2) throw e;
@@ -947,6 +1014,7 @@ async function execute(unit, item) {
                 const after = await readStat(unit);
                 const lockedFor = (after.expires || 0) - Math.floor(Date.now() / 1000);
                 if (lockedFor > 0 && lockedFor <= 70) {
+                    eventLog(unit.name || unit.airconId, `Zeitplan wartet: Modul von einem anderen Gerät gesperrt (noch ${lockedFor} s)`);
                     await sleep((lockedFor + 1) * 1000);
                 } else {
                     await request(unit, 'updateAccountInfo', { accountId: OPERATOR_ID, airconId: unit.airconId, remote: 0, timezone: 'Europe/Berlin' });
@@ -1043,12 +1111,16 @@ async function runSchedules() {
             if (!unit) {
                 entry.result = 'Anlage ist ioBroker nicht bekannt';
             } else {
+                const what = item.quick ? 'Schnell-Timer „Aus in …“' : `Zeitplan ${item.kind === 'once' ? 'einmalig' : item.time}`;
+                const action = item.action === 'off' ? 'ausschalten' : `einschalten${item.profileName ? ` mit Profil „${item.profileName}“` : ''}`;
                 try {
                     await execute(unit, item);
                     entry.result = 'ok';
                     entry.done = true;
+                    eventLog(unit.name || unit.airconId, `${what}: ${action} – ausgeführt`);
                 } catch (e) {
                     entry.result = e.message;
+                    eventLog(unit.name || unit.airconId, `${what}: ${action} – fehlgeschlagen (Versuch ${entry.attempts}): ${e.message}`);
                     log(`KlimaPilot Zeitplan ${item.id} (Versuch ${entry.attempts}): ${e.message}`, 'warn');
                 }
             }
@@ -1105,6 +1177,7 @@ schedule(`*/${POLL_MINUTES} * * * *`, whenOwner(pollAllEnergy));
 schedule('* * * * *', whenOwner(runSchedules));
 schedule('* * * * *', whenOwner(async () => { await watchDiagnostics(); await probeAll(); }));
 claimOwnership().then(async () => {
+    eventLog('ioBroker-Skript', `gestartet (${SELF})`);
     // Gespeicherte Zustandswechsel vor der ersten Ablesung laden, sonst gilt die Dauer als unbekannt.
     await roomLoadTrack().catch(e => log(`KlimaPilot Raumtemperatur: ${e.message}`, 'warn'));
     watchDiagnostics();

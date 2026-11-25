@@ -89,6 +89,7 @@ Alle Datenpunkte unter `0_userdata.0.KlimaPilot`, die andere Programme (z. B. ei
 | `filter.config` | App | lesen und schreiben |
 | `diagnostics.config` | App | lesen und schreiben |
 | `diagnostics.log` | Skript | lesen; leeren erlaubt |
+| `events.log` | Skript | nur lesen |
 | `roomTemp.input` | App | schreiben (Thermometerwert eintragen) |
 | `roomTemp.samples` | Skript | nur lesen |
 | `roomTemp.model` | Skript | nur lesen |
@@ -248,6 +249,21 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 - Höchstens 400 Einträge, älter als 14 Tage wird entfernt.
 - Leeren: `{"entries":[]}` schreiben.
 - Die Einträge der Handys (`source: "Handy"`) liegen nur auf dem jeweiligen Handy, nicht in ioBroker.
+
+### `events.log` – Ereignisprotokoll des Skripts (nur lesen, seit 0.5.76)
+
+```json
+{
+  "entries": [
+    { "at": "2026-11-26T05:00:12.000Z", "subject": "Klimaanlage Büro", "text": "Zeitplan 06:00: einschalten mit Profil „Standart“ – ausgeführt" },
+    { "at": "2026-11-26T15:55:03.000Z", "subject": "Klimaanlage Schlafzimmer", "text": "geändert seit 16:50 – nicht vom Skript (Handy, Fernbedienung oder anderes Gerät): Soll 20,0 → 21,0 °C" }
+  ]
+}
+```
+
+- Immer aktiv (unabhängig von der Diagnose), 48 h, höchstens 1500 Einträge.
+- Enthält: Skriptstart, jede Änderung der einstellbaren Werte (Ein/Aus, Modus, Soll, Lüfter, Lamellen, 3D-Auto) zwischen zwei Abfragen (alle 5 min) mit Hinweis, ob das Skript dazwischen geschaltet hat, jedes Schalten durch Zeitpläne/Schnell-Timer mit Ergebnis, Wartezeiten wegen Sperre durch ein anderes Gerät und die Betriebsdaten-Prüfung.
+- `text` ist für Menschen gedacht; das Format kann sich ändern. Die App zeigt die Einträge in der Diagnose zusammen mit dem Ereignisprotokoll des Handys.
 
 ### `roomTemp.input` – Thermometerwert eintragen (schreiben)
 
