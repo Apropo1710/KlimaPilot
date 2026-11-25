@@ -1309,7 +1309,7 @@ private fun MainScreen(
                 }
                 if (state != null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactMetricCard(Modifier.weight(1f), "Kompressor", if (state.compressorRunning) "Aktiv" else "Inaktiv", state.errorCode?.let { "Statuscode: $it" } ?: "Kein Code gemeldet")
+                        CompactMetricCard(Modifier.weight(1f), "Kompressor", if (state.defrosting) "Taut ab" else if (state.compressorRunning) "Aktiv" else "Inaktiv", state.errorCode?.let { "Statuscode: $it" } ?: if (state.defrosting) "Heizen pausiert kurz" else "Kein Code gemeldet")
                         CompactMetricCard(Modifier.weight(1f), "Verbindung", if (airconConnected) "Lokal" else "Getrennt", if (controlBusy) "Befehl läuft …" else "WF-RAC")
                     }
                 } else {
@@ -1385,7 +1385,7 @@ private fun TemperatureCard(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text(deviceName, color = TextMain, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    Text(if (state == null) "Nicht verbunden" else if (state.power) "Eingeschaltet" else "Ausgeschaltet", color = if (connected && state?.power == true) Blue else Muted, fontSize = 11.sp)
+                    Text(if (state == null) "Nicht verbunden" else if (state.power && state.defrosting) "Eingeschaltet · taut ab" else if (state.power) "Eingeschaltet" else "Ausgeschaltet", color = if (connected && state?.power == true) Blue else Muted, fontSize = 11.sp)
                 }
                 Text(if (connected) "● Lokal verbunden" else "○ Offline", color = if (connected) Green else Muted, fontSize = 10.sp)
             }
