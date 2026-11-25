@@ -263,20 +263,20 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 
 ```json
 { "units": { "1cd1d717d1e2": [
-  { "id": "…", "at": "2026-11-24T06:44:00.000Z", "thermo": 18.2, "raw": 21.5, "offset": 3.3, "scenario": "Heizen, Verdichter läuft",
+  { "id": "…", "at": "2026-11-24T06:44:00.000Z", "thermo": 18.2, "raw": 21.5, "offset": 3.3, "scenario": "Heizen, aktiv länger",
     "f": { "on": 1, "heat": 1, "comp": 1, "runFresh": 0.264, "restFresh": 0, "offFresh": 0, "trend": -1.5, "outdoor": -3, "fan": 2, "setDiff": -3.5 } }
 ] } }
 ```
 
-Werte verfallen nicht mit der Zeit; je Anlage und Lage (`scenario`) höchstens 100 – darüber ersetzt ein neuer Wert den ältesten derselben Lage, Werte anderer Lagen (z. B. Heizen im Winter, Kühlen im Sommer) bleiben unberührt. Merkmale `f`: eingeschaltet, Modus Heizen, Verdichter läuft, `runFresh`/`restFresh` = e^(−Minuten seit Verdichter-Start bzw. -Stopp / 15), `offFresh` = e^(−Minuten seit Ausschalten / 30), `trend` = Fühleränderung der letzten ~10 min, Außentemperatur, Lüfterstufe (Auto = 2), Soll minus Fühler.
+Lagen „aktiv seit kurzem/länger“ heißen bis 0.5.73 „Verdichter startet/läuft“; das Skript benennt gespeicherte Werte beim Lesen um („aktiv“ = dieser Raum fordert an, Statusbit je Innengerät). Werte verfallen nicht mit der Zeit; je Anlage und Lage (`scenario`) höchstens 100 – darüber ersetzt ein neuer Wert den ältesten derselben Lage, Werte anderer Lagen (z. B. Heizen im Winter, Kühlen im Sommer) bleiben unberührt. Merkmale `f`: eingeschaltet, Modus Heizen, aktiv länger, `runFresh`/`restFresh` = e^(−Minuten seit Verdichter-Start bzw. -Stopp / 15), `offFresh` = e^(−Minuten seit Ausschalten / 30), `trend` = Fühleränderung der letzten ~10 min, Außentemperatur, Lüfterstufe (Auto = 2), Soll minus Fühler.
 
 ### `roomTemp.model` – gelernte Abweichung (nur lesen)
 
 ```json
 { "updatedAt": "2026-11-24T06:45:00.000Z", "units": { "1cd1d717d1e2": {
-  "using": "model", "samples": 14, "offset": 3.4, "scenario": "Heizen, Verdichter läuft",
-  "scenarios": ["Aus", "Aus, kürzlich abgeschaltet", "Heizen, Verdichter startet", "Heizen, Verdichter läuft", "Heizen, Pause kurz", "Heizen, Pause lang"],
-  "coverage": { "Heizen, Verdichter läuft": 5, "Heizen, Pause lang": 4 },
+  "using": "model", "samples": 14, "offset": 3.4, "scenario": "Heizen, aktiv länger",
+  "scenarios": ["Aus", "Aus, kürzlich abgeschaltet", "Heizen, aktiv seit kurzem", "Heizen, aktiv länger", "Heizen, Pause kurz", "Heizen, Pause lang"],
+  "coverage": { "Heizen, aktiv länger": 5, "Heizen, Pause lang": 4 },
   "errorModel": 0.31, "errorMean": 0.62, "minForModel": 8, "weights": { "comp": -1.2 },
   "last": { "id": "…", "at": "…", "thermo": 18.2, "raw": 21.5 },
   "input": { "id": "…", "at": "…", "ok": true, "message": "Messwert 18,2 °C übernommen (5 gesamt)." }
