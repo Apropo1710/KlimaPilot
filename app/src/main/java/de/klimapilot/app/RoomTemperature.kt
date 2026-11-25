@@ -12,6 +12,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -197,12 +198,16 @@ internal fun RoomTempDialog(
     shown: Double?,
     model: RoomTempModel?,
     ioBrokerReachable: Boolean,
+    checking: Boolean,
     status: String?,
     statusOk: Boolean?,
     onSubmit: (Double) -> Unit,
     onDeleteLast: (String) -> Unit,
     onDismiss: () -> Unit,
+    onOpen: () -> Unit,
 ) {
+    // Asks ioBroker right away instead of waiting for the next minute's query.
+    LaunchedEffect(Unit) { onOpen() }
     // Digits only (number pad without searching for the comma): "175" = 17,5 °C, "17" = 17 °C.
     var text by remember { mutableStateOf("") }
     val value = thermometerValue(text)
@@ -215,6 +220,7 @@ internal fun RoomTempDialog(
                 Text("Angezeigt: ${shown?.let { RoomTempModel.fmt(it) + " °C" } ?: "—"}", color = DialogText, fontWeight = FontWeight.SemiBold)
                 Text(
                     when {
+                        !ioBrokerReachable && checking -> "Verbindung zu ioBroker wird geprüft …"
                         !ioBrokerReachable -> "ioBroker nicht erreichbar – es gilt die feste Korrektur."
                         model == null -> "Noch keine Messwerte – es gilt die feste Korrektur."
                         model.using != "none" && model.currentOffset() == null -> "Keine aktuellen Daten vom Skript – es gilt die feste Korrektur."
@@ -276,6 +282,10 @@ internal fun RoomTempDialog(
 internal class RoomTempUi(
     val models: Map<String, RoomTempModel>,
     val reachable: Boolean,
+    /** The immediate query after opening the dialog is still running. */
+    val checking: Boolean,
+    /** Asks ioBroker right away (on opening the dialog). */
+    val refresh: () -> Unit,
     val status: String?,
     /** null = waiting, true = confirmed by the script, false = failed. */
     val statusOk: Boolean?,
