@@ -1309,7 +1309,8 @@ private fun MainScreen(
                 }
                 if (state != null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactMetricCard(Modifier.weight(1f), "Kompressor", if (state.defrosting) "Taut ab" else if (state.compressorRunning) "Aktiv" else "Inaktiv", state.errorCode?.let { "Statuscode: $it" } ?: if (state.defrosting) "Heizen pausiert kurz" else "Kein Code gemeldet")
+                        // The compressor bit belongs to this indoor unit (room asks for heat/cold); on the shared outdoor unit the compressor may run for the other room.
+                        CompactMetricCard(Modifier.weight(1f), "Raum", roomActivityLabel(state), state.errorCode?.let { "Statuscode: $it" } ?: if (state.defrosting) "Heizen pausiert kurz" else "Kein Code gemeldet")
                         CompactMetricCard(Modifier.weight(1f), "Verbindung", if (airconConnected) "Lokal" else "Getrennt", if (controlBusy) "Befehl läuft …" else "WF-RAC")
                     }
                 } else {
@@ -1915,4 +1916,15 @@ private fun TemperatureSlider(value: Float, enabled: Boolean, onValueChange: (Fl
         drawCircle(Color.White, radius = knobRadius.toPx() + 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(knobX, y))
         drawCircle(active, radius = knobRadius.toPx(), center = androidx.compose.ui.geometry.Offset(knobX, y))
     }
+}
+
+/** What this room's indoor unit is doing: asking for heat/cold, pausing, defrosting or off. */
+internal fun roomActivityLabel(state: AirconState): String = when {
+    !state.power -> "Aus"
+    state.defrosting -> "Taut ab"
+    !state.compressorRunning -> "Pause"
+    state.mode == Mode.HEAT -> "Heizt gerade"
+    state.mode == Mode.COOL -> "Kühlt gerade"
+    state.mode == Mode.DRY -> "Entfeuchtet"
+    else -> "Aktiv"
 }

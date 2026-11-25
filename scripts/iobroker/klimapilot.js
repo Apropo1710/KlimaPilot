@@ -596,18 +596,26 @@ function roomFeatures(tr, t) {
     };
 }
 
+/**
+ * „aktiv“ = dieser Raum fordert Wärme/Kälte an (Statusbit je Innengerät). Am gemeinsamen
+ * Außengerät kann der Verdichter auch für den anderen Raum laufen, daher nicht „Verdichter“.
+ */
+function roomScenarioRename(label) {
+    return label.replace(', Verdichter startet', ', aktiv seit kurzem').replace(', Verdichter läuft', ', aktiv länger');
+}
+
 function roomScenario(tr, t) {
     const s = tr.stat;
     if (!s.power) return roomMinutes(tr.powerSince, t) < 30 ? 'Aus, kürzlich abgeschaltet' : 'Aus';
     const mode = MODE_NAMES[s.mode] || 'An';
     if (s.mode === 'FAN') return mode;
-    if (tr.comp) return `${mode}, Verdichter ${roomMinutes(tr.compSince, t) < 10 ? 'startet' : 'läuft'}`;
+    if (tr.comp) return `${mode}, aktiv ${roomMinutes(tr.compSince, t) < 10 ? 'seit kurzem' : 'länger'}`;
     return `${mode}, Pause ${roomMinutes(tr.compSince, t) < 10 ? 'kurz' : 'lang'}`;
 }
 
 function roomScenarioList(tr) {
     const mode = tr && tr.stat && tr.stat.power && MODE_NAMES[tr.stat.mode] && tr.stat.mode !== 'FAN' ? MODE_NAMES[tr.stat.mode] : 'Heizen';
-    return ['Aus', 'Aus, kürzlich abgeschaltet', `${mode}, Verdichter startet`, `${mode}, Verdichter läuft`, `${mode}, Pause kurz`, `${mode}, Pause lang`];
+    return ['Aus', 'Aus, kürzlich abgeschaltet', `${mode}, aktiv seit kurzem`, `${mode}, aktiv länger`, `${mode}, Pause kurz`, `${mode}, Pause lang`];
 }
 
 /** Löst A·x = b (A symmetrisch positiv definit) per Gauß-Elimination mit Pivotsuche. */
@@ -714,6 +722,10 @@ async function roomReadSamples() {
     await ensureJsonState(ROOM_SAMPLES_ID, 'KlimaPilot – Raumtemperatur: Thermometerwerte mit Anlagenzustand', { units: {} });
     const data = await readJson(ROOM_SAMPLES_ID) || {};
     data.units = data.units && typeof data.units === 'object' ? data.units : {};
+    // Lagen hießen bis 0.5.74 „Verdichter startet/läuft“; das Statusbit gilt aber je Raum (Multisplit).
+    for (const list of Object.values(data.units)) {
+        if (Array.isArray(list)) for (const sample of list) if (sample && typeof sample.scenario === 'string') sample.scenario = roomScenarioRename(sample.scenario);
+    }
     roomSamplesCache = data;
     return data;
 }
