@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -228,6 +230,9 @@ internal fun RoomTempDialog(
                     },
                     color = DialogMuted, fontSize = 13.sp
                 )
+                // After saving, the keyboard goes away so the result and the counts are visible.
+                val keyboard = LocalSoftwareKeyboardController.current
+                val focusManager = LocalFocusManager.current
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = text,
@@ -241,7 +246,7 @@ internal fun RoomTempDialog(
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = DialogBlue, focusedLabelColor = DialogBlue, cursorColor = DialogBlue),
                         modifier = Modifier.weight(1f)
                     )
-                    TextButton(onClick = { value?.let { onSubmit(it); text = "" } }, enabled = value != null && raw != null && ioBrokerReachable) {
+                    TextButton(onClick = { value?.let { onSubmit(it); text = ""; keyboard?.hide(); focusManager.clearFocus() } }, enabled = value != null && raw != null && ioBrokerReachable) {
                         Text("Speichern", color = if (value != null && raw != null && ioBrokerReachable) DialogBlue else DialogMuted)
                     }
                 }
