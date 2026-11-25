@@ -254,6 +254,7 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
     var showInfo by remember { mutableStateOf(false) }
     // The phone's own entries are not Compose state; this counter makes the list re-read them.
     var localVersion by remember { mutableIntStateOf(0) }
+    var journalVersion by remember { mutableIntStateOf(0) }
     // One-off check whether the modules deliver operation data (compressor frequency, coil temperature).
     var showProbeConfirm by remember { mutableStateOf(false) }
     var probeRunning by remember { mutableStateOf(false) }
@@ -341,6 +342,39 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
                     onClick = { showProbeConfirm = true }, enabled = !probeRunning,
                     modifier = Modifier.fillMaxWidth().height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
                 ) { Text(if (probeRunning) "Betriebsdaten werden geprüft …" else "Betriebsdaten der Anlagen prüfen", fontSize = 12.sp) }
+
+                // Event journal of this phone (always on, 48 h): commands with trigger, outside changes, sync.
+                val journal = remember(journalVersion, expanded) { EventJournal.entries() }
+                Text("Ereignisprotokoll dieses Handys (48 h)", color = SText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                Text("Immer aktiv: App geöffnet/geschlossen, jeder Befehl mit Auslöser und Ergebnis, Änderungen an der Anlage, die nicht von diesem Handy kamen (nur solange die App offen ist), übernommene Synchronisierung.", color = SMuted, fontSize = 11.sp, lineHeight = 14.sp)
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (journal.isEmpty()) Text("Noch keine Einträge.", color = SMuted, fontSize = 12.sp)
+                    journal.take(40).forEach { entry ->
+                        Text(entry.line(), color = if (entry.text.contains("fehlgeschlagen")) Color(0xFFB3261E) else SText, fontSize = 11.sp, lineHeight = 14.sp)
+                    }
+                    if (journal.size > 40) Text("… ${journal.size - 40} ältere Einträge (beim Kopieren enthalten)", color = SMuted, fontSize = 11.sp)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { journalVersion++ }, modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) { Text("Aktualisieren", fontSize = 12.sp) }
+                    OutlinedButton(
+                        onClick = {
+                            val text = EventJournal.entries().joinToString("\n") { it.line() }.ifBlank { "Keine Einträge." }
+                            (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                .setPrimaryClip(ClipData.newPlainText("KlimaPilot Ereignisprotokoll", text))
+                            status = "Ereignisprotokoll kopiert – du kannst es jetzt einfügen und mir schicken."
+                        },
+                        modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) { Text("Kopieren", fontSize = 12.sp) }
+                    OutlinedButton(
+                        onClick = { EventJournal.clear(); journalVersion++ },
+                        modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) { Text("Leeren", fontSize = 12.sp) }
+                }
             }
         }
     }
