@@ -121,6 +121,12 @@ internal data class ClimateSchedule(
     /** Weekly only: runs every [everyWeeks]th week (1 = every week), counted from the week of [weekAnchor] (ISO date of a Monday). */
     val everyWeeks: Int = 1,
     val weekAnchor: String? = null,
+    /**
+     * Household seasons in which the schedule is shown and carried out ([ProfileSeason.HOUSEHOLD]).
+     * Never empty for a saved schedule; entries from before 0.5.72 have none stored and count as
+     * winter. Quick timers ignore it.
+     */
+    val seasons: List<String> = listOf(ProfileSeason.WINTER),
 )
 
 internal data class ScheduleRun(val key: String, val at: String?, val done: Boolean, val result: String?)
@@ -131,6 +137,9 @@ internal data class ScheduleData(
     val status: Map<String, ScheduleRun>,
     /** Counts every write of schedules.config; guards against two phones writing at once. */
     val revision: Long = 0L,
+    /** Household season stored in schedules.config (null before it was ever chosen) and when it was changed. */
+    val season: String? = null,
+    val seasonUpdatedAt: Long = 0L,
 )
 
 internal object ScheduleJson {
@@ -163,6 +172,7 @@ internal object ScheduleJson {
         put("updatedAt", i.updatedAt)
         if (i.quick) put("quick", true)
         if (i.everyWeeks > 1 && i.weekAnchor != null) { put("everyWeeks", i.everyWeeks); put("weekAnchor", i.weekAnchor) }
+        if (!i.quick) put("seasons", JSONArray(i.seasons))
     }
 
     fun itemFromJson(o: JSONObject): ClimateSchedule? {
@@ -184,13 +194,20 @@ internal object ScheduleJson {
             quick = o.optBoolean("quick", false),
             everyWeeks = o.optInt("everyWeeks", 1).coerceIn(1, 4),
             weekAnchor = o.optString("weekAnchor").ifBlank { null },
+            // Stored before seasons existed: winter (the schedules in use then were winter schedules).
+            seasons = o.optJSONArray("seasons")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it in ProfileSeason.HOUSEHOLD }.distinct() }
+                ?.takeIf { it.isNotEmpty() } ?: listOf(ProfileSeason.WINTER),
         )
     }
 
-    fun configToJson(enabled: Boolean, items: List<ClimateSchedule>, revision: Long = 0L) = JSONObject()
+    fun configToJson(enabled: Boolean, items: List<ClimateSchedule>, revision: Long = 0L, season: String? = null, seasonUpdatedAt: Long = 0L) = JSONObject()
         .put("enabled", enabled)
         .put("revision", revision)
+        .apply { if (season in ProfileSeason.HOUSEHOLD) { put("season", season); put("seasonUpdatedAt", seasonUpdatedAt) } }
         .put("items", JSONArray().apply { items.forEach { put(itemToJson(it)) } })
+
+    fun seasonFromJson(o: JSONObject?): Pair<String?, Long> =
+        o?.optString("season")?.takeIf { it in ProfileSeason.HOUSEHOLD } to (o?.optLong("seasonUpdatedAt", 0L) ?: 0L)
 
     fun configFromJson(o: JSONObject?): Pair<Boolean, List<ClimateSchedule>> {
         if (o == null) return true to emptyList()
@@ -223,6 +240,12 @@ internal object ScheduleMath {
             else -> sorted.joinToString(", ") { weekdayShort.getOrElse(it - 1) { "?" } }
         }
     }
+
+    /** Whether [item] is shown and carried out in [season]; quick timers always are. */
+    fun inSeason(item: ClimateSchedule, season: String): Boolean = item.quick || season in item.seasons
+
+    fun seasonsLabel(seasons: List<String>): String =
+        ProfileSeason.HOUSEHOLD.filter { it in seasons }.joinToString(" · ") { ProfileSeason.label(it) }
 
     fun mondayOf(date: LocalDate): LocalDate = date.minusDays((date.dayOfWeek.value - 1).toLong())
 
@@ -351,7 +374,8 @@ internal class ScheduleIoBroker {
         readJson(socket, CONFIG_ID) { config ->
             readJson(socket, STATUS_ID) { status ->
                 val (enabled, items) = ScheduleJson.configFromJson(config)
-                next(ScheduleData(enabled, items, ScheduleJson.statusFromJson(status), config?.optLong("revision", 0L) ?: 0L))
+                val (season, seasonAt) = ScheduleJson.seasonFromJson(config)
+                next(ScheduleData(enabled, items, ScheduleJson.statusFromJson(status), config?.optLong("revision", 0L) ?: 0L, season, seasonAt))
             }
         }
     }
@@ -365,12 +389,20 @@ internal class ScheduleIoBroker {
      * Read – change – write. Right before writing, the revision is checked again; if the other
      * phone wrote in between, the change is applied once more to its fresh state (up to 3 times).
      */
-    fun update(address: String, change: (Boolean, List<ClimateSchedule>) -> Pair<Boolean, List<ClimateSchedule>>, callback: (ScheduleData?, String?) -> Unit) =
+    fun update(
+        address: String,
+        change: (Boolean, List<ClimateSchedule>) -> Pair<Boolean, List<ClimateSchedule>>,
+        /** Household season to store with its change time; only written if newer than the stored one. */
+        season: Pair<String, Long>? = null,
+        callback: (ScheduleData?, String?) -> Unit,
+    ) =
         session(address, callback) { socket, finish ->
             fun attempt(round: Int) {
                 read(socket) { current ->
                     val (enabled, items) = change(current.enabled, current.items)
-                    if (enabled == current.enabled && items == current.items) { finish(current, null); return@read }
+                    val (newSeason, newSeasonAt) = season?.takeIf { it.second > current.seasonUpdatedAt || current.season == null }
+                        ?: (current.season to current.seasonUpdatedAt)
+                    if (enabled == current.enabled && items == current.items && newSeason == current.season && newSeasonAt == current.seasonUpdatedAt) { finish(current, null); return@read }
                     readJson(socket, CONFIG_ID) { latest ->
                         val latestRevision = latest?.optLong("revision", 0L) ?: 0L
                         if (latestRevision != current.revision && round < 3) { attempt(round + 1); return@readJson }
@@ -380,10 +412,10 @@ internal class ScheduleIoBroker {
                             .put("native", JSONObject())
                         socket.emit("setObject", CONFIG_ID, definition, IoBrokerAck { objectArgs ->
                             if (objectArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL } != null) { finish(null, "Zeitpläne konnten nicht gespeichert werden."); return@IoBrokerAck }
-                            val value = ScheduleJson.configToJson(enabled, items, revision).toString()
+                            val value = ScheduleJson.configToJson(enabled, items, revision, newSeason, newSeasonAt).toString()
                             socket.emit("setState", CONFIG_ID, JSONObject().put("val", value).put("ack", false), IoBrokerAck { stateArgs ->
                                 if (stateArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL } != null) finish(null, "Zeitpläne konnten nicht gespeichert werden.")
-                                else finish(ScheduleData(enabled, items, current.status, revision), null)
+                                else finish(ScheduleData(enabled, items, current.status, revision, newSeason, newSeasonAt), null)
                             })
                         })
                     }
@@ -455,6 +487,8 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
     fun loadProfiles(): List<ClimateProfile> =
         runCatching { ClimateProfileRepository(context).load() }.getOrDefault(emptyList()).filter { it.deviceId == device.id }
     var profiles by remember(device.id) { mutableStateOf(loadProfiles()) }
+    // Household season: only its schedules are listed (and carried out by the script).
+    val season = remember(PeerSyncSignals.dataRevision) { ProfileSeason.current(context) }
 
     LaunchedEffect(device.id, refresh) {
         while (true) {
@@ -463,6 +497,10 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
             io.load(address) { result, err ->
                 if (result == null) { error = err; return@load }
                 data = result; error = null
+                // Season: take a newer choice from ioBroker, or hand a newer one of this phone to it.
+                val reconcile = ProfileSeason.reconcile(context, result.season, result.seasonUpdatedAt)
+                if (reconcile.adopted) PeerSyncSignals.dataRevision++
+                reconcile.push?.let { push -> io.update(address, { e, i -> e to i }, push) { updated, _ -> if (updated != null) data = updated } }
                 // Hand changed profile values to ioBroker, and switch off one-time timers that have run.
                 fun tidy(items: List<ClimateSchedule>, status: Map<String, ScheduleRun>) =
                     ScheduleMath.disableFinished(ScheduleMath.withProfiles(items, fresh), status)
@@ -509,7 +547,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
     // Fixed order as stored in ioBroker; changed by holding and dragging an entry.
     val all = current?.items.orEmpty().filter { it.airconId == device.wfRacAirconId }
     val quickTimer = all.firstOrNull { it.quick && it.enabled && (it.at ?: 0L) > System.currentTimeMillis() - 60_000L }
-    val mine = all.filterNot { it.quick }
+    val mine = all.filter { !it.quick && ScheduleMath.inSeason(it, season) }
     val baseIds = mine.map { it.id }
     var localOrder by remember { mutableStateOf<List<String>?>(null) }
     var dragId by remember { mutableStateOf<String?>(null) }
@@ -542,6 +580,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                     // Only states worth a line; the next run is visible in the list itself.
                     val note = when {
                         current == null && error != null -> "ioBroker nicht erreichbar"
+                        current != null && mine.isEmpty() && all.any { !it.quick } -> "Keine Zeitpläne für ${ProfileSeason.phrase(season)}"
                         current != null && mine.isEmpty() -> "Noch keine Zeitpläne"
                         else -> null
                     }
@@ -818,6 +857,8 @@ private fun ScheduleEditor(
             ?: if (initialTime.isAfter(now.toLocalTime())) now.toLocalDate() else now.toLocalDate().plusDays(1))
     }
     var showTimePicker by remember { mutableStateOf(false) }
+    // New schedules start without a season; saving needs at least one.
+    var seasons by remember { mutableStateOf(existing?.seasons?.toSet() ?: emptySet()) }
     var action by remember { mutableStateOf(existing?.action ?: "on") }
     var useProfile by remember { mutableStateOf(existing?.profileId != null || (existing == null && profiles.isNotEmpty())) }
     var profileId by remember { mutableStateOf(existing?.profileId ?: profiles.firstOrNull()?.id) }
@@ -834,7 +875,7 @@ private fun ScheduleEditor(
     val profile = profiles.firstOrNull { it.id == profileId }
     val onceInPast = kind == "once" && !onceAt.isAfter(LocalDateTime.now().minusMinutes(1))
     val valid = (if (kind == "weekly") days.isNotEmpty() else !onceInPast) &&
-        (action == "off" || !useProfile || profile != null)
+        (action == "off" || !useProfile || profile != null) && seasons.isNotEmpty()
 
     fun build(): ClimateSchedule {
         val usingProfile = action == "on" && useProfile && profile != null
@@ -847,6 +888,7 @@ private fun ScheduleEditor(
             time = if (kind == "weekly") "%02d:%02d".format(Locale.ROOT, time.hour, time.minute) else "",
             everyWeeks = if (kind == "weekly") everyWeeks else 1,
             weekAnchor = if (kind == "weekly" && everyWeeks > 1) weekAnchor.toString() else null,
+            seasons = ProfileSeason.HOUSEHOLD.filter { it in seasons },
             at = if (kind == "once") onceAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() else null,
             action = action,
             profileId = if (usingProfile) profile!!.id else null,
@@ -898,6 +940,18 @@ private fun ScheduleEditor(
                         Text(caption, color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         Text("%02d:%02d".format(Locale.ROOT, time.hour, time.minute), color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Light, letterSpacing = 2.sp)
                         Text(preview, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                }
+
+                // Seasons the schedule belongs to; only those of the selected household season run.
+                Group("Jahreszeit") {
+                    Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProfileSeason.HOUSEHOLD.forEach { value ->
+                            Chip(ProfileSeason.label(value), value in seasons) { seasons = if (value in seasons) seasons - value else seasons + value }
+                        }
+                    }
+                    if (seasons.isEmpty()) {
+                        Text("Mindestens eine Jahreszeit wählen – sonst lässt sich der Zeitplan nicht sichern.", color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(bottom = 10.dp))
                     }
                 }
 
@@ -1056,7 +1110,7 @@ private fun ScheduleEditor(
     }
 }
 
-/** Settings tile: switches schedules on or off for both phones and hides the schedule tiles. */
+/** Settings tile: switches schedules on or off for both phones and hides the schedule tiles; household season. */
 @Composable
 internal fun ScheduleSettingsContent() {
     val context = LocalContext.current
@@ -1078,6 +1132,25 @@ internal fun ScheduleSettingsContent() {
             }
         }, colors = blueSwitchColors())
     }
+    // Household season: decides which schedules are shown and run, and which profiles are offered.
+    var season by remember(PeerSyncSignals.dataRevision) { mutableStateOf(ProfileSeason.current(context)) }
+    RowDivider()
+    Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Jahreszeit", color = SText, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Segmented(ProfileSeason.HOUSEHOLD.map { ProfileSeason.label(it) }, ProfileSeason.HOUSEHOLD.indexOf(season), Modifier.width(230.dp)) { index ->
+            val chosen = ProfileSeason.HOUSEHOLD[index]
+            if (chosen == season) return@Segmented
+            val at = System.currentTimeMillis()
+            season = chosen
+            ProfileSeason.set(context, chosen, at)
+            PeerSyncSignals.dataRevision++
+            status = "Wird gespeichert …"
+            io.update(prefs.getString("iobroker_server", null).orEmpty(), { e, items -> e to items }, chosen to at) { result, _ ->
+                status = if (result != null) "" else "ioBroker nicht erreichbar – die Jahreszeit wird übertragen, sobald ein Handy ioBroker erreicht."
+            }
+        }
+    }
+    Text("Nur Zeitpläne und Profile für ${ProfileSeason.phrase(season)} werden angezeigt und ausgeführt.", color = SMuted, fontSize = 11.sp)
     if (status.isNotBlank()) Text(status, color = SMuted, fontSize = 11.sp)
 }
 

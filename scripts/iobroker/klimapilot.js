@@ -13,6 +13,7 @@
  *
  * 2. Zeitpläne: prüft jede Minute die Zeitpläne aus 0_userdata.0.KlimaPilot.schedules.config
  *    und schaltet fällige Anlagen. Ergebnisse stehen in 0_userdata.0.KlimaPilot.schedules.status.
+ *    Es laufen nur Zeitpläne der gewählten Jahreszeit (Winter, Übergangszeit, Sommer).
  *
  * 3. Diagnose (nur wenn in KlimaPilot eingeschaltet): prüft jede Minute die lokale Erreichbarkeit
  *    und protokolliert Ausfälle in 0_userdata.0.KlimaPilot.diagnostics.log.
@@ -962,6 +963,28 @@ function activeInWeek(item, now) {
 }
 
 /**
+ * Jahreszeit des Haushalts (in der App vom Admin gewählt, in schedules.config als `season`):
+ * winter, transition (Übergangszeit) oder summer. Ohne Wahl nach Kalender (Mai–Sep Sommer,
+ * sonst Winter) – dieselbe Regel wie in der App.
+ */
+const SEASONS = ['winter', 'transition', 'summer'];
+function householdSeason(config, now) {
+    if (SEASONS.includes(config.season)) return config.season;
+    const month = now.getMonth() + 1;
+    return month >= 5 && month <= 9 ? 'summer' : 'winter';
+}
+
+/**
+ * Jahreszeiten eines Zeitplans (`seasons`). Einträge von vor 0.5.72 haben keine und gelten als
+ * Winter. Schnell-Timer (quick) laufen in jeder Jahreszeit.
+ */
+function inSeason(item, season) {
+    if (item.quick) return true;
+    const list = Array.isArray(item.seasons) ? item.seasons.filter(s => SEASONS.includes(s)) : [];
+    return (list.length ? list : ['winter']).includes(season);
+}
+
+/**
  * Liefert den Schlüssel des fälligen Termins oder null. Ein wöchentlicher Termin ist ab seiner
  * Uhrzeit bis RETRY_WINDOW_MS danach fällig, ein einmaliger bis ONCE_GRACE_MS danach.
  */
@@ -995,8 +1018,11 @@ async function runSchedules() {
         const status = await readJson(SCHEDULE_STATUS_ID) || {};
         const now = new Date();
         const all = await units();
+        const season = householdSeason(config, now);
         let changed = false;
         for (const item of config.items || []) {
+            // Zeitpläne anderer Jahreszeiten laufen nicht (und werden in der App ausgeblendet).
+            if (!inSeason(item, season)) continue;
             const key = dueKey(item, now);
             const previous = status[item.id];
             if (!key || (previous && previous.key === key && previous.done)) continue;

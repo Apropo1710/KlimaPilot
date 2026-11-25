@@ -156,7 +156,7 @@ internal fun ClimateProfileEditorDialog(
                 }
 
                 Group("Jahreszeit") {
-                    val options = listOf(ProfileSeason.WINTER to "☼ Winter", ProfileSeason.SUMMER to "❄ Sommer", ProfileSeason.ALL to "Ganzjährig")
+                    val options = listOf(ProfileSeason.WINTER to "Winter", ProfileSeason.TRANSITION to "Übergang", ProfileSeason.SUMMER to "Sommer", ProfileSeason.ALL to "Ganzjährig")
                     Segmented(options.map { it.second }, options.indexOfFirst { it.first == season }.coerceAtLeast(0), Modifier.padding(vertical = 10.dp)) {
                         seasonChoice = options[it].first
                     }

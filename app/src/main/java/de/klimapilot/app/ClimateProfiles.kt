@@ -396,8 +396,8 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     }
 
     val deviceProfiles = profiles.filter { it.deviceId == deviceId }
-    var season by remember { mutableStateOf(ProfileSeason.current(context)) }
-    LaunchedEffect(PeerSyncSignals.dataRevision) { season = ProfileSeason.current(context) }
+    // Household season, chosen by the admin in the settings (no switch here since 0.5.72).
+    val season = remember(PeerSyncSignals.dataRevision) { ProfileSeason.current(context) }
     val selectedProfile = deviceProfiles.firstOrNull { it.id == selectedProfileId }
     val modelSupportsVaneLR = currentState?.let { Codec.modelHasVaneLR(it.modelNrRaw) }
     val selectedProfileDirty = selectedProfile != null && currentState != null && (
@@ -578,13 +578,6 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                                 }
                             }
                             DropdownMenu(expanded = profileMenuExpanded, onDismissRequest = { profileMenuExpanded = false }) {
-                                Segmented(
-                                    listOf("☼ Winter", "❄ Sommer"), if (season == ProfileSeason.WINTER) 0 else 1,
-                                    Modifier.width(230.dp).padding(horizontal = 10.dp, vertical = 4.dp)
-                                ) {
-                                    season = if (it == 0) ProfileSeason.WINTER else ProfileSeason.SUMMER
-                                    ProfileSeason.set(context, season)
-                                }
                                 DropdownMenuItem(text = { Text("⚙️  Individuell") },
                                     onClick = {
                                         profileMenuExpanded = false
@@ -792,6 +785,7 @@ private fun ManagerProfileRow(profile: ClimateProfile, onEdit: () -> Unit, onDel
                 Text(profile.name, color = SText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
                 when (ProfileSeason.of(profile)) {
                     ProfileSeason.WINTER -> "☼ Winter"
+                    ProfileSeason.TRANSITION -> "◐ Übergang"
                     ProfileSeason.SUMMER -> "❄ Sommer"
                     else -> null
                 }?.let { Text("  $it", color = SMuted, fontSize = 11.sp, maxLines = 1) }

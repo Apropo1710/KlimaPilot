@@ -30,4 +30,13 @@ class ProfileSeasonTest {
         assertTrue(ProfileSeason.matches(profile("HEAT"), ProfileSeason.WINTER))
         assertFalse(ProfileSeason.matches(profile("HEAT"), ProfileSeason.SUMMER))
     }
+
+    @Test
+    fun transitionOffersEveryProfile() {
+        assertTrue(ProfileSeason.matches(profile("HEAT"), ProfileSeason.TRANSITION))
+        assertTrue(ProfileSeason.matches(profile("COOL"), ProfileSeason.TRANSITION))
+        assertTrue(ProfileSeason.matches(profile("HEAT", ProfileSeason.TRANSITION), ProfileSeason.TRANSITION))
+        assertFalse(ProfileSeason.matches(profile("HEAT", ProfileSeason.TRANSITION), ProfileSeason.WINTER))
+        assertFalse(ProfileSeason.matches(profile("HEAT", ProfileSeason.TRANSITION), ProfileSeason.SUMMER))
+    }
 }
