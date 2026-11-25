@@ -712,7 +712,31 @@ internal val SSegmentBg = Color(0xFFE4EBF2)
 
 /** Compact segmented control: the selected segment is a raised white tab. */
 @Composable
-internal fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
+internal fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, compact: Boolean = false, onSelect: (Int) -> Unit) {
+    if (compact) {
+        // Small variant: the white mark only wraps the label instead of filling the whole segment.
+        Surface(color = SSegmentBg, shape = RoundedCornerShape(10.dp), modifier = modifier.fillMaxWidth()) {
+            Row(Modifier.padding(2.dp)) {
+                options.forEachIndexed { index, label ->
+                    val active = index == selected
+                    Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable { onSelect(index) }.padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
+                        Surface(
+                            color = if (active) Color.White else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp),
+                            shadowElevation = if (active) 1.dp else 0.dp
+                        ) {
+                            Text(
+                                label, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), textAlign = TextAlign.Center,
+                                color = if (active) SText else SMuted, fontSize = 12.sp,
+                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        return
+    }
     Surface(color = SSegmentBg, shape = RoundedCornerShape(12.dp), modifier = modifier.fillMaxWidth()) {
         Row(Modifier.padding(3.dp)) {
             options.forEachIndexed { index, label ->
@@ -1137,7 +1161,7 @@ internal fun ScheduleSettingsContent() {
     RowDivider()
     Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Jahreszeit", color = SText, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Segmented(ProfileSeason.HOUSEHOLD.map { ProfileSeason.label(it) }, ProfileSeason.HOUSEHOLD.indexOf(season), Modifier.width(230.dp)) { index ->
+        Segmented(ProfileSeason.HOUSEHOLD.map { ProfileSeason.label(it) }, ProfileSeason.HOUSEHOLD.indexOf(season), Modifier.width(230.dp), compact = true) { index ->
             val chosen = ProfileSeason.HOUSEHOLD[index]
             if (chosen == season) return@Segmented
             val at = System.currentTimeMillis()
