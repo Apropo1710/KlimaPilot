@@ -28,6 +28,12 @@ data class AirconState(
     val vacant: Boolean,
     val selfClean: Boolean,
     val compressorRunning: Boolean = false,
+    /**
+     * Reverse-cycle defrost while heating: content[9] bit 0x01, set from the first to the last
+     * frame of a defrost (reference: pywfrac OPERATION_STATUS_DEFROST_BIT, confirmed on both
+     * firmware branches). On a multi-split all indoor units that heat see it together.
+     */
+    val defrosting: Boolean = false,
     val errorCode: String? = null,
     val indoorTemp: Double? = null,
     val outdoorTemp: Double? = null,
@@ -116,6 +122,8 @@ object Codec {
             vacant = (c[10] and 1) != 0,
             selfClean = if (modelNr == 1 || modelNr == 2) (c[15] and 1) != 0 else false,
             compressorRunning = (c[9] and 0x02) != 0,
+            defrosting = (c[2] and 0x03) == 1 && (c[9] and 0x01) != 0 &&
+                ((c[2] and 0x3c) == Mode.HEAT.receive || ((c[2] and 0x3c) == Mode.AUTO.receive && (c[8] and 0x08) == 0)),
             errorCode = when {
                 c[6] and 0x80 != 0 -> "M%02d".format(error)
                 error == 0 -> null
