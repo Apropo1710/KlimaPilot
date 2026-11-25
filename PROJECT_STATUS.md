@@ -74,7 +74,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 ### Klimaprofile
 - Profile je Anlage; Abweichung zeigt „(geändert)“ mit ✓, „Individuell“ speichert sofort, + legt neu an.
 - Editor (`ClimateProfileEditor.kt`): je Einstellung Schalter „Profil setzt diesen Wert“ (aus = unverändert); horizontale Luftführung und 3D-Auto immer verfügbar.
-- Jahreszeit: Profile Winter/Sommer/Ganzjährig (`season`, ohne Zuordnung nach Modus); Umschalter im Profilmenü, gilt für den Haushalt (Handy-Sync), kein automatischer Wechsel.
+- Jahreszeit (seit 0.5.72, Nutzerwunsch 25.11.2026): Haushalts-Jahreszeit Winter/Übergangszeit/Sommer, nur der Admin stellt sie in den Einstellungen (Kachel „Zeitpläne verwenden“) um; gespeichert in `schedules.config` (`season`, `seasonUpdatedAt`, vom Skript ausgewertet) und je Handy zwischengespeichert, zusätzlich per Handy-Sync; die neuere Wahl gewinnt. Kein automatischer Wechsel. Profile: Winter/Übergang/Sommer/Ganzjährig (`season`, ohne Zuordnung nach Modus); in der Übergangszeit werden alle Profile angeboten. Der frühere Winter/Sommer-Umschalter im Profilmenü ist entfallen.
 - Profilanzeige folgt Zeitplänen (0.5.36): Zeitpläne setzen nur die Werte, nicht das aktive Profil. Weicht die Anlage vom gewählten Profil ab und passt genau ein anderes Profil des Raums, wird dieses als aktiv übernommen (Anlass 22.11.2026: Zeitplan 20:00 „Nacht“ lief, Anzeige blieb „Tag (geändert)“).
 - Schnell-Timer „⏱ Aus in …“ (0.5.43): bei ausgeschalteter Anlage ausgegraut und ohne Funktion statt ausgeblendet.
 - 0.5.55: Schalter in Blau; lange Texte in `KlimaPilotAlertDialog` scrollen innerhalb des Dialogs, Dialog hält Abstand zu Status- und Navigationsleiste.
@@ -110,6 +110,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - Zeitplan-Karte ohne Zeile „Nächster: …“ (Nutzerwunsch 22.11.2026, spart Platz); eine Zeile erscheint nur noch bei „ioBroker nicht erreichbar“ oder „Noch keine Zeitpläne“.
 - Feste, per Halten und Ziehen änderbare Reihenfolge (in ioBroker, gilt auf beiden Handys); Schnell-Timer „Aus in 30 min / 1 / 2 / 3 h“ (`quick`).
 - Schutz gegen gegenseitiges Überschreiben: `revision` mit erneutem Lesen vor dem Schreiben, Rückfrage im Editor bei Konflikt (`updatedAt`).
+- Jahreszeiten (0.5.72): Jeder Zeitplan gehört zu einer oder mehreren Jahreszeiten (`seasons`); angezeigt und vom Skript ausgeführt werden nur die der Haushalts-Jahreszeit (Schnell-Timer immer). Neue Zeitpläne haben keine Vorauswahl und lassen sich ohne Jahreszeit nicht sichern; alle bestehenden gelten als Winter. Leere Liste zeigt „Keine Zeitpläne für den Sommer“ usw. Schnittstellenänderung: README „ioBroker-Schnittstelle“ → `schedules.config`. Nur CI, nicht am Gerät bestätigt.
 - Globaler Schalter „Zeitpläne verwenden“ (Admin), auch per Handy-Sync. Am 20.11.2026 einmaliger Zeitplan am Gerät bestätigt; wöchentliche noch nicht ausdrücklich bestätigt.
 
 ### Energie

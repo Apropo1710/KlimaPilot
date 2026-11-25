@@ -149,6 +149,8 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 {
   "enabled": true,
   "revision": 42,
+  "season": "winter",
+  "seasonUpdatedAt": 1795240000000,
   "items": [
     {
       "id": "0f3c…",
@@ -161,14 +163,17 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
       "profileId": "a1b2…",
       "profileName": "Grundtemperatur",
       "settings": { "mode": "HEAT", "targetTemp": 21.0, "fanSpeed": 0, "verticalSwing": 2, "horizontalSwing": 2, "threeDAuto": false },
-      "updatedAt": 1795250000000
+      "updatedAt": 1795250000000,
+      "seasons": ["winter", "transition"]
     },
-    { "id": "9d1e…", "airconId": "1cd1d717d1e2", "enabled": true, "kind": "once", "days": [], "time": "", "at": 1795300000000, "action": "off", "updatedAt": 1795250100000 }
+    { "id": "9d1e…", "airconId": "1cd1d717d1e2", "enabled": true, "kind": "once", "days": [], "time": "", "at": 1795300000000, "action": "off", "updatedAt": 1795250100000, "seasons": ["summer"] }
   ]
 }
 ```
 
 - `enabled`: globaler Schalter „Zeitpläne verwenden“. Bei `false` führt das Skript nichts aus.
+- `season` (seit 0.5.72): Jahreszeit des Haushalts – `winter`, `transition` (Übergangszeit) oder `summer`; vom Admin in den Einstellungen gewählt, `seasonUpdatedAt` = Zeitpunkt der Wahl (die neuere Wahl gewinnt, auch gegenüber der Handy-zu-Handy-Synchronisierung). Fehlt das Feld, gilt der Kalender: Mai–September Sommer, sonst Winter.
+- `seasons` (je Eintrag, seit 0.5.72): Jahreszeiten, in denen der Zeitplan angezeigt und ausgeführt wird (eine oder mehrere). Läuft nur, wenn `season` darin enthalten ist. Fehlt das Feld, gilt `["winter"]` (alle Zeitpläne von vor 0.5.72). Schnell-Timer (`quick`) laufen unabhängig davon und tragen das Feld nicht.
 - `kind`: `weekly` (mit `days` und `time` im Format `HH:MM`) oder `once` (mit `at`).
 - `action`: `on` schaltet ein und setzt die Werte aus `settings`. `off` schaltet aus, `settings` wird dann nicht verwendet.
 - `settings`: Nur enthaltene Felder werden gesetzt, fehlende bleiben an der Anlage unverändert.
