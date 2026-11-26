@@ -181,11 +181,12 @@ internal class DiagnosticsIoBroker {
         main.postDelayed({ finish(null, "ioBroker antwortet nicht.") }, 15_000)
         socket.on("connect") {
             socket.emit("authenticate", IoBrokerAck { args ->
-                if (args.firstOrNull() as? Boolean != true) finish(null, "ioBroker hat die Verbindung nicht authentifiziert.")
+                val authError = IoBrokerMessages.authError(args)
+                if (authError != null) finish(null, authError)
                 else block(socket, finish)
             })
         }
-        socket.on("connect_error") { args -> finish(null, "ioBroker nicht erreichbar: ${args.firstOrNull() ?: "Verbindung fehlgeschlagen"}") }
+        socket.on("connect_error") { args -> finish(null, IoBrokerMessages.connectError(args)) }
         socket.connect()
     }
 

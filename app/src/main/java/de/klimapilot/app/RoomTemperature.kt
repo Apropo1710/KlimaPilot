@@ -1,5 +1,6 @@
 package de.klimapilot.app
 
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.layout.Arrangement
@@ -114,11 +115,12 @@ internal class RoomTempIoBroker {
         main.postDelayed({ finish(null, "ioBroker antwortet nicht.") }, 15_000)
         socket.on("connect") {
             socket.emit("authenticate", IoBrokerAck { args ->
-                if (args.firstOrNull() as? Boolean != true) finish(null, "ioBroker hat die Verbindung nicht authentifiziert.")
+                val authError = IoBrokerMessages.authError(args)
+                if (authError != null) finish(null, authError)
                 else block(socket, finish)
             })
         }
-        socket.on("connect_error") { args -> finish(null, "ioBroker nicht erreichbar: ${args.firstOrNull() ?: "Verbindung fehlgeschlagen"}") }
+        socket.on("connect_error") { args -> finish(null, IoBrokerMessages.connectError(args)) }
         socket.connect()
     }
 
@@ -134,6 +136,15 @@ internal class RoomTempIoBroker {
                 finish(units?.keys()?.asSequence()?.mapNotNull { id ->
                     units.optJSONObject(id)?.let { id to RoomTempModel.parse(it, updated) }
                 }?.toMap().orEmpty(), null)
+            })
+        }
+
+    /** All stored thermometer readings per airconId (raw JSON, for the backup on the phone). */
+    fun loadSamples(address: String, callback: (JSONObject?, String?) -> Unit) =
+        session<JSONObject>(address, callback) { socket, finish ->
+            socket.emit("getState", SAMPLES_ID, IoBrokerAck { args ->
+                val raw = (args.getOrNull(1) as? JSONObject)?.opt("val") as? String
+                finish(raw?.let { runCatching { JSONObject(it) }.getOrNull() }?.optJSONObject("units") ?: JSONObject(), null)
             })
         }
 
@@ -182,6 +193,7 @@ internal class RoomTempIoBroker {
         const val PROBE_ID = "0_userdata.0.KlimaPilot.roomTemp.probe"
         const val PROBE_RESULT_ID = "0_userdata.0.KlimaPilot.roomTemp.probeResult"
         const val INPUT_ID = "0_userdata.0.KlimaPilot.roomTemp.input"
+        const val SAMPLES_ID = "0_userdata.0.KlimaPilot.roomTemp.samples"
         const val MODEL_ID = "0_userdata.0.KlimaPilot.roomTemp.model"
     }
 }
@@ -338,5 +350,70 @@ internal fun probeResultText(result: JSONObject): String {
             if (u.optBoolean("switchedOff")) append("\n⚠ Hat sich ausgeschaltet – wieder eingeschaltet.")
             u.optJSONArray("raw")?.let { append("\nRohdaten: ").append((0 until it.length()).joinToString(" | ") { i -> it.optString(i) }) }
         }
+    }
+}
+
+/**
+ * Copy of the thermometer readings on the phone, so the work of entering them is not lost if the
+ * ioBroker data goes missing (reinstall, broken state database). Refreshed at most every 6 hours;
+ * if ioBroker has no readings at all for a unit while the copy has some, they are sent back
+ * (the script only accepts this while its list for that unit is empty, so nothing is overwritten).
+ * Readings deleted in the app are removed from the copy too.
+ */
+internal object RoomTempBackup {
+    private const val FILE = "roomtemp_samples_backup.json"
+    private const val PREF_LAST = "roomtemp_backup_at"
+    private const val INTERVAL_MS = 6 * 3600 * 1000L
+    /** Below this a missing list is more likely deliberate than lost. */
+    private const val MIN_TO_RESTORE = 3
+
+    private fun file(context: Context) = java.io.File(context.applicationContext.filesDir, FILE)
+
+    private fun read(context: Context): JSONObject =
+        runCatching { JSONObject(file(context).readText()) }.getOrDefault(JSONObject())
+
+    @Synchronized
+    private fun write(context: Context, units: JSONObject) {
+        runCatching { file(context).writeText(units.toString()) }
+    }
+
+    fun count(context: Context): Int = read(context).let { u -> u.keys().asSequence().sumOf { u.optJSONArray(it)?.length() ?: 0 } }
+
+    fun maybeRun(context: Context, address: String, io: RoomTempIoBroker = RoomTempIoBroker()) {
+        val prefs = context.getSharedPreferences("klimapilot_settings", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        if (now - prefs.getLong(PREF_LAST, 0L) < INTERVAL_MS) return
+        io.loadSamples(address) { remote, _ ->
+            if (remote == null) return@loadSamples
+            prefs.edit().putLong(PREF_LAST, now).apply()
+            val backup = read(context)
+            // Take over every unit ioBroker has readings for.
+            remote.keys().asSequence().toList().forEach { id ->
+                val list = remote.optJSONArray(id)
+                if (list != null && list.length() > 0) backup.put(id, list)
+            }
+            write(context, backup)
+            // Send back what ioBroker lost entirely.
+            backup.keys().asSequence().toList().forEach { id ->
+                val saved = backup.optJSONArray(id) ?: return@forEach
+                val there = remote.optJSONArray(id)?.length() ?: 0
+                if (there == 0 && saved.length() >= MIN_TO_RESTORE) {
+                    val input = JSONObject().put("id", "restore-$now").put("airconId", id).put("restore", saved)
+                    io.send(address, input) { ok, _ ->
+                        EventJournal.log("Sicherung", "", if (ok == true) "${saved.length()} Messwerte an ioBroker zurückgeschickt ($id)" else "Zurückschicken der Messwerte fehlgeschlagen ($id)")
+                    }
+                }
+            }
+        }
+    }
+
+    /** A reading deleted in the app must not come back from the copy. */
+    fun forget(context: Context, airconId: String, sampleId: String) {
+        val backup = read(context)
+        val list = backup.optJSONArray(airconId) ?: return
+        val kept = org.json.JSONArray()
+        for (i in 0 until list.length()) list.optJSONObject(i)?.takeIf { it.optString("id") != sampleId }?.let { kept.put(it) }
+        backup.put(airconId, kept)
+        write(context, backup)
     }
 }

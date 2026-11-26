@@ -93,12 +93,17 @@ private val Muted = Color(0xFF63748A)
 private val TextMain = Color(0xFF172334)
 
 class MainActivity : ComponentActivity() {
+    private var stoppedAt = 0L
+
     override fun onStart() {
         super.onStart()
         EventJournal.log("App", "", "geöffnet")
+        // Back after more than 30 s: drop ioBroker connections kept open meanwhile, they may be dead.
+        if (stoppedAt > 0L && System.currentTimeMillis() - stoppedAt > 30_000L) IoBrokerPool.resetIdle()
     }
 
     override fun onStop() {
+        stoppedAt = System.currentTimeMillis()
         EventJournal.log("App", "", "im Hintergrund oder geschlossen")
         super.onStop()
     }
@@ -874,6 +879,7 @@ private fun KlimaPilotApp(appVersion: String) {
                     roomTempStatusOk = null
                     roomTempStatus = "Wird gelöscht …"
                     val input = org.json.JSONObject().put("id", id).put("airconId", airconId).put("delete", sampleId)
+                    RoomTempBackup.forget(context, airconId, sampleId)
                     RoomTempIoBroker().send(prefs.getString("iobroker_server", null).orEmpty(), input) { ok, error ->
                         if (ok == true) roomTempStatus = "Warte auf Bestätigung vom ioBroker-Skript …"
                         else { roomTempStatus = "✗ " + (error ?: "Senden fehlgeschlagen."); roomTempStatusOk = false; roomTempSentId = null }
@@ -936,6 +942,8 @@ private fun KlimaPilotApp(appVersion: String) {
         while (true) {
             // After sending: ask every 3 s for the script's confirmation, up to 45 s.
             if (roomTempSentId != null) delay(3_000L)
+            // Copy of the readings on this phone (at most every 6 h), restores them if ioBroker lost them.
+            RoomTempBackup.maybeRun(context, address)
             RoomTempIoBroker().load(address) { result, _ ->
                 roomTempReachable = result != null
                 roomTempChecking = false
