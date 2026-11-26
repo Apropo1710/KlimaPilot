@@ -215,6 +215,8 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 10. Nächste Schritte
 
+**Mit dem nächsten App-Update mitliefern (kein eigenes Update, Nutzerwunsch 26.11.2026):** ioBroker-Anmeldung genauer melden – „ioBroker hat nicht geantwortet“, wenn auf `authenticate` keine oder eine leere Antwort kommt, „nicht authentifiziert“ nur bei echtem `false`. Gilt für alle Stellen mit `args.firstOrNull() as? Boolean != true` (Zeitpläne, Diagnose, Raumtemperatur, Energie, Filter …). Anlass: 26.11. 01:20 kurz „ioBroker hat die Verbindung nicht authentifiziert“ über VPN/Mobilnetz, nach 1 min von selbst weg.
+
 1. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
 2. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
 3. Optional: Negativfälle der Kopplung testen; gekoppelte Smartphones in der Oberfläche entfernbar machen.
