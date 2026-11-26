@@ -219,7 +219,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 10. Nächste Schritte
 
-**Entscheidung 26.11.2026 (Nutzer):** Die Raumtemperatur ist nur eine Anzeige. Das Lernen bleibt und soll mit jedem eingetragenen Wert besser werden; die eingetragenen Werte müssen dauerhaft erhalten bleiben. Kein Geld für zusätzliche Hardware (kein WLAN-Thermometer), keine gemeinsame Geräte-ID, keine regelmäßigen Zusatzabfragen an die Anlagen (Module nicht weiter belasten), keine Regelung auf Raumtemperatur, kein Aufheiz-Start. Der Button „Betriebsdaten prüfen“ bleibt für seltene Einzelprüfungen von Hand.
+**Entscheidung 26.11.2026 (Nutzer):** Die Raumtemperatur ist nur eine Anzeige. Das Lernen bleibt und soll mit jedem eingetragenen Wert besser werden; die eingetragenen Werte müssen dauerhaft erhalten bleiben. Update 26.11.2026 14:00: Nutzer hat doch Shelly-Thermometer (WLAN) bestellt, Lieferung in einigen Tagen – Einbindung planen, sobald Modell und Weg in ioBroker feststehen. keine gemeinsame Geräte-ID, keine regelmäßigen Zusatzabfragen an die Anlagen (Module nicht weiter belasten), keine Regelung auf Raumtemperatur, kein Aufheiz-Start. Der Button „Betriebsdaten prüfen“ bleibt für seltene Einzelprüfungen von Hand.
 
 1. Gerätetest: Modi, Lüfterstufen und Luftführung an beiden Anlagen; wöchentliche Zeitpläne; Energiediagramm 0.5.30.
 2. Diagnose weiter beobachten (Ursache des Schlafzimmer-Ausfalls vom 21.11.2026).
