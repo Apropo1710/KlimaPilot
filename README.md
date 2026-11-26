@@ -131,6 +131,8 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
   "outdoorDaily": { "2026-11-20": 1.8, "2026-11-21": 3.1 },
   "outdoorHourlyN": { "2026-11-21T11": 9 },
   "outdoorDailyN": { "2026-11-21": 130 },
+  "indoorHourly": { "2026-11-21T10": 20.4, "2026-11-21T11": 20.9 },
+  "indoorDaily": { "2026-11-21": 20.3 },
   "lastPollAt": "2026-11-21T10:45:00.000Z",
   "lastError": "2026-11-21T06:10:00.000Z connect ECONNREFUSED …",
   "pendingSlots": { "2026-11-21T11": 9 }
@@ -142,7 +144,8 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 - `runMinutes`: Betriebsminuten der Anlage, gezählt in 5-Minuten-Schritten, solange sie eingeschaltet ist.
 - `runDays`: Betriebstage, also Kalendertage, an denen die Anlage mindestens einmal lief. Grundlage der Filter-Erinnerung. `lastRunDay` (`JJJJ-MM-TT`) ist ein interner Zwischenstand dazu.
 - `outdoorHourly` (31 Tage) und `outdoorDaily` (unbegrenzt): mittlere Außentemperatur in °C, gemessen vom Außenfühler der Anlage. Die Werte gibt es auch, wenn die Anlage aus ist.
-- `lastRunKwh`, `pendingSlots`, `outdoorHourlyN` und `outdoorDailyN` sind interne Zwischenstände des Skripts. `lastError` fehlt, wenn die letzte Ablesung geklappt hat.
+- `indoorHourly` (31 Tage) und `indoorDaily` (unbegrenzt), seit 0.5.80: mittlere Raumtemperatur in °C, wie die App sie anzeigt (Fühler minus gelernte Abweichung aus `roomTemp.model`). Ohne gelernte Abweichung wird nichts aufgezeichnet. Die App zeigt sie in der Energieansicht unter „Temperatur“ als Linien zusammen mit der Außentemperatur.
+- `lastRunKwh`, `pendingSlots`, `outdoorHourlyN`, `outdoorDailyN`, `indoorHourlyN` und `indoorDailyN` sind interne Zwischenstände des Skripts. `lastError` fehlt, wenn die letzte Ablesung geklappt hat.
 
 ### `schedules.config` – Zeitpläne (lesen und schreiben)
 

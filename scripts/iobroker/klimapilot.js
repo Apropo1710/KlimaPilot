@@ -332,19 +332,11 @@ async function pollEnergy(unit) {
                 data.lastRunDay = dayKey(now);
             }
         }
-        if (typeof stat.outdoorTemp === 'number') {
-            for (const [map, count, key] of [['outdoorHourly', 'outdoorHourlyN', hourKey(now)], ['outdoorDaily', 'outdoorDailyN', dayKey(now)]]) {
-                data[map] = data[map] || {};
-                data[count] = data[count] || {};
-                const n = data[count][key] || 0;
-                data[map][key] = Math.round(((data[map][key] || 0) * n + stat.outdoorTemp) / (n + 1) * 10) / 10;
-                data[count][key] = n + 1;
-            }
-            // Zähler werden nur für die laufende Stunde bzw. den laufenden Tag gebraucht.
-            for (const [count, key] of [['outdoorHourlyN', hourKey(now)], ['outdoorDailyN', dayKey(now)]]) {
-                for (const k of Object.keys(data[count])) if (k !== key) delete data[count][k];
-            }
-        }
+        if (typeof stat.outdoorTemp === 'number') averageInto(data, 'outdoor', stat.outdoorTemp, now);
+        // Raumtemperatur für den Temperaturverlauf (seit 0.5.80): der in der App angezeigte Wert, also
+        // Fühler minus gelernte Abweichung. Ohne gelernte Abweichung wird nichts aufgezeichnet.
+        const indoor = roomShownTemp(unit.airconId, now.getTime());
+        if (indoor !== null) averageInto(data, 'indoor', indoor, now);
         // Laufzeit seit dem letzten Zählerschritt, als Anzahl eingeschalteter Ablesungen je Stunde.
         const slots = data.pendingSlots && typeof data.pendingSlots === 'object' ? data.pendingSlots : {};
         // Neuer Lauf: Laufzeit des vorigen Laufs gehört zu keinem kommenden Schritt mehr.
@@ -381,8 +373,21 @@ async function pollEnergy(unit) {
     }
     const oldest = hourKey(new Date(now.getTime() - HOURLY_DAYS * 24 * 3600 * 1000));
     for (const key of Object.keys(data.hourly)) if (key < oldest) delete data.hourly[key];
-    if (data.outdoorHourly) for (const key of Object.keys(data.outdoorHourly)) if (key < oldest) delete data.outdoorHourly[key];
+    for (const map of ['outdoorHourly', 'indoorHourly']) if (data[map]) for (const key of Object.keys(data[map])) if (key < oldest) delete data[map][key];
     await setStateAsync(id, JSON.stringify(data), true);
+}
+
+/** Mittelwert je Stunde (`<name>Hourly`) und Tag (`<name>Daily`), fortlaufend gemittelt über die Abfragen. */
+function averageInto(data, name, value, now) {
+    for (const [map, count, key] of [[`${name}Hourly`, `${name}HourlyN`, hourKey(now)], [`${name}Daily`, `${name}DailyN`, dayKey(now)]]) {
+        data[map] = data[map] || {};
+        data[count] = data[count] || {};
+        const n = data[count][key] || 0;
+        data[map][key] = Math.round(((data[map][key] || 0) * n + value) / (n + 1) * 10) / 10;
+        data[count][key] = n + 1;
+        // Zähler werden nur für die laufende Stunde bzw. den laufenden Tag gebraucht.
+        for (const k of Object.keys(data[count])) if (k !== key) delete data[count][k];
+    }
 }
 
 /** Verteilt einen Zählerschritt anteilig auf die Stunden, in denen die Anlage lief. */
@@ -779,6 +784,15 @@ function roomOffset(fit, f) {
     const raw = fit.using === 'model' ? ridgePredict(fit.ridge, ROOM_FEATURES.map(name => f[name])) : fit.mean;
     // Nie weiter hinaus raten als 1 °C über die bisher gemessenen Abweichungen.
     return Math.round(clamp(raw, fit.min - 1, fit.max + 1) * 10) / 10;
+}
+
+/** Angezeigte Raumtemperatur (Fühler minus gelernte Abweichung) oder null, wenn noch nichts gelernt ist. */
+function roomShownTemp(id, t) {
+    const tr = roomTrack[id];
+    const fit = roomFits[id];
+    if (!tr || !tr.stat || typeof tr.raw !== 'number' || !fit || t - tr.at > 10 * 60000) return null;
+    const offset = roomOffset(fit, roomFeatures(tr, t));
+    return offset === null ? null : Math.round((tr.raw - offset) * 10) / 10;
 }
 
 let roomSamplesCache = null;
