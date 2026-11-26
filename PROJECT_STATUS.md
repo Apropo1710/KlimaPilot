@@ -208,6 +208,8 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 9. Produkt- und Hardwaregrenzen
 
+- Keine Eingriffe an den Geräten (Nutzerentscheidung 26.11.2026, ausgeschlossen): z. B. kein Verlegen oder Isolieren des Raumfühlers, keine Widerstände am NTC. Fühler- und Taktprobleme nur per Software angehen (Aufheiz-Start per Zeitplan, Lüfterstufe beim Start, externer WLAN-Raumfühler mit Sollwert-Nachführung durch das Skript).
+
 - Geräte: zwei Mitsubishi Heavy SRK15ZS-WF, seit 19.11.2026 in Betrieb; bestätigte Funktionen siehe Abschnitt 5, alles andere gilt bis zum Test als unbestätigt.
 - Adapter `mhi-wfrac` ist nicht eingerichtet; für KlimaPilot nicht erforderlich, da die App die Anlagen direkt steuert.
 - SENEC/`energyfluss` nicht als Datenquelle einplanen.
