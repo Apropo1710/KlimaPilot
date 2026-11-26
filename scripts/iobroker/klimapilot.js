@@ -15,7 +15,7 @@
  *    und schaltet fällige Anlagen. Ergebnisse stehen in 0_userdata.0.KlimaPilot.schedules.status.
  *    Es laufen nur Zeitpläne der gewählten Jahreszeit (Winter, Übergangszeit, Sommer).
  *
- * 3. Diagnose (nur wenn in KlimaPilot eingeschaltet): prüft jede Minute die lokale Erreichbarkeit
+ * 3. Diagnose (nur wenn in KlimaPilot eingeschaltet): wertet bei jeder 5-min-Abfrage die lokale Erreichbarkeit
  *    und protokolliert Ausfälle in 0_userdata.0.KlimaPilot.diagnostics.log.
  *
  * 4. Raumtemperatur lernen: Der Fühler im Innengerät misst je nach Lage zu viel. Zu jedem in der App
@@ -467,7 +467,7 @@ function eventObserve(unit, stat, now) {
 // ---------------------------------------------------------------------------------------------
 // 3. Diagnose (in KlimaPilot unter Einstellungen → Diagnose ein- und ausschaltbar)
 // ---------------------------------------------------------------------------------------------
-// Bei eingeschalteter Diagnose prüft das Skript jede Minute, ob die Anlagen lokal erreichbar sind,
+// Bei eingeschalteter Diagnose wertet das Skript bei jeder 5-min-Abfrage aus, ob die Anlagen lokal erreichbar sind,
 // und schreibt jeden Wechsel (nicht erreichbar / wieder erreichbar, mit Dauer und Fehler) ins Protokoll.
 
 const reach = {}; // airconId → { ok, since, error }
@@ -524,29 +524,6 @@ async function diagWrite(unit, event, detail) {
         if (await diagEnabled()) await diagLog(unit.name || unit.airconId, event, detail);
     } catch (e) {
         log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
-    }
-}
-
-let probing = false;
-async function probeAll() {
-    if (probing || new Date().getMinutes() % POLL_MINUTES === 0) return; // Zur Energieablesung prüft schon pollEnergy.
-    probing = true;
-    try {
-        if (!(await diagEnabled())) return;
-        for (const unit of await units()) {
-            try {
-                const contents = await serial(unit, () => readStat(unit));
-                try { roomObserve(unit, decodeStat(contents.airconStat), new Date()); } catch (e) { /* nur Lernen */ }
-                await diagReach(unit, true);
-            } catch (e) {
-                await diagReach(unit, !!e.refused, e.message);
-            }
-        }
-        await roomPublish();
-    } catch (e) {
-        log(`KlimaPilot Diagnose: ${e.message}`, 'warn');
-    } finally {
-        probing = false;
     }
 }
 
@@ -806,7 +783,7 @@ function roomOffset(fit, f) {
 
 let roomSamplesCache = null;
 
-/** Messwerte einmal laden und im Speicher halten (die Veröffentlichung läuft jede Minute). */
+/** Messwerte einmal laden und im Speicher halten (die Veröffentlichung läuft alle 5 min). */
 async function roomReadSamples() {
     if (roomSamplesCache) return roomSamplesCache;
     await ensureJsonState(ROOM_SAMPLES_ID, 'KlimaPilot – Raumtemperatur: Thermometerwerte mit Anlagenzustand', { units: {} });
@@ -844,6 +821,17 @@ async function roomInput(text) {
         result.ok = data.units[input.airconId].length < before;
         result.message = result.ok ? 'Messwert gelöscht.' : 'Messwert nicht gefunden.';
     } else {
+        // Ein frischer Zustand genau zum eingetragenen Wert (eine einzelne Abfrage, nur bei einem Eintrag):
+        // ohne Minutenabfrage wäre er sonst bis zu 5 min alt und die Lage womöglich falsch.
+        try {
+            const unit = (await units()).find(u => u.airconId === input.airconId);
+            if (unit) {
+                const contents = await serial(unit, () => readStat(unit));
+                const fresh = decodeStat(contents.airconStat);
+                roomObserve(unit, fresh, new Date());
+                eventObserve(unit, fresh, new Date());
+            }
+        } catch (e) { /* dann gilt der letzte Stand der 5-min-Abfrage */ }
         const tr = roomTrack[input.airconId];
         const thermo = Number(input.thermometer);
         const raw = typeof input.raw === 'number' ? input.raw : tr && tr.raw;
@@ -1214,7 +1202,9 @@ const whenOwner = task => async () => { if (await isOwner()) await task(); };
 
 schedule(`*/${POLL_MINUTES} * * * *`, whenOwner(pollAllEnergy));
 schedule('* * * * *', whenOwner(runSchedules));
-schedule('* * * * *', whenOwner(async () => { await watchDiagnostics(); await probeAll(); }));
+// Seit 0.5.78 keine eigene Minutenabfrage der Anlagen mehr für die Diagnose: die Erreichbarkeit kommt aus der
+// 5-min-Abfrage (pollEnergy), damit die WLAN-Module möglichst wenig belastet werden.
+schedule('* * * * *', whenOwner(watchDiagnostics));
 claimOwnership().then(async () => {
     eventLog('ioBroker-Skript', `gestartet (${SELF})`);
     // Gespeicherte Zustandswechsel vor der ersten Ablesung laden, sonst gilt die Dauer als unbekannt.

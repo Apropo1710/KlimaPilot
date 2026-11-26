@@ -454,7 +454,8 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
             title = { Text("Diagnose") },
             text = {
                 Text(
-                    "Eingeschaltet prüft das ioBroker-Skript jede Minute, ob die Klimaanlagen im Heimnetz erreichbar sind, " +
+                    "Eingeschaltet wertet das ioBroker-Skript bei seiner Abfrage alle 5 Minuten aus, ob die Klimaanlagen im Heimnetz erreichbar sind " +
+                        "(keine zusätzlichen Abfragen), " +
                         "und schreibt jeden Ausfall mit Beginn, Dauer und Fehler ins Protokoll. Die App notiert zusätzlich, " +
                         "was dieses Handy sieht. Einträge werden 14 Tage aufbewahrt. Zum Auswerten „Kopieren“ und mir schicken."
                 )
