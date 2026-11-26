@@ -99,11 +99,15 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         EventJournal.log("App", "", "geöffnet")
         // Back after more than 30 s: drop ioBroker connections kept open meanwhile, they may be dead.
-        if (stoppedAt > 0L && System.currentTimeMillis() - stoppedAt > 30_000L) IoBrokerPool.resetIdle()
+        val longAway = stoppedAt > 0L && System.currentTimeMillis() - stoppedAt > 30_000L
+        if (longAway) IoBrokerPool.resetIdle()
+        // Retries ioBroker requests that failed in the background, and once more right after returning.
+        IoBrokerRetry.onStart(longAway)
     }
 
     override fun onStop() {
         stoppedAt = System.currentTimeMillis()
+        IoBrokerRetry.onStop()
         EventJournal.log("App", "", "im Hintergrund oder geschlossen")
         super.onStop()
     }

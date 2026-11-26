@@ -317,6 +317,48 @@ internal object IoBrokerPool {
     }
 }
 
+/**
+ * Silent second try for ioBroker requests around the app going to the background. Requests that
+ * fail with a connection error while the app is in the background (Android cuts the network) or
+ * shortly after it comes back are not shown as an error but tried once more after returning.
+ * Only connection and login errors are retried – never failures after data was already sent.
+ */
+internal object IoBrokerRetry {
+    private val RETRYABLE = setOf("ioBroker nicht erreichbar", "ioBroker hat nicht geantwortet.")
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+    private val pending = ArrayDeque<() -> Unit>()
+    private var foreground = true
+    private var resumedAt = 0L
+
+    fun onStop() { foreground = false }
+
+    fun onStart(longAway: Boolean) {
+        foreground = true
+        if (longAway) resumedAt = System.currentTimeMillis()
+        val run = pending.toList()
+        pending.clear()
+        run.forEach { main.postDelayed(it, 2_000L) }
+    }
+
+    fun <T> wrap(callback: (T?, String?) -> Unit, attempt: ((T?, String?) -> Unit) -> Unit) {
+        attempt { result, error ->
+            val retryable = error != null && error in RETRYABLE
+            when {
+                retryable && !foreground -> {
+                    // Keep only a few; on return they reload anyway.
+                    while (pending.size >= 10) pending.removeFirst()
+                    pending.addLast { attempt(callback) }
+                }
+                retryable && System.currentTimeMillis() - resumedAt < 30_000L -> {
+                    EventJournal.log("ioBroker", "", "nach dem Zurückholen: $error – neuer Versuch in 3 s")
+                    main.postDelayed({ attempt(callback) }, 3_000L)
+                }
+                else -> callback(result, error)
+            }
+        }
+    }
+}
+
 /** Short messages for the cards; technical details go to the event journal. */
 internal object IoBrokerMessages {
     /** Null when ioBroker confirmed the login; otherwise a short message (no answer ≠ refused). */

@@ -340,7 +340,10 @@ internal object ScheduleMath {
 internal class ScheduleIoBroker {
     private val main = Handler(Looper.getMainLooper())
 
-    private fun session(address: String, callback: (ScheduleData?, String?) -> Unit, block: (IoBrokerLease, (ScheduleData?, String?) -> Unit) -> Unit) {
+    private fun session(address: String, callback: (ScheduleData?, String?) -> Unit, block: (IoBrokerLease, (ScheduleData?, String?) -> Unit) -> Unit) =
+        IoBrokerRetry.wrap(callback) { cb -> sessionOnce(address, cb, block) }
+
+    private fun sessionOnce(address: String, callback: (ScheduleData?, String?) -> Unit, block: (IoBrokerLease, (ScheduleData?, String?) -> Unit) -> Unit) {
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(null, "Keine ioBroker-Adresse hinterlegt."); return }
         val socket = IoBrokerLease(url)
