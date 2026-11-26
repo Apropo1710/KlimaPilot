@@ -131,7 +131,10 @@ internal data class FilterConfig(
 internal class FilterIoBroker {
     private val main = Handler(Looper.getMainLooper())
 
-    private fun session(address: String, callback: (FilterConfig?, String?) -> Unit, block: (IoBrokerLease, (FilterConfig?, String?) -> Unit) -> Unit) {
+    private fun session(address: String, callback: (FilterConfig?, String?) -> Unit, block: (IoBrokerLease, (FilterConfig?, String?) -> Unit) -> Unit) =
+        IoBrokerRetry.wrap(callback) { cb -> sessionOnce(address, cb, block) }
+
+    private fun sessionOnce(address: String, callback: (FilterConfig?, String?) -> Unit, block: (IoBrokerLease, (FilterConfig?, String?) -> Unit) -> Unit) {
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(null, "Keine ioBroker-Adresse hinterlegt."); return }
         val socket = IoBrokerLease(url)

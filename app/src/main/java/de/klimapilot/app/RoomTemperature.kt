@@ -100,7 +100,10 @@ internal data class RoomTempModel(
 internal class RoomTempIoBroker {
     private val main = Handler(Looper.getMainLooper())
 
-    private fun <T> session(address: String, callback: (T?, String?) -> Unit, block: (IoBrokerLease, (T?, String?) -> Unit) -> Unit) {
+    private fun <T> session(address: String, callback: (T?, String?) -> Unit, block: (IoBrokerLease, (T?, String?) -> Unit) -> Unit) =
+        IoBrokerRetry.wrap(callback) { cb -> sessionOnce(address, cb, block) }
+
+    private fun <T> sessionOnce(address: String, callback: (T?, String?) -> Unit, block: (IoBrokerLease, (T?, String?) -> Unit) -> Unit) {
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(null, "Keine ioBroker-Adresse hinterlegt."); return }
         val socket = IoBrokerLease(url)

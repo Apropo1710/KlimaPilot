@@ -166,7 +166,10 @@ internal class DiagnosticsIoBroker {
 
     data class Result(val enabled: Boolean, val entries: List<DiagEntry>, val events: List<EventJournal.Entry> = emptyList())
 
-    private fun session(address: String, callback: (Result?, String?) -> Unit, block: (IoBrokerLease, (Result?, String?) -> Unit) -> Unit) {
+    private fun session(address: String, callback: (Result?, String?) -> Unit, block: (IoBrokerLease, (Result?, String?) -> Unit) -> Unit) =
+        IoBrokerRetry.wrap(callback) { cb -> sessionOnce(address, cb, block) }
+
+    private fun sessionOnce(address: String, callback: (Result?, String?) -> Unit, block: (IoBrokerLease, (Result?, String?) -> Unit) -> Unit) {
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) { callback(null, "Keine ioBroker-Adresse hinterlegt."); return }
         val socket = IoBrokerLease(url)

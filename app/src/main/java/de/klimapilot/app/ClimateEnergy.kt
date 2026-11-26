@@ -267,7 +267,10 @@ internal data class EnergyFetch(val priceEurPerKwh: Double, val units: List<Ener
 internal class EnergyIoBroker {
     private val main = Handler(Looper.getMainLooper())
 
-    fun exchange(address: String, devices: List<UserDevice>, newPrice: Double?, callback: (EnergyFetch?, String?) -> Unit) {
+    fun exchange(address: String, devices: List<UserDevice>, newPrice: Double?, callback: (EnergyFetch?, String?) -> Unit) =
+        IoBrokerRetry.wrap(callback) { cb -> exchangeOnce(address, devices, newPrice, cb) }
+
+    private fun exchangeOnce(address: String, devices: List<UserDevice>, newPrice: Double?, callback: (EnergyFetch?, String?) -> Unit) {
         val url = address.trim().trimEnd('/')
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
             callback(null, "Keine ioBroker-Adresse hinterlegt.")
