@@ -51,7 +51,7 @@ Energieverlauf und Zeitpläne laufen über ein Skript im ioBroker-JavaScript-Ada
 - **Aktualisieren:** Beim Start prüft KlimaPilot, ob das eingerichtete Skript der mitgelieferten Fassung entspricht, und aktualisiert es bei Bedarf.
 - **Energie:** KlimaPilot trägt Anlagen und Strompreis unter `0_userdata.0.KlimaPilot.energy.config` ein; das Skript liest alle 5 Minuten und schreibt nach `0_userdata.0.KlimaPilot.energy.units.<Geräte-ID>`. Aufgezeichnet wird ab der ersten Ablesung.
 - **Zeitpläne:** KlimaPilot schreibt sie nach `0_userdata.0.KlimaPilot.schedules.config`; das Skript prüft jede Minute, schaltet fällige Anlagen direkt am WLAN-Modul und schreibt das Ergebnis nach `0_userdata.0.KlimaPilot.schedules.status`. Schlägt ein Termin fehl (z. B. beim stündlichen Neustart des Moduls), wird er bis zu 10 Minuten lang jede Minute wiederholt. Der Schalter „Zeitpläne verwenden“ in den Einstellungen hält alle Zeitpläne an und blendet sie in der App aus – über ioBroker und zusätzlich über die Handy-zu-Handy-Synchronisierung auf beiden Handys.
-- **Diagnose:** Einstellungen → „Diagnose“ (nur Administrator). Eingeschaltet (`0_userdata.0.KlimaPilot.diagnostics.config`) prüft das Skript jede Minute die lokale Erreichbarkeit der Anlagen und protokolliert jeden Ausfall ab 3 Minuten mit Beginn, Dauer und Fehler in `0_userdata.0.KlimaPilot.diagnostics.log` (14 Tage). Die App ergänzt, was das Handy sieht; das Protokoll lässt sich in der App ansehen, kopieren und leeren.
+- **Diagnose:** Einstellungen → „Diagnose“ (nur Administrator). Eingeschaltet (`0_userdata.0.KlimaPilot.diagnostics.config`) wertet das Skript bei jeder 5-min-Abfrage die lokale Erreichbarkeit der Anlagen aus (seit 0.5.78 keine eigene Minutenabfrage mehr, um die WLAN-Module zu schonen) und protokolliert jeden Ausfall ab der zweiten fehlgeschlagenen Abfrage mit Beginn, Dauer und Fehler in `0_userdata.0.KlimaPilot.diagnostics.log` (14 Tage). Die App ergänzt, was das Handy sieht; das Protokoll lässt sich in der App ansehen, kopieren und leeren.
 - **Raumtemperatur lernen:** Der Fühler im Innengerät misst je nach Lage zu warm. Auf der Hauptseite „Innen“ antippen und den Wert eines Thermometers im Raum eintragen; das Skript speichert ihn mit dem Zustand der Anlage und lernt je Anlage die Abweichung (Details unter `roomTemp.*`). Bis genug gelernt ist, gilt die feste Korrektur des Geräts. Mit eingeschalteter Diagnose beobachtet das Skript jede Minute, sonst alle 5 Minuten.
 - **Benachrichtigungen:** Die App prüft etwa alle 2 Stunden im Hintergrund (nur im WLAN) die Datenpunkte unten und meldet fällige Filter, endgültig fehlgeschlagene Zeitpläne und Anlagen, die seit über einer Stunde nicht erreichbar sind. Standardmäßig aus; einschalten unter Einstellungen → „Benachrichtigungen“.
 - Manuell geht es auch: neues JavaScript-Skript anlegen und den Dateiinhalt einfügen (am PC).
@@ -231,7 +231,7 @@ Die App schreibt alle gekoppelten Anlagen. Das Skript liest daraus, welche Anlag
 { "enabled": true, "updatedAt": 1795251000000 }
 ```
 
-Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anlagen aus `energy.config`. Die App übernimmt den Schalter beim Start.
+Ist die Diagnose an, wertet das Skript bei jeder 5-min-Abfrage die Erreichbarkeit aller Anlagen aus `energy.config` aus (seit 0.5.78; vorher eigene Minutenabfrage). Die App übernimmt den Schalter beim Start.
 
 ### `diagnostics.log` – Diagnoseprotokoll (lesen; leeren erlaubt)
 
@@ -302,7 +302,7 @@ Lagen „aktiv seit kurzem/länger“ heißen bis 0.5.73 „Verdichter startet/l
 } } }
 ```
 
-- `offset`: aktuelle Abweichung (Raum = Fühler − offset), `null` ohne aktuelle Daten. Wird jede Minute (Diagnose an) bzw. alle 5 min neu geschrieben.
+- `offset`: aktuelle Abweichung (Raum = Fühler − offset), `null` ohne aktuelle Daten. Wird alle 5 min neu geschrieben; beim Eintragen eines Thermometerwerts fragt das Skript die Anlage einmal frisch ab.
 - `using`: `none` (unter 3 Werten), `mean` (Mittelwert), `model` (Ridge-Regression über die Merkmale; nur wenn sie in der Kreuzprüfung um mehr als 0,05 °C besser trifft als der Mittelwert, ab 8 Werten). Vorhersagen bleiben höchstens 1 °C außerhalb der gemessenen Abweichungen.
 - `errorModel`/`errorMean`: mittlerer Fehler in der Kreuzprüfung (°C). `weights`: Einfluss je Merkmalseinheit (nur zur Ansicht).
 
