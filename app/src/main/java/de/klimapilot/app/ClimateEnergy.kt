@@ -285,7 +285,7 @@ internal class EnergyIoBroker {
         fun err(args: Array<Any?>) = args.firstOrNull()?.takeUnless { it == JSONObject.NULL }
         socket.on("connect") {
             socket.emit("authenticate", IoBrokerAck authCallback@{ authArgs ->
-                if (authArgs.firstOrNull() as? Boolean != true) { finish(null, "ioBroker hat die Verbindung nicht authentifiziert."); return@authCallback }
+                IoBrokerMessages.authError(authArgs)?.let { finish(null, it); return@authCallback }
                 socket.emit("getState", CONFIG_ID, IoBrokerAck configCallback@{ configArgs ->
                     val remote = ((configArgs.getOrNull(1) as? JSONObject)?.opt("val") as? String)
                         ?.let { runCatching { JSONObject(it) }.getOrNull() }
@@ -331,7 +331,7 @@ internal class EnergyIoBroker {
                 })
             })
         }
-        socket.on("connect_error") { args -> finish(null, "ioBroker nicht erreichbar: ${args.firstOrNull() ?: "Verbindung fehlgeschlagen"}") }
+        socket.on("connect_error") { args -> finish(null, IoBrokerMessages.connectError(args)) }
         socket.connect()
     }
 
@@ -461,7 +461,7 @@ internal class EnergyScriptInstaller(private val context: Context) {
 
         socket.on("connect") {
             socket.emit("authenticate", IoBrokerAck authCallback@{ authArgs ->
-                if (authArgs.firstOrNull() as? Boolean != true) { finish(false, "ioBroker hat die Verbindung nicht authentifiziert."); return@authCallback }
+                IoBrokerMessages.authError(authArgs)?.let { finish(false, it); return@authCallback }
                 socket.emit("getObject", SCRIPT_ID, IoBrokerAck getCallback@{ getArgs ->
                     val existing = asJson(getArgs.getOrNull(1))
                     if (updateOnly && existing == null) {
@@ -476,7 +476,7 @@ internal class EnergyScriptInstaller(private val context: Context) {
                 })
             })
         }
-        socket.on("connect_error") { args -> finish(false, "ioBroker nicht erreichbar: ${args.firstOrNull() ?: "Verbindung fehlgeschlagen"}") }
+        socket.on("connect_error") { args -> finish(false, IoBrokerMessages.connectError(args)) }
         socket.connect()
     }
 

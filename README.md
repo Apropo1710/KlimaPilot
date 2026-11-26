@@ -273,6 +273,7 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 
 - `thermometer`: Wert eines Thermometers im Raum (5–40 °C); `raw`: Fühlerwert der Anlage zum selben Zeitpunkt (fehlt er, nimmt das Skript seinen letzten Wert).
 - Löschen eines gespeicherten Messwerts: `{ "id": "…", "airconId": "…", "delete": "<id des Messwerts>" }`.
+- Wiederherstellen (seit 0.5.77, von der App aus ihrer Sicherung): `{ "id": "…", "airconId": "…", "restore": [ <Messwerte wie in roomTemp.samples> ] }` – wird nur übernommen, wenn für die Anlage keine Messwerte mehr vorhanden sind.
 - Das Skript übernimmt den Wert nur, wenn es Daten der Anlage aus den letzten 10 min hat und die Abweichung zwischen −5 und +12 °C liegt; das Ergebnis steht danach in `roomTemp.model` → `units.<airconId>.input`.
 
 ### `roomTemp.samples` – gespeicherte Messwerte (nur lesen)
@@ -280,11 +281,13 @@ Ist die Diagnose an, prüft das Skript jede Minute die Erreichbarkeit aller Anla
 ```json
 { "units": { "1cd1d717d1e2": [
   { "id": "…", "at": "2026-11-24T06:44:00.000Z", "thermo": 18.2, "raw": 21.5, "offset": 3.3, "scenario": "Heizen, aktiv länger",
-    "f": { "on": 1, "heat": 1, "comp": 1, "runFresh": 0.264, "restFresh": 0, "offFresh": 0, "trend": -1.5, "outdoor": -3, "fan": 2, "setDiff": -3.5 } }
+    "f": { "on": 1, "heat": 1, "comp": 1, "runFresh": 0.264, "restFresh": 0, "offFresh": 0, "trend": -1.5, "outdoor": -3, "fan": 2, "setDiff": -3.5, "other": 0, "otherOff": 0 },
+    "ctx": { "power": true, "mode": "HEAT", "preset": 20.5, "fan": 0, "outdoor": -3, "comp": true, "compMin": 22, "powerMin": 104,
+             "others": { "c0e2d1a9b8f7": { "power": false, "mode": "HEAT", "comp": false, "raw": 24.1 } } } }
 ] } }
 ```
 
-Lagen „aktiv seit kurzem/länger“ heißen bis 0.5.73 „Verdichter startet/läuft“; das Skript benennt gespeicherte Werte beim Lesen um („aktiv“ = dieser Raum fordert an, Statusbit je Innengerät). Werte verfallen nicht mit der Zeit; je Anlage und Lage (`scenario`) höchstens 100 – darüber ersetzt ein neuer Wert den ältesten derselben Lage, Werte anderer Lagen (z. B. Heizen im Winter, Kühlen im Sommer) bleiben unberührt. Merkmale `f`: eingeschaltet, Modus Heizen, aktiv länger, `runFresh`/`restFresh` = e^(−Minuten seit Verdichter-Start bzw. -Stopp / 15), `offFresh` = e^(−Minuten seit Ausschalten / 30), `trend` = Fühleränderung der letzten ~10 min, Außentemperatur, Lüfterstufe (Auto = 2), Soll minus Fühler.
+Lagen „aktiv seit kurzem/länger“ heißen bis 0.5.73 „Verdichter startet/läuft“; das Skript benennt gespeicherte Werte beim Lesen um („aktiv“ = dieser Raum fordert an, Statusbit je Innengerät). Werte verfallen nicht mit der Zeit; je Anlage und Lage (`scenario`) höchstens 100 – darüber ersetzt ein neuer Wert den ältesten derselben Lage, Werte anderer Lagen (z. B. Heizen im Winter, Kühlen im Sommer) bleiben unberührt. Merkmale `f`: eingeschaltet, Modus Heizen, aktiv länger, `runFresh`/`restFresh` = e^(−Minuten seit Verdichter-Start bzw. -Stopp / 15), `offFresh` = e^(−Minuten seit Ausschalten / 30), `trend` = Fühleränderung der letzten ~10 min, Außentemperatur, Lüfterstufe (Auto = 2), Soll minus Fühler, seit 0.5.77 `other` = eine andere Anlage am gemeinsamen Außengerät fordert an, `otherOff` = dasselbe, während diese Anlage aus ist (ältere Werte ohne diese Merkmale zählen als 0). `ctx` (seit 0.5.77) ist der Rohzustand zum Messwert, damit spätere Merkmale auch für ältere Werte berechnet werden können. Jedes Handy mit KlimaPilot hält eine Kopie der Messwerte (höchstens alle 6 h aktualisiert) und schickt sie zurück, falls ioBroker für eine Anlage keine Werte mehr hat.
 
 ### `roomTemp.model` – gelernte Abweichung (nur lesen)
 

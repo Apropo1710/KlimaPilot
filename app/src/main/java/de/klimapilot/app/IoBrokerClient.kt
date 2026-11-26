@@ -29,10 +29,10 @@ internal object IoBrokerClient {
             client.on("connect") {
                 reported = false
                 client.emit("authenticate", IoBrokerAck { args ->
-                    val authenticated = args.firstOrNull() as? Boolean ?: false
-                    if (!authenticated) {
+                    val authError = IoBrokerMessages.authError(args)
+                    if (authError != null) {
                         mainHandler.post {
-                            if (!reported) { reported = true; callback(false, "ioBroker hat die WebSocket-Verbindung nicht authentifiziert.") }
+                            if (!reported) { reported = true; callback(false, authError) }
                         }
                     } else {
                         if (subscribeAll) {

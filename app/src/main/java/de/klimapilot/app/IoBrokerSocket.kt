@@ -306,6 +306,33 @@ internal object IoBrokerPool {
     }
 
     fun connected(url: String): Boolean = entries[url]?.let { it.ready && it.socket.connected() } == true
+
+    /**
+     * Back from the background: connections kept open meanwhile may be dead without notice (power
+     * saving, VPN/mobile network) and would make the first requests time out. Unused ones are
+     * closed so the next request connects afresh; ones still in use are left to their own timeout.
+     */
+    fun resetIdle() {
+        entries.values.toList().filter { it.leases.isEmpty() }.forEach { close(it) }
+    }
+}
+
+/** Short messages for the cards; technical details go to the event journal. */
+internal object IoBrokerMessages {
+    /** Null when ioBroker confirmed the login; otherwise a short message (no answer ≠ refused). */
+    fun authError(args: Array<Any?>): String? = when (val first = args.firstOrNull()) {
+        true -> null
+        false -> "ioBroker hat die Anmeldung abgelehnt."
+        else -> {
+            EventJournal.log("ioBroker", "", "Anmeldung ohne Antwort: ${first ?: "leer"}")
+            "ioBroker hat nicht geantwortet."
+        }
+    }
+
+    fun connectError(args: Array<Any?>): String {
+        EventJournal.log("ioBroker", "", "nicht erreichbar: ${args.firstOrNull() ?: "Verbindung fehlgeschlagen"}")
+        return "ioBroker nicht erreichbar"
+    }
 }
 
 /** A task's share of the pooled connection; same calls as [IoBrokerSocket]. */

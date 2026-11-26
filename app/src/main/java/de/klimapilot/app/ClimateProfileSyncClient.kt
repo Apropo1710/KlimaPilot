@@ -41,8 +41,7 @@ internal class ClimateProfileSyncClient(private val peerLog: ClimatePeerEventLog
         }
         socket.on("connect") {
             socket.emit("authenticate", IoBrokerAck authCallback@{ authArgs ->
-                val authenticated = authArgs.firstOrNull() as? Boolean ?: false
-                if (!authenticated) { finish("ioBroker hat die Synchronisierungsverbindung nicht authentifiziert."); return@authCallback }
+                IoBrokerMessages.authError(authArgs)?.let { finish(it); return@authCallback }
                 socket.emit("getState", "system.adapter.admin.0.alive", IoBrokerAck aliveCallback@{ aliveArgs ->
                     val error = aliveArgs.firstOrNull()?.takeUnless { it == JSONObject.NULL }
                     val state = aliveArgs.getOrNull(1) as? JSONObject

@@ -591,7 +591,9 @@ const ROOM_TRACK_ID = `${ROOM_ROOT}.track`;
 const ROOM_MAX_PER_SCENARIO = 100;
 const ROOM_MIN_MEAN = 3;    // ab 3 Messwerten: Mittelwert
 const ROOM_MIN_MODEL = 8;   // ab 8 Messwerten: Modell, wenn es in der Kreuzprüfung besser trifft
-const ROOM_FEATURES = ['on', 'heat', 'comp', 'runFresh', 'restFresh', 'offFresh', 'trend', 'outdoor', 'fan', 'setDiff'];
+// other/otherOff seit 0.5.77: eine andere Anlage am gemeinsamen Außengerät fordert an (Multisplit) – wärmt das
+// eigene Innengerät mit, besonders wenn es selbst aus ist. Ältere Messwerte haben die Merkmale nicht (zählen als 0).
+const ROOM_FEATURES = ['on', 'heat', 'comp', 'runFresh', 'restFresh', 'offFresh', 'trend', 'outdoor', 'fan', 'setDiff', 'other', 'otherOff'];
 const ROOM_LAMBDAS = [0.3, 1, 3, 10, 30];
 const MODE_NAMES = { HEAT: 'Heizen', COOL: 'Kühlen', DRY: 'Trocknen', FAN: 'Lüfter', AUTO: 'Auto' };
 
@@ -639,10 +641,34 @@ async function roomLoadTrack() {
     }
 }
 
+/** Fordert gerade eine andere Anlage Wärme/Kälte an (Statusbit, aktuelle Abfrage)? */
+function roomOtherActive(tr, t) {
+    return Object.values(roomTrack).some(o => o !== tr && o.stat && o.stat.power && o.comp && t - o.at <= 10 * 60000) ? 1 : 0;
+}
+
+/**
+ * Rohzustand zum Messwert (seit 0.5.77): eigene Anlage und alle anderen. Damit lassen sich später neue
+ * Merkmale auch für alte Messwerte berechnen – eingetragene Werte bleiben so dauerhaft nutzbar.
+ */
+function roomContext(tr, t) {
+    const s = tr.stat;
+    const others = {};
+    for (const [id, o] of Object.entries(roomTrack)) {
+        if (o === tr || !o.stat || t - o.at > 10 * 60000) continue;
+        others[id] = { power: !!o.stat.power, mode: o.stat.mode, comp: !!o.comp, raw: o.raw };
+    }
+    return {
+        power: !!s.power, mode: s.mode, preset: s.presetTemp, fan: s.airFlow, outdoor: s.outdoorTemp,
+        comp: !!tr.comp, compMin: Math.round(roomMinutes(tr.compSince, t)), powerMin: Math.round(roomMinutes(tr.powerSince, t)),
+        others,
+    };
+}
+
 function roomFeatures(tr, t) {
     const s = tr.stat;
     const on = s.power ? 1 : 0;
     const comp = tr.comp ? 1 : 0;
+    const other = roomOtherActive(tr, t);
     const old = tr.raws.find(([at]) => t - at <= 12 * 60000) || tr.raws[0];
     return {
         on,
@@ -655,6 +681,8 @@ function roomFeatures(tr, t) {
         outdoor: typeof s.outdoorTemp === 'number' ? s.outdoorTemp : 5,
         fan: on ? (s.airFlow > 0 ? s.airFlow : 2) : 0,                             // Auto zählt als mittlere Stufe
         setDiff: on && typeof s.presetTemp === 'number' ? clamp(s.presetTemp - tr.raw, -10, 10) : 0,
+        other,
+        otherOff: !on && other ? 1 : 0,
     };
 }
 
@@ -799,7 +827,18 @@ async function roomInput(text) {
     const data = await roomReadSamples();
     const list = data.units[input.airconId] = Array.isArray(data.units[input.airconId]) ? data.units[input.airconId] : [];
     const result = { id: input.id || '', at: new Date().toISOString(), ok: false, message: '' };
-    if (input.delete) {
+    if (Array.isArray(input.restore)) {
+        // Wiederherstellung aus der Sicherung eines Handys – nur wenn ioBroker für die Anlage keine Werte mehr hat.
+        const valid = input.restore.filter(x => x && typeof x.id === 'string' && typeof x.thermo === 'number' && typeof x.raw === 'number' && x.f && typeof x.f === 'object');
+        if (list.length > 0) result.message = 'Es sind bereits Messwerte vorhanden – nichts wiederhergestellt.';
+        else if (!valid.length) result.message = 'Sicherung enthält keine gültigen Messwerte.';
+        else {
+            data.units[input.airconId] = valid.map(x => Object.assign({}, x, { scenario: typeof x.scenario === 'string' ? roomScenarioRename(x.scenario) : '' }));
+            result.ok = true;
+            result.message = `${valid.length} Messwerte aus der Sicherung wiederhergestellt.`;
+            eventLog(input.airconId, `Raumtemperatur: ${valid.length} Messwerte aus der Sicherung eines Handys wiederhergestellt`);
+        }
+    } else if (input.delete) {
         const before = list.length;
         data.units[input.airconId] = list.filter(s => s.id !== input.delete);
         result.ok = data.units[input.airconId].length < before;
@@ -815,7 +854,7 @@ async function roomInput(text) {
         else {
             const f = roomFeatures(tr, t);
             for (const k of Object.keys(f)) f[k] = Math.round(f[k] * 1000) / 1000;
-            list.push({ id: input.id || String(t), at: new Date(t).toISOString(), thermo, raw, offset: Math.round((raw - thermo) * 10) / 10, scenario: roomScenario(tr, t), f });
+            list.push({ id: input.id || String(t), at: new Date(t).toISOString(), thermo, raw, offset: Math.round((raw - thermo) * 10) / 10, scenario: roomScenario(tr, t), f, ctx: roomContext(tr, t) });
             const same = list.filter(s => s.scenario === list[list.length - 1].scenario);
             if (same.length > ROOM_MAX_PER_SCENARIO) list.splice(list.indexOf(same[0]), 1);
             result.ok = true;
