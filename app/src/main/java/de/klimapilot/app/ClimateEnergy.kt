@@ -51,6 +51,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -714,12 +715,18 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
                                 "${lineNames[j]} ${currentLines[j].getOrNull(index)?.let { formatNumber(it, 1) + " °C" } ?: "–"}"
                             }
                         }
+                        // Lines run on into the neighbouring pages (no gap between pages), so they stay unbroken while swiping.
+                        fun pageLines(at: LocalDate) = linesAt(at, barsAt(at))
                         TempChartFrame(tScale, lineNames, lineColors, tempText) {
-                            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), pageSpacing = 16.dp) { page ->
+                            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), pageSpacing = 0.dp) { page ->
                                 val pageAnchor = anchorOf(page)
                                 val pageBars = barsAt(pageAnchor)
+                                val edges = if (period == EnergyPeriod.ALL) null else
+                                    pageLines(EnergyMath.shift(period, pageAnchor, -1)).map { it.lastOrNull() } to
+                                        (if (EnergyMath.isBeforeCurrent(period, pageAnchor, today)) pageLines(EnergyMath.shift(period, pageAnchor, 1)).map { it.firstOrNull() } else null)
                                 TempLinesPage(
                                     pageBars.map { it.label }, linesAt(pageAnchor, pageBars), lineColors, tScale,
+                                    before = edges?.first, after = edges?.second,
                                     selected = if (pageAnchor == anchor) selectedBar else null
                                 ) { index ->
                                     val finer = EnergyMath.finer(period)
@@ -1087,6 +1094,9 @@ private fun TempLinesPage(
     lines: List<List<Double?>>,
     colors: List<Color>,
     scale: TempScale,
+    /** Per line the last value of the previous page and the first of the next, to carry the line to the edge. */
+    before: List<Double?>? = null,
+    after: List<Double?>? = null,
     selected: Int?,
     onTap: (Int) -> Unit
 ) {
@@ -1111,6 +1121,14 @@ private fun TempLinesPage(
             }
             val slot = size.width / labels.size.coerceAtLeast(1)
             selected?.let { drawRect(markColor, topLeft = Offset(it * slot, 0f), size = Size(slot, size.height)) }
+            clipRect {
+                lines.forEachIndexed { j, line ->
+                    val first = line.firstOrNull()
+                    val last = line.lastOrNull()
+                    before?.getOrNull(j)?.let { prev -> if (first != null) drawLine(colors[j], Offset(-slot / 2, y(prev)), Offset(slot / 2, y(first)), strokeWidth = 2.5.dp.toPx()) }
+                    after?.getOrNull(j)?.let { next -> if (last != null) drawLine(colors[j], Offset(size.width - slot / 2, y(last)), Offset(size.width + slot / 2, y(next)), strokeWidth = 2.5.dp.toPx()) }
+                }
+            }
             lines.forEachIndexed { j, line ->
                 var previous: Offset? = null
                 line.forEachIndexed { index, value ->
