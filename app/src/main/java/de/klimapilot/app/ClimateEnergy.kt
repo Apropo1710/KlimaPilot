@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
@@ -59,7 +60,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -573,15 +573,14 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
     val factor = if (inEuro) price else 1.0
     val unitLabel = if (inEuro) "€" else "kWh"
 
-    ScaledDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        DialogNavigationBar(MaterialTheme.colorScheme.background)
+    FullScreenDialog(onDismissRequest = onDismiss) {
         BackHandler(enabled = drillStack.isNotEmpty()) {
             period = drillStack.last()
             drillStack = drillStack.dropLast(1)
         }
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             // Fixed header; everything below scrolls. Kept clear of the navigation bar, which shows the page colour.
-            Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Energie", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text("Schließen") }

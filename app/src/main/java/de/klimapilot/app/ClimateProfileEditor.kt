@@ -3,6 +3,7 @@ package de.klimapilot.app
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,7 +49,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
 import de.klimapilot.app.wfrac.AirconState
 import java.util.Locale
 import java.util.UUID
@@ -112,10 +112,9 @@ internal fun ClimateProfileEditorDialog(
     val valid = name.isNotBlank() && anySetting
     val preview = build().summary().ifBlank { "Noch nichts festgelegt" }
 
-    ScaledDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        DialogNavigationBar(SPage)
+    FullScreenDialog(onDismissRequest = onDismiss) {
         Surface(Modifier.fillMaxSize(), color = SPage) {
-          Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+          Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             // Fixed header: close and save stay reachable while scrolling.
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
