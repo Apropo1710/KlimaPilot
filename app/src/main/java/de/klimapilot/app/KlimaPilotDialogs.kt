@@ -121,3 +121,36 @@ internal fun ScaledDialog(
         CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides density) { content() }
     }
 }
+
+/**
+ * Full-screen page in a dialog window (energy, schedule and profile editor). The window covers the
+ * whole screen including both system bars, like the main screen: the page colour shows behind them,
+ * the buttons and icons are dark, and the content keeps clear with statusBarsPadding/navigationBarsPadding.
+ * Without this the dialog window stopped short of the bars, its dim showed through and the content
+ * ran under the navigation buttons (Android 15 ignores the old navigationBarColor).
+ */
+@Composable
+internal fun FullScreenDialog(onDismissRequest: () -> Unit, content: @Composable () -> Unit) {
+    ScaledDialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    ) {
+        val view = androidx.compose.ui.platform.LocalView.current
+        val window = (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        if (window != null) androidx.compose.runtime.SideEffect {
+            window.setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT)
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+            @Suppress("DEPRECATION") run {
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+            }
+            if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+            androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = true
+                isAppearanceLightNavigationBars = true
+            }
+        }
+        content()
+    }
+}
