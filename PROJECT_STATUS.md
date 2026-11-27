@@ -1,14 +1,14 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: ed19814b6b0a43e0ca0151778c87509748908941
-- App-Version / versionCode: **0.5.83 / 213**
-- Build-Zeit: 2026-11-27 06:22:59 UTC
+- Quellcommit des APK-Builds: 2ef11ea4451fcb67321aae058224e02104333e73
+- App-Version / versionCode: **0.5.84 / 214**
+- Build-Zeit: 2026-11-27 06:44:53 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: 81b3b23ec04e111aa07f17eaeedb282a8432edb245c38fa0c483549e0456ffd8
-- GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
+- APK-SHA-256: 83658ab14b8089d66f326aa5ead96b7b3e8c1b9330ceec24d69a8832d7299294
+- GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
 - ChatGPT-Bibliotheksakte: separate Langzeit-/Historienakte; wird durch diesen Workflow nicht verändert.
