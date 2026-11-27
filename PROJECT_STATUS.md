@@ -3,11 +3,11 @@
 
 - Quellcommit des APK-Builds: 7ee1a126367c4cc57065bcbe10d79d73731a71c1
 - App-Version / versionCode: **0.5.81 / 211**
-- Build-Zeit: 2026-11-27 00:13:09 UTC
+- Build-Zeit: 2026-11-27 00:16:41 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: e4cf220739aaee830f1c7155a946b79acbc970f40381d85cbbf236380e745779
+- APK-SHA-256: b5dc878859d3fc283098319c6656fb79d1167056407c06539e0f5a0bd56f28fd
 - GitHub-Release: Veröffentlichung wird in diesem Workflow nach dem Statuscommit abgeschlossen.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
