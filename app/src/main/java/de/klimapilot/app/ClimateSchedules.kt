@@ -8,8 +8,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -917,9 +915,9 @@ private fun ScheduleEditor(
         )
     }
 
-    FullScreenDialog(onDismissRequest = onDismiss) {
+    FullScreenDialog(onDismissRequest = onDismiss, color = SPage) {
         Surface(Modifier.fillMaxSize(), color = SPage) {
-          Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+          Column(Modifier.fillMaxSize()) {
             // Fixed header: close and save stay reachable while scrolling.
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
