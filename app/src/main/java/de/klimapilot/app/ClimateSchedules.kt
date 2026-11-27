@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -822,6 +823,9 @@ internal fun DialogNavigationBar(color: Color) {
         @Suppress("DEPRECATION")
         window.navigationBarColor = color.toArgbCompat()
         androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = true
+        // Android 15 draws dialogs edge to edge and lays a grey contrast scrim over the bar; the page
+        // colour underneath (navigationBarsPadding in the dialog) is enough, like on the main screen.
+        if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
     }
 }
 
@@ -935,7 +939,7 @@ private fun ScheduleEditor(
     ScaledDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         DialogNavigationBar(SPage)
         Surface(Modifier.fillMaxSize(), color = SPage) {
-          Column(Modifier.fillMaxSize()) {
+          Column(Modifier.fillMaxSize().navigationBarsPadding()) {
             // Fixed header: close and save stay reachable while scrolling.
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {

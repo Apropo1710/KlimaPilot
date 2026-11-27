@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -579,8 +580,8 @@ internal fun EnergyDialog(devices: List<UserDevice>, selectedDevice: UserDevice?
             drillStack = drillStack.dropLast(1)
         }
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            // Fixed header; everything below scrolls.
-            Column(Modifier.fillMaxSize()) {
+            // Fixed header; everything below scrolls. Kept clear of the navigation bar, which shows the page colour.
+            Column(Modifier.fillMaxSize().navigationBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Energie", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text("Schließen") }
