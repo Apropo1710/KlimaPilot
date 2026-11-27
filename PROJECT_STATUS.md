@@ -214,6 +214,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 ## 9. Produkt- und Hardwaregrenzen
 
+- LED-Anzeige der Innengeräte (27.11.2026): nicht in der App. Das Modul kennt `ledStat` (Schalter „LED ON“ der offiziellen App, nur bei Modellen mit `led_light`), der Schreibweg ist aber nirgends dokumentiert; keine Versuche mit unbekannten Befehlen. Dimmen geht über die Fernbedienung (Taste ganz links unten, Stufen L2/L1/L0 = aus) – vom Nutzer bestätigt.
 - Keine Eingriffe an den Geräten (Nutzerentscheidung 26.11.2026, ausgeschlossen): z. B. kein Verlegen oder Isolieren des Raumfühlers, keine Widerstände am NTC. Fühler- und Taktprobleme nur per Software angehen (Aufheiz-Start per Zeitplan, Lüfterstufe beim Start, externer WLAN-Raumfühler mit Sollwert-Nachführung durch das Skript).
 
 - Geräte: zwei Mitsubishi Heavy SRK15ZS-WF, seit 19.11.2026 in Betrieb; bestätigte Funktionen siehe Abschnitt 5, alles andere gilt bis zum Test als unbestätigt.
