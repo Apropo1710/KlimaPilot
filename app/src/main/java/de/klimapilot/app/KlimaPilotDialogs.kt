@@ -8,10 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.graphics.toArgb
-import kotlin.math.roundToInt
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -153,7 +150,11 @@ internal fun FullScreenDialog(onDismissRequest: () -> Unit, color: androidx.comp
     ) {
         val view = androidx.compose.ui.platform.LocalView.current
         val window = (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
-        if (window != null) androidx.compose.runtime.SideEffect {
+        var clearance by remember { mutableStateOf(0 to 0) }
+        // Window setup once per dialog, not on every recomposition: re-applying it made the window
+        // re-layout, the measured clearance changed and the page jumped up and down (0.5.84).
+        androidx.compose.runtime.DisposableEffect(window) {
+            if (window == null) return@DisposableEffect onDispose { }
             window.setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT)
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
@@ -168,19 +169,23 @@ internal fun FullScreenDialog(onDismissRequest: () -> Unit, color: androidx.comp
                 isAppearanceLightStatusBars = true
                 isAppearanceLightNavigationBars = true
             }
+            // Clearance from the window's own bounds, which the padding inside cannot move, so there
+            // is no feedback loop. As a further guard it is frozen after a few changes.
+            val decor = window.decorView
+            var changes = 0
+            val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                if (decor.height == 0 || changes >= 6) return@OnGlobalLayoutListener
+                val screen = IntArray(2).also { activityView.rootView.getLocationOnScreen(it) }
+                val own = IntArray(2).also { decor.getLocationOnScreen(it) }
+                val t = (screen[1] + statusTop - own[1]).coerceAtLeast(0)
+                val b = (own[1] + decor.height - (screen[1] + activityView.rootView.height - navBottom)).coerceAtLeast(0)
+                if (clearance != t to b) { clearance = t to b; changes++ }
+            }
+            decor.viewTreeObserver.addOnGlobalLayoutListener(listener)
+            onDispose { decor.viewTreeObserver.removeOnGlobalLayoutListener(listener) }
         }
-        var clearance by remember { mutableStateOf(0 to 0) }
         Box(
             Modifier.fillMaxSize().background(color)
-                .onGloballyPositioned { c ->
-                    val screen = IntArray(2).also { activityView.rootView.getLocationOnScreen(it) }
-                    val own = IntArray(2).also { view.getLocationOnScreen(it) }
-                    val top = own[1] + c.positionInRoot().y.roundToInt()
-                    val bottom = top + c.size.height
-                    val t = (screen[1] + statusTop - top).coerceAtLeast(0)
-                    val b = (bottom - (screen[1] + activityView.rootView.height - navBottom)).coerceAtLeast(0)
-                    if (clearance != t to b) clearance = t to b
-                }
                 .padding(top = with(density) { clearance.first.toDp() }, bottom = with(density) { clearance.second.toDp() })
         ) { content() }
     }
