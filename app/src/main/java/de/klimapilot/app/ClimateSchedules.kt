@@ -295,7 +295,11 @@ internal object ScheduleMath {
 
     fun actionLabel(item: ClimateSchedule): String {
         if (item.action == "off") return "Ausschalten"
-        item.profileName?.let { return "Ein · Profil „$it“" }
+        // Profile temperature before the name: the tile line is single-line, a long name is cut, never the temperature.
+        item.profileName?.let { name ->
+            val temp = item.settings?.targetTemp?.let { "%.1f °C".format(Locale.GERMANY, it) + " · " }.orEmpty()
+            return "Ein · ${temp}Profil „$name“"
+        }
         val s = item.settings ?: return "Einschalten"
         return (listOf("Ein") + settingsLabel(s).split(" · ").filter { it.isNotBlank() }).joinToString(" · ")
     }
