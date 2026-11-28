@@ -223,6 +223,26 @@ internal object ScheduleJson {
     }
 }
 
+/**
+ * Latest schedule run that switched a unit on with a profile, per device (from schedules.status of
+ * the ioBroker script). The profile line shows that profile then instead of the old one "(geändert)".
+ */
+internal object ScheduleProfileRuns {
+    data class Run(val profileId: String, val at: Long)
+    val map = androidx.compose.runtime.mutableStateMapOf<String, Run>()
+    fun publish(deviceId: String, airconId: String, data: ScheduleData) {
+        val latest = data.items.asSequence()
+            .filter { it.airconId == airconId && it.action != "off" && it.profileId != null }
+            .mapNotNull { item ->
+                val run = data.status[item.id]?.takeIf { it.done } ?: return@mapNotNull null
+                val at = run.at?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() } ?: return@mapNotNull null
+                Run(item.profileId!!, at)
+            }
+            .maxByOrNull { it.at } ?: return
+        if (map[deviceId] != latest) map[deviceId] = latest
+    }
+}
+
 internal object ScheduleMath {
     private val weekdayShort = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
     private val modeLabels = mapOf("AUTO" to "Auto", "COOL" to "Kühlen", "HEAT" to "Heizen", "FAN" to "Lüfter", "DRY" to "Trocknen")
@@ -504,6 +524,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
             io.load(address) { result, err ->
                 if (result == null) { error = err; return@load }
                 data = result; error = null
+                ScheduleProfileRuns.publish(device.id, device.wfRacAirconId, result)
                 // Season: take a newer choice from ioBroker, or hand a newer one of this phone to it.
                 val reconcile = ProfileSeason.reconcile(context, result.season, result.seasonUpdatedAt)
                 if (reconcile.adopted) {

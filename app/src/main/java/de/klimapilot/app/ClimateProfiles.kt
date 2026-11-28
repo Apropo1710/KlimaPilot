@@ -413,24 +413,48 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     )
     val showDirty = selectedProfileDirty && !switching
 
-    // A schedule (or the other phone) may have applied another profile in the meantime. If the
-    // unit now matches exactly one other profile of this room, show that one instead of
-    // "Tag (geändert)".
+    fun matchesUnit(p: ClimateProfile, state: AirconState): Boolean {
+        val vaneLR = modelSupportsVaneLR == true
+        return (p.mode != null || p.targetTemp != null) &&
+            (p.power == null || !state.power || p.power == state.power) &&
+            (p.mode == null || p.mode == state.mode?.name) &&
+            (p.targetTemp == null || abs(p.targetTemp - state.presetTemp) < 0.01) &&
+            (p.fanSpeed == null || p.fanSpeed == state.airFlow) &&
+            (p.verticalSwing == null || p.verticalSwing == state.windUD) &&
+            (!vaneLR || p.horizontalSwing == null || p.horizontalSwing == state.windLR) &&
+            (!vaneLR || p.threeDAuto == null || p.threeDAuto == state.entrust)
+    }
+    // Anchor: the profile last chosen on purpose (by hand or by a schedule) and when. Automatic
+    // matching returns to it first, so +0.5 and back -0.5 shows it again without "(geändert)".
+    val anchorKey = "profile_anchor_$deviceId"
+    val anchorAtKey = "profile_anchor_at_$deviceId"
+    fun setAnchor(profileId: String?, at: Long) {
+        settingsPrefs.edit().putString(anchorKey, profileId.orEmpty()).putLong(anchorAtKey, at).apply()
+    }
+
+    // A schedule switched the unit on with a profile after the last choice: show that profile.
+    // Before the first choice was recorded (update to 0.5.90) only if the unit still matches it.
+    val scheduleRun = ScheduleProfileRuns.map[deviceId]
+    LaunchedEffect(deviceId, scheduleRun, loaded, switching) {
+        if (managerMode || !loaded || switching || scheduleRun == null) return@LaunchedEffect
+        val profile = deviceProfiles.firstOrNull { it.id == scheduleRun.profileId } ?: return@LaunchedEffect
+        val known = settingsPrefs.contains(anchorAtKey)
+        if (known && scheduleRun.at <= settingsPrefs.getLong(anchorAtKey, 0L)) return@LaunchedEffect
+        val state = currentState
+        if (!known && (state == null || !matchesUnit(profile, state))) return@LaunchedEffect
+        setAnchor(profile.id, scheduleRun.at)
+        if (selectedProfileId != profile.id) persistActiveProfile(profile.id)
+    }
+
+    // The unit no longer matches the shown profile (changed by hand, a schedule or the other phone):
+    // show the anchor profile if it matches again, otherwise a single other profile that matches.
     LaunchedEffect(deviceId, currentState, selectedProfileId, switching, loaded) {
         if (managerMode || !loaded || switching || !selectedProfileDirty) return@LaunchedEffect
         val state = currentState ?: return@LaunchedEffect
-        val vaneLR = modelSupportsVaneLR == true
-        val matches = deviceProfiles.filter { p ->
-            p.id != selectedProfileId && (p.mode != null || p.targetTemp != null) &&
-                (p.power == null || !state.power || p.power == state.power) &&
-                (p.mode == null || p.mode == state.mode?.name) &&
-                (p.targetTemp == null || abs(p.targetTemp - state.presetTemp) < 0.01) &&
-                (p.fanSpeed == null || p.fanSpeed == state.airFlow) &&
-                (p.verticalSwing == null || p.verticalSwing == state.windUD) &&
-                (!vaneLR || p.horizontalSwing == null || p.horizontalSwing == state.windLR) &&
-                (!vaneLR || p.threeDAuto == null || p.threeDAuto == state.entrust)
-        }
-        if (matches.size == 1) persistActiveProfile(matches.single().id)
+        val matches = deviceProfiles.filter { it.id != selectedProfileId && matchesUnit(it, state) }
+        val anchorId = settingsPrefs.getString(anchorKey, null)?.takeIf { it.isNotBlank() }
+        val pick = matches.firstOrNull { it.id == anchorId } ?: matches.singleOrNull()
+        if (pick != null) persistActiveProfile(pick.id)
     }
 
     fun updateSelectedProfileFromState() {
@@ -479,6 +503,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
         onApply(profile) { success, message ->
             if (success) {
                 status = persistActiveProfile(profileId) ?: ""
+                setAnchor(profileId, System.currentTimeMillis())
             } else {
                 selectedProfileId = previous
                 status = message ?: failure
