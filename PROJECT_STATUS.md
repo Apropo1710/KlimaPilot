@@ -1,13 +1,13 @@
 <!-- AUTO-PRODUCTION-STATUS:START -->
 ## Automatisch gepflegter Produktionsstatus
 
-- Quellcommit des APK-Builds: 75610cfbd447ff20ed54c34fd4642debe6e2cb62
-- App-Version / versionCode: **0.5.90 / 220**
-- Build-Zeit: 2026-11-28 06:31:05 UTC
+- Quellcommit des APK-Builds: 572c96e68b4739199f10eef41ab8d5ca50ced341
+- App-Version / versionCode: **0.5.91 / 221**
+- Build-Zeit: 2026-11-28 14:22:33 UTC
 - APK-Dateiname: **KlimaPilot.apk**
 - APK-Signaturprüfung: erfolgreich (apksigner verify --print-certs)
 - Build-Artefakt: kein Actions-Artefakt; APK wird im GitHub-Release latest veröffentlicht
-- APK-SHA-256: d3822b22c30eaf6229f5629c218025498d1252fabf3f5c7b79afc2319d600165
+- APK-SHA-256: 7b5f948ed42a09145048da0d3810433de46728c021bdc815339dfaac97471230
 - GitHub-Release: **erfolgreich veröffentlicht**; Asset KlimaPilot.apk wurde aktualisiert.
 - Smartphone-Test: **nicht durch CI geprüft**; nur separat bestätigte Nutzerberichte gelten als Gerätetest.
 - Updater: abgeschlossen und vom Nutzer bestätigt; Installer-Code wird durch diese Dokumentationspflege nicht verändert.
@@ -27,7 +27,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 
 - Version, Quellcommit, APK-Hash und Release-Stand stehen ausschließlich im automatisch gepflegten Block am Dateianfang (wird vom Produktionsbuild geschrieben) und werden hier nicht wiederholt.
 - Funktionsumfang: siehe Abschnitt 5 (Klimaanlagen, Profile, Zeitpläne, Energie, Filter, Diagnose, Benachrichtigungen) und Abschnitt 4 (Kopplung und Synchronisation).
-- Play Protect: 22.–26.11.2026 Updates ohne Warnung (Einspruch vom 20.11.2026); seit 0.5.79 (26.11.) wieder „Schädliche App blockiert“, siehe 2h.
+- Play Protect: 22.–26.11.2026 Updates ohne Warnung (Einspruch vom 20.11.2026); 0.5.79 (26.11.) wieder „Schädliche App blockiert“, siehe 2h. Update auf 0.5.91 (28.11.2026 15:38): Play Protect prüft und meldet „Diese App ist anscheinend sicher“ – Einspruch vom 26.11. offenbar erfolgreich.
 - [Direkter APK-Download](https://github.com/Apropo1710/KlimaPilot/releases/download/latest/KlimaPilot.apk)
 
 ## 2. Entwicklungsablauf – `test` als CI-Vorprüfung
@@ -80,6 +80,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - 0.5.55: Schalter in Blau; lange Texte in `KlimaPilotAlertDialog` scrollen innerhalb des Dialogs, Dialog hält Abstand zu Status- und Navigationsleiste.
 - 0.5.62: Sperrt das WLAN-Modul die Steuerung nach einem Befehl eines anderen Geräts (Handy, Fernbedienung, Skript) für bis zu 10 s, wartet die App die Sperre ab und sendet den Befehl einmal erneut, statt sofort „wird gerade von einem anderen Gerät gesteuert“ zu melden (Anlass: Diagnose 24.11. 00:45 und 06:35 Schlafzimmer; vorher Wartezeit 0). Längere Sperren melden weiterhin den Fehler. Nicht am Gerät bestätigt.
 - 0.5.57: Entfernt als tote Reste: `WfRacConnectionCard` (alte Verbindungskachel mit Geräteinfo, nirgends mehr angezeigt) und die nur dort genutzte `WfRacConnectionRepository`.
+- 0.5.92: Zeitpläne – gleiche Uhrzeit (Nutzerwunsch 28.11.): Pro Anlage darf zu exakt derselben Zeit nur ein Zeitplan aktiv sein (gemeinsamer Wochentag und gemeinsame Woche bei „alle n Wochen“, gemeinsame Jahreszeit; Einmalig gegen Wöchentlich mitgeprüft). Beim Einschalten am Schalter erscheint stattdessen ein Hinweis mit dem bestehenden Zeitplan; im Zeitplan-Editor steht der Hinweis oben und „Sichern“ ist gesperrt. Andere Anlagen zur gleichen Zeit sind erlaubt; Schnelltimer zählen nicht. Unit-Test `sameTimeConflictOnlyForExactlyTheSameMoment`. Nur CI, nicht am Gerät bestätigt.
 - 0.5.91: (1) Hintergrund: alle Abfrageschleifen der App (Anlagenstatus alle 10 s, ioBroker-Profilsync 60 s, Zeitpläne und Energie 5 min, Raumtemperatur 60 s, Handy-zu-Handy-Sync) pausieren, solange die App im Hintergrund ist (`AppForeground`), und laufen beim Zurückholen sofort – vorher liefen sie weiter, Android sperrte das Netz (Ereignisprotokoll 26.–28.11.: stundenlang jede Minute „nicht erreichbar“), die Module bekamen unnötige Abfragen. (2) ioBroker-Skript: Abtauen (Status-Bit, wie App) wird erkannt; während des Abtauens und 10 min danach zählt der Fühler beim Raumtemperatur-Lernen nicht (Anzeige und Merkmale mit dem letzten Wert davor), Thermometerwerte werden in der Zeit mit Hinweis abgelehnt. Nur CI, nicht am Gerät bestätigt.
 - 0.5.90: Profilanzeige (Nutzer 28.11.): (1) Schaltet ein Zeitplan mit Profil ein, zeigt die Profilzeile jetzt dieses Profil statt des alten „(geändert)“ – die App liest den letzten erfolgreichen Profil-Zeitplanlauf je Anlage aus schedules.status (`ScheduleProfileRuns`, beim Laden der Zeitpläne, alle 5 min/beim Öffnen) und übernimmt ihn, wenn er nach der letzten Profilwahl lag. Bisher klappte das nur, wenn genau ein Profil zu den Werten passte. (2) „Anker“: zuletzt bewusst gewähltes Profil (Hand oder Zeitplan, mit Zeit) in den Einstellungen; passt die Anlage wieder dazu (z. B. +0,5 und −0,5 °C), springt die Anzeige zurück auf dieses Profil ohne „(geändert)“, auch wenn zwischendurch automatisch ein anderes passendes Profil angezeigt wurde. Nur CI, nicht am Gerät bestätigt.
 - 0.5.89: Ereignisprotokoll in der Diagnose zum Aufklappen (zu, Kopfzeile mit Anzahl Einträge), Hinweistext als ⓘ; aufgeklappt alle Einträge in einer eigenen, auf etwa halbe Bildschirmhöhe begrenzten scrollbaren Liste statt fester 40 (Nutzerwunsch 28.11.). Nur CI, nicht am Gerät bestätigt.
@@ -199,7 +200,7 @@ Diese Datei ist die **einzige maßgebliche Quelle für den aktuellen Projekt-, B
 - **Offen:** Ursache der Play-Protect-Einstufung. Kein weiterer Umbau am Updater.
 - 20.11.2026: Vergleich mit HomePilot (gleicher Updater, gleiche Berechtigungen inkl. `REQUEST_INSTALL_PACKAGES`, gleiche Pairing-Technik; Play Protect stuft HomePilot als sicher ein) – Updater und Berechtigungen sind damit als Ursache unwahrscheinlich, die Release-Signatur ist stabil. Vermutung: Die PHA-Einstufung von 0.4.74 hängt an Paket/Signatur. Einspruch am 20.11.2026 eingereicht (APK 0.4.91, SHA256 59227cbd…e8425, VirusTotal 0/65). Google antwortet nicht; Erfolg zeigt sich nur daran, dass beim nächsten Update keine Warnung mehr erscheint. Ursprünglich geplant: Play-Protect-Einspruch über https://support.google.com/googleplay/android-developer/contact/protectappeals mit Paketname `de.klimapilot.app` und SHA256 der jeweils aktuellen Release-APK (vorher bei VirusTotal hochladen). Keine Codeänderungen auf Verdacht.
 - 22.11.2026: Update auf 0.5.29 erstmals ohne Play-Protect-Warnung installiert – der Einspruch hat offenbar gewirkt. Kein neuer Signaturschlüssel nötig; Rückfalloption entfällt, solange die Warnung nicht zurückkommt.
-- 26.11.2026 15:45: Warnung ist zurück – Update auf 0.5.79 von Play Protect als „Schädliche App blockiert“ gemeldet (vorherige Updates bis 0.5.78 ohne Warnung). Manifest seit Wochen unverändert, Updater unverändert. Vorgehen wie bisher, keine Codeänderungen auf Verdacht: am Gerät „Weitere Details“ → „Trotzdem installieren“; erneuter Einspruch mit Paketname `de.klimapilot.app` und SHA256 der Release-APK 0.5.79 `e7e2ca8dd460348670967c7e279e82131867cac6cc4a593dcfd5e0c8ae06152a` (13 160 932 Byte). VirusTotal 26.11. 15:50: 0/64. Einspruch am 26.11.2026 um 15:55 eingereicht. Erfolg zeigt sich nur daran, dass beim nächsten Update keine Warnung mehr kommt.
+- 26.11.2026 15:45: Warnung ist zurück – Update auf 0.5.79 von Play Protect als „Schädliche App blockiert“ gemeldet (vorherige Updates bis 0.5.78 ohne Warnung). Manifest seit Wochen unverändert, Updater unverändert. Vorgehen wie bisher, keine Codeänderungen auf Verdacht: am Gerät „Weitere Details“ → „Trotzdem installieren“; erneuter Einspruch mit Paketname `de.klimapilot.app` und SHA256 der Release-APK 0.5.79 `e7e2ca8dd460348670967c7e279e82131867cac6cc4a593dcfd5e0c8ae06152a` (13 160 932 Byte). VirusTotal 26.11. 15:50: 0/64. Einspruch am 26.11.2026 um 15:55 eingereicht. Erfolg zeigt sich nur daran, dass beim nächsten Update keine Warnung mehr kommt. 28.11.2026: Update auf 0.5.91 ohne Blockierung („anscheinend sicher“).
 
 ### 2i. Synchronisation zwischen gekoppelten Smartphones (0.4.76/0.4.77)
 - Commits `511a179` und `18a1dd3`: nach der gegenseitigen TCP-Authentifizierung tauschen beide Geräte einen Datenstand aus (`ClimatePeerDataSync`). Konten: höhere Revision gewinnt; Profile über `ClimateProfileSyncEngine`; Admin-Konfiguration: neuere Änderungszeit gewinnt; ioBroker-Adresse nur, wenn keine gespeichert ist.
