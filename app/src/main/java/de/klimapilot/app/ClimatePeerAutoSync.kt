@@ -60,7 +60,7 @@ internal fun ClimatePeerAutoSync(enabled: Boolean) {
                 } else {
                     peers.values.toList().forEach(::syncWith)
                 }
-                delay(SYNC_INTERVAL_MS)
+                AppForeground.sleep(SYNC_INTERVAL_MS)
             }
         } finally {
             discovery.stop()

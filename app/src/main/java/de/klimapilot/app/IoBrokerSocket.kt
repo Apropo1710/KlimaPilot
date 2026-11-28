@@ -1,5 +1,8 @@
 package de.klimapilot.app
 
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import android.os.Handler
 import android.os.Looper
 import okhttp3.OkHttpClient
@@ -323,6 +326,30 @@ internal object IoBrokerPool {
  * shortly after it comes back are not shown as an error but tried once more after returning.
  * Only connection and login errors are retried – never failures after data was already sent.
  */
+/**
+ * Whether the app is in the foreground. The periodic loops (unit status, ioBroker sync, schedules,
+ * energy, room temperature, phone-to-phone sync) pause while the app is in the background: Android
+ * blocks the network there anyway (journal 26.–28.11.: an hour of "nicht erreichbar" every minute),
+ * and the WLAN modules get no needless queries. On return every loop runs at once.
+ */
+internal object AppForeground {
+    var active by androidx.compose.runtime.mutableStateOf(true)
+        private set
+    private var resumes by androidx.compose.runtime.mutableIntStateOf(0)
+
+    fun onStart() { if (!active) resumes++; active = true }
+    fun onStop() { active = false }
+
+    /** Waits [ms], cut short by a return to the foreground; then waits while in the background. */
+    suspend fun sleep(ms: Long) {
+        val start = resumes
+        kotlinx.coroutines.withTimeoutOrNull(ms) {
+            androidx.compose.runtime.snapshotFlow { resumes }.first { it != start }
+        }
+        androidx.compose.runtime.snapshotFlow { active }.first { it }
+    }
+}
+
 internal object IoBrokerRetry {
     private val RETRYABLE = setOf("ioBroker nicht erreichbar", "ioBroker hat nicht geantwortet.")
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
