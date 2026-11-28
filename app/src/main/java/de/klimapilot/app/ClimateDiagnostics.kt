@@ -6,6 +6,9 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -268,6 +271,8 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
     var status by remember { mutableStateOf("") }
     var refresh by remember { mutableIntStateOf(0) }
     var showInfo by remember { mutableStateOf(false) }
+    var journalOpen by remember { mutableStateOf(false) }
+    var showJournalInfo by remember { mutableStateOf(false) }
     // The phone's own entries are not Compose state; this counter makes the list re-read them.
     var localVersion by remember { mutableIntStateOf(0) }
     var journalVersion by remember { mutableIntStateOf(0) }
@@ -362,35 +367,45 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
 
                 // Event journal of this phone (always on, 48 h): commands with trigger, outside changes, sync.
                 val journal = remember(journalVersion, expanded, scriptEvents) { (EventJournal.entries() + scriptEvents).sortedByDescending { it.at } }
-                Text("Ereignisprotokoll (48 h) – dieses Handy und ioBroker", color = SText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-                Text("Immer aktiv. Handy: App geöffnet/geschlossen, jeder Befehl mit Auslöser und Ergebnis, Änderungen an der Anlage, die nicht von diesem Handy kamen (solange die App offen ist), übernommene Synchronisierung. ioBroker: rund um die Uhr jede Änderung an den Anlagen (alle 5 min geprüft), Zeitpläne und Prüfungen des Skripts.", color = SMuted, fontSize = 11.sp, lineHeight = 14.sp)
-                Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (journal.isEmpty()) Text("Noch keine Einträge.", color = SMuted, fontSize = 12.sp)
-                    journal.take(40).forEach { entry ->
-                        Text(entry.line(), color = if (entry.text.contains("fehlgeschlagen")) Color(0xFFB3261E) else SText, fontSize = 11.sp, lineHeight = 14.sp)
+                // Collapsed by default; open, the list is limited to about half the screen and scrolls inside.
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp).clickable { journalOpen = !journalOpen }, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Ereignisprotokoll (48 h)", color = SText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Box(Modifier.padding(start = 4.dp).size(26.dp).clip(CircleShape).clickable { showJournalInfo = true }, contentAlignment = Alignment.Center) {
+                        Text("ⓘ", color = SMuted, fontSize = 15.sp)
                     }
-                    if (journal.size > 40) Text("… ${journal.size - 40} ältere Einträge (beim Kopieren enthalten)", color = SMuted, fontSize = 11.sp)
+                    Text("${journal.size} Einträge", color = SMuted, fontSize = 11.sp, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                    Text(if (journalOpen) "⌃" else "⌄", color = SMuted, fontSize = 20.sp)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { journalVersion++; refresh++ }, modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) { Text("Aktualisieren", fontSize = 12.sp) }
-                    OutlinedButton(
-                        onClick = {
-                            val text = journal.joinToString("\n") { it.line() }.ifBlank { "Keine Einträge." }
-                            (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                                .setPrimaryClip(ClipData.newPlainText("KlimaPilot Ereignisprotokoll", text))
-                            status = "Ereignisprotokoll kopiert – du kannst es jetzt einfügen und mir schicken."
-                        },
-                        modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) { Text("Kopieren", fontSize = 12.sp) }
-                    OutlinedButton(
-                        onClick = { EventJournal.clear(); journalVersion++ },
-                        modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) { Text("Leeren", fontSize = 12.sp) }
+                if (journalOpen) {
+                    val maxListHeight = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.5f).dp
+                    Column(
+                        Modifier.fillMaxWidth().heightIn(max = maxListHeight).clip(RoundedCornerShape(12.dp)).background(Color.White)
+                            .verticalScroll(rememberScrollState()).padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (journal.isEmpty()) Text("Noch keine Einträge.", color = SMuted, fontSize = 12.sp)
+                        journal.forEach { entry ->
+                            Text(entry.line(), color = if (entry.text.contains("fehlgeschlagen")) Color(0xFFB3261E) else SText, fontSize = 11.sp, lineHeight = 14.sp)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { journalVersion++; refresh++ }, modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) { Text("Aktualisieren", fontSize = 12.sp) }
+                        OutlinedButton(
+                            onClick = {
+                                val text = journal.joinToString("\n") { it.line() }.ifBlank { "Keine Einträge." }
+                                (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(ClipData.newPlainText("KlimaPilot Ereignisprotokoll", text))
+                                status = "Ereignisprotokoll kopiert – du kannst es jetzt einfügen und mir schicken."
+                            },
+                            modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) { Text("Kopieren", fontSize = 12.sp) }
+                        OutlinedButton(
+                            onClick = { EventJournal.clear(); journalVersion++ },
+                            modifier = Modifier.weight(1f).height(38.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) { Text("Leeren", fontSize = 12.sp) }
+                    }
                 }
             }
         }
@@ -446,6 +461,22 @@ internal fun DiagnosticsSettingsCard(expanded: Boolean, onExpandedChange: (Boole
                     (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
                         .setPrimaryClip(ClipData.newPlainText("KlimaPilot Betriebsdaten", text))
                 }) { Text("Kopieren") }
+            }
+        )
+    }
+
+    if (showJournalInfo) {
+        KlimaPilotAlertDialog(
+            onDismissRequest = { showJournalInfo = false },
+            confirmButton = { TextButton(onClick = { showJournalInfo = false }) { Text("OK") } },
+            title = { Text("Ereignisprotokoll") },
+            text = {
+                Text(
+                    "Immer aktiv, 48 Stunden. Handy: App geöffnet/geschlossen, jeder Befehl mit Auslöser und Ergebnis, " +
+                        "Änderungen an der Anlage, die nicht von diesem Handy kamen (solange die App offen ist), übernommene Synchronisierung. " +
+                        "ioBroker: rund um die Uhr jede Änderung an den Anlagen (alle 5 min geprüft), Zeitpläne und Prüfungen des Skripts. " +
+                        "Zum Auswerten „Kopieren“ und mir schicken."
+                )
             }
         )
     }
