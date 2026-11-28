@@ -199,6 +199,9 @@ function crc16(bytes) {
 }
 const withCrc = bytes => { const crc = crc16(bytes); return bytes.concat([crc & 0xff, crc >> 8]); };
 
+// Bekannte Bits je Byte des Statusblocks (Rest = unbekannt, wird bei Änderung protokolliert).
+const KNOWN_BITS = { 0: 0x7f, 2: 0xff, 3: 0xff, 4: 0xff, 6: 0xff, 8: 0x08, 9: 0x03, 10: 0x01, 11: 0x1f, 12: 0x9f, 15: 0x01 };
+
 function decodeStat(base64) {
     const d = [...Buffer.from(base64, 'base64')];
     const start = d[18] * 4 + 21;
@@ -232,6 +235,8 @@ function decodeStat(base64) {
         outdoorTemp: outdoor,
         indoorTemp: indoor,
         compressorRunning: (c[9] & 0x02) !== 0,
+        // Bits des Statusblocks, die (noch) keine Bedeutung haben – zum Finden z. B. des Eco-Modus.
+        unknownBits: c.map((v, i) => (v || 0) & ~(KNOWN_BITS[i] || 0) & 0xff),
         // Abtauen beim Heizen (Status-Bit 0x01, wie in der App seit 0.5.70; am Gerät bestätigt 28.11.2026).
         defrosting: (c[2] & 0x03) === 1 && (c[9] & 0x01) !== 0 &&
             (mode === 'HEAT' || (mode === 'AUTO' && (c[8] & 0x08) === 0)),
@@ -464,6 +469,10 @@ function eventObserve(unit, stat, now) {
     const prev = lastSeen[id];
     lastSeen[id] = { stat, at: now.getTime() };
     if (!prev) return;
+    // Unbekannte Statusbits: jede Änderung ins Ereignisprotokoll (z. B. Eco per Fernbedienung, Nutzer 28.11.2026).
+    const ua = prev.stat.unknownBits || [], ub = stat.unknownBits || [];
+    const bits = ub.map((v, i) => v !== (ua[i] || 0) ? `Byte ${i} 0x${(ua[i] || 0).toString(16).padStart(2, '0')} → 0x${v.toString(16).padStart(2, '0')}` : null).filter(Boolean);
+    if (bits.length) eventLog(unit.name || id, `unbekannte Statusbits geändert seit ${new Date(prev.at).toTimeString().slice(0, 5)}: ${bits.join(', ')}`);
     const diff = statDiff(prev.stat, stat);
     if (!diff) return;
     const byScript = ownWrite[id] && ownWrite[id] > prev.at;
