@@ -89,4 +89,27 @@ class ScheduleMathTest {
         val next = ScheduleMath.nextRun(item, java.time.LocalDateTime.of(2026, 11, 23, 12, 0))
         assertEquals(java.time.LocalDateTime.of(2026, 11, 30, 10, 0), next)
     }
+
+    @Test
+    fun sameTimeConflictOnlyForExactlyTheSameMoment() {
+        fun w(id: String, days: List<Int>, time: String, aircon: String = "a", enabled: Boolean = true, every: Int = 1, anchor: String? = null) =
+            ClimateSchedule(id = id, airconId = aircon, enabled = enabled, kind = "weekly", days = days, time = time, action = "on",
+                everyWeeks = every, weekAnchor = anchor)
+        val night = w("n", (1..5).toList(), "22:00")
+        // Same time, shared weekday -> conflict.
+        assertEquals("n", ScheduleMath.sameTimeConflict(w("x", listOf(5, 6), "22:00"), listOf(night))?.id)
+        // Different minute, other days, other air conditioner or switched off -> no conflict.
+        assertNull(ScheduleMath.sameTimeConflict(w("x", listOf(1), "22:01"), listOf(night)))
+        assertNull(ScheduleMath.sameTimeConflict(w("x", listOf(6, 7), "22:00"), listOf(night)))
+        assertNull(ScheduleMath.sameTimeConflict(w("x", listOf(1), "22:00", aircon = "b"), listOf(night)))
+        assertNull(ScheduleMath.sameTimeConflict(w("x", listOf(1), "22:00"), listOf(night.copy(enabled = false))))
+        // Every 2 weeks in alternating weeks never meet; same week does.
+        val evenWeek = w("e", listOf(1), "06:00", every = 2, anchor = "2026-11-23")
+        assertNull(ScheduleMath.sameTimeConflict(w("x", listOf(1), "06:00", every = 2, anchor = "2026-11-30"), listOf(evenWeek)))
+        assertEquals("e", ScheduleMath.sameTimeConflict(w("x", listOf(1), "06:00", every = 2, anchor = "2026-12-07"), listOf(evenWeek))?.id)
+        // A one-time schedule on a Friday 22:00 meets the weekday schedule.
+        val at = LocalDateTime.of(2026, 11, 27, 22, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val once = ClimateSchedule(id = "o", airconId = "a", kind = "once", at = at, action = "on")
+        assertEquals("n", ScheduleMath.sameTimeConflict(once, listOf(night))?.id)
+    }
 }
