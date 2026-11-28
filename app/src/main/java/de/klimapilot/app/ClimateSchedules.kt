@@ -279,6 +279,54 @@ internal object ScheduleMath {
     /** Calendar week number (ISO). */
     fun weekNumber(date: LocalDate): Int = date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
 
+    /**
+     * Another active schedule of the same air conditioner that would fire at exactly the same moment
+     * as [candidate] (same time, a shared weekday and week, a shared season). Only one of them may be
+     * active (Nutzerwunsch 28.11.2026). Quick timers and disabled entries never count.
+     */
+    fun sameTimeConflict(candidate: ClimateSchedule, items: List<ClimateSchedule>): ClimateSchedule? {
+        if (candidate.quick) return null
+        return items.firstOrNull { other ->
+            other.id != candidate.id && other.enabled && !other.quick && other.airconId == candidate.airconId &&
+                other.seasons.any { it in candidate.seasons } && fireTogether(candidate, other)
+        }
+    }
+
+    private fun onceDateTime(item: ClimateSchedule): LocalDateTime? =
+        item.at?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()).withSecond(0).withNano(0) }
+
+    private fun anchorMonday(item: ClimateSchedule): LocalDate? =
+        item.weekAnchor?.let { runCatching { mondayOf(LocalDate.parse(it)) }.getOrNull() }
+
+    private tailrec fun gcd(a: Long, b: Long): Long = if (b == 0L) a else gcd(b, a % b)
+
+    private fun fireTogether(a: ClimateSchedule, b: ClimateSchedule): Boolean = when {
+        a.kind == "weekly" && b.kind == "weekly" -> {
+            val ta = parseTime(a.time); val tb = parseTime(b.time)
+            ta != null && ta == tb && a.days.any { it in b.days } && weeksMeet(a, b)
+        }
+        a.kind == "once" && b.kind == "once" -> onceDateTime(a)?.let { it == onceDateTime(b) } ?: false
+        else -> {
+            val weekly = if (a.kind == "weekly") a else b
+            val once = (if (a.kind == "once") a else b).let(::onceDateTime)
+            once != null && parseTime(weekly.time) == once.toLocalTime() &&
+                once.dayOfWeek.value in weekly.days && activeInWeek(weekly, once.toLocalDate())
+        }
+    }
+
+    /** Whether two weekly rhythms ("every n weeks from week X") ever run in the same week. */
+    private fun weeksMeet(a: ClimateSchedule, b: ClimateSchedule): Boolean {
+        val na = a.everyWeeks.coerceAtLeast(1).toLong(); val nb = b.everyWeeks.coerceAtLeast(1).toLong()
+        if (na == 1L || nb == 1L) return true
+        val ma = anchorMonday(a) ?: return true
+        val mb = anchorMonday(b) ?: return true
+        val weeks = java.time.temporal.ChronoUnit.DAYS.between(ma, mb) / 7
+        return Math.floorMod(weeks, gcd(na, nb)) == 0L
+    }
+
+    fun conflictMessage(other: ClimateSchedule, now: LocalDateTime): String =
+        "Zur selben Zeit ist schon ein Zeitplan aktiv: ${scheduleLabel(other, now)} · ${actionLabel(other)}. Es kann nur einer von beiden aktiv sein."
+
     /** Next time this schedule fires, or null if it never will again. */
     fun nextRun(item: ClimateSchedule, now: LocalDateTime, run: ScheduleRun? = null): LocalDateTime? {
         if (!item.enabled) return null
@@ -700,7 +748,11 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                         }
                         Switch(
                             checked = item.enabled, enabled = !busy,
-                            onCheckedChange = { on -> change { list -> list.map { if (it.id == item.id) it.copy(enabled = on, updatedAt = System.currentTimeMillis()) else it } } },
+                            onCheckedChange = { on ->
+                                val clash = if (on) ScheduleMath.sameTimeConflict(item.copy(enabled = true), all) else null
+                                if (clash != null) error = ScheduleMath.conflictMessage(clash, now)
+                                else change { list -> list.map { if (it.id == item.id) it.copy(enabled = on, updatedAt = System.currentTimeMillis()) else it } }
+                            },
                             colors = blueSwitchColors()
                         )
                     }
@@ -719,6 +771,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
             currentState = currentState,
             onDismiss = { creating = false; editing = null },
             onDelete = editing?.let { e -> { change { list -> list.filterNot { it.id == e.id } }; editing = null } },
+            others = all,
             onSave = { saved ->
                 saveItem(saved, editing?.updatedAt, force = false)
                 creating = false; editing = null
@@ -880,6 +933,8 @@ private fun ScheduleEditor(
     onDismiss: () -> Unit,
     onDelete: (() -> Unit)?,
     onSave: (ClimateSchedule) -> Unit,
+    /** Other schedules of this air conditioner, for the same-time check. */
+    others: List<ClimateSchedule> = emptyList(),
 ) {
     val now = remember { LocalDateTime.now() }
     var kind by remember { mutableStateOf(existing?.kind ?: "weekly") }
@@ -940,6 +995,9 @@ private fun ScheduleEditor(
         )
     }
 
+    val sameTime = if (valid && (existing?.enabled ?: true)) ScheduleMath.sameTimeConflict(build(), others) else null
+    val canSave = valid && sameTime == null
+
     FullScreenDialog(onDismissRequest = onDismiss, color = SPage) {
         Surface(Modifier.fillMaxSize(), color = SPage) {
           Column(Modifier.fillMaxSize()) {
@@ -952,8 +1010,8 @@ private fun ScheduleEditor(
                     if (existing == null) "Neuer Zeitplan" else "Zeitplan", color = SText, fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f)
                 )
-                TextButton(onClick = { onSave(build()) }, enabled = valid) {
-                    Text("Sichern", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = if (valid) SBlue else SMuted)
+                TextButton(onClick = { onSave(build()) }, enabled = canSave) {
+                    Text("Sichern", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = if (canSave) SBlue else SMuted)
                 }
             }
             Column(
@@ -961,6 +1019,7 @@ private fun ScheduleEditor(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
 
+                if (sameTime != null) Text(ScheduleMath.conflictMessage(sameTime, now), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                 Segmented(listOf("Wöchentlich", "Einmalig"), if (kind == "weekly") 0 else 1) { kind = if (it == 0) "weekly" else "once" }
 
                 // Hero: the time, with what happens at a glance.
