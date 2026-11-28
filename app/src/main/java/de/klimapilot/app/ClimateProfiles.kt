@@ -347,6 +347,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
     var saveNameDialog by remember { mutableStateOf(false) }
     var newProfileName by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<ClimateProfile?>(null) }
+    var confirmUpdate by remember { mutableStateOf(false) }
     var selectedProfileId by remember(deviceId) { mutableStateOf(syncStore.activeProfileId(deviceId)) }
 
     var profileMenuExpanded by remember { mutableStateOf(false) }
@@ -604,7 +605,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                             }
                         }
                         if (showDirty) {
-                            IconButton(onClick = { updateSelectedProfileFromState() }, modifier = Modifier.size(34.dp)) {
+                            IconButton(onClick = { confirmUpdate = true }, modifier = Modifier.size(34.dp)) {
                                 Icon(Icons.Default.Check, contentDescription = "Änderungen in dieses Profil übernehmen", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                             }
                         }
@@ -695,6 +696,20 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
                 }) { Text("Speichern") }
             },
             dismissButton = { TextButton(onClick = { saveNameDialog = false }) { Text("Abbrechen") } }
+        )
+    }
+
+    // Safety question before overwriting a profile with what the unit is set to right now.
+    if (confirmUpdate) {
+        val name = selectedProfile?.name
+        KlimaPilotAlertDialog(
+            onDismissRequest = { confirmUpdate = false },
+            title = { Text("Profil aktualisieren?") },
+            text = { Text(if (name != null) "Profil „$name“ mit aktuellen Werten aktualisieren?" else "Profil mit aktuellen Werten aktualisieren?") },
+            confirmButton = {
+                TextButton(onClick = { confirmUpdate = false; updateSelectedProfileFromState() }) { Text("Aktualisieren") }
+            },
+            dismissButton = { TextButton(onClick = { confirmUpdate = false }) { Text("Abbrechen") } }
         )
     }
 
