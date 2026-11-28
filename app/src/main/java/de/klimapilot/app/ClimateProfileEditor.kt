@@ -63,6 +63,7 @@ internal fun ClimateProfileEditorDialog(
     initialState: AirconState? = null,
     currentSeason: String = ProfileSeason.WINTER,
     modelSupportsVaneLR: Boolean?,
+    templates: List<ClimateProfile> = emptyList(),
     onDismiss: () -> Unit,
     onSave: (ClimateProfile) -> Unit
 ) {
@@ -89,6 +90,19 @@ internal fun ClimateProfileEditorDialog(
     var showInfo by remember { mutableStateOf(false) }
     // Until chosen by hand, a profile without an assignment follows its mode (heating = winter, cooling = summer).
     var seasonChoice by remember(key) { mutableStateOf(profile?.season?.takeIf { it in ProfileSeason.VALUES }) }
+    // New profile: take over all values of an existing profile as a starting point, then change them.
+    var templateId by remember(key) { mutableStateOf<String?>(null) }
+    fun applyTemplate(t: ClimateProfile) {
+        templateId = t.id
+        includePower = t.power != null; t.power?.let { power = it }
+        includeMode = t.mode != null; t.mode?.let { mode = it }
+        includeTemp = t.targetTemp != null; t.targetTemp?.let { temp = (Math.round(it * 2) / 2.0).coerceIn(16.0, 30.0) }
+        includeFan = t.fanSpeed != null; t.fanSpeed?.let { fan = it.coerceIn(0, 4) }
+        includeVertical = t.verticalSwing != null; t.verticalSwing?.let { vertical = it.coerceIn(0, 4) }
+        includeHorizontal = vaneLR && t.horizontalSwing != null; t.horizontalSwing?.let { horizontal = it.coerceIn(0, 7) }
+        include3d = vaneLR && t.threeDAuto != null; t.threeDAuto?.let { threeD = it }
+        seasonChoice = t.season?.takeIf { it in ProfileSeason.VALUES }
+    }
     val season = seasonChoice ?: if (includeMode) ProfileSeason.fromMode(mode) else if (profile == null) currentSeason else ProfileSeason.ALL
 
     fun build() = ClimateProfile(
@@ -150,6 +164,16 @@ internal fun ClimateProfileEditorDialog(
                             )
                         }
                         Text(preview, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+
+                if (profile == null && templates.isNotEmpty()) {
+                    Group("Werte übernehmen aus") {
+                        FlowRow(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            templates.sortedBy { it.name.lowercase(Locale.GERMANY) }.forEach { t ->
+                                Chip(t.name, templateId == t.id) { applyTemplate(t) }
+                            }
+                        }
                     }
                 }
 

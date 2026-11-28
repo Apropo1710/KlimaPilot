@@ -634,6 +634,7 @@ internal fun ClimateProfilesSection(deviceId: String, syncDeviceKey: String, dev
             // Unknown model (e.g. in the profile manager without live state) counts as supported,
             // like in the schedule editor; applying a profile checks the real model anyway.
             modelSupportsVaneLR = modelSupportsVaneLR != false,
+            templates = if (profileToEdit == null) profiles.filter { it.deviceId == deviceId } else emptyList(),
             onDismiss = { editing = null; creatingNew = false },
             onSave = { profile ->
                 runCatching {
