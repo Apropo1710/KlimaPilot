@@ -232,6 +232,9 @@ function decodeStat(base64) {
         outdoorTemp: outdoor,
         indoorTemp: indoor,
         compressorRunning: (c[9] & 0x02) !== 0,
+        // Abtauen beim Heizen (Status-Bit 0x01, wie in der App seit 0.5.70; am Gerät bestätigt 28.11.2026).
+        defrosting: (c[2] & 0x03) === 1 && (c[9] & 0x01) !== 0 &&
+            (mode === 'HEAT' || (mode === 'AUTO' && (c[8] & 0x08) === 0)),
     };
 }
 
@@ -575,6 +578,7 @@ const ROOM_MIN_MEAN = 3;    // ab 3 Messwerten: Mittelwert
 const ROOM_MIN_MODEL = 8;   // ab 8 Messwerten: Modell, wenn es in der Kreuzprüfung besser trifft
 // other/otherOff seit 0.5.77: eine andere Anlage am gemeinsamen Außengerät fordert an (Multisplit) – wärmt das
 // eigene Innengerät mit, besonders wenn es selbst aus ist. Ältere Messwerte haben die Merkmale nicht (zählen als 0).
+const ROOM_THAW_MS = 10 * 60000; // Abtauen + Nachlauf, in dem der Fühler nicht zählt
 const ROOM_FEATURES = ['on', 'heat', 'comp', 'runFresh', 'restFresh', 'offFresh', 'trend', 'outdoor', 'fan', 'setDiff', 'other', 'otherOff'];
 const ROOM_LAMBDAS = [0.3, 1, 3, 10, 30];
 const MODE_NAMES = { HEAT: 'Heizen', COOL: 'Kühlen', DRY: 'Trocknen', FAN: 'Lüfter', AUTO: 'Auto' };
@@ -598,8 +602,14 @@ function roomObserve(unit, stat, now) {
     if (tr.power !== stat.power) { tr.powerSince = tr.power === undefined ? null : t; tr.power = stat.power; changed = true; }
     if (tr.comp !== comp) { tr.compSince = tr.comp === undefined ? null : t; tr.comp = comp; changed = true; }
     tr.raws = (tr.raws || []).filter(([at]) => t - at <= 20 * 60000);
-    tr.raws.push([t, stat.indoorTemp]);
-    tr.raw = stat.indoorTemp;
+    // Abtauen und die 10 min danach ausklammern: der Fühler springt dabei, das ist keine Raumtemperatur.
+    // Angezeigt und gelernt wird mit dem letzten Fühlerwert davor; Messwerte werden in der Zeit abgelehnt.
+    if (stat.defrosting) tr.defrostAt = t;
+    tr.thawing = !!tr.defrostAt && t - tr.defrostAt <= ROOM_THAW_MS;
+    if (!tr.thawing || typeof tr.raw !== 'number') {
+        tr.raws.push([t, stat.indoorTemp]);
+        tr.raw = stat.indoorTemp;
+    }
     tr.stat = { power: stat.power, mode: stat.mode, airFlow: stat.airFlow, presetTemp: stat.presetTemp, outdoorTemp: stat.outdoorTemp };
     tr.at = t;
     if (changed) roomSaveTrack();
@@ -851,6 +861,7 @@ async function roomInput(text) {
         const raw = typeof input.raw === 'number' ? input.raw : tr && tr.raw;
         const t = Date.now();
         if (!tr || !tr.stat || t - tr.at > 10 * 60000) result.message = 'Keine aktuellen Daten der Anlage im Skript – später noch einmal versuchen.';
+        else if (tr.thawing) result.message = 'Die Anlage taut gerade ab (oder hat es eben getan) – der Fühler stimmt dann nicht. Bitte in etwa 10 Minuten eintragen.';
         else if (!(thermo >= 5 && thermo <= 40)) result.message = 'Thermometerwert unplausibel.';
         else if (typeof raw !== 'number' || raw - thermo < -5 || raw - thermo > 12) result.message = 'Abweichung zum Fühler unplausibel – Wert nicht übernommen.';
         else {

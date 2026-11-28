@@ -541,7 +541,7 @@ internal fun ScheduleSection(device: UserDevice?, currentState: AirconState?) {
                     }
                 }
             }
-            delay(300_000)
+            AppForeground.sleep(300_000)
         }
     }
 

@@ -103,11 +103,13 @@ class MainActivity : ComponentActivity() {
         if (longAway) IoBrokerPool.resetIdle()
         // Retries ioBroker requests that failed in the background, and once more right after returning.
         IoBrokerRetry.onStart(longAway)
+        AppForeground.onStart()
     }
 
     override fun onStop() {
         stoppedAt = System.currentTimeMillis()
         IoBrokerRetry.onStop()
+        AppForeground.onStop()
         EventJournal.log("App", "", "im Hintergrund oder geschlossen")
         super.onStop()
     }
@@ -284,7 +286,7 @@ private fun KlimaPilotApp(appVersion: String) {
                     controlStatus = error.message ?: "Gerätestatus konnte nicht gelesen werden."
                     AppDiagnostics.reach(device.name, false, error.message)
                 }
-            delay(if (device.demoMode) 3_000L else 10_000L)
+            AppForeground.sleep(if (device.demoMode) 3_000L else 10_000L)
         }
     }
 
@@ -933,7 +935,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 DiagnosticsIoBroker().load(address) { result, _ -> result?.let { AppDiagnostics.setEnabledLocal(it.enabled) } }
             }
             first = false
-            delay(300_000L)
+            AppForeground.sleep(300_000L)
         }
     }
 
@@ -969,7 +971,7 @@ private fun KlimaPilotApp(appVersion: String) {
                 roomTempSentId = null
             }
             waits = 0
-            delay(60_000L)
+            AppForeground.sleep(60_000L)
         }
     }
 
